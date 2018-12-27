@@ -11,36 +11,36 @@ func resourceRubrikClusterVersion() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRubrikClusterVersionCreate,
 		Read:   resourceRubrikClusterVersionRead,
-		Update: resourceRubrikClusterVersionUpdate,
 		Delete: resourceRubrikClusterVersionDelete,
 
 		Schema: map[string]*schema.Schema{
-			"address": &schema.Schema{
+			"cluster_version": &schema.Schema{
 				Type:     schema.TypeString,
-				Required: true,
+				Computed: true,
 			},
 		},
 	}
+
 }
 
 func resourceRubrikClusterVersionCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*rubrikcdm.Credentials)
-
-	clusterVersion := client.ClusterVersion()
-
-	log.Printf("Cluster Version: %s", clusterVersion)
 
 	return resourceRubrikClusterVersionRead(d, meta)
 }
 
 func resourceRubrikClusterVersionRead(d *schema.ResourceData, meta interface{}) error {
 
+	client := meta.(*rubrikcdm.Credentials)
+
+	clusterVersion := client.ClusterVersion()
+
+	log.Printf("Cluster Version: %s", clusterVersion)
+
+	d.SetId(clusterVersion)
+
+	d.Set("cluster_version", clusterVersion)
+
 	return nil
-}
-
-func resourceRubrikClusterVersionUpdate(d *schema.ResourceData, meta interface{}) error {
-
-	return resourceRubrikClusterVersionRead(d, meta)
 }
 
 func resourceRubrikClusterVersionDelete(d *schema.ResourceData, m interface{}) error {
