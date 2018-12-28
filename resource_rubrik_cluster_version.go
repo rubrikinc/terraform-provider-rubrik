@@ -32,7 +32,10 @@ func resourceRubrikClusterVersionRead(d *schema.ResourceData, meta interface{}) 
 
 	client := meta.(*rubrikcdm.Credentials)
 
-	clusterVersion := client.ClusterVersion()
+	clusterVersion, err := client.ClusterVersion()
+	if err != nil {
+		return err
+	}
 
 	log.Printf("Cluster Version: %s", clusterVersion)
 

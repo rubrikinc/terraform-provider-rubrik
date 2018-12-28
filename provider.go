@@ -32,7 +32,8 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"rubrik_cluster_version": resourceRubrikClusterVersion(),
+			"rubrik_cluster_version":    resourceRubrikClusterVersion(),
+			"rubrik_configure_timezone": resourceRubrikConfigureTimezone(),
 		},
 
 		ConfigureFunc: providerConfigure,
