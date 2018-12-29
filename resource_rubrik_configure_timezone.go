@@ -54,11 +54,13 @@ func resourceRubrikConfigureTimezone() *schema.Resource {
 					"Pacific/Midway",
 					"UTC",
 				}, true),
+				Description: "The time zone used by the Rubrik cluster which uses the specified time zone for time values in the web UI, all reports, SLA Domain settings, and all other time related operations",
 			},
 			"timeout": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Default:  15,
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     15,
+				Description: "The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error.",
 			},
 		},
 	}
@@ -69,7 +71,12 @@ func resourceRubrikConfigureTimezoneCreate(d *schema.ResourceData, meta interfac
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	rubrik.ConfigureTimezone(d.Get("timezone").(string))
+	_, err := rubrik.ConfigureTimezone(d.Get("timezone").(string))
+	if err != nil {
+		return err
+	}
+
+	d.SetId("rubrik-cluster-timezone")
 
 	return resourceRubrikConfigureTimezoneRead(d, meta)
 }
