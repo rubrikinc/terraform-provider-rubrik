@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -71,16 +72,17 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 				Description: "The secret key of a AWS account with the required permissions.",
 			},
 			"rsa_key": &schema.Schema{
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "The RSA key that will be used to encrypt the archive data.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"kms_master_key_id"},
+				Description:   "The RSA key that will be used to encrypt the archive data.",
 			},
-			// "kms_master_key_id": &schema.Schema{
-			// 	Type:          schema.TypeString,
-			// 	Optional:      true,
-			// 	ConflictsWith: []string{"rsa_key"},
-			// 	Description: "The AWS KMS master key ID that will be used to encrypt the archive data.",
-			// },
+			"kms_master_key_id": &schema.Schema{
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"rsa_key"},
+				Description:   "The AWS KMS master key ID that will be used to encrypt the archive data.",
+			},
 			"timeout": &schema.Schema{
 				Type:        schema.TypeInt,
 				Optional:    true,
@@ -94,10 +96,18 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 
 func resourceRubrikAWSS3CloudOutCreate(d *schema.ResourceData, meta interface{}) error {
 
+	_, rsaOk := d.GetOk("rsa_key")
+	_, kmsOk := d.GetOk("kms_master_key_id")
+
+	if !rsaOk && !kmsOk {
+		return errors.New("Either `rsa_key` or `kms_master_key_id` must be provided")
+	}
+
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	log.Println("[INFO] Creating the S3 archival location")
 	_, err := rubrik.AWSS3CloudOutRSA(d.Get("aws_bucket").(string), d.Get("storage_class").(string), d.Get("archive_name").(string), d.Get("aws_region").(string), d.Get("aws_access_key").(string), d.Get("aws_secret_key").(string), d.Get("rsa_key").(string), d.Get("timeout").(int))
+
 	if err != nil {
 		return err
 	}
