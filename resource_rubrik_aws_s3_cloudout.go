@@ -70,6 +70,7 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The secret key of a AWS account with the required permissions.",
+				Sensitive:   true,
 			},
 			"rsa_key": &schema.Schema{
 				Type:          schema.TypeString,
