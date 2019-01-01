@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"time"
 
@@ -22,6 +21,7 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 			"aws_bucket": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: "The name of the AWS S3 bucket you wish to use as an archive target.",
 			},
 			"storage_class": &schema.Schema{
@@ -43,6 +43,7 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 			"aws_region": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
 					"ap-south-1",
 					"ap-northeast-3",
@@ -77,12 +78,15 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 			"rsa_key": &schema.Schema{
 				Type:          schema.TypeString,
 				Optional:      true,
+				ForceNew:      true,
 				ConflictsWith: []string{"kms_master_key_id"},
+				Sensitive:     true,
 				Description:   "The RSA key that will be used to encrypt the archive data.",
 			},
 			"kms_master_key_id": &schema.Schema{
 				Type:          schema.TypeString,
 				Optional:      true,
+				ForceNew:      true,
 				ConflictsWith: []string{"rsa_key"},
 				Description:   "The AWS KMS master key ID that will be used to encrypt the archive data.",
 			},
@@ -108,20 +112,20 @@ func resourceRubrikAWSS3CloudOutCreate(d *schema.ResourceData, meta interface{})
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	log.Println("[INFO] Creating the S3 archival location")
-	_, err := rubrik.AWSS3CloudOutRSA(d.Get("aws_bucket").(string), d.Get("storage_class").(string), d.Get("archive_name").(string), d.Get("aws_region").(string), d.Get("aws_access_key").(string), d.Get("aws_secret_key").(string), d.Get("rsa_key").(string), d.Get("timeout").(int))
+	if rsaOk {
+		_, err := rubrik.AWSS3CloudOutRSA(d.Get("aws_bucket").(string), d.Get("storage_class").(string), d.Get("archive_name").(string), d.Get("aws_region").(string), d.Get("aws_access_key").(string), d.Get("aws_secret_key").(string), d.Get("rsa_key").(string), d.Get("timeout").(int))
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := rubrik.AWSS3CloudOutKMS(d.Get("aws_bucket").(string), d.Get("storage_class").(string), d.Get("archive_name").(string), d.Get("aws_region").(string), d.Get("aws_access_key").(string), d.Get("aws_secret_key").(string), d.Get("kms_master_key_id").(string), d.Get("timeout").(int))
+		if err != nil {
+			return err
+		}
 
-	if err != nil {
-		return err
 	}
 
 	d.SetId(d.Get("aws_bucket").(string))
-
-	// d.Set("archive_name", v.Definition.Name)
-	// d.Set("aws_bucket", v.Definition.Bucket)
-	// d.Set("storage_class", v.Definition.StorageClass)
-	// d.Set("aws_region", v.Definition.DefaultRegion)
-	// d.Set("aws_access_key", v.Definition.AccessKey)
 
 	return resourceRubrikAWSS3CloudOutRead(d, meta)
 }
