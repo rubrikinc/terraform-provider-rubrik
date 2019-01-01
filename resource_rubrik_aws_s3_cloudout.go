@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
@@ -115,6 +117,12 @@ func resourceRubrikAWSS3CloudOutCreate(d *schema.ResourceData, meta interface{})
 
 	d.SetId(d.Get("aws_bucket").(string))
 
+	// d.Set("archive_name", v.Definition.Name)
+	// d.Set("aws_bucket", v.Definition.Bucket)
+	// d.Set("storage_class", v.Definition.StorageClass)
+	// d.Set("aws_region", v.Definition.DefaultRegion)
+	// d.Set("aws_access_key", v.Definition.AccessKey)
+
 	return resourceRubrikAWSS3CloudOutRead(d, meta)
 }
 
@@ -122,30 +130,35 @@ func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) e
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	log.Println("[INFO] Searching the Rubrik cluster for the current archival locations.")
-	archivesOnCluster, err := rubrik.Get("internal", "/archive/object_store")
-	if err != nil {
-		return err
-	}
+	var archivePresent = false
+	attempts := 0
+	// Loop through the archive locations for 25 seconds to make sure the .tfstate is properly set during initial creation
+	// This is a work around until the correct Job Status URL format can be determined to automatically check the job status
+	for {
+		archivesOnCluster, err := rubrik.CloudObjectStore()
+		if err != nil {
+			return err
+		}
 
-	if archivesOnCluster.(map[string]interface{})["total"].(float64) == 0 {
-		d.SetId("")
-	}
+		for _, v := range archivesOnCluster.Data {
 
-	log.Println("[INFO] Searching the Rubrik cluster for the current archival locations ")
-	var archivePresent = true
-	for _, v := range archivesOnCluster.(map[string]interface{})["data"].([]interface{}) {
-		archiveDefinition := (v.(interface{}).(map[string]interface{})["definition"]).(interface{}).(map[string]interface{})
+			if v.Definition.ObjectStoreType == "S3" && v.Definition.Name == d.Get("archive_name").(string) {
+				d.Set("archive_name", v.Definition.Name)
+				d.Set("aws_bucket", v.Definition.Bucket)
+				d.Set("storage_class", v.Definition.StorageClass)
+				d.Set("aws_region", v.Definition.DefaultRegion)
+				d.Set("aws_access_key", v.Definition.AccessKey)
 
-		if archiveDefinition["objectStoreType"] == "S3" && archiveDefinition["name"] == d.Get("aws_bucket").(string) {
+				archivePresent = true
+				break
+			}
+		}
 
-			d.Set("archive_name", archiveDefinition["name"])
-			d.Set("aws_bucket", archiveDefinition["bucket"])
-			d.Set("storage_class", archiveDefinition["storageClass"])
-			d.Set("aws_region", archiveDefinition["defaultRegion"])
-			d.Set("aws_access_key", archiveDefinition["accessKey"])
+		attempts++
+		time.Sleep(5 * time.Second)
 
-			archivePresent = true
+		if attempts == 5 || archivePresent == true {
+			break
 		}
 	}
 
@@ -164,7 +177,15 @@ func resourceRubrikAWSS3CloudOutUpdate(d *schema.ResourceData, meta interface{})
 	return nil
 }
 
-func resourceRubrikAWSS3CloudOutDelete(d *schema.ResourceData, m interface{}) error {
-	// Cluster Timezone is a requirement for the Rubrik cluster and can not be "deleted"
+func resourceRubrikAWSS3CloudOutDelete(d *schema.ResourceData, meta interface{}) error {
+
+	rubrik := meta.(*rubrikcdm.Credentials)
+
+	_, err := rubrik.RemoveArchiveLocation(d.Get("archive_name").(string))
+	if err != nil {
+		if strings.Contains(err.Error(), "No change required") == true {
+			return nil
+		}
+	}
 	return nil
 }
