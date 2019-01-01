@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -132,6 +133,8 @@ func resourceRubrikAWSS3CloudOutCreate(d *schema.ResourceData, meta interface{})
 
 func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) error {
 
+	log.Printf("[DEBUG] STARTING READ")
+
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	var archivePresent = false
@@ -149,7 +152,7 @@ func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) e
 			if v.Definition.ObjectStoreType == "S3" && v.Definition.Name == d.Get("archive_name").(string) {
 				d.Set("archive_name", v.Definition.Name)
 				d.Set("aws_bucket", v.Definition.Bucket)
-				d.Set("storage_class", v.Definition.StorageClass)
+				d.Set("storage_class", strings.ToLower(v.Definition.StorageClass))
 				d.Set("aws_region", v.Definition.DefaultRegion)
 				d.Set("aws_access_key", v.Definition.AccessKey)
 
@@ -159,11 +162,11 @@ func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) e
 		}
 
 		attempts++
-		time.Sleep(5 * time.Second)
-
 		if attempts == 5 || archivePresent == true {
 			break
 		}
+		time.Sleep(5 * time.Second)
+
 	}
 
 	if archivePresent == false {
@@ -176,9 +179,39 @@ func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) e
 
 func resourceRubrikAWSS3CloudOutUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	// rubrik := meta.(*rubrikcdm.Credentials)
+	rubrik := meta.(*rubrikcdm.Credentials)
 
-	return nil
+	config := make(map[string]string)
+	if d.HasChange("storage_class") {
+		config["storageClass"] = d.Get("storage_class").(string)
+	}
+
+	if d.HasChange("archive_name") {
+		config["name"] = d.Get("archive_name").(string)
+	}
+
+	if d.HasChange("aws_access_key") {
+		config["accessKey"] = d.Get("aws_access_key").(string)
+	}
+
+	if d.HasChange("aws_secret_key") {
+		config["secretKey"] = d.Get("aws_secret_key").(string)
+	}
+
+	if len(config) == 0 {
+		return resourceRubrikAWSS3CloudOutRead(d, meta)
+	}
+
+	old, _ := d.GetChange("archive_name")
+	_, err := rubrik.UpdateCloudArchiveLocation(old.(string), config, d.Get("timeout").(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "No change required") == true {
+			return err
+		}
+		return err
+	}
+
+	return resourceRubrikAWSS3CloudOutRead(d, meta)
 }
 
 func resourceRubrikAWSS3CloudOutDelete(d *schema.ResourceData, meta interface{}) error {
@@ -190,6 +223,8 @@ func resourceRubrikAWSS3CloudOutDelete(d *schema.ResourceData, meta interface{})
 		if strings.Contains(err.Error(), "No change required") == true {
 			return nil
 		}
+
+		return err
 	}
 	return nil
 }
