@@ -116,43 +116,31 @@ func resourceRubrikAWSNativeAccountRead(d *schema.ResourceData, meta interface{}
 
 func resourceRubrikAWSNativeAccountUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	log.Println("****************************************** UPDATE ******************************************")
-
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	config := make(map[string]interface{})
 	var accountName string
 	if d.HasChange("aws_account_name") {
-		log.Println("****************************************** AWS ACCOUNT NAME CHANGE ******************************************")
 		config["name"] = strings.ToUpper(d.Get("aws_account_name").(string))
 		old, _ := d.GetChange("aws_account_name")
-		log.Println("****************************************** SETTING TO OLD NAME ******************************************")
 		accountName = old.(string)
 	} else {
-		log.Println("****************************************** SETTING TO SAME NAME ******************************************")
-
 		accountName = d.Get("aws_account_name").(string)
 	}
 
 	if d.HasChange("aws_access_key") {
-		log.Println("****************************************** ACCESS KEY ******************************************")
 		config["accessKey"] = d.Get("aws_access_key").(string)
 	}
 
 	if d.HasChange("aws_secret_key") {
-		log.Println("****************************************** SECRET KEY ******************************************")
 		config["secretKey"] = d.Get("aws_secret_key").(string)
 	}
 
 	if d.HasChange("aws_regions") {
-		log.Println("****************************************** REGION KEY ******************************************")
-
 		config["regions"] = d.Get("aws_regions").([]interface{})
 	}
 
 	if d.HasChange("bolt_config") {
-		log.Println("****************************************** BOLT KEY ******************************************")
-
 		config["regionalBoltNetworkConfigs"] = d.Get("bolt_config").(map[string]interface{})
 	}
 

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 )
@@ -37,10 +35,7 @@ func resourceRubrikClusterVersionRead(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 
-	log.Printf("Cluster Version: %s", clusterVersion)
-
 	d.SetId(clusterVersion)
-
 	d.Set("cluster_version", clusterVersion)
 
 	return nil
