@@ -183,11 +183,16 @@ func resourceRubrikAWSS3CloudOutUpdate(d *schema.ResourceData, meta interface{})
 
 	config := make(map[string]string)
 	if d.HasChange("storage_class") {
-		config["storageClass"] = d.Get("storage_class").(string)
+		config["storageClass"] = strings.ToUpper(d.Get("storage_class").(string))
 	}
 
+	var archiveName string
 	if d.HasChange("archive_name") {
 		config["name"] = d.Get("archive_name").(string)
+		old, _ := d.GetChange("archive_name")
+		archiveName = old.(string)
+	} else {
+		archiveName = d.Get("archive_name").(string)
 	}
 
 	if d.HasChange("aws_access_key") {
@@ -202,8 +207,7 @@ func resourceRubrikAWSS3CloudOutUpdate(d *schema.ResourceData, meta interface{})
 		return resourceRubrikAWSS3CloudOutRead(d, meta)
 	}
 
-	old, _ := d.GetChange("archive_name")
-	_, err := rubrik.UpdateCloudArchiveLocation(old.(string), config, d.Get("timeout").(int))
+	_, err := rubrik.UpdateCloudArchiveLocation(archiveName, config, d.Get("timeout").(int))
 	if err != nil {
 		if strings.Contains(err.Error(), "No change required") == true {
 			return err
