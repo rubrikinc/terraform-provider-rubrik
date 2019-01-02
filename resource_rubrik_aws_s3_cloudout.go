@@ -2,9 +2,7 @@ package main
 
 import (
 	"errors"
-	"log"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
@@ -133,40 +131,26 @@ func resourceRubrikAWSS3CloudOutCreate(d *schema.ResourceData, meta interface{})
 
 func resourceRubrikAWSS3CloudOutRead(d *schema.ResourceData, meta interface{}) error {
 
-	log.Printf("[DEBUG] STARTING READ")
-
 	rubrik := meta.(*rubrikcdm.Credentials)
 
+	archivesOnCluster, err := rubrik.CloudObjectStore()
+	if err != nil {
+		return err
+	}
+
 	var archivePresent = false
-	attempts := 0
-	// Loop through the archive locations for 25 seconds to make sure the .tfstate is properly set during initial creation
-	// This is a work around until the correct Job Status URL format can be determined to automatically check the job status
-	for {
-		archivesOnCluster, err := rubrik.CloudObjectStore()
-		if err != nil {
-			return err
-		}
+	for _, v := range archivesOnCluster.Data {
 
-		for _, v := range archivesOnCluster.Data {
+		if v.Definition.ObjectStoreType == "S3" && v.Definition.Name == d.Get("archive_name").(string) {
+			d.Set("archive_name", v.Definition.Name)
+			d.Set("aws_bucket", v.Definition.Bucket)
+			d.Set("storage_class", strings.ToLower(v.Definition.StorageClass))
+			d.Set("aws_region", v.Definition.DefaultRegion)
+			d.Set("aws_access_key", v.Definition.AccessKey)
 
-			if v.Definition.ObjectStoreType == "S3" && v.Definition.Name == d.Get("archive_name").(string) {
-				d.Set("archive_name", v.Definition.Name)
-				d.Set("aws_bucket", v.Definition.Bucket)
-				d.Set("storage_class", strings.ToLower(v.Definition.StorageClass))
-				d.Set("aws_region", v.Definition.DefaultRegion)
-				d.Set("aws_access_key", v.Definition.AccessKey)
-
-				archivePresent = true
-				break
-			}
-		}
-
-		attempts++
-		if attempts == 5 || archivePresent == true {
+			archivePresent = true
 			break
 		}
-		time.Sleep(5 * time.Second)
-
 	}
 
 	if archivePresent == false {
@@ -181,7 +165,7 @@ func resourceRubrikAWSS3CloudOutUpdate(d *schema.ResourceData, meta interface{})
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	config := make(map[string]string)
+	config := make(map[string]interface{})
 	if d.HasChange("storage_class") {
 		config["storageClass"] = strings.ToUpper(d.Get("storage_class").(string))
 	}
