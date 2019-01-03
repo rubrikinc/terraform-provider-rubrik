@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -64,8 +63,6 @@ func resourceRubrikAWSNativeAccount() *schema.Resource {
 
 func resourceRubrikAWSNativeAccountCreate(d *schema.ResourceData, meta interface{}) error {
 
-	log.Println("**************************************************** CREATE ****************************************************")
-
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	awsRegionsString := make([]string, len(d.Get("aws_regions").([]interface{})))
@@ -78,7 +75,6 @@ func resourceRubrikAWSNativeAccountCreate(d *schema.ResourceData, meta interface
 		return err
 	}
 
-	log.Println("**************************************************** SETTING THE ID ****************************************************")
 	d.SetId(d.Get("aws_account_name").(string))
 
 	return resourceRubrikAWSNativeAccountRead(d, meta)
