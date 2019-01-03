@@ -8,3 +8,10 @@ Terraform Rubrik Cloud Data Management provider
 Using the examples in `examples.tf`, create a `main.tf` file and execute using
 
 `terraform apply`
+
+## To Do
+
+Perform integration tests on:
+
+* Bootstrap
+* Azure CloudOn
