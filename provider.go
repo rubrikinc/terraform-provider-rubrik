@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/helper/validation"
 	"github.com/hashicorp/terraform/terraform"
 )
 
@@ -12,10 +13,11 @@ func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"node_ip": {
-				Type:        schema.TypeString,
-				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("rubrik_cdm_node_ip", nil),
-				Description: "The IP Address of a Node in the Rubrik cluster.",
+				Type:         schema.TypeString,
+				Required:     true,
+				DefaultFunc:  schema.EnvDefaultFunc("rubrik_cdm_node_ip", nil),
+				ValidateFunc: validation.SingleIP(),
+				Description:  "The IP Address of a Node in the Rubrik cluster.",
 			},
 			"username": {
 				Type:        schema.TypeString,
@@ -32,6 +34,7 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"rubrik_bootstrap":          resourceRubrikBootstrap(),
 			"rubrik_cluster_version":    resourceRubrikClusterVersion(),
 			"rubrik_configure_timezone": resourceRubrikConfigureTimezone(),
 			"rubrik_aws_native_account": resourceRubrikAWSNativeAccount(),
