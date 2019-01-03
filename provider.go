@@ -38,6 +38,7 @@ func Provider() terraform.ResourceProvider {
 			"rubrik_aws_s3_cloudout":    resourceRubrikAWSS3CloudOut(),
 			"rubrik_aws_s3_cloudon":     resourceRubrikAWSS3CloudOn(),
 			"rubrik_azure_cloudout":     resourceRubrikAzureCloudOut(),
+			"rubrik_azure_cloudon":      resourceRubrikAzureCloudOn(),
 		},
 
 		ConfigureFunc: providerConfigure,
