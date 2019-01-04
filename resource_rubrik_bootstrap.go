@@ -31,7 +31,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Sensitive:   true,
 			},
 			"management_gateway": &schema.Schema{
-				Type:         schema.TypeList,
+				Type:         schema.TypeString,
 				Required:     true,
 				ValidateFunc: validation.SingleIP(),
 				Elem:         &schema.Schema{Type: schema.TypeString},
@@ -44,21 +44,19 @@ func resourceRubrikBootstrap() *schema.Resource {
 			"dns_search_domain": &schema.Schema{
 				Type:        schema.TypeList,
 				Optional:    true,
-				Default:     false,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error.",
 			},
 			"dns_name_servers": &schema.Schema{
 				Type:        schema.TypeList,
 				Optional:    true,
-				Default:     []string{},
 				Description: "The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error.",
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"ntp_servers": &schema.Schema{
 				Type:        schema.TypeList,
 				Optional:    true,
-				Default:     false,
+				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error.",
 			},
 			"node_config": &schema.Schema{
