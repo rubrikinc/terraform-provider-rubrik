@@ -201,13 +201,16 @@ func resourceRubrikAzureCloudOnDelete(d *schema.ResourceData, meta interface{}) 
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	_, err := rubrik.RemoveArchiveLocation(d.Get("archive_name").(string))
+	config := map[string]interface{}{}
+	config["isComputeEnabled"] = false
+
+	_, err := rubrik.UpdateCloudArchiveLocation(d.Get("archive_name").(string), config, d.Get("timeout").(int))
 	if err != nil {
 		if strings.Contains(err.Error(), "No change required") == true {
-			return nil
+			return resourceRubrikAWSS3CloudOnRead(d, meta)
 		}
-
 		return err
 	}
-	return nil
+
+	return resourceRubrikAWSS3CloudOnRead(d, meta)
 }
