@@ -14,4 +14,4 @@ Using the examples in `examples.tf`, create a `main.tf` file and execute using
 Perform integration tests on:
 
 * Bootstrap
-* Azure CloudOn
+* Azure CloudOn (update functionality only)
