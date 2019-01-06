@@ -40,9 +40,10 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 				Description: "The name of the archive location used in the Rubrik GUI.",
 			},
 			"aws_region": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				DefaultFunc: schema.EnvDefaultFunc("AWS_DEFAULT_REGION", nil),
 				ValidateFunc: validation.StringInSlice([]string{
 					"ap-south-1",
 					"ap-northeast-3",
@@ -65,12 +66,14 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 			},
 			"aws_access_key": &schema.Schema{
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("AWS_ACCESS_KEY_ID", nil),
 				Description: "The access key of a AWS account with the required permissions.",
 			},
 			"aws_secret_key": &schema.Schema{
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("AWS_SECRET_ACCESS_KEY", nil),
 				Description: "The secret key of a AWS account with the required permissions.",
 				Sensitive:   true,
 			},
@@ -87,6 +90,7 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"rsa_key"},
+				Sensitive:     true,
 				Description:   "The AWS KMS master key ID that will be used to encrypt the archive data.",
 			},
 			"timeout": &schema.Schema{
