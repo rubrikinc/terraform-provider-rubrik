@@ -7,6 +7,23 @@ resource "rubrik_configure_timezone" "timezone" {
   timezone = ""
 }
 
+// Note: For bootstrap the Rubrik provider username and password must be a blank string
+resource "rubrik_bootstrap" "bootstrap_rubrik" {
+  cluster_name           = ""
+  admin_email            = ""
+  admin_password         = ""
+  management_gateway     = ""
+  management_subnet_mask = ""
+  dns_name_servers       = [""]
+  ntp_servers            = [""]
+
+  node_config = {
+    node1name = ""
+  }
+
+  enable_encryption = false
+}
+
 resource "tls_private_key" "aws-cloud-out-rsa" {
   algorithm = "RSA"
 }
