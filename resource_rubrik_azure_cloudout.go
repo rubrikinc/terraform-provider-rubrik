@@ -20,18 +20,18 @@ func resourceRubrikAzureCloudOut() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "The name of the AWS S3 bucket you wish to use as an archive target.",
+				Description: "The name of the Azure storage container you wish to use as an archive.",
 			},
 			"azure_access_key": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				Description: "The access key of a AWS account with the required permissions.",
+				Description: "The access key for the Azure storage account.",
 			},
 			"storage_account_name": &schema.Schema{
 				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "The AWS KMS master key ID that will be used to encrypt the archive data.",
+				Required:    true,
+				Description: "The name of the Storage Account that the container belongs to.",
 			},
 			"archive_name": &schema.Schema{
 				Type:        schema.TypeString,
@@ -48,6 +48,7 @@ func resourceRubrikAzureCloudOut() *schema.Resource {
 					"germany",
 					"government",
 				}, true),
+				Description: "The Cloud Platform type of the archival location.",
 			},
 			"rsa_key": &schema.Schema{
 				Type:        schema.TypeString,

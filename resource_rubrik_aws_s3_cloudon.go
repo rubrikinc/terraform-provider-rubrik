@@ -23,17 +23,17 @@ func resourceRubrikAWSS3CloudOn() *schema.Resource {
 			"vpc_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The access key of a AWS account with the required permissions.",
+				Description: "The AWS VPC ID used by Rubrik cluster to launch a temporary Rubrik instance in AWS for instantiation.",
 			},
 			"subnet_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The secret key of a AWS account with the required permissions.",
+				Description: "The AWS Subnet ID used by Rubrik cluster to launch a temporary Rubrik instance in AWS for instantiation.",
 			},
 			"security_group_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The secret key of a AWS account with the required permissions.",
+				Description: "The AWS Security Group ID used by Rubrik cluster to launch a temporary Rubrik instance in AWS for instantiation.",
 			},
 			"timeout": &schema.Schema{
 				Type:        schema.TypeInt,

@@ -63,19 +63,21 @@ func resourceRubrikAWSS3CloudOut() *schema.Resource {
 					"us-east-2",
 					"us-west-2",
 				}, true),
+				Description: "The name of the AWS region where the bucket is located.",
 			},
 			"aws_access_key": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("AWS_ACCESS_KEY_ID", nil),
+				Sensitive:   true,
 				Description: "The access key of a AWS account with the required permissions.",
 			},
 			"aws_secret_key": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("AWS_SECRET_ACCESS_KEY", nil),
-				Description: "The secret key of a AWS account with the required permissions.",
 				Sensitive:   true,
+				Description: "The secret key of a AWS account with the required permissions.",
 			},
 			"rsa_key": &schema.Schema{
 				Type:          schema.TypeString,
