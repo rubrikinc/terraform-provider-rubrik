@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
@@ -90,12 +92,35 @@ func resourceRubrikBootstrap() *schema.Resource {
 
 func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) error {
 
-	rubrik := meta.(*rubrikcdm.Credentials)
+	// Convert interface{} list and maps to string
+	dnsSearchDomain := make([]string, len(d.Get("dns_search_domain").([]interface{})))
+	for i, v := range d.Get("dns_search_domain").([]interface{}) {
+		dnsSearchDomain[i] = fmt.Sprint(v)
+	}
 
-	_, err := rubrik.Bootstrap(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), d.Get("dns_search_domain").([]string), d.Get("dns_name_servers").([]string), d.Get("ntp_servers").([]string), d.Get("node_config").(map[string]string), d.Get("enable_encryption").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	dnsNameServers := make([]string, len(d.Get("dns_name_servers").([]interface{})))
+	for i, v := range d.Get("dns_name_servers").([]interface{}) {
+		dnsNameServers[i] = fmt.Sprint(v)
+	}
+
+	ntpServers := make([]string, len(d.Get("ntp_servers").([]interface{})))
+	for i, v := range d.Get("ntp_servers").([]interface{}) {
+		ntpServers[i] = fmt.Sprint(v)
+	}
+
+	nodeConfig := make(map[string]string)
+	for key, value := range d.Get("node_config").(map[string]interface{}) {
+		strKey := fmt.Sprintf("%v", key)
+		strValue := fmt.Sprintf("%v", value)
+		nodeConfig[strKey] = strValue
+	}
+
+	rubrik := meta.(*rubrikcdm.Credentials)
+	_, err := rubrik.Bootstrap(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
+
 	d.SetId(d.Get("cluster_name").(string))
 
 	return resourceRubrikBootstrapRead(d, meta)
@@ -116,10 +141,10 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 		d.Set("admin_password", d.Get("admin_password").(string))
 		d.Set("management_gateway", d.Get("management_gateway").(string))
 		d.Set("management_subnet_mask", d.Get("management_subnet_mask").(string))
-		d.Set("dns_search_domain", d.Get("dns_search_domain").([]string))
-		d.Set("dns_name_servers", d.Get("dns_name_servers").([]string))
-		d.Set("ntp_servers", d.Get("ntp_servers").([]string))
-		d.Set("node_config", d.Get("node_config").(map[string]string))
+		d.Set("dns_search_domain", d.Get("dns_search_domain").([]interface{}))
+		d.Set("dns_name_servers", d.Get("dns_name_servers").([]interface{}))
+		d.Set("ntp_servers", d.Get("ntp_servers").([]interface{}))
+		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
