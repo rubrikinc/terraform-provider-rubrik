@@ -1,4 +1,4 @@
-# terraform-provider-rubrik-cdm
+# Rubrik Cloud Data Management (CDM) Terraform Provider
 
 Terraform Rubrik Cloud Data Management provider
 
