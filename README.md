@@ -10,6 +10,8 @@ Terraform Rubrik Cloud Data Management provider
 
 ## Documentation
 
+[Provider Documentatinon](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
+
 ## Example 
 
 ```hcl
