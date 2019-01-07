@@ -16,7 +16,7 @@ _Note: We assume [Terraform has already been installed](https://learn.hashicorp.
 * Linux: `terraform-provider-rubrik-linux-amd64`
 * Windows: `terraform-provider-rubrik-windows-amd64.exe`
 
-2. [Sideload](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins) the Rubrik provder into the correct Terraform plugin directory
+2. [Move](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins) the Rubrik provder into the correct Terraform plugin directory
 
 _Note: You may need to manually create the folder first._
 
