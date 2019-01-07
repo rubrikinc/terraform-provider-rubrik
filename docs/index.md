@@ -1,0 +1,66 @@
+# Rubrik Provider
+
+The Rubrik Provder transform the Rubrik RESTful API functionality into easy to consume Terraform configuration whichs eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity
+
+## Example Usage
+
+```hcl
+provider "rubrik" {}
+
+resource "rubrik_configure_timezone" "LA-Timezone" {
+  timezone = "America/Los_Angeles"
+}
+```
+
+## Authentication
+
+The Rubrik provider offers a flexible means of providing credentials for
+authentication. The following methods are supported, in this order, and
+explained below:
+
+- Static credentials
+- Environment variables
+
+### Static credentials 
+
+Static credentials can be provided by adding an `node_ip`, `username` and `password` in-line in the
+Rubrik provider block:
+
+Usage:
+
+```hcl
+provider "rubrik" {
+  node_ip     = "10.255.41.201"
+  username    = "admin"
+  password    = "RubrikTFDemo2019"
+}
+```
+### Environment variables
+
+You can provide your credentials via the `rubrik_cdm_node_ip`, `rubrik_cdm_username` and
+`rubrik_cdm_password`, environment variables, representing your Rubrik Node IP address, username
+and password, respectively.
+
+```hcl
+provider "rubrik" {}
+```
+
+```sh
+$ export rubrik_cdm_node_ip="10.255.41.201"
+$ export rubrik_cdm_username="admin"
+$ export rubrik_cdm_password="RubrikTFDemo2019"
+$ terraform plan
+```
+
+## Argument Reference
+
+The following arguments are supported in the Rubrik `provider` block:
+
+* `node_ip` - (Optional) The Node IP address of the Rubrik cluster you wish to connect to. The value may also be sourced from the
+`rubrik_cdm_password` environment variable.
+
+* `username` - (Optional) The username of the Rubrik cluster you wish to connect to. The value may also be sourced from the
+`rubrik_cdm_username` environment variable.
+
+* `password` - (Optional) The password of the Rubrik cluster you wish to connect to. The value may also be sourced from the
+`rubrik_cdm_password` environment variable.
