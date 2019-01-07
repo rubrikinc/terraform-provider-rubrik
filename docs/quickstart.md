@@ -72,6 +72,26 @@ provider "rubrik" {
 
 ### Installation
 
+_Note: We assume [Terraform has already been installed](https://learn.hashicorp.com/terraform/getting-started/install.html) on your machine._
+
+1. Download the latest [Release version](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases)
+
+* macOS: `terraform-provider-rubrik-darwin-amd64`
+* Linux: `terraform-provider-rubrik-linux-amd64`
+* Windows: `terraform-provider-rubrik-windows-amd64.exe`
+
+2. [Sideload](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins) the Rubrik provder into the correct Terraform plugin directory
+
+_Note: You may need to manually create the folder first._
+
+* macOS: `~/.terraform.d/plugins/darwin_amd64`
+* Linux: `~/.terraform.d/plugins/linux_amd64`
+* Windows: `%APPDATA%\terraform.d\plugins\windows_amd64`
+
+3. Rename the downloaded file to `terraform-provider-rubrik`
+
+4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
+
 ### Sample Syntax - Cluster Timezone Configuration
 
 ```hcl
@@ -83,4 +103,6 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 ```
 
 ### Terraform Provider for Rubrik Documentation
+
+This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
 
