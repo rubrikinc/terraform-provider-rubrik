@@ -1,9 +1,8 @@
 package main
 
 import (
-	"terraform-provider-rubrik-cdm/rubrikcdm"
-
 	"github.com/hashicorp/terraform/plugin"
+	"github.com/rubrikinc/rubrik-provider-for-terraform/rubrikcdm"
 )
 
 func main() {
@@ -11,11 +10,3 @@ func main() {
 		ProviderFunc: rubrikcdm.Provider,
 	})
 }
-
-// func main() {
-// 	plugin.Serve(&plugin.ServeOpts{
-// 		ProviderFunc: func() terraform.ResourceProvider {
-// 			return Provider()
-// 		},
-// 	})
-// }

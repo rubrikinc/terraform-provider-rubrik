@@ -411,6 +411,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:9faacf9065593fdbca9db745a2ad83d59f5f497c94315c473105aec41663523a"
+  name = "github.com/rubrikinc/rubrik-provider-for-terraform"
+  packages = ["rubrikcdm"]
+  pruneopts = "UT"
+  revision = "fb00f16c86e2bf9b53972e7b55533972474ca7ff"
+
+[[projects]]
+  branch = "master"
   digest = "1:8db9cba150c1a497dd562a563d201a343fef396d2ec5474ea3befab37574df30"
   name = "github.com/rubrikinc/rubrik-sdk-for-go"
   packages = ["rubrikcdm"]
@@ -571,6 +579,7 @@
     "github.com/hashicorp/terraform/helper/validation",
     "github.com/hashicorp/terraform/plugin",
     "github.com/hashicorp/terraform/terraform",
+    "github.com/rubrikinc/rubrik-provider-for-terraform/rubrikcdm",
     "github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm",
   ]
   solver-name = "gps-cdcl"
