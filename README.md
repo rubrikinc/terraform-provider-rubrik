@@ -6,25 +6,30 @@
 
 <img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
 
+
 ## Installation
 
-_Note: We assume [Terraform has already been installed](https://learn.hashicorp.com/terraform/getting-started/install.html) on your machine._
+Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
 
-1. Download the latest [Release version](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases)
 
-* macOS: `terraform-provider-rubrik-darwin-amd64`
-* Linux: `terraform-provider-rubrik-linux-amd64`
-* Windows: `terraform-provider-rubrik-windows-amd64.exe`
+1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
+   ```
+   macOS: terraform-provider-rubrik-darwin-amd64
+   Linux: terraform-provider-rubrik-linux-amd64
+   Windows: terraform-provider-rubrik-windows-amd64.exe
+   ```
 
-2. [Move](https://www.terraform.io/docs/configuration/providers.html#third-party-plugins) the Rubrik provder into the correct Terraform plugin directory
+2. Move the Rubrik provder into the correct Terraform plugin directory
+   
+   ```
+   macOS: ~/.terraform.d/plugins/darwin_amd64
+   Linux: ~/.terraform.d/plugins/linux_amd64
+   Windows: %APPDATA%\terraform.d\plugins\windows_amd64
+   ```
+   
+   _You may need to manually create the `plugin` directory._
 
-_Note: You may need to manually create the folder first._
-
-* macOS: `~/.terraform.d/plugins/darwin_amd64`
-* Linux: `~/.terraform.d/plugins/linux_amd64`
-* Windows: `%APPDATA%\terraform.d\plugins\windows_amd64`
-
-3. Rename the downloaded file to `terraform-provider-rubrik`
+3. Rename the the Rubrik provder to `terraform-provider-rubrik`
 
 4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
 
