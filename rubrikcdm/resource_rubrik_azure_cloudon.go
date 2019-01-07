@@ -31,7 +31,7 @@ func resourceRubrikAzureCloudOn() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "The name of the Storage Account that the container belongs to..",
+				Description: "The name of the Storage Account that the container belongs to.",
 			},
 			"application_id": &schema.Schema{
 				Type:        schema.TypeString,

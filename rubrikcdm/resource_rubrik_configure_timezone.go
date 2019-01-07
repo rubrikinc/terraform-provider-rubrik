@@ -54,7 +54,7 @@ func resourceRubrikConfigureTimezone() *schema.Resource {
 					"Pacific/Midway",
 					"UTC",
 				}, true),
-				Description: "The time zone used by the Rubrik cluster which uses the specified time zone for time values in the web UI, all reports, SLA Domain settings, and all other time related operations",
+				Description: "The timezone used by the Rubrik cluster which uses the specified time zone for time values in the web UI, all reports, SLA Domain settings, and all other time related operations",
 			},
 			"timeout": &schema.Schema{
 				Type:        schema.TypeInt,

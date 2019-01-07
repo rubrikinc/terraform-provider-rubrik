@@ -29,8 +29,8 @@ func resourceRubrikBootstrap() *schema.Resource {
 			"admin_password": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "Password for the admin account.",
 				Sensitive:   true,
+				Description: "Password for the admin account.",
 			},
 			"management_gateway": &schema.Schema{
 				Type:         schema.TypeString,
@@ -64,7 +64,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 			"node_config": &schema.Schema{
 				Type:        schema.TypeMap,
 				Required:    true,
-				Description: "The Node Name and IP formatted as a dictionary.",
+				Description: "The Node Name and IP formatted as a map.",
 			},
 			"enable_encryption": &schema.Schema{
 				Type:        schema.TypeBool,
