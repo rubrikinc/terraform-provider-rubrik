@@ -1,4 +1,4 @@
-# Terraform Provider for Rubrik
+# Rubrik Provider for Terraform
 
 - Website: https://www.terraform.io
 - [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
