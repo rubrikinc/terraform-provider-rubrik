@@ -68,7 +68,7 @@ provider "rubrik" {
 }
 ```
 
-## Rubrik SDK for Go Quickstart
+## Terraform Provider for Rubrik Quickstart
 
 
 ## Installation
