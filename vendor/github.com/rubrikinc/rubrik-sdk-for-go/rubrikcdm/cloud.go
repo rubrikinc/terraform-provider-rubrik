@@ -222,6 +222,64 @@ type CurrentAWSAccountID struct {
 	PrimaryClusterID                   string `json:"primaryClusterId"`
 }
 
+// CloudOn represents the JSON response for PATCH /internal/archive/object_store/{id}
+type CloudOn struct {
+	ID         string `json:"id"`
+	Definition struct {
+		ObjectStoreType             string `json:"objectStoreType"`
+		Name                        string `json:"name"`
+		AccessKey                   string `json:"accessKey"`
+		Bucket                      string `json:"bucket"`
+		PemFileContent              string `json:"pemFileContent"`
+		KmsMasterKeyID              string `json:"kmsMasterKeyId"`
+		DefaultRegion               string `json:"defaultRegion"`
+		Endpoint                    string `json:"endpoint"`
+		NumBuckets                  int    `json:"numBuckets"`
+		IsComputeEnabled            bool   `json:"isComputeEnabled"`
+		IsConsolidationEnabled      bool   `json:"isConsolidationEnabled"`
+		DefaultComputeNetworkConfig struct {
+			SubnetID        string `json:"subnetId"`
+			VNetID          string `json:"vNetId"`
+			SecurityGroupID string `json:"securityGroupId"`
+			ResourceGroupID string `json:"resourceGroupId"`
+		} `json:"defaultComputeNetworkConfig"`
+		StorageClass        string `json:"storageClass"`
+		AzureComputeSummary struct {
+			TenantID                         string `json:"tenantId"`
+			SubscriptionID                   string `json:"subscriptionId"`
+			ClientID                         string `json:"clientId"`
+			Region                           string `json:"region"`
+			GeneralPurposeStorageAccountName string `json:"generalPurposeStorageAccountName"`
+			ContainerName                    string `json:"containerName"`
+			Environment                      string `json:"environment"`
+		} `json:"azureComputeSummary"`
+	} `json:"definition"`
+	GlacierStatus struct {
+		RetrievalTier   string `json:"retrievalTier"`
+		VaultLockStatus struct {
+			FileLockPeriodInDays int    `json:"fileLockPeriodInDays"`
+			Status               string `json:"status"`
+			ExpiryTime           string `json:"expiryTime"`
+		} `json:"vaultLockStatus"`
+	} `json:"glacierStatus"`
+	ArchivalProxySummary struct {
+		Protocol    string `json:"protocol"`
+		ProxyServer string `json:"proxyServer"`
+		PortNumber  int    `json:"portNumber"`
+		UserName    string `json:"userName"`
+	} `json:"archivalProxySummary"`
+	ComputeProxySummary struct {
+		Protocol    string `json:"protocol"`
+		ProxyServer string `json:"proxyServer"`
+		PortNumber  int    `json:"portNumber"`
+		UserName    string `json:"userName"`
+	} `json:"computeProxySummary"`
+	ReaderLocationSummary struct {
+		State         string `json:"state"`
+		RefreshedTime string `json:"refreshedTime"`
+	} `json:"readerLocationSummary"`
+}
+
 // AddAWSNativeAccount enables the management and protection of Amazon Elastic Compute Cloud (Amazon EC2) instances. The "regionalBoltNetworkConfigs"
 // should be a list of dictionaries in the following format:
 //
@@ -339,12 +397,12 @@ func (c *Credentials) AddAWSNativeAccount(awsAccountName, awsAccessKey, awsSecre
 
 }
 
-// RemoveAWSAccount deletes the specific AWS account from the Rubrik clsuter
-func (c *Credentials) RemoveAWSAccount(archiveName string, deleteExsitingSnapshots bool, timeout ...int) (interface{}, error) {
+// RemoveAWSAccount deletes the specific AWS account from the Rubrik clsuter and waits for the job to complete before returning the JobStatus API response.
+func (c *Credentials) RemoveAWSAccount(awsAccountName string, deleteExsitingSnapshots bool, timeout ...int) (interface{}, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
-	awsAccountSummary, err := c.AWSAccountSummary(archiveName)
+	awsAccountSummary, err := c.AWSAccountSummary(awsAccountName)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +427,24 @@ func (c *Credentials) RemoveAWSAccount(archiveName string, deleteExsitingSnapsho
 	return status, nil
 }
 
-// UpdateAWSNativeAccount
+// UpdateAWSNativeAccount updates the configuration of a AWS Native account. The following values, from PATCH /internal/aws/account/{id} are options for the config:
+//  {
+//   "name": "string",
+//   "accessKey": "string",
+//   "secretKey": "string",
+//   "regions": [
+//     "string"
+//   ],
+//   "regionalBoltNetworkConfigs": [
+//     {
+//       "region": "string",
+//       "vNetId": "string",
+//       "subnetId": "string",
+//       "securityGroupId": "string"
+//     }
+//   ],
+//   "disasterRecoveryArchivalLocationId": "string"
+// }
 func (c *Credentials) UpdateAWSNativeAccount(archiveName string, config map[string]interface{}, timeout ...int) (*UpdateAWSNative, error) {
 
 	httpTimeout := httpTimeout(timeout)
@@ -508,7 +583,7 @@ func (c *Credentials) AWSS3CloudOutRSA(awsBucketName, storageClass, archiveName,
 
 }
 
-// CloudObjectStore retrieves all archive locations configured on the Rubik cluster via /internal/archive/object_store
+// CloudObjectStore retrieves all archive locations configured on the Rubik cluster.
 func (c *Credentials) CloudObjectStore(timeout ...int) (*CloudObjectStore, error) {
 
 	httpTimeout := httpTimeout(timeout)
@@ -529,7 +604,7 @@ func (c *Credentials) CloudObjectStore(timeout ...int) (*CloudObjectStore, error
 
 }
 
-// AWSAccountSummary
+// AWSAccountSummary retrives all information from an AWS Native Account.
 func (c *Credentials) AWSAccountSummary(awsAccountName string, timeout ...int) (*CurrentAWSAccountID, error) {
 
 	httpTimeout := httpTimeout(timeout)
@@ -572,7 +647,7 @@ func (c *Credentials) AWSAccountSummary(awsAccountName string, timeout ...int) (
 
 }
 
-// RemoveArchiveLocation delete the archival location from the SLA Domains that reference it and expire all snapshots at the archival location
+// RemoveArchiveLocation deletes the archival location from the SLA Domains that reference it and expire all snapshots at the archival location
 func (c *Credentials) RemoveArchiveLocation(archiveName string, timeout ...int) (*JobStatus, error) {
 
 	httpTimeout := httpTimeout(timeout)
@@ -628,7 +703,55 @@ func (c *Credentials) RemoveArchiveLocation(archiveName string, timeout ...int) 
 	return &deleteArchive, nil
 }
 
-// UpdateCloudArchiveLocation delete the archival location from the SLA Domains that reference it and expire all snapshots at the archival location
+// UpdateCloudArchiveLocation updates the configuration of a the Cloud Archival Location. The following values, from PATCH /internal/object_store/{id} are options for the config:
+//  {
+//     "name": "string",
+//     "accessKey": "string",
+//     "secretKey": "string",
+//     "endpoint": "string",
+//     "numBuckets": 0,
+//     "isComputeEnabled": true,
+//     "isConsolidationEnabled": true,
+//     "defaultComputeNetworkConfig": {
+//       "subnetId": "string",
+//       "vNetId": "string",
+//       "securityGroupId": "string",
+//       "resourceGroupId": "string"
+//     },
+//     "storageClass": "string",
+//     "glacierConfig": {
+//       "retrievalTier": "BulkRetrieval",
+//       "vaultLockPolicy": {
+//         "fileLockPeriodInDays": 0
+//       }
+//     },
+//     "azureComputeSummary": {
+//       "tenantId": "string",
+//       "subscriptionId": "string",
+//       "clientId": "string",
+//       "region": "string",
+//       "generalPurposeStorageAccountName": "string",
+//       "containerName": "string",
+//       "environment": "AZURE"
+//     },
+//     "azureComputeSecret": {
+//     "  clientSecret": "string"
+//     },
+//     "archivalProxyConfig": {
+//       "protocol": "HTTP",
+//       "proxyServer": "string",
+//       "portNumber": 0,
+//       "userName": "string",
+//       "password": "string"
+//     },
+//     "computeProxyConfig": {
+//       "protocol": "HTTP",
+//       "proxyServer": "string",
+//       "portNumber": 0,
+//       "userName": "string",
+//       "password": "string"
+//     }
+//   }
 func (c *Credentials) UpdateCloudArchiveLocation(archiveName string, config map[string]interface{}, timeout ...int) (*UpdateArchiveLocations, error) {
 
 	httpTimeout := httpTimeout(timeout)
@@ -789,7 +912,7 @@ func (c *Credentials) AWSS3CloudOutKMS(awsBucketName, storageClass, archiveName,
 //	- No change required. The '{archiveName}' archive location is already configured for CloudOn.
 //
 //	- The full API response for PATCH /internal/archive/object_store.
-func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID string, timeout ...int) (interface{}, error) {
+func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID string, timeout ...int) (*CloudOn, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -801,7 +924,7 @@ func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID
 
 	archivesOnCluster, err := c.CloudObjectStore()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for _, v := range archivesOnCluster.Data {
@@ -810,7 +933,7 @@ func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID
 
 			archivePresent := reflect.DeepEqual(v.Definition.DefaultComputeNetworkConfig, config["defaultComputeNetworkConfig"])
 			if archivePresent {
-				return fmt.Sprintf("No change required. The '%s' archive location is already configured for CloudOn.", archiveName), nil
+				return nil, fmt.Errorf("No change required. The '%s' archive location is already configured for CloudOn", archiveName)
 			}
 
 			apiRequest, err := c.Patch("internal", fmt.Sprintf("/archive/object_store/%s", v.ID), config, httpTimeout)
@@ -818,46 +941,18 @@ func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID
 				return nil, err
 			}
 
-			return apiRequest, err
+			// Convert the API Response (map[string]interface{}) to a struct
+			var apiResponse CloudOn
+			mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+			if mapErr != nil {
+				return nil, mapErr
+			}
+			return &apiResponse, err
 
 		}
 	}
 
 	return nil, fmt.Errorf("The Rubrik cluster does not have an archive location named '%s'", archiveName)
-
-	// good
-	// apiRequest, err := c.Post("internal", "/archive/object_store", config, httpTimeout)
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	// archivesOnCluster, err := c.Get("internal", "/archive/object_store", httpTimeout)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// for _, v := range archivesOnCluster.(map[string]interface{})["data"].([]interface{}) {
-	// 	archiveDefinition := (v.(interface{}).(map[string]interface{})["definition"])
-
-	// 	if archiveDefinition.(map[string]interface{})["objectStoreType"] == "S3" && archiveDefinition.(map[string]interface{})["name"] == archiveName {
-
-	// 		archivePresent := reflect.DeepEqual(archiveDefinition.(map[string]interface{})["defaultComputeNetworkConfig"], config["defaultComputeNetworkConfig"])
-	// 		if archivePresent {
-	// 			return fmt.Sprintf("No change required. The '%s' archive location is already configured for CloudOn.", archiveName), nil
-
-	// 		}
-
-	// 		archiveID := (v.(interface{}).(map[string]interface{})["id"])
-	// 		apiRequest, err := c.Patch("internal", fmt.Sprintf("/archive/object_store/%s", archiveID), config, httpTimeout)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-
-	// 		return apiRequest, err
-
-	// 	}
-
-	// }
 
 }
 
@@ -953,13 +1048,6 @@ func (c *Credentials) AzureCloudOut(container, azureAccessKey, storageAccountNam
 
 	return status, nil
 
-	// apiRequest, err := c.Post("internal", "/archive/object_store", config, httpTimeout)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// return apiRequest, nil
-
 }
 
 // AzureCloudOn provides the ability to convert a snapshot, archived snapshot, or replica into a Virtual Hard Disk (VHD). This enables the instantiation
@@ -974,7 +1062,7 @@ func (c *Credentials) AzureCloudOut(container, azureAccessKey, storageAccountNam
 //	- No change required. The '{archiveName}' archive location is already configured for CloudOn.
 //
 //	- The full API response for PATCH /internal/archive/object_store.
-func (c *Credentials) AzureCloudOn(archiveName, container, storageAccountName, applicationID, applicationKey, directoryID, region, virtualNetworkID, subnetName, securityGroupID string, timeout ...int) (interface{}, error) {
+func (c *Credentials) AzureCloudOn(archiveName, container, storageAccountName, applicationID, applicationKey, directoryID, region, virtualNetworkID, subnetName, securityGroupID string, timeout ...int) (*CloudOn, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -1066,18 +1154,23 @@ func (c *Credentials) AzureCloudOn(archiveName, container, storageAccountName, a
 
 			archivePresent := reflect.DeepEqual(archiveDefinition.(map[string]interface{})["defaultComputeNetworkConfig"], config["defaultComputeNetworkConfig"])
 			if archivePresent {
-				return fmt.Sprintf("No change required. The '%s' archive location is already configured for CloudOn.", archiveName), nil
+				return nil, fmt.Errorf("No change required. The '%s' archive location is already configured for CloudOn", archiveName)
 			}
 
 			archiveID := (v.(interface{}).(map[string]interface{})["id"])
-			fmt.Println(archiveID)
-			fmt.Println(config)
 			apiRequest, err := c.Patch("internal", fmt.Sprintf("/archive/object_store/%s", archiveID), config, httpTimeout)
 			if err != nil {
 				return nil, err
 			}
 
-			return apiRequest, nil
+			// Convert the API Response (map[string]interface{}) to a struct
+			var apiResponse CloudOn
+			mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+			if mapErr != nil {
+				return nil, mapErr
+			}
+
+			return &apiResponse, nil
 
 		}
 

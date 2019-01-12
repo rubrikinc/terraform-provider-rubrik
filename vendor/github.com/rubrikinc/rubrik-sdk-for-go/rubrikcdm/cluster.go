@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -26,6 +27,60 @@ import (
 // ClusterVersion corresponds to /v1/cluster/me/version
 type ClusterVersion struct {
 	Version string `json:"version"`
+}
+
+// EndUserAuthorization corresponds to POST /internal/authorization/role/end_user
+type EndUserAuthorization struct {
+	HasMore bool `json:"hasMore"`
+	Data    []struct {
+		Principal  string `json:"principal"`
+		Privileges struct {
+			DestructiveRestore []string `json:"destructiveRestore"`
+			Restore            []string `json:"restore"`
+			ProvisionOnInfra   []string `json:"provisionOnInfra"`
+		} `json:"privileges"`
+		OrganizationID string `json:"organizationId"`
+	} `json:"data"`
+	Total int `json:"total"`
+}
+
+// ClusterProperties corresponds to PATCH /v1/cluster/{id}
+type ClusterProperties struct {
+	ID         string `json:"id"`
+	Version    string `json:"version"`
+	APIVersion string `json:"apiVersion"`
+	Name       string `json:"name"`
+	Timezone   struct {
+		Timezone string `json:"timezone"`
+	} `json:"timezone"`
+	Geolocation struct {
+		Address string `json:"address"`
+	} `json:"geolocation"`
+	AcceptedEulaVersion string `json:"acceptedEulaVersion"`
+	LatestEulaVersion   string `json:"latestEulaVersion"`
+}
+
+// StatusCode is used when the only API response is a status code
+type StatusCode struct {
+	StatusCode int `json:"statusCode"`
+}
+
+// Syslog corresponds to POST /internal/syslog
+type Syslog struct {
+	Hostname string `json:"hostname"`
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	ID       string `json:"id"`
+}
+
+// SMTP corresponds to PATCH /internal/smtp_instance/{id}
+type SMTP struct {
+	ID           string `json:"id"`
+	SMTPHostname string `json:"smtpHostname"`
+	SMTPPort     int    `json:"smtpPort"`
+	SMTPSecurity string `json:"smtpSecurity"`
+	SMTPUsername string `json:"smtpUsername"`
+	FromEmailID  string `json:"fromEmailId"`
 }
 
 // ClusterVersion returns the CDM version of the Rubrik cluster.
@@ -98,12 +153,38 @@ func (c *Credentials) ClusterNodeName() ([]string, error) {
 
 // ClusterBootstrapStatus checks whether the cluster has been bootstrapped.
 func (c *Credentials) ClusterBootstrapStatus() (bool, error) {
-	apiRequest, err := c.Get("internal", "/node_management/is_bootstrapped")
-	if err != nil {
-		return false, err
+	numberOfAttempts := 0
+	for {
+		numberOfAttempts++
+
+		apiRequest, err := c.Get("internal", "/node_management/is_bootstrapped")
+		if err != nil {
+
+			// Give the cluster 4 minutes to start responding to API calls before returning an error
+			if strings.Contains(err.Error(), "connection refused") {
+				if numberOfAttempts == 24 {
+					return false, err
+				}
+			} else if strings.Contains(err.Error(), "Unable to establish a connection") {
+
+				if numberOfAttempts == 6 {
+					fmt.Println("Attempts = 6 and error")
+					return false, err
+				}
+
+			} else {
+				return false, err
+
+			}
+		}
+
+		if err == nil {
+			return apiRequest.(map[string]interface{})["value"].(bool), nil
+		}
+		time.Sleep(10 * time.Second)
+
 	}
 
-	return apiRequest.(map[string]interface{})["value"].(bool), nil
 }
 
 // EndUserAuthorization assigns an End User account privileges for a VMware virtual machine. vmware is currently the only
@@ -113,7 +194,7 @@ func (c *Credentials) ClusterBootstrapStatus() (bool, error) {
 //	No change required. The End User '{endUser}' is already authorized to interact with the '{objectName}' VM.
 //
 //	The full API response for POST /internal/authorization/role/end_user
-func (c *Credentials) EndUserAuthorization(objectName, endUser, objectType string, timeout ...int) (interface{}, error) {
+func (c *Credentials) EndUserAuthorization(objectName, endUser, objectType string, timeout ...int) (*EndUserAuthorization, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -149,7 +230,7 @@ func (c *Credentials) EndUserAuthorization(objectName, endUser, objectType strin
 
 	for _, vm := range authorizedObjects.([]interface{}) {
 		if vm == vmID {
-			return fmt.Sprintf("No change required. The End User '%s' is already authorized to interact with the '%s' VM.", endUser, objectName), nil
+			return nil, fmt.Errorf("No change required. The End User '%s' is already authorized to interact with the '%s' VM", endUser, objectName)
 		}
 	}
 
@@ -163,7 +244,14 @@ func (c *Credentials) EndUserAuthorization(objectName, endUser, objectType strin
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse EndUserAuthorization
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 
 }
 
@@ -181,7 +269,7 @@ func (c *Credentials) EndUserAuthorization(objectName, endUser, objectType strin
 //	No change required. The Rubrik cluster is already configured with '{timezone}' as it's timezone.
 //
 //	The full API response for POST /v1/cluster/me
-func (c *Credentials) ConfigureTimezone(timezone string, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureTimezone(timezone string, timeout ...int) (*ClusterProperties, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -231,7 +319,7 @@ func (c *Credentials) ConfigureTimezone(timezone string, timeout ...int) (interf
 	}
 
 	if clusterSummary.(map[string]interface{})["timezone"].(map[string]interface{})["timezone"] == timezone {
-		return fmt.Sprintf("No change required. The Rubrik cluster is already configured with '%s' as it's timezone.", timezone), nil
+		return nil, fmt.Errorf("No change required. The Rubrik cluster is already configured with '%s' as it's timezone.", timezone)
 	}
 
 	config := map[string]interface{}{}
@@ -243,7 +331,14 @@ func (c *Credentials) ConfigureTimezone(timezone string, timeout ...int) (interf
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse ClusterProperties
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 
 }
 
@@ -253,7 +348,7 @@ func (c *Credentials) ConfigureTimezone(timezone string, timeout ...int) (interf
 //	No change required. The NTP server(s) {ntpServers} has already been added to the Rubrik cluster.
 //
 //	The full API response for POST /internal/cluster/me/ntp_server
-func (c *Credentials) ConfigureNTP(ntpServers []string, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureNTP(ntpServers []string, timeout ...int) (*StatusCode, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -284,10 +379,18 @@ func (c *Credentials) ConfigureNTP(ntpServers []string, timeout ...int) (interfa
 		if err != nil {
 			return nil, err
 		}
-		return apiRequest, nil
+
+		// Convert the API Response (map[string]interface{}) to a struct
+		var apiResponse StatusCode
+		mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+		if mapErr != nil {
+			return nil, mapErr
+		}
+
+		return &apiResponse, nil
 	}
 
-	return fmt.Sprintf("No change required. The NTP server(s) %s has already been added to the Rubrik cluster.", ntpServers), nil
+	return nil, fmt.Errorf("No change required. The NTP server(s) %s has already been added to the Rubrik cluster", ntpServers)
 
 }
 
@@ -302,7 +405,7 @@ func (c *Credentials) ConfigureNTP(ntpServers []string, timeout ...int) (interfa
 //	No change required. The Rubrik cluster is already configured to use the syslog server '{syslogIP}' on port '{port}' using the '{protocol}' protocol.
 //
 //	The full API response for POST /internal/syslog
-func (c *Credentials) ConfigureSyslog(syslogIP, protocol string, port float64, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureSyslog(syslogIP, protocol string, port float64, timeout ...int) (*Syslog, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -348,7 +451,7 @@ func (c *Credentials) ConfigureSyslog(syslogIP, protocol string, port float64, t
 			}
 
 		} else {
-			return fmt.Sprintf("No change required. The Rubrik cluster is already configured to use the syslog server '%s' on port '%d' using the '%s' protocol.", syslogIP, int(port), protocol), nil
+			return nil, fmt.Errorf("No change required. The Rubrik cluster is already configured to use the syslog server '%s' on port '%d' using the '%s' protocol", syslogIP, int(port), protocol)
 		}
 
 	}
@@ -358,7 +461,14 @@ func (c *Credentials) ConfigureSyslog(syslogIP, protocol string, port float64, t
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse Syslog
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 }
 
 // ConfigureDNSServers provides the connection information for the DNS Servers used by the Rubrik cluster.
@@ -367,7 +477,7 @@ func (c *Credentials) ConfigureSyslog(syslogIP, protocol string, port float64, t
 //	No change required. The Rubrik cluster is already configured with the provided DNS servers.
 //
 //	The full API response for POST /internal/cluster/me/dns_nameserver
-func (c *Credentials) ConfigureDNSServers(serverIP []string, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureDNSServers(serverIP []string, timeout ...int) (*StatusCode, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -377,7 +487,7 @@ func (c *Credentials) ConfigureDNSServers(serverIP []string, timeout ...int) (in
 	}
 
 	if stringEq(serverIP, currentDNSServers.(map[string]interface{})["data"].([]interface{})) {
-		return "No change required. The Rubrik cluster is already configured with the provided DNS servers", nil
+		return nil, errors.New("No change required. The Rubrik cluster is already configured with the provided DNS servers")
 	}
 
 	apiRequest, err := c.Post("internal", "/cluster/me/dns_nameserver", serverIP, httpTimeout)
@@ -385,7 +495,14 @@ func (c *Credentials) ConfigureDNSServers(serverIP []string, timeout ...int) (in
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse StatusCode
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 
 }
 
@@ -395,7 +512,7 @@ func (c *Credentials) ConfigureDNSServers(serverIP []string, timeout ...int) (in
 //	No change required. The Rubrik cluster is already configured with the provided DNS search domains.
 //
 //	The full API response for POST /internal/cluster/me/dns_search_domain
-func (c *Credentials) ConfigureSearchDomain(searchDomain []string, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureSearchDomain(searchDomain []string, timeout ...int) (*StatusCode, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -405,7 +522,7 @@ func (c *Credentials) ConfigureSearchDomain(searchDomain []string, timeout ...in
 	}
 
 	if stringEq(searchDomain, currentSearchDomains.(map[string]interface{})["data"].([]interface{})) {
-		return "No change required. The Rubrik cluster is already configured with the provided DNS search domains.", nil
+		return nil, errors.New("No change required. The Rubrik cluster is already configured with the provided DNS search domains")
 	}
 
 	apiRequest, err := c.Post("internal", "/cluster/me/dns_search_domain", searchDomain, httpTimeout)
@@ -413,7 +530,14 @@ func (c *Credentials) ConfigureSearchDomain(searchDomain []string, timeout ...in
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse StatusCode
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 }
 
 // ConfigureSMTPSettings provides the connection information to send notification email messages for delivery to
@@ -429,7 +553,7 @@ func (c *Credentials) ConfigureSearchDomain(searchDomain []string, timeout ...in
 //	The full API response for POST /internal/smtp_instance
 //
 // The full API response for PATCH /smtp_instance/{smtpID}
-func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, smtpPassword, encryption string, port int, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, smtpPassword, encryption string, port int, timeout ...int) (*SMTP, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -462,7 +586,14 @@ func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, s
 			return nil, err
 		}
 
-		return apiRequest, nil
+		// Convert the API Response (map[string]interface{}) to a struct
+		var apiResponse SMTP
+		mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+		if mapErr != nil {
+			return nil, mapErr
+		}
+
+		return &apiResponse, nil
 
 	}
 
@@ -475,7 +606,7 @@ func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, s
 
 	checkConfig := reflect.DeepEqual(config, currentSMTPSettings)
 	if checkConfig {
-		return fmt.Sprintf("No change required. The Rubrik cluster is already configured with the provided SMTP settings."), nil
+		return nil, fmt.Errorf("No change required. The Rubrik cluster is already configured with the provided SMTP settings")
 	}
 
 	apiRequest, err := c.Patch("internal", fmt.Sprintf("/smtp_instance/%s", smtpID), config, httpTimeout)
@@ -483,7 +614,14 @@ func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, s
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse SMTP
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 
 }
 
@@ -494,7 +632,7 @@ func (c *Credentials) ConfigureSMTPSettings(hostname, fromEmail, smtpUsername, s
 //	No change required. The Rubrik cluster is already configured with the provided VLAN information.
 //
 //	The full API response for POST /internal/cluster/me/vlan
-func (c *Credentials) ConfigureVLAN(netmask string, vlan int, ips map[string]string, timeout ...int) (interface{}, error) {
+func (c *Credentials) ConfigureVLAN(netmask string, vlan int, ips map[string]string, timeout ...int) (*StatusCode, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -519,7 +657,7 @@ func (c *Credentials) ConfigureVLAN(netmask string, vlan int, ips map[string]str
 
 		checkConfig := reflect.DeepEqual(config, currentVLANs)
 		if checkConfig {
-			return "No change required. The Rubrik cluster is already configured with the provided VLAN information.", nil
+			return nil, errors.New("No change required. The Rubrik cluster is already configured with the provided VLAN information")
 		}
 
 	}
@@ -528,7 +666,14 @@ func (c *Credentials) ConfigureVLAN(netmask string, vlan int, ips map[string]str
 		return nil, err
 	}
 
-	return apiRequest, nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var apiResponse StatusCode
+	mapErr := mapstructure.Decode(apiRequest, &apiResponse)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	return &apiResponse, nil
 
 }
 
@@ -538,7 +683,7 @@ func (c *Credentials) ConfigureVLAN(netmask string, vlan int, ips map[string]str
 //	No change required. The vCenter '{vcenterIP}' has already been added to the Rubrik cluster.
 //
 //	The full API response for POST /v1/vmware/vcenter
-func (c *Credentials) AddvCenter(vCenterIP, vCenterUsername, vCenterPassword string, vmLinking bool, timeout ...int) (string, error) {
+func (c *Credentials) AddvCenter(vCenterIP, vCenterUsername, vCenterPassword string, vmLinking bool, timeout ...int) (interface{}, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -569,7 +714,19 @@ func (c *Credentials) AddvCenter(vCenterIP, vCenterUsername, vCenterPassword str
 		return "", err
 	}
 
-	return apiRequest.(map[string]interface{})["links"].([]interface{})[0].(map[string]interface{})["href"].(string), nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var addVcenter JobStatus
+	mapErr := mapstructure.Decode(apiRequest, &addVcenter)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	status, err := c.JobStatus(addVcenter.Links[0].Href)
+	if err != nil {
+		return nil, err
+	}
+
+	return status, nil
 
 }
 
@@ -579,7 +736,7 @@ func (c *Credentials) AddvCenter(vCenterIP, vCenterUsername, vCenterPassword str
 //	No change required. The vCenter '{vcenterIP}' has already been added to the Rubrik cluster.
 //
 //	The full API response for POST /v1/vmware/vcenter
-func (c *Credentials) AddvCenterWithCert(vCenterIP, vCenterUsername, vCenterPassword, caCertificate string, vmLinking bool, timeout ...int) (string, error) {
+func (c *Credentials) AddvCenterWithCert(vCenterIP, vCenterUsername, vCenterPassword, caCertificate string, vmLinking bool, timeout ...int) (interface{}, error) {
 
 	httpTimeout := httpTimeout(timeout)
 
@@ -611,7 +768,19 @@ func (c *Credentials) AddvCenterWithCert(vCenterIP, vCenterUsername, vCenterPass
 		return "", err
 	}
 
-	return apiRequest.(map[string]interface{})["links"].([]interface{})[0].(map[string]interface{})["href"].(string), nil
+	// Convert the API Response (map[string]interface{}) to a struct
+	var addVcenter JobStatus
+	mapErr := mapstructure.Decode(apiRequest, &addVcenter)
+	if mapErr != nil {
+		return nil, mapErr
+	}
+
+	status, err := c.JobStatus(addVcenter.Links[0].Href)
+	if err != nil {
+		return nil, err
+	}
+
+	return status, nil
 
 }
 
@@ -658,12 +827,12 @@ func (c *Credentials) Bootstrap(clusterName, adminEmail, adminPassword, manageme
 		config["nodeConfigs"].(map[string]interface{})[nodeName].(map[string]interface{})["managementIpConfig"].(map[string]string)["address"] = nodeIP
 	}
 
-	currentBootstrapStatus, err := c.Get("internal", "/node_management/is_bootstrapped", httpTimeout)
+	currentBootstrapStatus, err := c.ClusterBootstrapStatus()
 	if err != nil {
 		return nil, err
 	}
 
-	if currentBootstrapStatus.(map[string]interface{})["value"].(bool) == true {
+	if currentBootstrapStatus == true {
 		return "The provided Rubrik node is already bootstrapped.", nil
 	}
 
