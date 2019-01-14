@@ -39,7 +39,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 ## Documentation
 
-[Provider Documentatinon](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
+[Provider Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
 
 ## Example 
 
