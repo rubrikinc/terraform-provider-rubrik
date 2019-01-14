@@ -1,6 +1,6 @@
 # Rubrik Provider
 
-The Rubrik Provder transform the Rubrik RESTful API functionality into easy to consume Terraform configuration whichs eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity
+The Rubrik Provider transforms the Rubrik RESTful API functionality into easy to consume Terraform configuration whichs eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity
 
 ## Example Usage
 
