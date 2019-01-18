@@ -3,7 +3,7 @@
 
 ## Introduction to the Terraform Provider for Rubrik
 
-Rubrik's API-first architecture enables organizations to embrace and integrate Rubrik functionality into their existing automation processes. While Rubrik APIs can be consumed natively, companies are at various stages in their automation journey with different levels of automation knowledge on staff. The Rubrik Terraform Provider transform the Rubrik RESTful API functionality into easy to consume Terraform configuration, which eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity.
+Rubrik's API-first architecture enables organizations to embrace and integrate Rubrik functionality into their existing automation processes. While Rubrik APIs can be consumed natively, companies are at various stages in their automation journey with different levels of automation knowledge on staff. The Rubrik Terraform Provider transforms the Rubrik RESTful API functionality into easy-to-consume Terraform configuration, which eliminates the need to understand how to consume raw Rubrik APIs and extends upon one of Rubrik's main design centers - simplicity.
 
 ## Authentication
 
@@ -31,7 +31,7 @@ provider "rubrik" {}
 
 #### Setting Environment Variables in Microsoft Windows
 
-For Microsoft Windows-based operating systems the environment variables can be set utilizing the setx command as follows:
+For Microsoft Windows-based operating systems, the environment variables can be set utilizing the setx command as follows:
 
 ```
 setx rubrik_cdm_node_ip "192.168.0.100"
@@ -108,5 +108,5 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 
 ### Terraform Provider for Rubrik Documentation
 
-This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
+This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included, see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
 
