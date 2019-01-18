@@ -3,7 +3,7 @@
 
 ## Introduction to the Terraform Provider for Rubrik
 
-Rubrik's API first architecture enables organizations to embrace and integrate Rubrik functionality into their existing automation processes. While Rubrik APIs can be consumed natively, companies are at various stages in their automation journey with different levels of automation knowledge on staff. The Rubrik Terraform Provder transform the Rubrik RESTful API functionality into easy to consume Terraform configuration whichs eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity
+Rubrik's API-first architecture enables organizations to embrace and integrate Rubrik functionality into their existing automation processes. While Rubrik APIs can be consumed natively, companies are at various stages in their automation journey with different levels of automation knowledge on staff. The Rubrik Terraform Provider transform the Rubrik RESTful API functionality into easy to consume Terraform configuration, which eliminates the need to understand how to consume raw Rubrik APIs extends upon one of Rubrik's main design centers - simplicity.
 
 ## Authentication
 
