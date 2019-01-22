@@ -55,7 +55,7 @@ Run export without any other parameters to view current environment variables. I
 
 ### Static credentials 
 
-Static credentials can be provided by adding an `node_ip`, `username` and `password` in-line in the
+Static credentials can be provided by adding a `node_ip`, `username` and `password` in-line in the
 Rubrik provider block:
 
 Usage:
