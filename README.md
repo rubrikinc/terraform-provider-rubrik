@@ -31,7 +31,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 3. Rename the the Rubrik provider to `terraform-provider-rubrik`
 
-4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
+4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
 ## Quick Start
 
