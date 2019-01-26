@@ -35,11 +35,12 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 ## Quick Start
 
-[Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quickstart.md)
+* [Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quickstart.md)
 
 ## Documentation
 
-[Provider Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
+* [Rubrik Provider for Terraform Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
+* [Rubrik API Documentation](https://github.com/rubrikinc/api-documentation)
 
 ## Example 
 
@@ -50,3 +51,8 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
   timezone = "America/Los_Angeles"
 }
 ```
+
+## Additional Links
+
+* [VIDEO: Getting Started with the Rubrik Provider for Terraform](https://www.youtube.com/watch?v=kV1xiP1tHY0)
+* [BLOG: Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
