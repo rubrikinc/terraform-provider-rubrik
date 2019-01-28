@@ -35,7 +35,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 ## Quick Start
 
-* [Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quickstart.md)
+* [Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quick-start.md)
 
 ## Documentation
 
