@@ -5,6 +5,31 @@
 
 Rubrik's API-first architecture enables organizations to embrace and integrate Rubrik functionality into their existing automation processes. While Rubrik APIs can be consumed natively, companies are at various stages in their automation journey with different levels of automation knowledge on staff. The Rubrik Terraform Provider transforms the Rubrik RESTful API functionality into easy-to-consume Terraform configuration, which eliminates the need to understand how to consume raw Rubrik APIs and extends upon one of Rubrik's main design centers - simplicity.
 
+## Installation
+
+Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
+
+1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
+   ```
+   macOS: terraform-provider-rubrik-darwin-amd64
+   Linux: terraform-provider-rubrik-linux-amd64
+   Windows: terraform-provider-rubrik-windows-amd64.exe
+   ```
+
+2. Move the Rubrik provder into the correct Terraform plugin directory
+   
+   ```
+   macOS: ~/.terraform.d/plugins/darwin_amd64
+   Linux: ~/.terraform.d/plugins/linux_amd64
+   Windows: %APPDATA%\terraform.d\plugins\windows_amd64
+   ```
+   
+   _You may need to manually create the `plugin` directory._
+
+3. Rename the the Rubrik provder to `terraform-provider-rubrik`
+
+4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
+
 ## Authentication
 
 The Rubrik provider offers a flexible means of providing credentials for
@@ -27,7 +52,6 @@ Storing credentials in environment variables is a more secure process than stori
 ```hcl
 provider "rubrik" {}
 ```
-
 
 #### Setting Environment Variables in Microsoft Windows
 
@@ -68,35 +92,7 @@ provider "rubrik" {
 }
 ```
 
-## Terraform Provider for Rubrik Quickstart
-
-
-## Installation
-
-Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
-
-1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
-   ```
-   macOS: terraform-provider-rubrik-darwin-amd64
-   Linux: terraform-provider-rubrik-linux-amd64
-   Windows: terraform-provider-rubrik-windows-amd64.exe
-   ```
-
-2. Move the Rubrik provder into the correct Terraform plugin directory
-   
-   ```
-   macOS: ~/.terraform.d/plugins/darwin_amd64
-   Linux: ~/.terraform.d/plugins/linux_amd64
-   Windows: %APPDATA%\terraform.d\plugins\windows_amd64
-   ```
-   
-   _You may need to manually create the `plugin` directory._
-
-3. Rename the the Rubrik provder to `terraform-provider-rubrik`
-
-4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
-
-### Sample Syntax - Cluster Timezone Configuration
+## Sample Syntax - Cluster Timezone Configuration
 
 ```hcl
 provider "rubrik" {}
@@ -106,7 +102,7 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 }
 ```
 
-### Terraform Provider for Rubrik Documentation
+## Terraform Provider for Rubrik Documentation
 
 This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included, see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
 
