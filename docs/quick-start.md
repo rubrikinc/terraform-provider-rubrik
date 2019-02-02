@@ -156,16 +156,12 @@ The Rubrik Provider for Terraform is hosted on a public repository on GitHub. If
 
 1.  Clone the Rubrik Provider for Terraform repository
 
-    ```
-    git clone https://github.com/rubrikinc/rubrik-provider-for-terraform.git
-    ```
+    `git clone https://github.com/rubrikinc/rubrik-provider-for-terraform.git`
 
 
 1.  Change to the repository root directory
 
     `cd rubrik-provider-for-terraform`
-
-
 
 
 1.  Switch to the devel branch
@@ -210,4 +206,5 @@ Once the resource and functions have been fully coded, please update or add to R
 *   [Rubrik Provider for Terraform GitHub Repository](https://github.com/rubrikinc/rubrik-provider-for-terraform)
 *   [Rubrik Provider for Terraform Official Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
 *   [Rubrik CDM API Documentation](https://github.com/rubrikinc/api-documentation)
-*   [[BLOG] Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
+*   [BLOG: Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
+*   [VIDEO: Getting Started with the Rubrik Provider for Terraform](https://www.youtube.com/watch?v=kV1xiP1tHY0)
