@@ -10,6 +10,7 @@ Rubrik's API-first architecture enables organizations to embrace and integrate R
 Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
 
 1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
+
    ```
    macOS: terraform-provider-rubrik-darwin-amd64
    Linux: terraform-provider-rubrik-linux-amd64
@@ -162,18 +163,14 @@ The Rubrik Provider for Terraform is hosted on a public repository on GitHub. If
 
 1.  Change to the repository root directory
 
-`cd rubrik-provider-for-terraform` \
+    `cd rubrik-provider-for-terraform`
 
 
 
 
 1.  Switch to the devel branch
 
-
-```
-git checkout devel
-```
-
+    `git checkout devel`
 
 
 ### New Module Development
