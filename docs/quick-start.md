@@ -92,9 +92,17 @@ provider "rubrik" {
 }
 ```
 
-## Sample Syntax - Cluster Timezone Configuration
+## Sample Syntax
 
-```hcl
+This section provides sample syntax to help you get started. For additional information and examples, see the [Rubrik Provider for Terraform Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/). 
+
+
+### Cluster Timezone Configuration
+
+The following demonstrates configuring the time zone on a Rubrik cluster: 
+
+
+```
 provider "rubrik" {}
 
 resource "rubrik_configure_timezone" "LA-Timezone" {
@@ -102,7 +110,107 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 }
 ```
 
-## Terraform Provider for Rubrik Documentation
+
+
+### Cluster Bootstrap
+
+The following demonstrates an example of bootstrapping a new Rubrik cluster:
+
+
+```
+resource "rubrik_bootstrap" "example" {
+cluster_name = "tf-demo"
+admin_email = "tf@demo.com"
+admin_password = "RubrikTFDemo2019"
+management_gateway = "10.167.8.1"
+management_subnet_mask = "255.255.252.0"
+dns_name_servers = ["10.167.8.2"]
+ntp_servers = ["8.8.8.8"]
+node_config = {
+tf-node01 = "10.167.8.180"
+}
+}
+```
+
+## Rubrik Provider for Terraform Documentation
 
 This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included, see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
 
+
+## API Documentation
+
+The Rubrik Provider for Terraform supports much of the configuration for deploying the Rubrik CDM software as well as preparing AWS and Azure for CloudOut and CloudOn. However, keep in mind that the release cycles between the Provider and Rubrik CDM are not simultaneous. This means there may be times when new features or enhancements are added to the product but resources and functions to utilize them may be missing from the SDK. In these situations Terraform may be used to make native calls to Rubrik's RESTful API.
+
+Rubrik prides itself upon its API-first architecture, ensuring everything available within the HTML5 interface, and more, is consumable via a RESTful API. For more information on Rubrik's API architecture and its documentation, please see the [Rubrik API Documentation](https://github.com/rubrikinc/api-documentation).
+
+
+## Contributing to the Rubrik Provider for Terraform
+
+The Rubrik Provider for Terraform is hosted on a public repository on GitHub. If you would like to get involved and contribute to the Rubrik Provider please follow the below guidelines.
+
+
+### Common Environment Setup
+
+
+
+1.  Clone the Rubrik Provider for Terraform repository
+
+    ```
+    git clone https://github.com/rubrikinc/rubrik-provider-for-terraform.git
+    ```
+
+
+1.  Change to the repository root directory
+
+`cd rubrik-provider-for-terraform` \
+
+
+
+
+1.  Switch to the devel branch
+
+
+```
+git checkout devel
+```
+
+
+
+### New Module Development
+
+The` /rubrik-provider-for-terraform/rubrikcdm` directory contains all of the Rubrik Terraform resources. You can also utilize the following file as a template for all new resource functions:
+
+
+```
+rubrik-modules-for-ansible/blob/master/docs/rubrik_module_template.py
+```
+
+
+To add parameters specific to the new resource you can update the following section which starts on `line 67`:
+
+
+```
+func resourceRubrikAWSNativeAccountCreate(d *schema.ResourceData, meta interface{}) error {
+```
+
+
+After the new variables have been defined you can start adding any new required logic after the code block section.
+
+
+```
+##################################
+######### Code Block #############
+##################################
+##################################
+```
+
+
+Once the resource and functions have been fully coded, please update or add to Rubrik Provider for Terraform documentation. The directory is located [here](https://github.com/rubrikinc/rubrik-provider-for-terraform/tree/master/docs). 
+
+
+## Further Reading
+
+*   [Rubrik Provider for Terraform GitHub Repository](https://github.com/rubrikinc/rubrik-provider-for-terraform)
+*   [Rubrik Provider for Terraform Official Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
+*   [Rubrik CDM API Documentation](https://github.com/rubrikinc/api-documentation)
+*   [[BLOG] Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
