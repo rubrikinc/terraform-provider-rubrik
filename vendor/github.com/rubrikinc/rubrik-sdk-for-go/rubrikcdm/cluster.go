@@ -161,7 +161,7 @@ func (c *Credentials) ClusterBootstrapStatus() (bool, error) {
 		if err != nil {
 
 			// Give the cluster 4 minutes to start responding to API calls before returning an error
-			if strings.Contains(err.Error(), "connection refused") {
+			if strings.Contains(err.Error(), "tcp") {
 				if numberOfAttempts == 24 {
 					return false, err
 				}
