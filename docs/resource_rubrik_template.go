@@ -8,12 +8,12 @@ import (
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 )
 
-func resourceRubrikAWSNativeAccount() *schema.Resource {
+func resourceRubrikExample() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRubrikAWSNativeAccountCreate,
-		Read:   resourceRubrikAWSNativeAccountRead,
-		Update: resourceRubrikAWSNativeAccountUpdate,
-		Delete: resourceRubrikAWSNativeAccountDelete,
+		Create: resourceRubrikExampleCreate,
+		Read:   resourceRubrikExampleRead,
+		Update: resourceRubrikExampleUpdate,
+		Delete: resourceRubrikExampleDelete,
 
 		Schema: map[string]*schema.Schema{
 			"aws_account_name": &schema.Schema{
@@ -64,7 +64,7 @@ func resourceRubrikAWSNativeAccount() *schema.Resource {
 
 }
 
-func resourceRubrikAWSNativeAccountCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikExampleCreate(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
@@ -80,10 +80,10 @@ func resourceRubrikAWSNativeAccountCreate(d *schema.ResourceData, meta interface
 
 	d.SetId(d.Get("aws_account_name").(string))
 
-	return resourceRubrikAWSNativeAccountRead(d, meta)
+	return resourceRubrikExampleRead(d, meta)
 }
 
-func resourceRubrikAWSNativeAccountRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikExampleRead(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
@@ -113,7 +113,7 @@ func resourceRubrikAWSNativeAccountRead(d *schema.ResourceData, meta interface{}
 
 }
 
-func resourceRubrikAWSNativeAccountUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikExampleUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
@@ -144,7 +144,7 @@ func resourceRubrikAWSNativeAccountUpdate(d *schema.ResourceData, meta interface
 	}
 
 	if len(config) == 0 {
-		return resourceRubrikAWSNativeAccountRead(d, meta)
+		return resourceRubrikExampleRead(d, meta)
 	}
 
 	_, err := rubrik.UpdateAWSNativeAccount(accountName, config, d.Get("timeout").(int))
@@ -152,10 +152,10 @@ func resourceRubrikAWSNativeAccountUpdate(d *schema.ResourceData, meta interface
 		return err
 	}
 
-	return resourceRubrikAWSNativeAccountRead(d, meta)
+	return resourceRubrikExampleRead(d, meta)
 }
 
-func resourceRubrikAWSNativeAccountDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikExampleDelete(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
