@@ -40,6 +40,7 @@ func Provider() terraform.ResourceProvider {
 			"rubrik_aws_native_account": resourceRubrikAWSNativeAccount(),
 			"rubrik_aws_s3_cloudout":    resourceRubrikAWSS3CloudOut(),
 			"rubrik_aws_s3_cloudon":     resourceRubrikAWSS3CloudOn(),
+			"rubrik_aws_export_ec2":     resourceRubrikAWSExportEC2(),
 			"rubrik_azure_cloudout":     resourceRubrikAzureCloudOut(),
 			"rubrik_azure_cloudon":      resourceRubrikAzureCloudOn(),
 		},

@@ -43,9 +43,10 @@ type EndManagedVolumeSnapshot struct {
 
 // ObjectID will search the Rubrik cluster for the provided "objectName" and return its ID/
 //
-// Valid "awsRegion" choices are:
+// Valid "objectType" choices are:
 //
-//	vmware, sla, vmwareHost, physicalHost, filesetTemplate, managedVolume
+//	vmware, sla, vmwareHost, physicalHost, filesetTemplate, managedVolume, vcenter, and ec2.
+// When the "objectType" is "ec2", the objectName should correspond to the AWS Instance ID.
 func (c *Credentials) ObjectID(objectName, objectType string, hostOS ...string) (string, error) {
 
 	validObjectType := map[string]bool{
@@ -55,10 +56,12 @@ func (c *Credentials) ObjectID(objectName, objectType string, hostOS ...string) 
 		"physicalHost":    true,
 		"filesetTemplate": true,
 		"managedVolume":   true,
+		"vcenter":         true,
+		"ec2":             true,
 	}
 
 	if validObjectType[objectType] == false {
-		return "", fmt.Errorf("The 'objectType' must be 'vmware', 'sla', 'vmwareHost', 'physicalHost', 'filesetTemplate', or 'managedVolume'")
+		return "", fmt.Errorf("The 'objectType' must be 'vmware', 'sla', 'vmwareHost', 'physicalHost', 'filesetTemplate', 'managedVolume', or 'vcenter'")
 	}
 
 	var objectSummaryAPIVersion string
@@ -74,7 +77,6 @@ func (c *Credentials) ObjectID(objectName, objectType string, hostOS ...string) 
 		objectSummaryAPIVersion = "v1"
 		objectSummaryAPIEndpoint = "/vmware/host?primary_cluster_id=local"
 	case "physicalHost":
-
 		objectSummaryAPIVersion = "v1"
 		objectSummaryAPIEndpoint = fmt.Sprintf("/host?primary_cluster_id=local&hostname=%s", objectName)
 	case "filesetTemplate":
@@ -96,6 +98,12 @@ func (c *Credentials) ObjectID(objectName, objectType string, hostOS ...string) 
 	case "managedVolume":
 		objectSummaryAPIVersion = "internal"
 		objectSummaryAPIEndpoint = fmt.Sprintf("/managed_volume?is_relic=false&primary_cluster_id=local&name=%s", objectName)
+	case "vcenter":
+		objectSummaryAPIVersion = "v1"
+		objectSummaryAPIEndpoint = "/vmware/vcenter"
+	case "ec2":
+		objectSummaryAPIVersion = "internal"
+		objectSummaryAPIEndpoint = fmt.Sprintf("/aws/ec2_instance?name=%s&is_relic=false&sort_by=instanceId&sort_order=asc", objectName)
 	}
 
 	apiRequest, err := c.Get(objectSummaryAPIVersion, objectSummaryAPIEndpoint)
@@ -110,6 +118,8 @@ func (c *Credentials) ObjectID(objectName, objectType string, hostOS ...string) 
 		var nameValue string
 		if objectType == "physicalHost" {
 			nameValue = "hostname"
+		} else if objectType == "ec2" {
+			nameValue = "instanceId"
 		} else {
 			nameValue = "name"
 		}
@@ -224,8 +234,6 @@ func (c *Credentials) BeginManagedVolumeSnapshot(name string, timeout ...int) (*
 		return nil, err
 	}
 
-	fmt.Println(managedVolumeID)
-
 	managedVolumeSummary, err := c.Get("internal", fmt.Sprintf("/managed_volume/%s", managedVolumeID), httpTimeout)
 	if err != nil {
 		return nil, err
@@ -273,7 +281,7 @@ func (c *Credentials) EndManagedVolumeSnapshot(name, slaName string, timeout ...
 	}
 
 	if managedVolumeSummary.(map[string]interface{})["isWritable"].(bool) == false {
-		return nil, fmt.Errorf("No change required. The Managed Volume '%s' is already in a read-only state.", name)
+		return nil, fmt.Errorf("No change required. The Managed Volume '%s' is already in a read-only state", name)
 	}
 
 	var slaID string
