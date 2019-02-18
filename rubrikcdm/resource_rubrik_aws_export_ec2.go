@@ -18,7 +18,7 @@ func resourceRubrikAWSExportEC2() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "The Instance ID of the AWS EC2 instance you wish to eport.",
+				Description: "The Instance ID of the AWS EC2 instance you wish to export.",
 			},
 			"export_instance_name": &schema.Schema{
 				Type:        schema.TypeString,
@@ -207,7 +207,7 @@ func resourceRubrikAWSExportEC2() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 				ForceNew:    true,
-				Description: "Boolean flag to determine if the resource should wait for the export job to complete before continuing. ",
+				Description: "Boolean flag to determine if the resource should wait for the export job to complete before continuing.",
 			},
 			"timeout": &schema.Schema{
 				Type:        schema.TypeInt,
