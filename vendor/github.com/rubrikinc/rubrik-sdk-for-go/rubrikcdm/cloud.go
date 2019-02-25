@@ -670,7 +670,7 @@ func (c *Credentials) RemoveAWSAccount(awsAccountName string, deleteExsitingSnap
 
 	httpTimeout := httpTimeout(timeout)
 
-	awsAccountSummary, err := c.AWSAccountSummary(awsAccountName)
+	awsAccountSummary, err := c.AWSAccountSummary(awsAccountName, httpTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +717,7 @@ func (c *Credentials) UpdateAWSNativeAccount(archiveName string, config map[stri
 
 	httpTimeout := httpTimeout(timeout)
 
-	awsAccountSummary, err := c.AWSAccountSummary(archiveName)
+	awsAccountSummary, err := c.AWSAccountSummary(archiveName, httpTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +809,7 @@ func (c *Credentials) AWSS3CloudOutRSA(awsBucketName, storageClass, archiveName,
 	redactedConfig["accessKey"] = awsAccessKey
 	redactedConfig["objectStoreType"] = "S3"
 
-	archivesOnCluster, err := c.CloudObjectStore()
+	archivesOnCluster, err := c.CloudObjectStore(httpTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -842,7 +842,7 @@ func (c *Credentials) AWSS3CloudOutRSA(awsBucketName, storageClass, archiveName,
 		return "", err
 	}
 
-	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)))
+	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)), httpTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -1164,7 +1164,7 @@ func (c *Credentials) AWSS3CloudOutKMS(awsBucketName, storageClass, archiveName,
 		return nil, err
 	}
 
-	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)))
+	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)), httpTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,7 +1190,7 @@ func (c *Credentials) AWSS3CloudOn(archiveName, vpcID, subnetID, securityGroupID
 	config["defaultComputeNetworkConfig"].(map[string]string)["subnetId"] = subnetID
 	config["defaultComputeNetworkConfig"].(map[string]string)["securityGroupId"] = securityGroupID
 
-	archivesOnCluster, err := c.CloudObjectStore()
+	archivesOnCluster, err := c.CloudObjectStore(httpTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -1309,7 +1309,7 @@ func (c *Credentials) AzureCloudOut(container, azureAccessKey, storageAccountNam
 		return "", err
 	}
 
-	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)))
+	status, err := c.JobStatus(fmt.Sprintf("https://%s/api/internal/archive/location/job/connect/%s", c.NodeIP, apiRequest.(map[string]interface{})["jobInstanceId"].(string)), httpTimeout)
 	if err != nil {
 		return nil, err
 	}

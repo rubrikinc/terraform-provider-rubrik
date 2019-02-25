@@ -71,7 +71,7 @@ func resourceRubrikConfigureTimezoneCreate(d *schema.ResourceData, meta interfac
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	_, err := rubrik.ConfigureTimezone(d.Get("timezone").(string))
+	_, err := rubrik.ConfigureTimezone(d.Get("timezone").(string), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func resourceRubrikConfigureTimezoneRead(d *schema.ResourceData, meta interface{
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	log.Println("[INFO] Determining the current Rubrik cluster timezone.")
-	clusterSummary, err := rubrik.Get("v1", "/cluster/me")
+	clusterSummary, err := rubrik.Get("v1", "/cluster/me", d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func resourceRubrikConfigureTimezoneUpdate(d *schema.ResourceData, meta interfac
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	rubrik.ConfigureTimezone(d.Get("timezone").(string))
+	rubrik.ConfigureTimezone(d.Get("timezone").(string), d.Get("timeout").(int))
 
 	return nil
 }

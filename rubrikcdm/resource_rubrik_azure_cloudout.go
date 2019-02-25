@@ -86,7 +86,7 @@ func resourceRubrikAzureCloudOutRead(d *schema.ResourceData, meta interface{}) e
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	archivesOnCluster, err := rubrik.CloudObjectStore()
+	archivesOnCluster, err := rubrik.CloudObjectStore(d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func resourceRubrikAzureCloudOutDelete(d *schema.ResourceData, meta interface{})
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	_, err := rubrik.RemoveArchiveLocation(d.Get("archive_name").(string))
+	_, err := rubrik.RemoveArchiveLocation(d.Get("archive_name").(string), d.Get("timeout").(int))
 	if err != nil {
 		if strings.Contains(err.Error(), "No change required") == true {
 			return nil

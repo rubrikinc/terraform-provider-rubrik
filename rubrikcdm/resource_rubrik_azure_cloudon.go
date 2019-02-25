@@ -129,7 +129,7 @@ func resourceRubrikAzureCloudOnRead(d *schema.ResourceData, meta interface{}) er
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	var cloudOnConfigured = false
-	archivesOnCluster, err := rubrik.CloudObjectStore()
+	archivesOnCluster, err := rubrik.CloudObjectStore(d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
