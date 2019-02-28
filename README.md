@@ -33,7 +33,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
-# Documentation
+# :blue_book: Documentation
 
 Here are some resources to get you started! If you find any challenges from this project are not properly documented or are unclear, please [raise an issue](https://github.com/rubrikinc/rubrik-provider-for-terraform/issues/new/choose) and let us know! This is a fun, safe environment - don't worry if you're a GitHub newbie! :heart:
 
