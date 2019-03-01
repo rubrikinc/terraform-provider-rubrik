@@ -116,6 +116,12 @@ func resourceRubrikAzureCloudOnCreate(d *schema.ResourceData, meta interface{}) 
 
 	_, err := rubrik.AzureCloudOn(d.Get("archive_name").(string), d.Get("container").(string), d.Get("storage_account_name").(string), d.Get("application_id").(string), d.Get("application_key").(string), d.Get("directory_id").(string), d.Get("region").(string), d.Get("virtual_network_id").(string), d.Get("subnet_name").(string), d.Get("security_group_id").(string), d.Get("timeout").(int))
 	if err != nil {
+
+		if strings.Contains(err.Error(), "No change required") {
+			d.SetId(d.Get("archive_name").(string))
+			return resourceRubrikAzureCloudOnRead(d, meta)
+		}
+
 		return err
 	}
 
