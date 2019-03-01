@@ -7,7 +7,7 @@ import (
 
 func dataSourceRubrikClusterVersion() *schema.Resource {
 	return &schema.Resource{
-		Read: resourceRubrikClusterVersionRead,
+		Read: dataSourceRubrikClusterVersionRead,
 
 		Schema: map[string]*schema.Schema{
 			"cluster_version": &schema.Schema{
