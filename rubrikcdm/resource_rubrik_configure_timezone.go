@@ -2,6 +2,7 @@ package rubrikcdm
 
 import (
 	"log"
+	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
@@ -73,6 +74,12 @@ func resourceRubrikConfigureTimezoneCreate(d *schema.ResourceData, meta interfac
 
 	_, err := rubrik.ConfigureTimezone(d.Get("timezone").(string), d.Get("timeout").(int))
 	if err != nil {
+
+		if strings.Contains(err.Error(), "No change required") {
+			d.SetId("rubrik-cluster-timezone")
+			return resourceRubrikConfigureTimezoneRead(d, meta)
+		}
+
 		return err
 	}
 
@@ -88,6 +95,7 @@ func resourceRubrikConfigureTimezoneRead(d *schema.ResourceData, meta interface{
 	log.Println("[INFO] Determining the current Rubrik cluster timezone.")
 	clusterSummary, err := rubrik.Get("v1", "/cluster/me", d.Get("timeout").(int))
 	if err != nil {
+
 		return err
 	}
 
