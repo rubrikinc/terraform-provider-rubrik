@@ -7,7 +7,7 @@
 <img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
 
 
-## Installation
+# :hammer: Installation
 
 Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
 
@@ -33,16 +33,17 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
-## Quick Start
+# :blue_book: Documentation
+
+Here are some resources to get you started! If you find any challenges from this project are not properly documented or are unclear, please [raise an issue](https://github.com/rubrikinc/rubrik-provider-for-terraform/issues/new/choose) and let us know! This is a fun, safe environment - don't worry if you're a GitHub newbie! :heart:
 
 * [Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quick-start.md)
-
-## Documentation
-
 * [Rubrik Provider for Terraform Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
 * [Rubrik API Documentation](https://github.com/rubrikinc/api-documentation)
+* [VIDEO: Getting Started with the Rubrik Provider for Terraform](https://www.youtube.com/watch?v=kV1xiP1tHY0)
+* [BLOG: Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
 
-## Example 
+## :mag: Example 
 
 ```hcl
 provider "rubrik" {}
@@ -52,7 +53,17 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 }
 ```
 
-## Additional Links
+# :muscle: How You Can Help
 
-* [VIDEO: Getting Started with the Rubrik Provider for Terraform](https://www.youtube.com/watch?v=kV1xiP1tHY0)
-* [BLOG: Using Terraform with Rubrik Just Got Easier!](https://www.rubrik.com/blog/rubrik-provider-terraform/)
+We glady welcome contributions from the community. From updating the documentation to adding more Intents for Roxie, all ideas are welcome. Thank you in advance for all of your issues, pull requests, and comments! :star:
+
+* [Contributing Guide](CONTRIBUTING.md)
+* [Code of Conduct](CODE_OF_CONDUCT.md)
+
+# :pushpin: License
+
+* [MIT License](LICENSE)
+
+# :point_right: About Rubrik Build
+
+We encourage all contributors to become members. We aim to grow an active, healthy community of contributors, reviewers, and code owners. Learn more in our [Welcome to the Rubrik Build Community](https://github.com/rubrikinc/welcome-to-rubrik-build) page.
