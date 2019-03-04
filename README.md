@@ -55,7 +55,7 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 
 # :muscle: How You Can Help
 
-We glady welcome contributions from the community. From updating the documentation to adding more Intents for Roxie, all ideas are welcome. Thank you in advance for all of your issues, pull requests, and comments! :star:
+We glady welcome contributions from the community. From updating the documentation to adding more functions for Terraform, all ideas are welcome. Thank you in advance for all of your issues, pull requests, and comments! :star:
 
 * [Contributing Guide](CONTRIBUTING.md)
 * [Code of Conduct](CODE_OF_CONDUCT.md)
