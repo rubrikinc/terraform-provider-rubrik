@@ -88,7 +88,7 @@ func resourceRubrikAWSNativeAccountRead(d *schema.ResourceData, meta interface{}
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	var accountPresent = true
-	aws, err := rubrik.AWSAccountSummary(d.Get("aws_account_name").(string))
+	aws, err := rubrik.AWSAccountSummary(d.Get("aws_account_name").(string), d.Get("timeout").(int))
 	if err != nil {
 		if strings.Contains(err.Error(), "AWS Native Account was not found on the Rubrik cluster") == true {
 			accountPresent = false
@@ -159,7 +159,7 @@ func resourceRubrikAWSNativeAccountDelete(d *schema.ResourceData, meta interface
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	_, err := rubrik.RemoveAWSAccount(d.Get("aws_account_name").(string), d.Get("delete_snapshots").(bool))
+	_, err := rubrik.RemoveAWSAccount(d.Get("aws_account_name").(string), d.Get("delete_snapshots").(bool), d.Get("timeout").(int))
 	if err != nil {
 		if strings.Contains(err.Error(), "AWS Native Account was not found on the Rubrik cluster") == true {
 			return nil

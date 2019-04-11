@@ -52,7 +52,10 @@ func resourceRubrikAWSS3CloudOnCreate(d *schema.ResourceData, meta interface{}) 
 
 	_, err := rubrik.AWSS3CloudOn(d.Get("archive_name").(string), d.Get("vpc_id").(string), d.Get("subnet_id").(string), d.Get("security_group_id").(string), d.Get("timeout").(int))
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "No change required") {
+			d.SetId(d.Get("vpc_id").(string))
+			return resourceRubrikAWSS3CloudOnRead(d, meta)
+		}
 	}
 
 	d.SetId(d.Get("vpc_id").(string))
@@ -65,7 +68,7 @@ func resourceRubrikAWSS3CloudOnRead(d *schema.ResourceData, meta interface{}) er
 	rubrik := meta.(*rubrikcdm.Credentials)
 
 	var cloudOnConfigured = false
-	archivesOnCluster, err := rubrik.CloudObjectStore()
+	archivesOnCluster, err := rubrik.CloudObjectStore(d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}

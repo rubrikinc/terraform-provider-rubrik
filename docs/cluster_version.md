@@ -5,7 +5,7 @@ Returns the CDM version of the Rubrik cluster.
 ## Example Usage
 
 ```hcl
-resource "rubrik_cluster_version" "example" {}
+data "rubrik_cluster_version" "version" {}
 ```
 
 ## Argument Reference

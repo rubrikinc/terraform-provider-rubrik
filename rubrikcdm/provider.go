@@ -35,7 +35,6 @@ func Provider() terraform.ResourceProvider {
 
 		ResourcesMap: map[string]*schema.Resource{
 			"rubrik_bootstrap":          resourceRubrikBootstrap(),
-			"rubrik_cluster_version":    resourceRubrikClusterVersion(),
 			"rubrik_configure_timezone": resourceRubrikConfigureTimezone(),
 			"rubrik_aws_native_account": resourceRubrikAWSNativeAccount(),
 			"rubrik_aws_s3_cloudout":    resourceRubrikAWSS3CloudOut(),
@@ -43,6 +42,10 @@ func Provider() terraform.ResourceProvider {
 			"rubrik_aws_export_ec2":     resourceRubrikAWSExportEC2(),
 			"rubrik_azure_cloudout":     resourceRubrikAzureCloudOut(),
 			"rubrik_azure_cloudon":      resourceRubrikAzureCloudOn(),
+		},
+
+		DataSourcesMap: map[string]*schema.Resource{
+			"rubrik_cluster_version": dataSourceRubrikClusterVersion(),
 		},
 
 		ConfigureFunc: providerConfigure,
