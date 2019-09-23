@@ -34,6 +34,7 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"rubrik_assign_sla":         resourceRubrikAssignSLA(),
 			"rubrik_bootstrap":          resourceRubrikBootstrap(),
 			"rubrik_configure_timezone": resourceRubrikConfigureTimezone(),
 			"rubrik_aws_native_account": resourceRubrikAWSNativeAccount(),
