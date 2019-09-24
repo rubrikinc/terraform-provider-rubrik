@@ -1,6 +1,8 @@
-## rubrik_aws_native_account
 
-Enables the management and protection of Amazon Elastic Compute Cloud (Amazon EC2) instances from the Rubrik cluster.
+## rubrik_aws_export_ec2
+
+Export the latest snapshot of the specified EC2 instance.
+
 
 ## Example Usage
 

@@ -17,7 +17,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    Windows: terraform-provider-rubrik-windows-amd64.exe
    ```
 
-2. Move the Rubrik provder into the correct Terraform plugin directory
+2. Move the Rubrik provider into the correct Terraform plugin directory
    
    ```
    macOS: ~/.terraform.d/plugins/darwin_amd64
@@ -29,7 +29,9 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
 
 3. Rename the the Rubrik provder to `terraform-provider-rubrik`
 
-4. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
+4. On Linux and MacOS ensure that the binary has the appropriate permissions by running `chmod 744 terraform-provider-rubrik`
+
+5. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
 
 ## Authentication
 
