@@ -27,3 +27,4 @@ override.tf.json
 # Ignore Dev Centric files
 terraform-provider-*
 main.tf
+.DS_Store

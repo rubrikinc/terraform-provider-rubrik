@@ -202,6 +202,12 @@ func resourceRubrikAWSExportEC2() *schema.Resource {
 				ForceNew:    true,
 				Description: "The ID of the security group to assign to the instance being launched.",
 			},
+			"date_time": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "The date and time of the EC2 Snapshot you wish to export formated as 'Month:Day:Year Hour:Minute AM/PM'. Ex. 04-09-2019 05:56 PM. You may also use 'latest' to export the last snapshot taken.",
+			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,
 				Optional:    true,
@@ -224,7 +230,7 @@ func resourceRubrikAWSExportEC2Create(d *schema.ResourceData, meta interface{}) 
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	_, err := rubrik.ExportEC2Instance(d.Get("instance_id").(string), d.Get("export_instance_name").(string), d.Get("instance_type").(string), d.Get("aws_region").(string), d.Get("subnet_id").(string), d.Get("security_group_id").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	_, err := rubrik.ExportEC2Instance(d.Get("instance_id").(string), d.Get("export_instance_name").(string), d.Get("instance_type").(string), d.Get("aws_region").(string), d.Get("subnet_id").(string), d.Get("security_group_id").(string), d.Get("date_time").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
