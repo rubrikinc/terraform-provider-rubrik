@@ -411,11 +411,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:cac5bfee5b630c87ef4a855c882b0cbdb1e6a631a87ac142be7637b309e176fc"
+  digest = "1:d1196fa240ab2948be96333a5d7dfd2f109322b6b8dd2971deea309d4df3aa59"
   name = "github.com/rubrikinc/rubrik-sdk-for-go"
   packages = ["rubrikcdm"]
   pruneopts = "UT"
-  revision = "5aec0097222048ecd0bb882d4117bb7d1d7a7cd8"
+  revision = "f9fd8dce71fd918e3c9762a7e76e4d6352523e76"
 
 [[projects]]
   digest = "1:db345c377984d0907323c09a9b17f11d995a59649fd38f909727df358b5f9020"
