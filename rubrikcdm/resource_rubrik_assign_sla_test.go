@@ -68,7 +68,7 @@ func testAccSLAUnassigned() error {
 }
 
 func testAccCheckRubrikAssignSLADestroy(s *terraform.State) error {
-	log.Printf("Runng Post-check")
+	log.Printf("Running Post-check")
 	err := testAccSLAUnassigned()
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func testAccCheckRubrikAssignSLADestroy(s *terraform.State) error {
 }
 
 func testAccCheckRubrikAssignSLAPreCheck(t *testing.T) {
-	log.Printf("Runng Pre-check")
+	log.Printf("Running Pre-check")
 	err := testAccSLAUnassigned()
 	if err != nil {
 		t.Fatal(err.Error())
