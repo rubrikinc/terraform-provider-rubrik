@@ -12,9 +12,6 @@ import (
 )
 
 func TestAccRubrikAssignSla_basic(t *testing.T) {
-	//vmName := os.Getenv("RUBRIK_CDM_TEST_VM")
-	//slaName := os.Getenv("RUBRIK_CDM_TEST_SLA")
-
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
@@ -56,7 +53,6 @@ func testAccSLAUnassigned() error {
 		return fmt.Errorf(err.Error())
 	}
 
-	//var currentSLAName string
 	vmSummary, err := rubrik.Get("v1", fmt.Sprintf("/vmware/vm/%s", vmID), timeout)
 	if err != nil {
 		return fmt.Errorf(err.Error())
