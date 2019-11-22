@@ -30,16 +30,16 @@ func TestProvider_impl(t *testing.T) {
 }
 
 func testAccPreCheck(t *testing.T) {
-	if v := os.Getenv("rubrik_cdm_username"); v == "" {
-		t.Fatal("rubrik_cdm_username must be set for acceptance tests")
+	if v := os.Getenv("RUBRIK_CDM_USERNAME"); v == "" {
+		t.Fatal("RUBRIK_CDM_USERNAME must be set for acceptance tests")
 	}
 
-	if v := os.Getenv("rubrik_cdm_password"); v == "" {
-		t.Fatal("rubrik_cdm_password must be set for acceptance tests")
+	if v := os.Getenv("RUBRIK_CDM_PASSWORD"); v == "" {
+		t.Fatal("RUBRIK_CDM_PASSWORD must be set for acceptance tests")
 	}
 
-	if v := os.Getenv("rubrik_cdm_node_ip"); v == "" {
-		t.Fatal("rubrik_cdm_node_ip must be set for acceptance tests")
+	if v := os.Getenv("RUBRIK_CDM_NODE_IP"); v == "" {
+		t.Fatal("RUBRIK_CDM_NODE_IP must be set for acceptance tests")
 	}
 }
 

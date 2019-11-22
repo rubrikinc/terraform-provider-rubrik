@@ -15,20 +15,20 @@ func Provider() terraform.ResourceProvider {
 			"node_ip": {
 				Type:         schema.TypeString,
 				Required:     true,
-				DefaultFunc:  schema.EnvDefaultFunc("rubrik_cdm_node_ip", nil),
+				DefaultFunc:  schema.EnvDefaultFunc("RUBRIK_CDM_NODE_IP", nil),
 				ValidateFunc: validation.SingleIP(),
 				Description:  "The IP Address of a Node in the Rubrik cluster.",
 			},
 			"username": {
 				Type:        schema.TypeString,
 				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("rubrik_cdm_username", nil),
+				DefaultFunc: schema.EnvDefaultFunc("RUBRIK_CDM_USERNAME", nil),
 				Description: "The username used to authenticate against the Rubrik cluster.",
 			},
 			"password": {
 				Type:        schema.TypeString,
 				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("rubrik_cdm_password", nil),
+				DefaultFunc: schema.EnvDefaultFunc("RUBRIK_CDM_PASSWORD", nil),
 				Description: "The password used to authenticate against the Rubrik cluster.",
 			},
 		},
