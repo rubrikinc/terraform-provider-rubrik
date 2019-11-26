@@ -18,6 +18,7 @@ $ make test
 In order to run the full suite of Acceptance tests, run `make testacc`.
 
 *Note:* Acceptance tests create/modify real resources as specified.
+
 *Note:* Testing `resource_rubrik_configure_timezone` will set the CDM timezone setting to `UTC`.
 
 ```sh
