@@ -1,7 +1,7 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 WEBSITE_REPO=github.com/hashicorp/terraform-website
-PKG_NAME=rubrik
+PKG_NAME=rubrikcdm
 
 default: build
 
@@ -31,8 +31,42 @@ fmt:
 fmtcheck:
 	@sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
 
-errcheck:
-	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
+websitefmtcheck:
+	@sh -c "'$(CURDIR)/scripts/websitefmtcheck.sh'"
+
+docscheck:
+	@sh -c "'$(CURDIR)/scripts/docscheck.sh'"
+
+lint:
+	@echo "==> Checking source code against linters..."
+	@golangci-lint run ./$(PKG_NAME)/...
+	@tfproviderlint \
+		-c 1 \
+		-AT001 \
+		-AT002 \
+		-S001 \
+		-S002 \
+		-S003 \
+		-S004 \
+		-S005 \
+		-S007 \
+		-S008 \
+		-S009 \
+		-S010 \
+		-S011 \
+		-S012 \
+		-S013 \
+		-S014 \
+		-S015 \
+		-S016 \
+		-S017 \
+		-S019 \
+		./$(PKG_NAME)
+
+tools:
+	GO111MODULE=on go install github.com/bflad/tfproviderlint/cmd/tfproviderlint
+	GO111MODULE=on go install github.com/client9/misspell/cmd/misspell
+	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint
 
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \
@@ -48,6 +82,10 @@ ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
 	git clone https://$(WEBSITE_REPO) $(GOPATH)/src/$(WEBSITE_REPO)
 endif
 	@$(MAKE) -C $(GOPATH)/src/$(WEBSITE_REPO) website-provider PROVIDER_PATH=$(shell pwd) PROVIDER_NAME=$(PKG_NAME)
+
+website-lint:
+	@echo "==> Checking website against linters..."
+	@misspell -error -source=text website/
 
 website-test:
 ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
