@@ -126,9 +126,15 @@ func resourceRubrikAssignSLARead(d *schema.ResourceData, meta interface{}) error
 
 	d.SetId(tfID)
 
-	d.Set("sla_domain", currentSLAName)
-	d.Set("object_type", d.Get("object_type").(string))
-	d.Set("object_name", d.Get("object_name").(string))
+	if err = d.Set("sla_domain", currentSLAName); err != nil {
+		return err
+	}
+	if err = d.Set("object_type", d.Get("object_type").(string)); err != nil {
+		return err
+	}
+	if err = d.Set("object_name", d.Get("object_name").(string)); err != nil {
+		return err
+	}
 
 	return nil
 
@@ -141,7 +147,7 @@ func resourceRubrikAssignSLAUpdate(d *schema.ResourceData, meta interface{}) err
 	_, err := rubrik.AssignSLA(d.Get("object_name").(string), d.Get("object_type").(string), d.Get("sla_name").(string), d.Get("timeout").(int))
 	if err != nil {
 
-		if strings.Contains(err.Error(), "No change required") == true {
+		if strings.Contains(err.Error(), "No change required") {
 			return err
 		}
 		return err
@@ -155,7 +161,7 @@ func resourceRubrikAssignSLADelete(d *schema.ResourceData, meta interface{}) err
 
 	_, err := rubrik.AssignSLA(d.Get("object_name").(string), d.Get("object_type").(string), "clear", d.Get("timeout").(int))
 	if err != nil {
-		if strings.Contains(err.Error(), "No change required") == true {
+		if strings.Contains(err.Error(), "No change required") {
 			return nil
 		}
 

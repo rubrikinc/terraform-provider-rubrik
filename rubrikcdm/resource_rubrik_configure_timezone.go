@@ -113,7 +113,10 @@ func resourceRubrikConfigureTimezoneUpdate(d *schema.ResourceData, meta interfac
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
-	rubrik.ConfigureTimezone(d.Get("timezone").(string), d.Get("timeout").(int))
+	_, err := rubrik.ConfigureTimezone(d.Get("timezone").(string), d.Get("timeout").(int))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -35,7 +35,10 @@ func dataSourceRubrikClusterVersionRead(d *schema.ResourceData, meta interface{}
 	}
 
 	d.SetId(clusterVersion)
-	d.Set("cluster_version", clusterVersion)
+	err = d.Set("cluster_version", clusterVersion)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
