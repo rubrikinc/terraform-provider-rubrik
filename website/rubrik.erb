@@ -1,0 +1,38 @@
+<% wrap_layout :inner do %>
+    <% content_for :sidebar do %>
+      <div class="docs-sidebar hidden-print affix-top" role="complementary">
+        <ul class="nav docs-sidenav">
+          <li<%= sidebar_current("docs-home") %>>
+          <a href="/docs/providers/index.html">All Providers</a>
+          </li>
+  
+          <li<%= sidebar_current("docs-rubrik-index") %>>
+          <a href="/docs/providers/rubrik/index.html">Rubrik Provider</a>
+          </li>
+  
+          <li<%= sidebar_current("docs-rubrik-data-source") %>>
+              <a href="#">Data Sources</a>
+              <ul class="nav nav-visible">
+                  <li<%= sidebar_current("docs-rubrik-data-source-cluster_version") %>>
+                      <a href="/docs/providers/rubrik/d/cluster_version.html">rubrik_cluster_version</a>
+                  </li>
+              </ul>
+          </li>
+  
+          <li<%= sidebar_current("docs-rubrik-resource") %>>
+          <a href="#">Resources</a>
+          <ul class="nav nav-visible">
+            <li<%= sidebar_current("docs-rubrik-resource-assign_sla") %>>
+              <a href="/docs/providers/rubrik/r/assign_sla.html">rubrik_assign_sla</a>
+            </li>
+            <li<%= sidebar_current("docs-rubrik-resource-configure_timezone") %>>
+              <a href="/docs/providers/rubrik/r/configure_timezone.html">rubrik_configure_timezone</a>
+            </li>
+          </ul>
+          </li>
+        </ul>
+      </div>
+    <% end %>
+  
+    <%= yield %>
+    <% end %>
