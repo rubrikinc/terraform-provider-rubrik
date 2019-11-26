@@ -103,7 +103,10 @@ func resourceRubrikConfigureTimezoneRead(d *schema.ResourceData, meta interface{
 
 	d.SetId("rubrik-cluster-timezone")
 
-	d.Set("timezone", currentTimezone)
+	err = d.Set("timezone", currentTimezone)
+	if err != nil {
+		return err
+	}
 
 	return nil
 
