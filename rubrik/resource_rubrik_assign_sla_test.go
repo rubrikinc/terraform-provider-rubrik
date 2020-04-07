@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
+	"github.com/rubrikinc/rubrik-sdk-for-go/rubrik"
 )
 
 func TestAccRubrikAssignSla_basic(t *testing.T) {

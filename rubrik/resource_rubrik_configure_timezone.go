@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
+	"github.com/rubrikinc/rubrik-sdk-for-go/rubrik"
 )
 
 func resourceRubrikConfigureTimezone() *schema.Resource {
