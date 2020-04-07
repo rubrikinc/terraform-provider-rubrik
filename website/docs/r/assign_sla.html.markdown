@@ -1,6 +1,6 @@
 ---
 layout: "github"
-page_title: "Rubrik CDM: assign_sla"
+page_title: "Rubrik : assign_sla"
 description: |-
   Assign a Rubrik object to a specified SLA Domain.
 ---
