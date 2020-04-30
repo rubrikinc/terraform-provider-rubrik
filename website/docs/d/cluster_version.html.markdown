@@ -1,6 +1,6 @@
 ---
 layout: "github"
-page_title: "Rubrik CDM: cluster_version"
+page_title: "Rubrik : cluster_version"
 description: |-
   Get the CDM version of the Rubrik cluster.
 ---
