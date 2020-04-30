@@ -32,13 +32,13 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 The following arguments are supported in the `provider` block:
 
 * `node_ip` - (Optional) The Node IP address of the Rubrik cluster
-  you wish to connect to. The value may also be sourced from the `rubrik_cdm_node_ip`
+  you wish to connect to. The value may also be sourced from the `rubrik_node_ip`
   environment variable.
 
 * `username` - (Optional) The username of the Rubrik cluster
-  you wish to connect to. The value may also be sourced from the `rubrik_cdm_username`
+  you wish to connect to. The value may also be sourced from the `rubrik_username`
   environment variable.
 
 * `password` - (Optional) The password of the Rubrik cluster
-  you wish to connect to. The value may also be sourced from the `rubrik_cdm_password`
+  you wish to connect to. The value may also be sourced from the `rubrik_password`
   environment variable
