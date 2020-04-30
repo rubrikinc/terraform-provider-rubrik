@@ -174,7 +174,7 @@ github.com/posener/complete/cmd
 github.com/posener/complete/cmd/install
 github.com/posener/complete/match
 # github.com/rubrikinc/rubrik-sdk-for-go v0.0.0-20190924130654-f9fd8dce71fd
-github.com/rubrikinc/rubrik-sdk-for-go/rubrik
+github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm
 # github.com/spf13/afero v1.2.2
 github.com/spf13/afero
 github.com/spf13/afero/mem

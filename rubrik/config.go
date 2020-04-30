@@ -1,6 +1,6 @@
 package rubrikcdm
 
-import "github.com/rubrikinc/rubrik-sdk-for-go/rubrik"
+import "github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 
 // Config is per-provider, specifies where to connect to Rubrik CDM
 type Config struct {
