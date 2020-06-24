@@ -1,5 +1,5 @@
 ---
-layout: "github"
+layout: "rubrik"
 page_title: "Provider: rubrik"
 description: |-
   The Rubrik provider is used to interact with resources on the Rubrik CDM platform.
