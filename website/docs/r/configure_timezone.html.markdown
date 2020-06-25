@@ -1,5 +1,5 @@
 ---
-layout: "github"
+layout: "rubrik"
 page_title: "Rubrik : configure_timezone"
 description: |-
   Set the timezone on a Rubrik CDM cluster.
