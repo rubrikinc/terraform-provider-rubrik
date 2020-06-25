@@ -1,5 +1,5 @@
 ---
-layout: "github"
+layout: "rubrik"
 page_title: "Rubrik : assign_sla"
 description: |-
   Assign a Rubrik object to a specified SLA Domain.
