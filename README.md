@@ -35,7 +35,7 @@ Windows: %APPDATA%\terraform.d\plugins\build.rubrik.com\rubrik\rubrik\1.04\windo
 `````
 Note: _You may need to create the containing directory structure._
 
-Rename the Rubrik provider to terraform-provider-rubrik_v1.0.4
+Rename the Rubrik provider to: terraform-provider-rubrik_v1.0.4
 
 Note: _On Windows systems, ensure you keep the .exe file extension for the downloaded provider binary._
 
