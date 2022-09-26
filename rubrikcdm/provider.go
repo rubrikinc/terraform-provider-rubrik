@@ -4,13 +4,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// Provider returns a terraform.ResourceProvider.
-func Provider() terraform.ResourceProvider {
+// Provider returns a t*helper/schema.Provider.
+func Provider() *schema.Provider {
 	// Look for environment variables from other Rubrik SDKs, and use them if necessary
 	if os.Getenv("RUBRIK_CDM_NODE_IP") == "" && os.Getenv("rubrik_cdm_node_ip") != "" {
 		os.Setenv("RUBRIK_CDM_NODE_IP", os.Getenv("rubrik_cdm_node_ip"))
@@ -34,7 +33,7 @@ func Provider() terraform.ResourceProvider {
 				Type:         schema.TypeString,
 				Required:     true,
 				DefaultFunc:  schema.EnvDefaultFunc("RUBRIK_CDM_NODE_IP", nil),
-				ValidateFunc: validation.SingleIP(),
+				ValidateFunc: validation.IsIPAddress,
 				Description:  "The IP Address of a Node in the Rubrik cluster.",
 			},
 			"username": {

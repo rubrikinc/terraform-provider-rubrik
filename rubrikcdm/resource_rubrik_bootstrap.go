@@ -3,8 +3,8 @@ package rubrikcdm
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 )
 
@@ -35,7 +35,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 			"management_gateway": &schema.Schema{
 				Type:         schema.TypeString,
 				Required:     true,
-				ValidateFunc: validation.SingleIP(),
+				ValidateFunc: validation.IsIPAddress,
 				Description:  "IP address assigned to the management network gateway",
 			},
 			"management_subnet_mask": &schema.Schema{
