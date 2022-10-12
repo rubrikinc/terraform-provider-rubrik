@@ -89,7 +89,7 @@ Usage:
 
 ```hcl
 provider "rubrik" {
-  node_ip     = "10.255.41.201"
+  node_ip     = "192.168.100.100"
   username    = "admin"
   password    = "RubrikTFDemo2019"
 }
@@ -120,21 +120,20 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 The following demonstrates an example of bootstrapping a new Rubrik cluster:
 
 
-```
+```hcl
 resource "rubrik_bootstrap" "example" {
-cluster_name = "tf-demo"
-admin_email = "tf@demo.com"
-admin_password = "RubrikTFDemo2019"
-management_gateway = "10.167.8.1"
-management_subnet_mask = "255.255.252.0"
-dns_name_servers = ["10.167.8.2"]
-ntp_servers = ["8.8.8.8"]
-node_config = {
-tf-node01 = "10.167.8.180"
-}
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
 }
 ```
-
 ## Rubrik Provider for Terraform Documentation
 
 This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included, see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).

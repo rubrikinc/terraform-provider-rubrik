@@ -70,7 +70,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     true,
-				Description: "Enable software data encryption at rest. When bootstraping a Cloud Cluster this value needs to be False.",
+				Description: "Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False.",
 			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,

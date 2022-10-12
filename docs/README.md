@@ -30,7 +30,7 @@ Usage:
 
 ```hcl
 provider "rubrik" {
-  node_ip     = "10.255.41.201"
+  node_ip     = "192.168.100.100"
   username    = "admin"
   password    = "RubrikTFDemo2019"
 }

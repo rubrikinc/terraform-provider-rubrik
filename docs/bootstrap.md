@@ -1,6 +1,6 @@
 ## rubrik_bootstrap
 
-Bootstrap will complete the bootstrap process for a Rubrik cluster and requires a single node to have it's management interface configured. You will also need to configure the Rubrik provider with the "username" and "password" set to blank strings.
+The rubrik_bootstrap resource will complete the bootstrap process for a Rubrik cluster and requires a single node to have it's management interface configured. You will also need to configure the Rubrik provider with the "username" and "password" set to blank strings.
 
 ## Example Usage
 
@@ -9,13 +9,12 @@ resource "rubrik_bootstrap" "example" {
   cluster_name           = "tf-demo"
   admin_email            = "tf@demo.com"
   admin_password         = "RubrikTFDemo2019"
-  management_gateway     = "10.167.8.1"
-  management_subnet_mask = "255.255.252.0"
-  dns_name_servers       = ["10.167.8.2"]
-  ntp_servers            = ["8.8.8.8"]
-
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
   node_config = {
-    tf-node01 = "10.167.8.180"
+    tf-node01 = "192.168.100.100"
   }
 }
 ```
