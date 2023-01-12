@@ -55,13 +55,46 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "IPv4 addresses of DNS servers.",
 			},
-			"ntp_servers": &schema.Schema{
-				Type:        schema.TypeList,
+			"ntp_server1_name": &schema.Schema{
+				Type:        schema.TypeString,
 				Required:    true,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Description: "FQDN or IPv4 address of a network time protocol (NTP) server.",
+				Description: "IP address for NTP server #1.",
 			},
-			"node_config": &schema.Schema{
+			"ntp_server1_key_id": &schema.Schema{
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "Key id number for NTP server #1 (typically this is 0)",
+			},
+			"ntp_server1_key": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Symmetric key material for NTP server #1.",
+			},
+			"ntp_server1_key_type": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Symmetric key type for NTP server #1.",
+			},
+			"ntp_server2_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "IP address for NTP server #2.",
+			},
+			"ntp_server2_key_id": &schema.Schema{
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "Key id number for NTP server #2 (typically this is 1)",
+			},
+			"ntp_server2_key": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Symmetric key material for NTP server #2.",
+			},
+			"ntp_server2_key_type": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Symmetric key type for NTP server #2.",
+			}, "node_config": &schema.Schema{
 				Type:        schema.TypeMap,
 				Required:    true,
 				Description: "The Node Name and IP formatted as a map.",
@@ -102,9 +135,26 @@ func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) err
 		dnsNameServers[i] = fmt.Sprint(v)
 	}
 
-	ntpServers := make([]string, len(d.Get("ntp_servers").([]interface{})))
-	for i, v := range d.Get("ntp_servers").([]interface{}) {
-		ntpServers[i] = fmt.Sprint(v)
+	ntpServers := map[string]interface{}{}
+	if d.Get("ntp_server1_name") != "" {
+		ntpServers["ntpServer1"] = map[string]interface{}{}
+		ntpServers["ntpServer1"].(map[string]interface{})["IP"] = d.Get("ntp_server1_name").(string)
+
+		if d.Get("ntp_server1_key") != "" && d.Get("ntp_server1_key_id") != "" && d.Get("ntp_server1_key_type") != "" {
+			ntpServers["ntpServer1"].(map[string]interface{})["key"] = d.Get("ntp_server1_key").(string)
+			ntpServers["ntpServer1"].(map[string]interface{})["keyId"] = d.Get("ntp_server1_key_id").(int)
+			ntpServers["ntpServer1"].(map[string]interface{})["keyType"] = d.Get("ntp_server1_key_type").(string)
+		}
+	}
+
+	if d.Get("ntp_server2_name") != "" {
+		ntpServers["ntpServer2"] = map[string]interface{}{}
+		ntpServers["ntpServer2"].(map[string]interface{})["IP"] = d.Get("ntp_server2_name").(string)
+		if d.Get("ntp_server2_key") != "" && d.Get("ntp_server2_key_id") != "" && d.Get("ntp_server2_key_type") != "" {
+			ntpServers["ntpServer2"].(map[string]interface{})["key"] = d.Get("ntp_server2_key").(string)
+			ntpServers["ntpServer2"].(map[string]interface{})["keyId"] = d.Get("ntp_server2_key_id").(int)
+			ntpServers["ntpServer2"].(map[string]interface{})["keyType"] = d.Get("ntp_server2_key_type").(string)
+		}
 	}
 
 	nodeConfig := make(map[string]string)
@@ -142,7 +192,14 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 		d.Set("management_subnet_mask", d.Get("management_subnet_mask").(string))
 		d.Set("dns_search_domain", d.Get("dns_search_domain").([]interface{}))
 		d.Set("dns_name_servers", d.Get("dns_name_servers").([]interface{}))
-		d.Set("ntp_servers", d.Get("ntp_servers").([]interface{}))
+		d.Set("ntp_server1_name", d.Get("ntp_server1_name").(string))
+		d.Set("ntp_server1_key_id", d.Get("ntp_server1_key_id").(int))
+		d.Set("ntp_server1_key", d.Get("ntp_server1_key").(string))
+		d.Set("ntp_server1_key_type", d.Get("ntp_server1_key_type").(string))
+		d.Set("ntp_server2_name", d.Get("ntp_server2_name").(string))
+		d.Set("ntp_server2_key_id", d.Get("ntp_server2_key_id").(int))
+		d.Set("ntp_server2_key", d.Get("ntp_server2_key").(string))
+		d.Set("ntp_server2_key_type", d.Get("ntp_server2_key_type").(string))
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))

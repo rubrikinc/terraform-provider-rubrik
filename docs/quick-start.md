@@ -129,6 +129,8 @@ resource "rubrik_bootstrap" "example" {
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
   dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name            = "8.8.8.8"
+  ntp_server2_name            = "8.8.4.4"
   node_config = {
     tf-node01 = "192.168.100.100"
   }

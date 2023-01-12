@@ -13,6 +13,8 @@ resource "rubrik_bootstrap" "example" {
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
   dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name            = "8.8.8.8"
+  ntp_server2_name            = "8.8.4.4"
   node_config = {
     tf-node01 = "192.168.100.100"
   }
@@ -30,7 +32,14 @@ The following arguments are supported:
 * `management_subnet_mask` - (Required) Subnet mask assigned to the management network.
 * `dns_search_domain` - (Required) List of search domains that the DNS Service will use to resolve hostnames that are not fully qualified.
 * `dns_name_servers` - (Required) List of the IPv4 addresses of the DNS servers.
-* `ntp_servers` - (Required) List of FQDN or IPv4 addresses of a network time protocol (NTP) server(s).
+* `ntp_server1_name` - (Required) The FQDN or IPv4 addresses of network time protocol (NTP) server #1.
+* `ntp_server1_key_id` - (Optional) The ID number of the symmetric key used with NTP server #1. (Typically this is 0) (Required if `ntp_server1_key` and `ntp_server1_key_type` are also defined.)
+* `ntp_server1_key` - (Optional) Symmetric key material for NTP server #1. (Required if `ntp_server1_key_id` and `ntp_server1_key_type` are also defined.) 
+* `ntp_server1_key_type` (Optional) Symmetric key type for NTP server #1. (Required if `ntp_server1_key` and `ntp_server1_key_id` are also defined.)
+* `ntp_server2_name` - (Required) The FQDN or IPv4 addresses of network time protocol (NTP) server #2.
+* `ntp_server2_key_id` - (Optional) The ID number of the symmetric key used with NTP server #2. (Typically this is 0) (Required if `ntp_server2_key` and `ntp_server2_key_type` are also defined.)
+* `ntp_server2_key` - (Optional) Symmetric key material for NTP server #2. (Required if `ntp_server2_key_id` and `ntp_server2_key_type` are also defined.) 
+* `ntp_server2_key_type` (Optional) Symmetric key type for NTP server #2. (Required if `ntp_server2_key` and `ntp_server2_key_id` are also defined.)
 * `node_config` - (Required) The Node Name and IP formatted as a map.
 * `enable_encryption` - (Optional) Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False. Default value is true.
 * `wait_for_completion` - (Optional) Flag to determine if the function should wait for the bootstrap process to complete. Default value is true.
