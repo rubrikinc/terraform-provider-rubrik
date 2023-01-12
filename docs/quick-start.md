@@ -129,13 +129,62 @@ resource "rubrik_bootstrap" "example" {
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
   dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
-  ntp_server1_name            = "8.8.8.8"
-  ntp_server2_name            = "8.8.4.4"
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
   node_config = {
     tf-node01 = "192.168.100.100"
   }
 }
 ```
+
+### Cloud Cluster ES Bootstrap on AWS
+
+The following demonstrates an example of bootstrapping a new Rubrik cluster:
+
+
+```hcl
+resource "rubrik_bootstrap_cces_aws" "example" {
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
+  bucket_name            = "tf-demo-bucket"
+}
+```
+
+### Cloud Cluster Bootstrap on Azure
+
+The following demonstrates an example of bootstrapping a new Rubrik cluster:
+
+
+```hcl
+resource "rubrik_bootstrap_cces_azure" "example" {
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
+  connection_string       = "DefaultEndpointsProtocol=https;AccountName=storageaccountforccesazuregosdk;AccountKey=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890abcdefghijklm==;EndpointSuffix=core.windows.net"
+  container_name          = "container-for-cces-azure"
+
+}
+```
+
 ## Rubrik Provider for Terraform Documentation
 
 This guide acts only as a quick start to get up and running with the Terraform Provider for Rubrik. For detailed information on all of the functions and features included, see the complete [Terraform Provider for Rubrik documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/).
