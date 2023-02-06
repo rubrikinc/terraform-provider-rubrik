@@ -24,33 +24,13 @@ explained below:
 ### Static credentials 
 
 Static credentials can be provided by adding an `node_ip`, `username` and `password` in-line in the
-Rubrik provider block:
-
-Usage:
-
-```hcl
-provider "rubrik" {
-  node_ip     = "192.168.100.100"
-  username    = "admin"
-  password    = "RubrikTFDemo2019"
-}
-```
+Rubrik provider block.
+s
 ### Environment variables
 
 You can provide your credentials via the `RUBRIK_CDM_NODE_IP`, `RUBRIK_CDM_USERNAME` and
 `RUBRIK_CDM_PASSWORD`, environment variables, representing your Rubrik Node IP address, username
 and password, respectively.
-
-```hcl
-provider "rubrik" {}
-```
-
-```sh
-$ export RUBRIK_CDM_NODE_IP="192.168.100.100"
-$ export RUBRIK_CDM_USERNAME="admin"
-$ export RUBRIK_CDM_PASSWORD="RubrikTFDemo2019"
-$ terraform plan
-```
 
 ## Argument Reference
 
