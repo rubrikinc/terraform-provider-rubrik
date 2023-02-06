@@ -39,7 +39,7 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    `````
    Note: _You may need to create the containing directory structure._
 
-   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](/releases)_
+   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](../../releases)_
 
 
 3. Rename the the Rubrik provider to `terraform-provider-rubrik`
