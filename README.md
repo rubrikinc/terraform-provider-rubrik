@@ -20,16 +20,32 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    ```
 
 2. Move the Rubrik provider into the correct Terraform plugin directory
+     
+   **For Terraform 0.12 and earlier:**
    
-   ```
+   ````
    macOS: ~/.terraform.d/plugins/darwin_amd64
    Linux: ~/.terraform.d/plugins/linux_amd64
    Windows: %APPDATA%\terraform.d\plugins\windows_amd64
-   ```
-   
-   _You may need to manually create the `plugin` directory._
+   `````
+   Note: _You may need to create the plugins directory._
+
+   **For Terraform 0.13 and later:**
+
+   ````
+   macOS: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/darwin_amd64
+   Linux: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/linux_amd64
+   Windows: %APPDATA%\terraform.d\plugins\build.rubrik.com\rubrik\rubrik\<release_version>\windows_amd64
+   `````
+   Note: _You may need to create the containing directory structure._
+
+   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](/releases)_
+
 
 3. Rename the the Rubrik provider to `terraform-provider-rubrik`
+
+    Note: _On Windows systems, ensure you keep the .exe file extension for the downloaded provider binary._
+
 
 4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
