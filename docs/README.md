@@ -46,7 +46,7 @@ provider "rubrik" {}
 ```
 
 ```sh
-$ export RUBRIK_CDM_NODE_IP="10.255.41.201"
+$ export RUBRIK_CDM_NODE_IP="192.168.100.100"
 $ export RUBRIK_CDM_USERNAME="admin"
 $ export RUBRIK_CDM_PASSWORD="RubrikTFDemo2019"
 $ terraform plan
