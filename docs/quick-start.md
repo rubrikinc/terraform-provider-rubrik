@@ -58,24 +58,24 @@ provider "rubrik" {}
 
 #### Setting Environment Variables in Microsoft Windows
 
-For Microsoft Windows-based operating systems, the environment variables can be set utilizing the `setx` command.
+For Microsoft Windows-based operating systems, the environment variables can be set utilizing the setx command as follows:
 
 ```
 setx RUBRIK_CDM_NODE_IP "192.168.0.100"
 setx RUBRIK_CDM_USERNAME "user@domain.com"
-setx RUBRIK_CDM_PASSWORD ""
+setx RUBRIK_CDM_PASSWORD "SecretPassword"
 ```
 
 Run set without any other parameters to view current environment variables. Using setx saves the environment variables permanently, and the variables defined in the current shell will not be available until a new shell is opened. Using set instead of setx will define variables in the current shell session, but they will not be saved between sessions.
 
 #### Setting Environment Variables in macOS and \*nix
 
-For macOS and \*nix based operating systems the environment variables can be set utilizing the `export` command as follows:
+For macOS and \*nix based operating systems the environment variables can be set utilizing the export command as follows:
 
 ```
-export RUBRIK_CDM_NODE_IP="192.168.0.100"
-export RUBRIK_CDM_USERNAME="user@domain.com"
-export RUBRIK_CDM_PASSWORD=""
+export RUBRIK_CDM_NODE_IP=192.168.0.100
+export RUBRIK_CDM_USERNAME=user@domain.com
+export RUBRIK_CDM_PASSWORD=SecretPassword
 ```
 
 Run export without any other parameters to view current environment variables. In order for the environment variables to persist across terminal sessions, add the above three export commands to the `~\.bash_profile` or `~\.profile` file.
@@ -91,7 +91,7 @@ Usage:
 provider "rubrik" {
   node_ip     = "192.168.100.100"
   username    = "admin"
-  password    = ""
+  password    = "RubrikTFDemo2019"
 }
 ```
 
@@ -124,7 +124,7 @@ The following demonstrates an example of bootstrapping a new Rubrik cluster:
 resource "rubrik_bootstrap" "example" {
   cluster_name           = "tf-demo"
   admin_email            = "tf@demo.com"
-  admin_password         = ""
+  admin_password         = "RubrikTFDemo2019"
   management_gateway     = "192.168.100.1"
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
@@ -146,7 +146,7 @@ The following demonstrates an example of bootstrapping a new Rubrik cluster:
 resource "rubrik_bootstrap_cces_aws" "example" {
   cluster_name           = "tf-demo"
   admin_email            = "tf@demo.com"
-  admin_password         = ""
+  admin_password         = "RubrikTFDemo2019"
   management_gateway     = "192.168.100.1"
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
@@ -169,7 +169,7 @@ The following demonstrates an example of bootstrapping a new Rubrik cluster:
 resource "rubrik_bootstrap_cces_azure" "example" {
   cluster_name           = "tf-demo"
   admin_email            = "tf@demo.com"
-  admin_password         = ""
+  admin_password         = "RubrikTFDemo2019"
   management_gateway     = "192.168.100.1"
   management_subnet_mask = "255.255.255.0"
   dns_search_domain      = "demo.com"
