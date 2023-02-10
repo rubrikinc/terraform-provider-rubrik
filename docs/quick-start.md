@@ -9,7 +9,7 @@ Rubrik's API-first architecture enables organizations to embrace and integrate R
 
 Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
 
-1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
+1. Download the latest compiled binary from [GitHub releases](../../releases).
 
    ```
    macOS: terraform-provider-rubrik-darwin-amd64
@@ -46,9 +46,9 @@ explained below:
 
 Storing credentials in environment variables is a more secure process than storing them in your source code, and it ensures that your credentials are not accidentally shared if your code is uploaded to an internal or public version control system such as GitHub. 
 
-* **rubrik_cdm_node_ip** (Contains the IP/FQDN of a Rubrik node)
-* **rubrik_cdm_username** (Contains a username with configured access to the Rubrik cluster)
-* **rubrik_cdm_password** (Contains the password for the above user).
+* **RUBRIK_CDM_NODE_IP** (Contains the IP/FQDN of a Rubrik node)
+* **RUBRIK_CDM_USERNAME** (Contains a username with configured access to the Rubrik cluster)
+* **RUBRIK_CDM_PASSWORD** (Contains the password for the above user).
 
 
 
@@ -61,9 +61,9 @@ provider "rubrik" {}
 For Microsoft Windows-based operating systems, the environment variables can be set utilizing the setx command as follows:
 
 ```
-setx rubrik_cdm_node_ip "192.168.0.100"
-setx rubrik_cdm_username "user@domain.com"
-setx rubrik_cdm_password "SecretPassword"
+setx RUBRIK_CDM_NODE_IP "192.168.0.100"
+setx RUBRIK_CDM_USERNAME "user@domain.com"
+setx RUBRIK_CDM_PASSWORD "SecretPassword"
 ```
 
 Run set without any other parameters to view current environment variables. Using setx saves the environment variables permanently, and the variables defined in the current shell will not be available until a new shell is opened. Using set instead of setx will define variables in the current shell session, but they will not be saved between sessions.
@@ -73,9 +73,9 @@ Run set without any other parameters to view current environment variables. Usin
 For macOS and \*nix based operating systems the environment variables can be set utilizing the export command as follows:
 
 ```
-export rubrik_cdm_node_ip=192.168.0.100
-export rubrik_cdm_username=user@domain.com
-export rubrik_cdm_password=SecretPassword
+export RUBRIK_CDM_NODE_IP=192.168.0.100
+export RUBRIK_CDM_USERNAME=user@domain.com
+export RUBRIK_CDM_PASSWORD=SecretPassword
 ```
 
 Run export without any other parameters to view current environment variables. In order for the environment variables to persist across terminal sessions, add the above three export commands to the `~\.bash_profile` or `~\.profile` file.
@@ -89,7 +89,7 @@ Usage:
 
 ```hcl
 provider "rubrik" {
-  node_ip     = "10.255.41.201"
+  node_ip     = "192.168.100.100"
   username    = "admin"
   password    = "RubrikTFDemo2019"
 }
@@ -120,18 +120,68 @@ resource "rubrik_configure_timezone" "LA-Timezone" {
 The following demonstrates an example of bootstrapping a new Rubrik cluster:
 
 
-```
+```hcl
 resource "rubrik_bootstrap" "example" {
-cluster_name = "tf-demo"
-admin_email = "tf@demo.com"
-admin_password = "RubrikTFDemo2019"
-management_gateway = "10.167.8.1"
-management_subnet_mask = "255.255.252.0"
-dns_name_servers = ["10.167.8.2"]
-ntp_servers = ["8.8.8.8"]
-node_config = {
-tf-node01 = "10.167.8.180"
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
 }
+```
+
+### Cloud Cluster ES Bootstrap on AWS
+
+The following demonstrates an example of bootstrapping a new Rubrik cluster:
+
+
+```hcl
+resource "rubrik_bootstrap_cces_aws" "example" {
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
+  bucket_name            = "tf-demo-bucket"
+}
+```
+
+### Cloud Cluster Bootstrap on Azure
+
+The following demonstrates an example of bootstrapping a new Rubrik cluster:
+
+
+```hcl
+resource "rubrik_bootstrap_cces_azure" "example" {
+  cluster_name           = "tf-demo"
+  admin_email            = "tf@demo.com"
+  admin_password         = "RubrikTFDemo2019"
+  management_gateway     = "192.168.100.1"
+  management_subnet_mask = "255.255.255.0"
+  dns_search_domain      = "demo.com"
+  dns_name_servers       = ["192.168.100.5". "192.168.100.6"]            
+  ntp_server1_name       = "8.8.8.8"
+  ntp_server2_name       = "8.8.4.4"
+  node_config = {
+    tf-node01 = "192.168.100.100"
+  }
+  connection_string       = "DefaultEndpointsProtocol=https;AccountName=storageaccountforccesazuregosdk;AccountKey=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890abcdefghijklm==;EndpointSuffix=core.windows.net"
+  container_name          = "container-for-cces-azure"
+
 }
 ```
 
@@ -200,7 +250,7 @@ After the new variables have been defined you can start adding any new required 
 ```
 
 
-Once the resource and functions have been fully coded, please update or add to Rubrik Provider for Terraform documentation. The directory is located [here](https://github.com/rubrikinc/rubrik-provider-for-terraform/tree/master/docs). 
+Once the resource and functions have been fully coded, please update or add to Rubrik Provider for Terraform documentation. The directory is located [here](docs). 
 
 
 ## Further Reading
