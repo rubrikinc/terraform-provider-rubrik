@@ -1,11 +1,11 @@
-## rubrik_bootstrap
+## rubrik_bootstrap_cces_aws
 
-The rubrik_bootstrap resource will complete the bootstrap process for a Rubrik cluster and requires a single node to have it's management interface configured. You will also need to configure the Rubrik provider with the "username" and "password" set to blank strings.
+Bootstrap_cces_aws will complete the bootstrap process for a Rubrik Cloud Cluster ES on AWS. You will also need to configure the Rubrik provider with the "username" and "password" set to blank strings.
 
 ## Example Usage
 
 ```hcl
-resource "rubrik_bootstrap" "example" {
+resource "rubrik_bootstrap_cces_azure" "example" {
   cluster_name           = "tf-demo"
   admin_email            = "tf@demo.com"
   admin_password         = "RubrikTFDemo2019"
@@ -18,6 +18,7 @@ resource "rubrik_bootstrap" "example" {
   node_config = {
     tf-node01 = "192.168.100.100"
   }
+  bucket_name            = "tf_aws_s3_bucket_name"
 }
 ```
 
@@ -41,6 +42,7 @@ The following arguments are supported:
 * `ntp_server2_key` - (Optional) Symmetric key material for NTP server #2. (Required if `ntp_server2_key_id` and `ntp_server2_key_type` are also defined.) 
 * `ntp_server2_key_type` (Optional) Symmetric key type for NTP server #2. (Required if `ntp_server2_key` and `ntp_server2_key_id` are also defined.)
 * `node_config` - (Required) The Node Name and IP formatted as a map.
-* `enable_encryption` - (Optional) Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False. Default value is true.
+* `enable_encryption` - (Optional) Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False. Default value is false.
+* `bucket_name` - (Required) AWS S3 bucket where CCES will store its data.
 * `wait_for_completion` - (Optional) Flag to determine if the function should wait for the bootstrap process to complete. Default value is true.
 * `timeout` - (Optional) The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error. Default is 15.

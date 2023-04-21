@@ -8,12 +8,12 @@ import (
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 )
 
-func resourceRubrikBootstrap() *schema.Resource {
+func resourceRubrikBootstrapCcesAzure() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRubrikBootstrapCreate,
-		Read:   resourceRubrikBootstrapRead,
-		Update: resourceRubrikBootstrapUpdate,
-		Delete: resourceRubrikBootstrapDelete,
+		Create: resourceRubrikBootstrapCcesAzureCreate,
+		Read:   resourceRubrikBootstrapCcesAzureRead,
+		Update: resourceRubrikBootstrapCcesAzureUpdate,
+		Delete: resourceRubrikBootstrapCcesAzureDelete,
 
 		Schema: map[string]*schema.Schema{
 			"cluster_name": &schema.Schema{
@@ -94,7 +94,8 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Symmetric key type for NTP server #2.",
-			}, "node_config": &schema.Schema{
+			},
+			"node_config": &schema.Schema{
 				Type:        schema.TypeMap,
 				Required:    true,
 				Description: "The Node Name and IP formatted as a map.",
@@ -104,6 +105,16 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Optional:    true,
 				Default:     true,
 				Description: "Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False.",
+			},
+			"connection_string": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The connection string for the Azure storage account where CCES will store its data.",
+			},
+			"container_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The name of the container in the Azure storage account where CCES will store its data.",
 			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,
@@ -122,7 +133,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 
 }
 
-func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAzureCreate(d *schema.ResourceData, meta interface{}) error {
 
 	// Convert interface{} list and maps to string
 	dnsSearchDomain := make([]string, len(d.Get("dns_search_domain").([]interface{})))
@@ -136,26 +147,16 @@ func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) err
 	}
 
 	ntpServers := map[string]interface{}{}
-	if d.Get("ntp_server1_name") != "" {
-		ntpServers["ntpServer1"] = map[string]interface{}{}
-		ntpServers["ntpServer1"].(map[string]interface{})["IP"] = d.Get("ntp_server1_name").(string)
-
-		if d.Get("ntp_server1_key") != "" && d.Get("ntp_server1_key_id") != "" && d.Get("ntp_server1_key_type") != "" {
-			ntpServers["ntpServer1"].(map[string]interface{})["key"] = d.Get("ntp_server1_key").(string)
-			ntpServers["ntpServer1"].(map[string]interface{})["keyId"] = d.Get("ntp_server1_key_id").(int)
-			ntpServers["ntpServer1"].(map[string]interface{})["keyType"] = d.Get("ntp_server1_key_type").(string)
-		}
-	}
-
-	if d.Get("ntp_server2_name") != "" {
-		ntpServers["ntpServer2"] = map[string]interface{}{}
-		ntpServers["ntpServer2"].(map[string]interface{})["IP"] = d.Get("ntp_server2_name").(string)
-		if d.Get("ntp_server2_key") != "" && d.Get("ntp_server2_key_id") != "" && d.Get("ntp_server2_key_type") != "" {
-			ntpServers["ntpServer2"].(map[string]interface{})["key"] = d.Get("ntp_server2_key").(string)
-			ntpServers["ntpServer2"].(map[string]interface{})["keyId"] = d.Get("ntp_server2_key_id").(int)
-			ntpServers["ntpServer2"].(map[string]interface{})["keyType"] = d.Get("ntp_server2_key_type").(string)
-		}
-	}
+	ntpServers["ntpServer1"] = map[string]interface{}{}
+	ntpServers["ntpServer1"].(map[string]interface{})["IP"] = d.Get("ntp_server1_name").(string)
+	ntpServers["ntpServer1"].(map[string]interface{})["key"] = d.Get("ntp_server1_key").(string)
+	ntpServers["ntpServer1"].(map[string]interface{})["keyId"] = d.Get("ntp_server1_key_id").(int)
+	ntpServers["ntpServer1"].(map[string]interface{})["keyType"] = d.Get("ntp_server1_key_type").(string)
+	ntpServers["ntpServer2"] = map[string]interface{}{}
+	ntpServers["ntpServer2"].(map[string]interface{})["IP"] = d.Get("ntp_server2_name").(string)
+	ntpServers["ntpServer2"].(map[string]interface{})["key"] = d.Get("ntp_server2_key").(string)
+	ntpServers["ntpServer2"].(map[string]interface{})["keyId"] = d.Get("ntp_server2_key_id").(int)
+	ntpServers["ntpServer2"].(map[string]interface{})["keyType"] = d.Get("ntp_server2_key_type").(string)
 
 	nodeConfig := make(map[string]string)
 	for key, value := range d.Get("node_config").(map[string]interface{}) {
@@ -165,17 +166,17 @@ func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) err
 	}
 
 	rubrik := meta.(*rubrikcdm.Credentials)
-	_, err := rubrik.Bootstrap(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	_, err := rubrik.BootstrapCcesAzure(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("connection_string").(string), d.Get("container_name").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
 
 	d.SetId(d.Get("cluster_name").(string))
 
-	return resourceRubrikBootstrapRead(d, meta)
+	return resourceRubrikBootstrapCcesAzureRead(d, meta)
 }
 
-func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAzureRead(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
@@ -202,6 +203,8 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 		d.Set("ntp_server2_key_type", d.Get("ntp_server2_key_type").(string))
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
+		d.Set("connection_string", d.Get("bucket_name").(string))
+		d.Set("container_name", d.Get("bucket_name").(string))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
 		d.SetId("")
@@ -211,13 +214,13 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 
 }
 
-func resourceRubrikBootstrapUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAzureUpdate(d *schema.ResourceData, meta interface{}) error {
 	// Once a Cluster has been bootstrapped it can not be updated through the bootstrap resource
 
 	return resourceRubrikBootstrapRead(d, meta)
 }
 
-func resourceRubrikBootstrapDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAzureDelete(d *schema.ResourceData, meta interface{}) error {
 	// Once a Cluster has been bootstrapped it can not be deleted.
 
 	return nil

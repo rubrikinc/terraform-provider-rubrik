@@ -8,12 +8,12 @@ import (
 	"github.com/rubrikinc/rubrik-sdk-for-go/rubrikcdm"
 )
 
-func resourceRubrikBootstrap() *schema.Resource {
+func resourceRubrikBootstrapCcesAws() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRubrikBootstrapCreate,
-		Read:   resourceRubrikBootstrapRead,
-		Update: resourceRubrikBootstrapUpdate,
-		Delete: resourceRubrikBootstrapDelete,
+		Create: resourceRubrikBootstrapCcesAwsCreate,
+		Read:   resourceRubrikBootstrapCcesAwsRead,
+		Update: resourceRubrikBootstrapCcesAwsUpdate,
+		Delete: resourceRubrikBootstrapCcesAwsDelete,
 
 		Schema: map[string]*schema.Schema{
 			"cluster_name": &schema.Schema{
@@ -94,7 +94,8 @@ func resourceRubrikBootstrap() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Symmetric key type for NTP server #2.",
-			}, "node_config": &schema.Schema{
+			},
+			"node_config": &schema.Schema{
 				Type:        schema.TypeMap,
 				Required:    true,
 				Description: "The Node Name and IP formatted as a map.",
@@ -102,8 +103,13 @@ func resourceRubrikBootstrap() *schema.Resource {
 			"enable_encryption": &schema.Schema{
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Default:     true,
+				Default:     false,
 				Description: "Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False.",
+			},
+			"bucket_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "AWS S3 bucket where CCES will store its data.",
 			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,
@@ -122,7 +128,7 @@ func resourceRubrikBootstrap() *schema.Resource {
 
 }
 
-func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAwsCreate(d *schema.ResourceData, meta interface{}) error {
 
 	// Convert interface{} list and maps to string
 	dnsSearchDomain := make([]string, len(d.Get("dns_search_domain").([]interface{})))
@@ -165,17 +171,17 @@ func resourceRubrikBootstrapCreate(d *schema.ResourceData, meta interface{}) err
 	}
 
 	rubrik := meta.(*rubrikcdm.Credentials)
-	_, err := rubrik.Bootstrap(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	_, err := rubrik.BootstrapCcesAws(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("bucket_name").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
 
 	d.SetId(d.Get("cluster_name").(string))
 
-	return resourceRubrikBootstrapRead(d, meta)
+	return resourceRubrikBootstrapCcesAwsRead(d, meta)
 }
 
-func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAwsRead(d *schema.ResourceData, meta interface{}) error {
 
 	rubrik := meta.(*rubrikcdm.Credentials)
 
@@ -202,6 +208,7 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 		d.Set("ntp_server2_key_type", d.Get("ntp_server2_key_type").(string))
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
+		d.Set("bucket_name", d.Get("bucket_name").(string))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
 		d.SetId("")
@@ -211,13 +218,13 @@ func resourceRubrikBootstrapRead(d *schema.ResourceData, meta interface{}) error
 
 }
 
-func resourceRubrikBootstrapUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAwsUpdate(d *schema.ResourceData, meta interface{}) error {
 	// Once a Cluster has been bootstrapped it can not be updated through the bootstrap resource
 
 	return resourceRubrikBootstrapRead(d, meta)
 }
 
-func resourceRubrikBootstrapDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceRubrikBootstrapCcesAwsDelete(d *schema.ResourceData, meta interface{}) error {
 	// Once a Cluster has been bootstrapped it can not be deleted.
 
 	return nil

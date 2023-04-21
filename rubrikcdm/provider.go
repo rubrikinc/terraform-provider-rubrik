@@ -4,13 +4,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// Provider returns a terraform.ResourceProvider.
-func Provider() terraform.ResourceProvider {
+// Provider returns a t*helper/schema.Provider.
+func Provider() *schema.Provider {
 	// Look for environment variables from other Rubrik SDKs, and use them if necessary
 	if os.Getenv("RUBRIK_CDM_NODE_IP") == "" && os.Getenv("rubrik_cdm_node_ip") != "" {
 		os.Setenv("RUBRIK_CDM_NODE_IP", os.Getenv("rubrik_cdm_node_ip"))
@@ -34,7 +33,7 @@ func Provider() terraform.ResourceProvider {
 				Type:         schema.TypeString,
 				Required:     true,
 				DefaultFunc:  schema.EnvDefaultFunc("RUBRIK_CDM_NODE_IP", nil),
-				ValidateFunc: validation.SingleIP(),
+				ValidateFunc: validation.IsIPAddress,
 				Description:  "The IP Address of a Node in the Rubrik cluster.",
 			},
 			"username": {
@@ -52,15 +51,17 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"rubrik_assign_sla":         resourceRubrikAssignSLA(),
-			"rubrik_bootstrap":          resourceRubrikBootstrap(),
-			"rubrik_configure_timezone": resourceRubrikConfigureTimezone(),
-			"rubrik_aws_native_account": resourceRubrikAWSNativeAccount(),
-			"rubrik_aws_s3_cloudout":    resourceRubrikAWSS3CloudOut(),
-			"rubrik_aws_s3_cloudon":     resourceRubrikAWSS3CloudOn(),
-			"rubrik_aws_export_ec2":     resourceRubrikAWSExportEC2(),
-			"rubrik_azure_cloudout":     resourceRubrikAzureCloudOut(),
-			"rubrik_azure_cloudon":      resourceRubrikAzureCloudOn(),
+			"rubrik_assign_sla":           resourceRubrikAssignSLA(),
+			"rubrik_bootstrap":            resourceRubrikBootstrap(),
+			"rubrik_bootstrap_cces_aws":   resourceRubrikBootstrapCcesAws(),
+			"rubrik_bootstrap_cces_azure": resourceRubrikBootstrapCcesAzure(),
+			"rubrik_configure_timezone":   resourceRubrikConfigureTimezone(),
+			"rubrik_aws_native_account":   resourceRubrikAWSNativeAccount(),
+			"rubrik_aws_s3_cloudout":      resourceRubrikAWSS3CloudOut(),
+			"rubrik_aws_s3_cloudon":       resourceRubrikAWSS3CloudOn(),
+			"rubrik_aws_export_ec2":       resourceRubrikAWSExportEC2(),
+			"rubrik_azure_cloudout":       resourceRubrikAzureCloudOut(),
+			"rubrik_azure_cloudon":        resourceRubrikAzureCloudOn(),
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

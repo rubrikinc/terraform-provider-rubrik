@@ -12,7 +12,7 @@
 Requirements: Terraform has been successfully [installed](https://learn.hashicorp.com/terraform/getting-started/install.html).
 
 
-1. Download the latest compiled binary from [GitHub releases](https://github.com/rubrikinc/rubrik-provider-for-terraform/releases).
+1. Download the latest compiled binary from [GitHub releases](../../releases).
    ```
    macOS: terraform-provider-rubrik-darwin-amd64
    Linux: terraform-provider-rubrik-linux-amd64
@@ -20,24 +20,40 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    ```
 
 2. Move the Rubrik provider into the correct Terraform plugin directory
+     
+   **For Terraform 0.12 and earlier:**
    
-   ```
+   ````
    macOS: ~/.terraform.d/plugins/darwin_amd64
    Linux: ~/.terraform.d/plugins/linux_amd64
    Windows: %APPDATA%\terraform.d\plugins\windows_amd64
-   ```
-   
-   _You may need to manually create the `plugin` directory._
+   `````
+   Note: _You may need to create the plugins directory._
+
+   **For Terraform 0.13 and later:**
+
+   ````
+   macOS: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/darwin_amd64
+   Linux: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/linux_amd64
+   Windows: %APPDATA%\terraform.d\plugins\build.rubrik.com\rubrik\rubrik\<release_version>\windows_amd64
+   `````
+   Note: _You may need to create the containing directory structure._
+
+   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](../../releases)_
+
 
 3. Rename the the Rubrik provider to `terraform-provider-rubrik`
+
+    Note: _On Windows systems, ensure you keep the .exe file extension for the downloaded provider binary._
+
 
 4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
 # :blue_book: Documentation
 
-Here are some resources to get you started! If you find any challenges from this project are not properly documented or are unclear, please [raise an issue](https://github.com/rubrikinc/rubrik-provider-for-terraform/issues/new/choose) and let us know! This is a fun, safe environment - don't worry if you're a GitHub newbie! :heart:
+Here are some resources to get you started! If you find any challenges from this project are not properly documented or are unclear, please [raise an issue](../../issues/new/choose) and let us know! This is a fun, safe environment - don't worry if you're a GitHub newbie! :heart:
 
-* [Quick Start Guide](https://github.com/rubrikinc/rubrik-provider-for-terraform/blob/master/docs/quick-start.md)
+* [Quick Start Guide](docs/quick-start.md)
 * [Rubrik Provider for Terraform Documentation](https://rubrik.gitbook.io/terraform-provider-for-rubrik/)
 * [Rubrik API Documentation](https://github.com/rubrikinc/api-documentation)
 * [VIDEO: Getting Started with the Rubrik Provider for Terraform](https://www.youtube.com/watch?v=kV1xiP1tHY0)

@@ -30,7 +30,7 @@ Usage:
 
 ```hcl
 provider "rubrik" {
-  node_ip     = "10.255.41.201"
+  node_ip     = "192.168.100.100"
   username    = "admin"
   password    = "RubrikTFDemo2019"
 }
@@ -46,7 +46,7 @@ provider "rubrik" {}
 ```
 
 ```sh
-$ export RUBRIK_CDM_NODE_IP="10.255.41.201"
+$ export RUBRIK_CDM_NODE_IP="192.168.100.100"
 $ export RUBRIK_CDM_USERNAME="admin"
 $ export RUBRIK_CDM_PASSWORD="RubrikTFDemo2019"
 $ terraform plan
@@ -57,7 +57,7 @@ $ terraform plan
 The following arguments are supported in the Rubrik `provider` block:
 
 * `node_ip` - (Optional) The Node IP address of the Rubrik cluster you wish to connect to. The value may also be sourced from the
-`RUBRIK_CDM_PASSWORD` environment variable.
+`RUBRIK_CDM_NODE_IP` environment variable.
 
 * `username` - (Optional) The username of the Rubrik cluster you wish to connect to. The value may also be sourced from the
 `RUBRIK_CDM_USERNAME` environment variable.
