@@ -18,20 +18,39 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    ```
 
 2. Move the Rubrik provider into the correct Terraform plugin directory
+     
+   **For Terraform 0.12 and earlier:**
    
-   ```
+   ````
    macOS: ~/.terraform.d/plugins/darwin_amd64
    Linux: ~/.terraform.d/plugins/linux_amd64
    Windows: %APPDATA%\terraform.d\plugins\windows_amd64
-   ```
-   
-   _You may need to manually create the `plugin` directory._
+   ````
+   Note: _You may need to create the plugins directory._
 
-3. Rename the the Rubrik provder to `terraform-provider-rubrik`
+   **For Terraform 0.13 and later:**
 
-4. On Linux and MacOS ensure that the binary has the appropriate permissions by running `chmod 744 terraform-provider-rubrik`
+   ````
+   macOS cp terraform-provider-rubrik-darwin-amd64 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/darwin_amd64/terraform-provider-rubrik
+   Linux: cp terraform-provider-rubrik-linux-amd64 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/linux_amd64/terraform-provider-rubrik
+   Windows: copy terraform-provider-rubrik-windows-amd64.exe %APPDATA%\terraform.d\plugins\rubrikinc\rubrik\rubrik\<release_version>\windows_amd64\terraform-provider-rubrik.exe
+   ````
+   Note: _You may need to create the containing directory structure._
 
-5. Run `terraform init` in the directory that contains your Terraform configuration fiile (`main.tf`)
+   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](../../releases)._
+
+   Note: _`terraform-provider-rubrik` and `terraform-provider-rubrik.exe` are file names not directories._
+
+
+3. For MacOS and Linux only, make the `terraform-provider-rubrik` file executable.
+
+   ````
+   macOS chmod 755 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/darwin_amd64/terraform-provider-rubrik
+   Linux: chmod 755 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/linux_amd64/terraform-provider-rubrik
+   ````
+
+
+5. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
 ## Authentication
 

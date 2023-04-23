@@ -53,3 +53,4 @@ IMPROVEMENTS:
 * Upgraded to Terraform Provider SDK v2.26.1
 * Upgraded golang.org/x/text to v0.8.8
 * Upgraded golang.org/x/net to v0.8.0
+* Updated provider installation instructions.
