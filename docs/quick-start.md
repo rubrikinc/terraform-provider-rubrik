@@ -176,6 +176,7 @@ resource "rubrik_bootstrap_cces_aws" "example" {
     tf-node01 = "192.168.100.100"
   }
   bucket_name            = "tf-demo-bucket"
+  enable_immutability    = true
 }
 ```
 
@@ -200,6 +201,7 @@ resource "rubrik_bootstrap_cces_azure" "example" {
   }
   connection_string       = "DefaultEndpointsProtocol=https;AccountName=storageaccountforccesazuregosdk;AccountKey=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890abcdefghijklm==;EndpointSuffix=core.windows.net"
   container_name          = "container-for-cces-azure"
+  enable_immutability     = true
 
 }
 ```

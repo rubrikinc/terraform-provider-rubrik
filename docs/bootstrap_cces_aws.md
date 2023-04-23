@@ -44,5 +44,6 @@ The following arguments are supported:
 * `node_config` - (Required) The Node Name and IP formatted as a map.
 * `enable_encryption` - (Optional) Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False. Default value is false.
 * `bucket_name` - (Required) AWS S3 bucket where CCES will store its data.
+* `enable_immutability` - (Optional) Enable immutability on the S3 objects that CCES uses. Default value is false.
 * `wait_for_completion` - (Optional) Flag to determine if the function should wait for the bootstrap process to complete. Default value is true.
 * `timeout` - (Optional) The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error. Default is 15.
