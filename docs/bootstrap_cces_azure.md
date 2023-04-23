@@ -46,5 +46,6 @@ The following arguments are supported:
 * `enable_encryption` - (Optional) Enable software data encryption at rest. When bootstrapping a Cloud Cluster this value needs to be False. Default value is false.
 * `connection_string` - (Required) The name of the container in the Azure storage account where CCES will store its data.
 * `container_name` - (Required) AThe connection string for the Azure storage account where CCES will store its data.
+* `enable_immutability` - (Optional) Enable immutability on the Azure blobs that CCES uses. Default value is false.
 * `wait_for_completion` - (Optional) Flag to determine if the function should wait for the bootstrap process to complete. Default value is true.
 * `timeout` - (Optional) The number of seconds to wait to establish a connection the Rubrik cluster before returning a timeout error. Default is 15.

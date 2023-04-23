@@ -116,6 +116,12 @@ func resourceRubrikBootstrapCcesAzure() *schema.Resource {
 				Required:    true,
 				Description: "The name of the container in the Azure storage account where CCES will store its data.",
 			},
+			"enable_immutability": &schema.Schema{
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Flag to determine if versioning will be used on the Azure Blob storage to enable immutability.",
+			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,
 				Optional:    true,
@@ -166,7 +172,7 @@ func resourceRubrikBootstrapCcesAzureCreate(d *schema.ResourceData, meta interfa
 	}
 
 	rubrik := meta.(*rubrikcdm.Credentials)
-	_, err := rubrik.BootstrapCcesAzure(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("connection_string").(string), d.Get("container_name").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	_, err := rubrik.BootstrapCcesAzure(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("connection_string").(string), d.Get("container_name").(string), d.Get("enable_immutability").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
@@ -203,8 +209,9 @@ func resourceRubrikBootstrapCcesAzureRead(d *schema.ResourceData, meta interface
 		d.Set("ntp_server2_key_type", d.Get("ntp_server2_key_type").(string))
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
-		d.Set("connection_string", d.Get("bucket_name").(string))
-		d.Set("container_name", d.Get("bucket_name").(string))
+		d.Set("connection_string", d.Get("connection_string").(string))
+		d.Set("container_name", d.Get("container_name").(string))
+		d.Set("enable_immutability", d.Get("enable_immutability").(bool))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
 		d.SetId("")

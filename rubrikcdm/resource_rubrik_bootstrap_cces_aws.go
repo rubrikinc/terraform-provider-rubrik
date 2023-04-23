@@ -111,6 +111,12 @@ func resourceRubrikBootstrapCcesAws() *schema.Resource {
 				Required:    true,
 				Description: "AWS S3 bucket where CCES will store its data.",
 			},
+			"enable_immutability": &schema.Schema{
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Flag to determine if versioning will be used on the S3 object storage to enable immutability.",
+			},
 			"wait_for_completion": &schema.Schema{
 				Type:        schema.TypeBool,
 				Optional:    true,
@@ -171,7 +177,7 @@ func resourceRubrikBootstrapCcesAwsCreate(d *schema.ResourceData, meta interface
 	}
 
 	rubrik := meta.(*rubrikcdm.Credentials)
-	_, err := rubrik.BootstrapCcesAws(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("bucket_name").(string), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
+	_, err := rubrik.BootstrapCcesAws(d.Get("cluster_name").(string), d.Get("admin_email").(string), d.Get("admin_password").(string), d.Get("management_gateway").(string), d.Get("management_subnet_mask").(string), dnsSearchDomain, dnsNameServers, ntpServers, nodeConfig, d.Get("enable_encryption").(bool), d.Get("bucket_name").(string), d.Get("enable_immutability").(bool), d.Get("wait_for_completion").(bool), d.Get("timeout").(int))
 	if err != nil {
 		return err
 	}
@@ -209,6 +215,7 @@ func resourceRubrikBootstrapCcesAwsRead(d *schema.ResourceData, meta interface{}
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
 		d.Set("bucket_name", d.Get("bucket_name").(string))
+		d.Set("enable_immutability", d.Get("enable_immutability").(bool))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
 		d.SetId("")

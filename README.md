@@ -27,25 +27,29 @@ Requirements: Terraform has been successfully [installed](https://learn.hashicor
    macOS: ~/.terraform.d/plugins/darwin_amd64
    Linux: ~/.terraform.d/plugins/linux_amd64
    Windows: %APPDATA%\terraform.d\plugins\windows_amd64
-   `````
+   ````
    Note: _You may need to create the plugins directory._
 
    **For Terraform 0.13 and later:**
 
    ````
-   macOS: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/darwin_amd64
-   Linux: ~/.terraform.d/plugins/build.rubrik.com/rubrik/rubrik/<release_version>/linux_amd64
-   Windows: %APPDATA%\terraform.d\plugins\build.rubrik.com\rubrik\rubrik\<release_version>\windows_amd64
-   `````
+   macOS cp terraform-provider-rubrik-darwin-amd64 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/darwin_amd64/terraform-provider-rubrik
+   Linux: cp terraform-provider-rubrik-linux-amd64 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/linux_amd64/terraform-provider-rubrik
+   Windows: copy terraform-provider-rubrik-windows-amd64.exe %APPDATA%\terraform.d\plugins\rubrikinc\rubrik\rubrik\<release_version>\windows_amd64\terraform-provider-rubrik.exe
+   ````
    Note: _You may need to create the containing directory structure._
 
-   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](../../releases)_
+   Note: _Replace <release_version> with the release number of the provider as found in [GitHub releases](../../releases)._
+
+   Note: _`terraform-provider-rubrik` and `terraform-provider-rubrik.exe` are file names not directories._
 
 
-3. Rename the the Rubrik provider to `terraform-provider-rubrik`
+3. For MacOS and Linux only, make the `terraform-provider-rubrik` file executable.
 
-    Note: _On Windows systems, ensure you keep the .exe file extension for the downloaded provider binary._
-
+   ````
+   macOS chmod 755 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/darwin_amd64/terraform-provider-rubrik
+   Linux: chmod 755 ~/.terraform.d/plugins/rubrikinc/rubrik/rubrik/<release_version>/linux_amd64/terraform-provider-rubrik
+   ````
 
 4. Run `terraform init` in the directory that contains your Terraform configuration file (`main.tf`)
 
