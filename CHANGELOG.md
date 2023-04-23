@@ -54,3 +54,4 @@ IMPROVEMENTS:
 * Upgraded golang.org/x/text to v0.8.8
 * Upgraded golang.org/x/net to v0.8.0
 * Updated provider installation instructions.
+* Fixed bug with Azure CCES bootstrapping.

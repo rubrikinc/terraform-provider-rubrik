@@ -203,8 +203,8 @@ func resourceRubrikBootstrapCcesAzureRead(d *schema.ResourceData, meta interface
 		d.Set("ntp_server2_key_type", d.Get("ntp_server2_key_type").(string))
 		d.Set("node_config", d.Get("node_config").(map[string]interface{}))
 		d.Set("enable_encryption", d.Get("enable_encryption").(bool))
-		d.Set("connection_string", d.Get("bucket_name").(string))
-		d.Set("container_name", d.Get("bucket_name").(string))
+		d.Set("connection_string", d.Get("connection_string").(string))
+		d.Set("container_name", d.Get("container_name").(string))
 		d.Set("wait_for_completion", d.Get("wait_for_completion").(bool))
 	} else {
 		d.SetId("")
