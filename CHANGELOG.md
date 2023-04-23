@@ -50,3 +50,6 @@ IMPROVEMENTS:
 * Changed to work with Terraform v1.2.2
 * Changed to bootstrap CDM v5.0 and higher clusters with secure NTP. - Note this is a breaking change for CDM versions older than v5.0.
 * Changed to rubrikcdm Go SDK v1.1.1
+* Upgraded to Terraform Provider SDK v2.26.1
+* Upgraded golang.org/x/text to v0.8.8
+* Upgraded golang.org/x/net to v0.8.0
