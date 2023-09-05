@@ -153,16 +153,26 @@ func resourceRubrikBootstrapCcesAzureCreate(d *schema.ResourceData, meta interfa
 	}
 
 	ntpServers := map[string]interface{}{}
-	ntpServers["ntpServer1"] = map[string]interface{}{}
-	ntpServers["ntpServer1"].(map[string]interface{})["IP"] = d.Get("ntp_server1_name").(string)
-	ntpServers["ntpServer1"].(map[string]interface{})["key"] = d.Get("ntp_server1_key").(string)
-	ntpServers["ntpServer1"].(map[string]interface{})["keyId"] = d.Get("ntp_server1_key_id").(int)
-	ntpServers["ntpServer1"].(map[string]interface{})["keyType"] = d.Get("ntp_server1_key_type").(string)
-	ntpServers["ntpServer2"] = map[string]interface{}{}
-	ntpServers["ntpServer2"].(map[string]interface{})["IP"] = d.Get("ntp_server2_name").(string)
-	ntpServers["ntpServer2"].(map[string]interface{})["key"] = d.Get("ntp_server2_key").(string)
-	ntpServers["ntpServer2"].(map[string]interface{})["keyId"] = d.Get("ntp_server2_key_id").(int)
-	ntpServers["ntpServer2"].(map[string]interface{})["keyType"] = d.Get("ntp_server2_key_type").(string)
+	if d.Get("ntp_server1_name") != "" {
+		ntpServers["ntpServer1"] = map[string]interface{}{}
+		ntpServers["ntpServer1"].(map[string]interface{})["IP"] = d.Get("ntp_server1_name").(string)
+
+		if d.Get("ntp_server1_key") != "" && d.Get("ntp_server1_key_id") != "" && d.Get("ntp_server1_key_type") != "" {
+			ntpServers["ntpServer1"].(map[string]interface{})["key"] = d.Get("ntp_server1_key").(string)
+			ntpServers["ntpServer1"].(map[string]interface{})["keyId"] = d.Get("ntp_server1_key_id").(int)
+			ntpServers["ntpServer1"].(map[string]interface{})["keyType"] = d.Get("ntp_server1_key_type").(string)
+		}
+	}
+
+	if d.Get("ntp_server2_name") != "" {
+		ntpServers["ntpServer2"] = map[string]interface{}{}
+		ntpServers["ntpServer2"].(map[string]interface{})["IP"] = d.Get("ntp_server2_name").(string)
+		if d.Get("ntp_server2_key") != "" && d.Get("ntp_server2_key_id") != "" && d.Get("ntp_server2_key_type") != "" {
+			ntpServers["ntpServer2"].(map[string]interface{})["key"] = d.Get("ntp_server2_key").(string)
+			ntpServers["ntpServer2"].(map[string]interface{})["keyId"] = d.Get("ntp_server2_key_id").(int)
+			ntpServers["ntpServer2"].(map[string]interface{})["keyType"] = d.Get("ntp_server2_key_type").(string)
+		}
+	}
 
 	nodeConfig := make(map[string]string)
 	for key, value := range d.Get("node_config").(map[string]interface{}) {
