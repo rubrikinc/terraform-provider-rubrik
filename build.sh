@@ -5,7 +5,7 @@ rm rubrikcdm/resource_rubrik_template.go
 package_split=(${package//\// })
 package_name="terraform-provider-rubrik"
 
-platforms=("darwin/amd64" "linux/amd64" "windows/amd64")
+platforms=("darwin/arm64" "darwin/amd64" "linux/amd64" "windows/amd64")
 
 
 for platform in "${platforms[@]}"
