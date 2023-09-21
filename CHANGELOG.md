@@ -59,3 +59,16 @@ IMPROVEMENTS:
 * Added support for immutable Cloud Cluster Elastic Storage (CCES)
 * Updated provider installation instructions.
 * Fixed bug with Azure CCES bootstrapping.
+
+## 2.2.1
+
+* Added support for Apple/ARM based Macs (M1/M2)
+* Bugfix: Improper NTP settings.
+* Updated installation instructions.
+
+## 2.3.0
+
+* Upgraded to Terraform Provider SDK v2.29.0
+* Upgraded Golang to 1.21
+* Upgraded required Golang modules
+* Upgraded to Rubrik Go SDK v1.3.0
