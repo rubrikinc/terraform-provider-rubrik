@@ -37,7 +37,7 @@ import (
 )
 
 const resourceAWSExocomputeDescription = `
-The ´polaris_aws_exocompute´ resource creates an RSC Exocompute configuration
+The ´rubrik_aws_exocompute´ resource creates an RSC Exocompute configuration
 for AWS workloads.
 
 There are 3 types of Exocompute configurations:
@@ -48,7 +48,7 @@ There are 3 types of Exocompute configurations:
  2. *Customer Managed Host* - When a customer managed host configuration is
     created, RSC will not deploy any resources. Instead it will use the AWS EKS
     cluster attached by the customer, using the
-    ´polaris_aws_exocompute_cluster_attachment´ resource, for all operations.
+    ´rubrik_aws_exocompute_cluster_attachment´ resource, for all operations.
  3. *Application* - An application configuration is created by mapping the
     application cloud account to a host cloud account. The application cloud
     account will leverage the Exocompute resources deployed for the host
@@ -58,7 +58,7 @@ Items 1 and 2 above requires that the AWS account has been onboarded with the
 ´EXOCOMPUTE´ feature.
 
 Since there are 3 types of Exocompute configurations, there are 3 ways to create
-a ´polaris_aws_exocompute´ resource:
+a ´rubrik_aws_exocompute´ resource:
  1. Using the ´account_id´, ´region´, ´vpc_id´ and ´subnets´ or ´subnet´ fields
     creates an RSC managed host configuration. Use the ´subnet´ block when pod
     subnets are needed. The ´cluster_security_group_id´ and
@@ -66,7 +66,7 @@ a ´polaris_aws_exocompute´ resource:
     configuration where the customer manage the security groups. The
     ´cluster_access´ field can be used to configure private EKS cluster access.
  2. Using the ´account_id´ and ´region´ fields creates a customer managed host
-    configuration. Note, the ´polaris_aws_exocompute_cluster_attachment´
+    configuration. Note, the ´rubrik_aws_exocompute_cluster_attachment´
     resource must be used to attach an AWS EKS cluster to the Exocompute
     configuration.
  3. Using the ´account_id´ and ´host_cloud_account_id´ fields creates an

@@ -35,7 +35,7 @@ import (
 )
 
 const dataSourceFeatureFlagDescription = `
-The ´polaris_feature_flag´ data source is used to check if a feature flag is enabled for
+The ´rubrik_feature_flag´ data source is used to check if a feature flag is enabled for
 the RSC account.
 `
 
@@ -43,6 +43,7 @@ var _ datasource.DataSource = &featureFlagDataSource{}
 
 type featureFlagDataSource struct {
 	client *client
+	prefix string
 }
 
 type featureFlagModel struct {
@@ -52,13 +53,17 @@ type featureFlagModel struct {
 }
 
 func newFeatureFlagDataSource() datasource.DataSource {
-	return &featureFlagDataSource{}
+	return &featureFlagDataSource{prefix: keyRubrik}
+}
+
+func newPolarisFeatureFlagDataSource() datasource.DataSource {
+	return &featureFlagDataSource{prefix: keyPolaris}
 }
 
 func (d *featureFlagDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "featureFlagDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyFeatureFlag
+	res.TypeName = d.prefix + "_" + keyFeatureFlag
 }
 
 func (d *featureFlagDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -83,6 +88,10 @@ func (d *featureFlagDataSource) Schema(ctx context.Context, _ datasource.SchemaR
 				Description: "Whether the feature flag is enabled for the RSC account.",
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_feature_flag` data source instead."
 	}
 }
 

@@ -1,8 +1,8 @@
 ---
-page_title: "polaris_sla_domain Resource - terraform-provider-polaris"
+page_title: "rubrik_sla_domain Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-    The polaris_sla_domain resource is used to manage RSC global SLA Domains. SLA
+    The rubrik_sla_domain resource is used to manage RSC global SLA Domains. SLA
   Domain defines how you want to take snapshots of objects like virtual machines,
   databases, SaaS apps and cloud objects. An SLA Domain can define frequency,
   retention, archival and replication.
@@ -55,9 +55,9 @@ description: |-
   Archival is not supported by OLVM.
 ---
 
-# polaris_sla_domain (Resource)
+# rubrik_sla_domain (Resource)
 
-The `polaris_sla_domain` resource is used to manage RSC global SLA Domains. SLA
+The `rubrik_sla_domain` resource is used to manage RSC global SLA Domains. SLA
 Domain defines how you want to take snapshots of objects like virtual machines,
 databases, SaaS apps and cloud objects. An SLA Domain can define frequency,
 retention, archival and replication.
@@ -139,7 +139,7 @@ Archival is not supported by OLVM.
 # - Daily backup schedule with 7-day retention
 # - Snapshot window configuration (starts at 9 AM, 4-hour duration)
 # - First full snapshot scheduling (Tuesday at 7 PM, 5-hour duration)
-resource "polaris_sla_domain" "daily" {
+resource "rubrik_sla_domain" "daily" {
   name         = "daily"
   description  = "Daily SLA Domain"
   object_types = ["AWS_EC2_EBS_OBJECT_TYPE"]
@@ -162,11 +162,11 @@ resource "polaris_sla_domain" "daily" {
 # - Weekly backup schedule (every Monday) with 4-week retention
 # - Azure Blob-specific configuration with archival location
 # - Using a data source to reference an existing archival location
-data "polaris_azure_archival_location" "archival_location" {
+data "rubrik_azure_archival_location" "archival_location" {
   name = "my-archival-location"
 }
 
-resource "polaris_sla_domain" "weekly" {
+resource "rubrik_sla_domain" "weekly" {
   name         = "weekly"
   description  = "Weekly SLA Domain"
   object_types = ["AZURE_BLOB_OBJECT_TYPE"]
@@ -177,7 +177,7 @@ resource "polaris_sla_domain" "weekly" {
     retention_unit = "WEEKS"
   }
   azure_blob_config {
-    archival_location_id = data.polaris_azure_archival_location.archival_location.id
+    archival_location_id = data.rubrik_azure_archival_location.archival_location.id
   }
 }
 
@@ -188,20 +188,20 @@ resource "polaris_sla_domain" "weekly" {
 # - Cascading archival to a data center archival location after 7 days
 # - Archival tiering with instant tiering to Azure Archive storage
 # - Minimum accessible duration of 1 day (86400 seconds)
-data "polaris_sla_source_cluster" "mycluster1" {
+data "rubrik_sla_source_cluster" "mycluster1" {
   name = "MY-CLUSTER-1"
 }
 
-data "polaris_sla_source_cluster" "mycluster2" {
+data "rubrik_sla_source_cluster" "mycluster2" {
   name = "MY-CLUSTER-2"
 }
 
-data "polaris_data_center_archival_location" "myarchivallocation" {
-  cluster_id = data.polaris_sla_source_cluster.mycluster1.id
+data "rubrik_data_center_archival_location" "myarchivallocation" {
+  cluster_id = data.rubrik_sla_source_cluster.mycluster1.id
   name       = "My Archival Location"
 }
 
-resource "polaris_sla_domain" "with_cascading_archival" {
+resource "rubrik_sla_domain" "with_cascading_archival" {
   name         = "with-cascading-archival"
   description  = "SLA Domain with replication and cascading archival"
   object_types = ["VSPHERE_OBJECT_TYPE"]
@@ -222,12 +222,12 @@ resource "polaris_sla_domain" "with_cascading_archival" {
     }
 
     replication_pair {
-      source_cluster = data.polaris_sla_source_cluster.mycluster2.id
-      target_cluster = data.polaris_sla_source_cluster.mycluster1.id
+      source_cluster = data.rubrik_sla_source_cluster.mycluster2.id
+      target_cluster = data.rubrik_sla_source_cluster.mycluster1.id
     }
 
     cascading_archival {
-      archival_location_id    = data.polaris_data_center_archival_location.myarchivallocation.id
+      archival_location_id    = data.rubrik_data_center_archival_location.myarchivallocation.id
       archival_threshold      = 7
       archival_threshold_unit = "DAYS"
       frequency               = ["DAYS"]
@@ -302,7 +302,7 @@ Optional:
 - `archival_location_id` (String) Archival location ID (UUID).
 - `archival_location_to_cluster_mapping` (Block List) Mapping between archival location and Rubrik cluster. Each mapping specifies which cluster should be used for archiving to a specific location. (see [below for nested schema](#nestedblock--archival--archival_location_to_cluster_mapping))
 - `archival_tiering` (Block List, Max: 1) Archival tiering specification for cold storage. (see [below for nested schema](#nestedblock--archival--archival_tiering))
-- `frequency` (Set of String) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [polaris_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
+- `frequency` (Set of String) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
 - `threshold` (Number) Threshold specifies the time before archiving the snapshots at the managing location. The archival location retains the snapshots according to the SLA Domain schedule.
 - `threshold_unit` (String) Threshold unit specifies the unit of `threshold`. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default value is `DAYS`.
 
@@ -771,13 +771,13 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 ```terraform
 # Using SLA domain ID (UUID).
 import {
-  to = polaris_sla_domain.foobar
+  to = rubrik_sla_domain.foobar
   id = "0e55e625-b78d-4e83-87f3-90313a980211"
 }
 
 # Using SLA domain name.
 import {
-  to = polaris_sla_domain.gold
+  to = rubrik_sla_domain.gold
   id = "Gold"
 }
 ```
@@ -788,9 +788,9 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```terraform
 # Using SLA domain ID (UUID):
-% terraform import polaris_sla_domain.foobar 0e55e625-b78d-4e83-87f3-90313a980211
+% terraform import rubrik_sla_domain.foobar 0e55e625-b78d-4e83-87f3-90313a980211
 
 # Using SLA domain name:
-% terraform import polaris_sla_domain.gold "Gold"
+% terraform import rubrik_sla_domain.gold "Gold"
 ```
 

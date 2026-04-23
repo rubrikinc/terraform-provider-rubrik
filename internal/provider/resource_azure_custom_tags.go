@@ -32,7 +32,7 @@ import (
 )
 
 var resourceAzureCustomTagsDescription = `
-The ´polaris_azure_custom_tags´ resource manages RSC custom Azure tags. Simplify
+The ´rubrik_azure_custom_tags´ resource manages RSC custom Azure tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future Azure subscriptions in
 your RSC account.
@@ -40,16 +40,16 @@ your RSC account.
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple ´polaris_azure_custom_tags´ resources in the
+~> **Warning:** When using multiple ´rubrik_azure_custom_tags´ resources in the
    same RSC account, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
-   ´polaris_azure_custom_tags´ resources have been destroyed. The race condition
+   ´rubrik_azure_custom_tags´ resources have been destroyed. The race condition
    can be avoided by either managing all custom tags using a single
-   ´polaris_azure_custom_tags´ resource or by using the ´depends_on´ field to
+   ´rubrik_azure_custom_tags´ resource or by using the ´depends_on´ field to
    ensure that the resources are destroyed in a serial fashion.
 
 ~> **Warning:** The ´override_resource_tags´ field refers to a single global
-   value in RSC. So multiple ´polaris_azure_custom_tags´ resources with
+   value in RSC. So multiple ´rubrik_azure_custom_tags´ resources with
    different values for the ´override_resource_tags´ field will result in a
    perpetual diff.
 `

@@ -37,7 +37,7 @@ import (
 )
 
 const dataSourceSSOGroupDescription = `
-The ´polaris_sso_group´ data source is used to access information about an SSO
+The ´rubrik_sso_group´ data source is used to access information about an SSO
 group in RSC. An SSO group is looked up using either the ID or the name.
 `
 
@@ -45,6 +45,7 @@ var _ datasource.DataSource = &ssoGroupDataSource{}
 
 type ssoGroupDataSource struct {
 	client *client
+	prefix string
 }
 
 type ssoGroupModel struct {
@@ -57,13 +58,17 @@ type ssoGroupModel struct {
 }
 
 func newSSOGroupDataSource() datasource.DataSource {
-	return &ssoGroupDataSource{}
+	return &ssoGroupDataSource{prefix: keyRubrik}
+}
+
+func newPolarisSSOGroupDataSource() datasource.DataSource {
+	return &ssoGroupDataSource{prefix: keyPolaris}
 }
 
 func (d *ssoGroupDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "ssoGroupDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keySSOGroup
+	res.TypeName = d.prefix + "_" + keySSOGroup
 }
 
 func (d *ssoGroupDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -128,6 +133,10 @@ func (d *ssoGroupDataSource) Schema(ctx context.Context, _ datasource.SchemaRequ
 				},
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_sso_group` data source instead."
 	}
 }
 

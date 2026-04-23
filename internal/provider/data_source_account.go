@@ -41,7 +41,7 @@ import (
 )
 
 const dataSourceAccountDescription = `
-The ´polaris_account´ data source is used to access information about the RSC account.
+The ´rubrik_account´ data source is used to access information about the RSC account.
 
 -> **Note:** The ´fqdn´ and ´name´ fields are read from the local RSC credentials and
    not from RSC.

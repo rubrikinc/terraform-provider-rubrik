@@ -37,7 +37,7 @@ import (
 )
 
 const resourceDataCenterArchivalLocationAmazonS3Description = `
-The ´polaris_data_center_archival_location_amazon_s3´ resource create a data
+The ´rubrik_data_center_archival_location_amazon_s3´ resource create a data
 center archival location with the Amazon S3 storage type.
 
 ~> Before configuring the immutability settings, see

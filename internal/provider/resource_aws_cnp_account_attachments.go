@@ -366,7 +366,7 @@ func roleResource() *schema.Resource {
 				Optional: true,
 				Description: "Permissions updated signal. When this field changes, the provider will notify " +
 					"RSC that the permissions for the feature has been updated. Use this field with the `id` field " +
-					"of the `polaris_aws_cnp_permissions` data source.",
+					"of the `rubrik_aws_cnp_permissions` data source.",
 				ValidateFunc: validation.StringIsNotWhiteSpace,
 			},
 		},

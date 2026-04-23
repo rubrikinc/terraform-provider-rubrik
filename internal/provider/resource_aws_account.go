@@ -42,7 +42,7 @@ import (
 )
 
 const resourceAWSAccountDescription = `
-The ´polaris_aws_account´ resource adds an AWS account to RSC. To grant RSC
+The ´rubrik_aws_account´ resource adds an AWS account to RSC. To grant RSC
 permissions to perform certain operations on the account, a Cloud Formation
 stack is created from a template provided by RSC.
 
@@ -101,7 +101,7 @@ This feature is mutually exclusive with all other features - it cannot be enable
 alongside any other feature on the same account.
 
 ´´´terraform
-resource "polaris_aws_account" "role_chaining" {
+resource "rubrik_aws_account" "role_chaining" {
   profile = "role-chaining"
 
   role_chaining {
@@ -114,9 +114,9 @@ To onboard an account that uses cross-account role chaining, reference the RSC
 cloud account ID of the role chaining account using the ´role_chaining_account_id´
 field:
 ´´´terraform
-resource "polaris_aws_account" "account" {
+resource "rubrik_aws_account" "account" {
   profile                  = "target"
-  role_chaining_account_id = polaris_aws_account.role_chaining.id
+  role_chaining_account_id = rubrik_aws_account.role_chaining.id
 
   cloud_native_protection {
     permission_groups = ["BASIC"]
@@ -133,7 +133,7 @@ where the features are enabled, or it can be a separate account.
 
 When the outpost account is the same account:
 ´´´terraform
-resource "polaris_aws_account" "main" {
+resource "rubrik_aws_account" "main" {
   profile = "main"
 
   data_scanning {
@@ -150,7 +150,7 @@ resource "polaris_aws_account" "main" {
 When the outpost account is a separate account, the outpost account must be
 onboarded first. Use ´depends_on´ to enforce the ordering:
 ´´´terraform
-resource "polaris_aws_account" "outpost" {
+resource "rubrik_aws_account" "outpost" {
   profile = "outpost"
 
   outpost {
@@ -158,7 +158,7 @@ resource "polaris_aws_account" "outpost" {
   }
 }
 
-resource "polaris_aws_account" "main" {
+resource "rubrik_aws_account" "main" {
   profile = "main"
 
   data_scanning {
@@ -167,15 +167,15 @@ resource "polaris_aws_account" "main" {
   }
 
   depends_on = [
-    polaris_aws_account.outpost,
+    rubrik_aws_account.outpost,
   ]
 }
 ´´´
 
 -> **Note:** To onboard an account using IAM roles instead of a CloudFormation
-   stack, use the ´polaris_aws_cnp_account´ resource.
+   stack, use the ´rubrik_aws_cnp_account´ resource.
 
--> **Note:** When importing the ´polaris_aws_account´ resource, the
+-> **Note:** When importing the ´rubrik_aws_account´ resource, the
    ´outpost_account_id´ and ´outpost_account_profile´ fields are not imported.
 `
 

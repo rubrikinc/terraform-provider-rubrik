@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_cdm_bootstrap_cces_aws Resource - terraform-provider-polaris"
+page_title: "rubrik_cdm_bootstrap_cces_aws Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_cdm_bootstrap_cces_aws` resource bootstraps a Rubrik AWS cloud
+The `rubrik_cdm_bootstrap_cces_aws` resource bootstraps a Rubrik AWS cloud
 cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot
@@ -15,10 +15,10 @@ cluster.
 
 ---
 
-# polaris_cdm_bootstrap_cces_aws (Resource)
+# rubrik_cdm_bootstrap_cces_aws (Resource)
 
 
-The `polaris_cdm_bootstrap_cces_aws` resource bootstraps a Rubrik AWS cloud
+The `rubrik_cdm_bootstrap_cces_aws` resource bootstraps a Rubrik AWS cloud
 cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot
@@ -33,7 +33,7 @@ cluster.
 ## Example Usage
 
 ```terraform
-resource "polaris_cdm_bootstrap_cces_aws" "default" {
+resource "rubrik_cdm_bootstrap_cces_aws" "default" {
   admin_email            = "admin@example.org"
   admin_password         = "password"
   bucket_name            = "my-cluster-bucket"

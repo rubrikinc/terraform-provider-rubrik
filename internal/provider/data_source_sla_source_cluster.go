@@ -31,7 +31,7 @@ import (
 )
 
 const dataSourceSLASourceClusterDescription = `
-The ´polaris_sla_source_cluster´ data source is used to access information about
+The ´rubrik_sla_source_cluster´ data source is used to access information about
 an SLA source cluster in RSC. A source cluster is looked up using the cluster name.
 `
 

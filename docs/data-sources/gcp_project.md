@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_gcp_project Data Source - terraform-provider-polaris"
+page_title: "rubrik_gcp_project Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_gcp_project` data source is used to access information about a GCP
+The `rubrik_gcp_project` data source is used to access information about a GCP
 project added to RSC. A GCP project is looked up using either the GCP project
 ID, the GCP project number, the RSC cloud account ID or the name.
 
@@ -12,10 +12,10 @@ ID, the GCP project number, the RSC cloud account ID or the name.
 
 ---
 
-# polaris_gcp_project (Data Source)
+# rubrik_gcp_project (Data Source)
 
 
-The `polaris_gcp_project` data source is used to access information about a GCP
+The `rubrik_gcp_project` data source is used to access information about a GCP
 project added to RSC. A GCP project is looked up using either the GCP project
 ID, the GCP project number, the RSC cloud account ID or the name.
 
@@ -27,7 +27,7 @@ ID, the GCP project number, the RSC cloud account ID or the name.
 ## Example Usage
 
 ```terraform
-data "polaris_gcp_project" "project" {
+data "rubrik_gcp_project" "project" {
   name = "example"
 }
 ```

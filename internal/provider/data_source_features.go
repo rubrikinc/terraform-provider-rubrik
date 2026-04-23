@@ -34,11 +34,11 @@ import (
 )
 
 const dataSourceFeaturesDescription = `
-The ´polaris_feature´ data source is used to access information about features enabled
+The ´rubrik_feature´ data source is used to access information about features enabled
 for an RSC account.
 
 !> **WARNING:** This resource is deprecated and will be removed in a future version.
-   Use the ´features´ field of the ´polaris_account´ data source instead.
+   Use the ´features´ field of the ´rubrik_account´ data source instead.
 `
 
 func dataSourceFeatures() *schema.Resource {
@@ -61,7 +61,7 @@ func dataSourceFeatures() *schema.Resource {
 				Description: "Features enabled for the RSC account.",
 			},
 		},
-		DeprecationMessage: "use `polaris_account` instead.",
+		DeprecationMessage: "use `rubrik_account` instead.",
 	}
 }
 

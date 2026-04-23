@@ -32,7 +32,7 @@ import (
 )
 
 const awsExocomputeClusterAttachmentDescription = `
-The ´polaris_aws_exocompute_cluster_attachment´ resource attaches an AWS EKS cluster
+The ´rubrik_aws_exocompute_cluster_attachment´ resource attaches an AWS EKS cluster
 to a customer managed host Exocompute configuration, allowing RSC to use the cluster
 for Exocompute operations.
 `

@@ -32,7 +32,7 @@ import (
 )
 
 const listResourceCustomRoleDescription = `
-The ´polaris_custom_role´ list resource lists custom roles in RSC.
+The ´rubrik_custom_role´ list resource lists custom roles in RSC.
 `
 
 var (
@@ -42,6 +42,7 @@ var (
 
 type customRoleListResource struct {
 	client *client
+	prefix string
 }
 
 type customRoleListConfigModel struct {
@@ -49,13 +50,17 @@ type customRoleListConfigModel struct {
 }
 
 func newCustomRoleListResource() list.ListResource {
-	return &customRoleListResource{}
+	return &customRoleListResource{prefix: keyRubrik}
+}
+
+func newPolarisCustomRoleListResource() list.ListResource {
+	return &customRoleListResource{prefix: keyPolaris}
 }
 
 func (r *customRoleListResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "customRoleListResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyCustomRole
+	res.TypeName = r.prefix + "_" + keyCustomRole
 }
 
 func (r *customRoleListResource) ListResourceConfigSchema(ctx context.Context, _ list.ListResourceSchemaRequest, res *list.ListResourceSchemaResponse) {
@@ -69,6 +74,10 @@ func (r *customRoleListResource) ListResourceConfigSchema(ctx context.Context, _
 				Description: "Filter roles by name. Matches roles whose name contains the given value (case-insensitive).",
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_custom_role` list resource instead."
 	}
 }
 

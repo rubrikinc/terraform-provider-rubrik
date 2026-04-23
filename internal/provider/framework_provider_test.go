@@ -44,27 +44,30 @@ const (
 )
 
 var protoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"polaris": func() (tfprotov6.ProviderServer, error) {
-		ctx := context.Background()
+	"polaris": newMuxedProviderServer,
+	"rubrik":  newMuxedProviderServer,
+}
 
-		sdkProviderV6, err := tf5to6server.UpgradeServer(ctx, sdkProvider.GRPCProvider)
-		if err != nil {
-			return nil, err
-		}
+func newMuxedProviderServer() (tfprotov6.ProviderServer, error) {
+	ctx := context.Background()
 
-		providers := []func() tfprotov6.ProviderServer{
-			providerserver.NewProtocol6(&FrameworkProvider{Version: "test"}),
-			func() tfprotov6.ProviderServer {
-				return sdkProviderV6
-			},
-		}
-		muxServer, err := tf6muxserver.NewMuxServer(ctx, providers...)
-		if err != nil {
-			return nil, err
-		}
+	sdkProviderV6, err := tf5to6server.UpgradeServer(ctx, sdkProvider.GRPCProvider)
+	if err != nil {
+		return nil, err
+	}
 
-		return muxServer.ProviderServer(), nil
-	},
+	providers := []func() tfprotov6.ProviderServer{
+		providerserver.NewProtocol6(&FrameworkProvider{Version: "test"}),
+		func() tfprotov6.ProviderServer {
+			return sdkProviderV6
+		},
+	}
+	muxServer, err := tf6muxserver.NewMuxServer(ctx, providers...)
+	if err != nil {
+		return nil, err
+	}
+
+	return muxServer.ProviderServer(), nil
 }
 
 // testClient returns a Polaris client for testing outside the Terraform

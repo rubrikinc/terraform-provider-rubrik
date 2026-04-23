@@ -39,7 +39,7 @@ import (
 )
 
 const resourceAWSCloudClusterDescription = `
-The ´polaris_aws_cloud_cluster´ resource creates an AWS cloud cluster using RSC.
+The ´rubrik_aws_cloud_cluster´ resource creates an AWS cloud cluster using RSC.
 
 This resource creates a Rubrik Cloud Data Management (CDM) cluster with elastic storage
 in AWS using the specified configuration. The cluster will be deployed with the specified

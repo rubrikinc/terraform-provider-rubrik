@@ -36,7 +36,7 @@ import (
 )
 
 const dataSourceRoleTemplateDescription = `
-The ´polaris_role_template´ data source is used to access information about an
+The ´rubrik_role_template´ data source is used to access information about an
 RSC role template. A role template is looked up using either the ID or the name.
 `
 
@@ -44,6 +44,7 @@ var _ datasource.DataSource = &roleTemplateDataSource{}
 
 type roleTemplateDataSource struct {
 	client *client
+	prefix string
 }
 
 type roleTemplateModel struct {
@@ -55,13 +56,17 @@ type roleTemplateModel struct {
 }
 
 func newRoleTemplateDataSource() datasource.DataSource {
-	return &roleTemplateDataSource{}
+	return &roleTemplateDataSource{prefix: keyRubrik}
+}
+
+func newPolarisRoleTemplateDataSource() datasource.DataSource {
+	return &roleTemplateDataSource{prefix: keyPolaris}
 }
 
 func (d *roleTemplateDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "roleTemplateDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyRoleTemplate
+	res.TypeName = d.prefix + "_" + keyRoleTemplate
 }
 
 func (d *roleTemplateDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -125,6 +130,10 @@ func (d *roleTemplateDataSource) Schema(ctx context.Context, _ datasource.Schema
 				},
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_role_template` data source instead."
 	}
 }
 

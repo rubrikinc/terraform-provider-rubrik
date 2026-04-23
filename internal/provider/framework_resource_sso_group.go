@@ -43,17 +43,19 @@ import (
 )
 
 const resourceSSOGroupDescription = `
-The ´polaris_sso_group´ resource is used to create and manage SSO groups in RSC.
+The ´rubrik_sso_group´ resource is used to create and manage SSO groups in RSC.
 `
 
 var (
 	_ resource.Resource                = &ssoGroupResource{}
 	_ resource.ResourceWithIdentity    = &ssoGroupResource{}
 	_ resource.ResourceWithImportState = &ssoGroupResource{}
+	_ resource.ResourceWithMoveState   = &ssoGroupResource{}
 )
 
 type ssoGroupResource struct {
 	client *client
+	prefix string
 }
 
 type ssoGroupResourceModel struct {
@@ -69,13 +71,17 @@ type ssoGroupIdentityModel struct {
 }
 
 func newSSOGroupResource() resource.Resource {
-	return &ssoGroupResource{}
+	return &ssoGroupResource{prefix: keyRubrik}
+}
+
+func newPolarisSSOGroupResource() resource.Resource {
+	return &ssoGroupResource{prefix: keyPolaris}
 }
 
 func (r *ssoGroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "ssoGroupResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keySSOGroup
+	res.TypeName = r.prefix + "_" + keySSOGroup
 }
 
 func (r *ssoGroupResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -130,6 +136,10 @@ func (r *ssoGroupResource) Schema(ctx context.Context, _ resource.SchemaRequest,
 				},
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_sso_group` instead."
 	}
 }
 

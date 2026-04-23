@@ -1,9 +1,9 @@
 # Service account from the current environment.
-provider "polaris" {
+provider "rubrik" {
 }
 
 # Service account from the content of a service account file.
-provider "polaris" {
+provider "rubrik" {
   credentials = <<-EOS
     {
       "client_id": "client|...",
@@ -14,16 +14,16 @@ provider "polaris" {
     EOS
 }
 
-provider "polaris" {
+provider "rubrik" {
   credentials = "<content of service-account-credentials.json>"
 }
 
 # Service account from file.
-provider "polaris" {
+provider "rubrik" {
   credentials = "/path/to/service-account-credentials.json"
 }
 
 # Local user account.
-provider "polaris" {
+provider "rubrik" {
   credentials = "my-account"
 }

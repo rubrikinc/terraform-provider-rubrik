@@ -32,7 +32,7 @@ import (
 )
 
 const listResourceUserDescription = `
-The ´polaris_user´ list resource lists local users in RSC.
+The ´rubrik_user´ list resource lists local users in RSC.
 `
 
 var (
@@ -42,6 +42,7 @@ var (
 
 type userListResource struct {
 	client *client
+	prefix string
 }
 
 type userListConfigModel struct {
@@ -49,13 +50,17 @@ type userListConfigModel struct {
 }
 
 func newUserListResource() list.ListResource {
-	return &userListResource{}
+	return &userListResource{prefix: keyRubrik}
+}
+
+func newPolarisUserListResource() list.ListResource {
+	return &userListResource{prefix: keyPolaris}
 }
 
 func (r *userListResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "userListResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyUser
+	res.TypeName = r.prefix + "_" + keyUser
 }
 
 func (r *userListResource) ListResourceConfigSchema(ctx context.Context, _ list.ListResourceSchemaRequest, res *list.ListResourceSchemaResponse) {
@@ -69,6 +74,10 @@ func (r *userListResource) ListResourceConfigSchema(ctx context.Context, _ list.
 				Description: "Filter users by email. Matches users whose email contains the given value (case-insensitive).",
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_user` list resource instead."
 	}
 }
 

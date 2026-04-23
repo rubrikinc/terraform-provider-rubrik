@@ -25,8 +25,10 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestAccCustomRoleResource(t *testing.T) {
@@ -249,6 +251,73 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config:                   config,
 			PlanOnly:                 true,
+		}},
+	})
+}
+
+// TestAccCustomRoleResource_MoveState verifies that state from a
+// polaris_custom_role resource created by the rubrikinc/polaris provider can be
+// moved to a rubrik_custom_role resource using the moved {} block.
+func TestAccCustomRoleResource_MoveState(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_8_0),
+		},
+		CheckDestroy: customRoleCheckDestroy(t.Context()),
+		Steps: []resource.TestStep{{
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"polaris": {
+					Source:            "rubrikinc/polaris",
+					VersionConstraint: "1.5.0",
+				},
+			},
+			Config: `
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role Move State"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+					NonNullUUID()),
+			},
+		}, {
+			ProtoV6ProviderFactories: protoV6ProviderFactories,
+			Config: `
+				moved {
+					from = polaris_custom_role.role
+					to   = rubrik_custom_role.role
+				}
+
+				resource "rubrik_custom_role" "role" {
+					name        = "Test Role Move State"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+			`,
+			// Verify the plan is empty, move succeeded without drift, and
+			// apply to update the state. Without the apply step, destroy can
+			// fail due to resource dependency issues.
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

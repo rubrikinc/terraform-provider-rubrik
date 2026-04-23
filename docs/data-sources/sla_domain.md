@@ -1,17 +1,17 @@
 ---
-page_title: "polaris_sla_domain Data Source - terraform-provider-polaris"
+page_title: "rubrik_sla_domain Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_sla_domain` data source is used to access information about RSC SLA
+The `rubrik_sla_domain` data source is used to access information about RSC SLA
 domains. A SLA domain is looked up using either the ID or the name.
 
 ---
 
-# polaris_sla_domain (Data Source)
+# rubrik_sla_domain (Data Source)
 
 
-The `polaris_sla_domain` data source is used to access information about RSC SLA
+The `rubrik_sla_domain` data source is used to access information about RSC SLA
 domains. A SLA domain is looked up using either the ID or the name.
 
 
@@ -20,12 +20,12 @@ domains. A SLA domain is looked up using either the ID or the name.
 
 ```terraform
 # Using SLA domain ID.
-data "polaris_sla_domain" "sla_domain" {
+data "rubrik_sla_domain" "sla_domain" {
   id = "3c1a891a-340c-4b8a-a1ca-adec4d5914e4"
 }
 
 # Using SLA domain name.
-data "polaris_sla_domain" "sla_domain" {
+data "rubrik_sla_domain" "sla_domain" {
   name = "bronze"
 }
 ```

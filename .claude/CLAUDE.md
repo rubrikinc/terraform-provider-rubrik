@@ -1,4 +1,4 @@
-# Terraform Provider for Rubrik Polaris
+# Terraform Provider for Rubrik
 
 ## Build and Test
 
@@ -59,7 +59,7 @@ Use `description()` to wrap description constants. It converts acute accents to 
 
 ```go
 const resourceExampleDescription = `
-The ´polaris_example´ resource manages examples in RSC.
+The ´rubrik_example´ resource manages examples in RSC.
 `
 ```
 
@@ -87,7 +87,7 @@ Use the existing third-party UUID dependency for all UUID operations. Do not wri
 - If no template exists, docs are generated from code descriptions and schema definitions
 - Changelog: `templates/guides/changelog.md.tmpl`
 - Upgrade guides: `templates/guides/upgrade_guide_v<VERSION>.md.tmpl`
-- Do not use backticks inside markdown link text (e.g., use `[polaris_foo docs](../resources/foo.md)` not `` [`polaris_foo` docs](...) ``)
+- Do not use backticks inside markdown link text (e.g., use `[rubrik_foo docs](../resources/foo.md)` not `` [`rubrik_foo` docs](...) ``)
 
 ### Changelog Entry Format (ordered by priority)
 
@@ -101,7 +101,7 @@ Use the existing third-party UUID dependency for all UUID operations. Do not wri
 
 ## Testing
 
-- Acceptance tests require `TF_ACC=1` and RSC credentials via `RUBRIK_POLARIS_SERVICEACCOUNT_FILE`
+- Acceptance tests require `TF_ACC=1` and RSC credentials via `RUBRIK_SERVICEACCOUNT_FILE`
 - Test function names use camelCase: `TestAccPolarisAwsAccount_basic`
 - Prefer fakes over mocks for dependencies
 - Cloud-specific tests require config files: `TEST_AWSACCOUNT_FILE`, `TEST_AZURESUBSCRIPTION_FILE`, `TEST_GCPPROJECT_FILE`, `TEST_RSCCONFIG_FILE`

@@ -27,8 +27,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestAccRoleAssignmentResource(t *testing.T) {
@@ -302,6 +304,129 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 				"user_email": config.StringVariable(testUserEmail(t)),
 			},
 			PlanOnly: true,
+		}},
+	})
+}
+
+// TestAccRoleAssignmentResource_MoveState verifies that state from a
+// polaris_role_assignment resource created by the rubrikinc/polaris provider can
+// be moved to a rubrik_role_assignment resource using the moved {} block.
+func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
+	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
+
+	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_8_0),
+		},
+		CheckDestroy: roleAssignmentCheckDestroy(t.Context()),
+		Steps: []resource.TestStep{{
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"polaris": {
+					Source:            "rubrikinc/polaris",
+					VersionConstraint: "1.5.0",
+				},
+			},
+			Config: `
+				variable "user_email" {
+					type = string
+				}
+
+				data "polaris_user" "user" {
+					email = var.user_email
+				}
+
+				resource "polaris_custom_role" "auditor" {
+					name        = "Test Role Assignment Move State"
+					description = "Test Role: Delete Me!"
+					permission {
+						operation = "EXPORT_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+					permission {
+						operation = "VIEW_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+				}
+
+				resource "polaris_role_assignment" "auditor" {
+					user_id  = data.polaris_user.user.id
+
+					role_ids = [
+						polaris_custom_role.auditor.id,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("polaris_role_assignment.auditor", tfjsonpath.New(keyID),
+					knownvalue.NotNull()),
+			},
+		}, {
+			ProtoV6ProviderFactories: protoV6ProviderFactories,
+			Config: `
+				variable "user_email" {
+					type = string
+				}
+
+				moved {
+					from = polaris_role_assignment.auditor
+					to   = rubrik_role_assignment.auditor
+				}
+				moved {
+					from = polaris_custom_role.auditor
+					to   = rubrik_custom_role.auditor
+				}
+
+				data "rubrik_user" "user" {
+					email = var.user_email
+				}
+
+				resource "rubrik_custom_role" "auditor" {
+					name        = "Test Role Assignment Move State"
+					description = "Test Role: Delete Me!"
+					permission {
+						operation = "EXPORT_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+					permission {
+						operation = "VIEW_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+				}
+
+				resource "rubrik_role_assignment" "auditor" {
+					user_id  = data.rubrik_user.user.id
+
+					role_ids = [
+						rubrik_custom_role.auditor.id,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+			// Verify the plan is empty, move succeeded without drift, and
+			// apply to update the state. Without the apply step, destroy can
+			// fail due to resource dependency issues.
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

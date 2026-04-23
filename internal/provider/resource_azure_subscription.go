@@ -41,13 +41,13 @@ import (
 )
 
 const resourceAzureSubscriptionDescription = `
-The ´polaris_azure_subscription´ resource adds an Azure subscription to RSC.
+The ´rubrik_azure_subscription´ resource adds an Azure subscription to RSC.
 When the first subscription for an Azure tenant is added, a corresponding tenant
 is created in RSC. The RSC tenant is automatically destroyed when it's last
 subscription is removed.
 
 Each feature's ´permissions´ field can be used with the
-´polaris_azure_permissions´ data source to inform RSC about permission updates
+´rubrik_azure_permissions´ data source to inform RSC about permission updates
 when the Terraform configuration is applied.
 
 ## Permission Groups
@@ -177,7 +177,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -223,7 +223,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -311,7 +311,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -420,7 +420,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -476,7 +476,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -575,7 +575,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -663,7 +663,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -751,7 +751,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {
@@ -905,7 +905,7 @@ func resourceAzureSubscription() *schema.Resource {
 							Optional: true,
 							Description: "Permissions updated signal. When this field changes, the provider will notify " +
 								"RSC that the permissions for the feature has been updated. Use this field with the " +
-								"`polaris_azure_permissions` data source.",
+								"`rubrik_azure_permissions` data source.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyRegions: {

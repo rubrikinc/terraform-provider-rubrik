@@ -42,7 +42,7 @@ const (
 )
 
 const resourceAWSArchivalLocationDescription = `
-The ´polaris_aws_archival_location´ resource creates an RSC archival location for
+The ´rubrik_aws_archival_location´ resource creates an RSC archival location for
 cloud-native workloads. This resource requires that the AWS account has been
 onboarded with the ´CLOUD_NATIVE_ARCHIVAL´ feature.
 

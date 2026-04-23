@@ -37,10 +37,10 @@ import (
 )
 
 const resourceGCPProjectDescription = `
-The ´polaris_gcp_project´ resource adds a GCP project to RSC.
+The ´rubrik_gcp_project´ resource adds a GCP project to RSC.
 
 The ´permissions´ field of the each feature can be used with the 
-´polaris_gcp_permissions´ data source to notify RSC about permission updates
+´rubrik_gcp_permissions´ data source to notify RSC about permission updates
 when the Terraform configuration is applied.
 
 ## Permission Groups
@@ -71,7 +71,7 @@ are used when specifying the feature.
   * ´AUTOMATED_NETWORKING_SETUP´ - Represents the set of permissions required
     for automated networking setup. When automated networking setup is enabled,
     RSC is responsible for creating and maintaining the networking resources for
-    Exocompute. See the ´polaris_gcp_exocompute´ resource for more information.
+    Exocompute. See the ´rubrik_gcp_exocompute´ resource for more information.
 `
 
 func resourceGcpProject() *schema.Resource {
@@ -437,7 +437,7 @@ func gcpFeatureResourceWithPermissionsAndStatus() *schema.Resource {
 				Optional: true,
 				Description: "Permissions updated signal. When this field changes, the provider will notify " +
 					"RSC that the permissions for the feature has been updated. Use this field with the " +
-					"`polaris_gcp_permissions` data source.",
+					"`rubrik_gcp_permissions` data source.",
 				ValidateFunc: validation.StringIsNotWhiteSpace},
 			keyStatus: {
 				Type:        schema.TypeString,

@@ -36,7 +36,7 @@ import (
 )
 
 const dataSourceRoleDescription = `
-The ´polaris_role´ data source is used to access information about an RSC role.
+The ´rubrik_role´ data source is used to access information about an RSC role.
 A role is looked up using either the ID or the name.
 `
 
@@ -44,6 +44,7 @@ var _ datasource.DataSource = &roleDataSource{}
 
 type roleDataSource struct {
 	client *client
+	prefix string
 }
 
 type roleModel struct {
@@ -56,13 +57,17 @@ type roleModel struct {
 }
 
 func newRoleDataSource() datasource.DataSource {
-	return &roleDataSource{}
+	return &roleDataSource{prefix: keyRubrik}
+}
+
+func newPolarisRoleDataSource() datasource.DataSource {
+	return &roleDataSource{prefix: keyPolaris}
 }
 
 func (d *roleDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "roleDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyRole
+	res.TypeName = d.prefix + "_" + keyRole
 }
 
 func (d *roleDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -130,6 +135,10 @@ func (d *roleDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest,
 				},
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_role` data source instead."
 	}
 }
 

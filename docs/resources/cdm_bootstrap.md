@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_cdm_bootstrap Resource - terraform-provider-polaris"
+page_title: "rubrik_cdm_bootstrap Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_cdm_bootstrap` resource bootstraps a Rubrik cluster.
+The `rubrik_cdm_bootstrap` resource bootstraps a Rubrik cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot
    decommission clusters or read the state of a cluster. Destroying the resource
@@ -14,10 +14,10 @@ The `polaris_cdm_bootstrap` resource bootstraps a Rubrik cluster.
 
 ---
 
-# polaris_cdm_bootstrap (Resource)
+# rubrik_cdm_bootstrap (Resource)
 
 
-The `polaris_cdm_bootstrap` resource bootstraps a Rubrik cluster.
+The `rubrik_cdm_bootstrap` resource bootstraps a Rubrik cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot
    decommission clusters or read the state of a cluster. Destroying the resource
@@ -31,7 +31,7 @@ The `polaris_cdm_bootstrap` resource bootstraps a Rubrik cluster.
 ## Example Usage
 
 ```terraform
-resource "polaris_cdm_bootstrap" "default" {
+resource "rubrik_cdm_bootstrap" "default" {
   admin_email            = "admin@example.org"
   admin_password         = "password"
   cluster_name           = "my-cluster"

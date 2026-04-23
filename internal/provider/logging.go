@@ -40,10 +40,11 @@ type apiLogger struct {
 var _ = log.Logger(&apiLogger{})
 
 // newAPILogger returns a new logger that logs to the Terraform log system.
-// The log level is read from the TF_LOG_PROVIDER_POLARIS_API environment.
+// The log level is read from the TF_LOG_PROVIDER_RUBRIK_API environment
+// variable.
 func newAPILogger(ctx context.Context) *apiLogger {
 	return &apiLogger{
-		ctx: tflog.NewSubsystem(ctx, subSystem, tflog.WithLevelFromEnv("TF_LOG_PROVIDER_POLARIS_API")),
+		ctx: tflog.NewSubsystem(ctx, subSystem, tflog.WithLevelFromEnv("TF_LOG_PROVIDER_RUBRIK_API")),
 	}
 }
 

@@ -38,7 +38,7 @@ import (
 )
 
 const resourceGCPArchivalLocationDescription = `
-The ´polaris_gcp_archival_location´ resource creates an RSC archival location
+The ´rubrik_gcp_archival_location´ resource creates an RSC archival location
 for cloud native workloads. This resource requires that the GCP project has been
 onboarded with the ´CLOUD_NATIVE_ARCHIVAL´ feature.
 

@@ -39,11 +39,11 @@ import (
 )
 
 const resourceAWSCNPAccount = `
-The ´polaris_aws_cnp_account´ resource adds an AWS account to RSC. To grant RSC
+The ´rubrik_aws_cnp_account´ resource adds an AWS account to RSC. To grant RSC
 permissions to perform certain operations on the account, IAM roles needs to be
-created and communicated to RSC using the ´polaris_aws_cnp_attachment´ resource.
+created and communicated to RSC using the ´rubrik_aws_cnp_attachment´ resource.
 The roles and permissions needed by RSC can be looked up using the
-´polaris_aws_cnp_artifact´ and ´polaris_aws_cnp_permissions´ data sources.
+´rubrik_aws_cnp_artifact´ and ´rubrik_aws_cnp_permissions´ data sources.
 
 The ´CLOUD_DISCOVERY´ feature enables RSC to discover resources in the AWS
 account without enabling protection. It is currently optional but will become
@@ -100,7 +100,7 @@ are used when specifying the feature set.
    is always required except for the ´SERVERS_AND_APPS´ feature.
 
 -> **Note:** To onboard an account using a CloudFormation stack instead of IAM
-   roles, use the ´polaris_aws_account´ resource.
+   roles, use the ´rubrik_aws_account´ resource.
 `
 
 // This resource uses a template for its documentation, remember to update the

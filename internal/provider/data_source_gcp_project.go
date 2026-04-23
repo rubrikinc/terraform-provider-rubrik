@@ -34,7 +34,7 @@ import (
 )
 
 const dataSourceGCPProjectDescription = `
-The ´polaris_gcp_project´ data source is used to access information about a GCP
+The ´rubrik_gcp_project´ data source is used to access information about a GCP
 project added to RSC. A GCP project is looked up using either the GCP project
 ID, the GCP project number, the RSC cloud account ID or the name.
 

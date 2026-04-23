@@ -1,17 +1,17 @@
 ---
-page_title: "polaris_role Data Source - terraform-provider-polaris"
+page_title: "rubrik_role Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_role` data source is used to access information about an RSC role.
+The `rubrik_role` data source is used to access information about an RSC role.
 A role is looked up using either the ID or the name.
 
 ---
 
-# polaris_role (Data Source)
+# rubrik_role (Data Source)
 
 
-The `polaris_role` data source is used to access information about an RSC role.
+The `rubrik_role` data source is used to access information about an RSC role.
 A role is looked up using either the ID or the name.
 
 
@@ -20,12 +20,12 @@ A role is looked up using either the ID or the name.
 
 ```terraform
 # Look up role by name.
-data "polaris_role" "owner" {
+data "rubrik_role" "owner" {
   name = "Owner"
 }
 
 # Look up role by ID.
-data "polaris_role" "owner" {
+data "rubrik_role" "owner" {
   role_id = "00000000-0000-0000-0000-000000000009"
 }
 ```

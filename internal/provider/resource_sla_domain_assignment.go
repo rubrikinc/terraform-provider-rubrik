@@ -43,10 +43,10 @@ import (
 // because backticks would terminate the raw string literal. The Terraform
 // registry documentation renderer handles acute accents correctly.
 const resourceSLADomainAssignmentDescription = `
-The ´polaris_sla_domain_assignment´ resource is used to assign SLA domains to
+The ´rubrik_sla_domain_assignment´ resource is used to assign SLA domains to
 objects.
 
-When an object is removed from the ´polaris_sla_domain_assignment´ resource, it
+When an object is removed from the ´rubrik_sla_domain_assignment´ resource, it
 will inherit the SLA Domain of its parent object. If there is no parent object
 or the parent object doesn't have an SLA Domain, the object will be unprotected.
 Existing snapshots of the object will be retained according to the SLA Domain

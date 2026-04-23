@@ -33,7 +33,7 @@ import (
 )
 
 const dataSourceAzureArchivalLocationDescription = `
-The ´polaris_azure_archival_location´ data source is used to access information about
+The ´rubrik_azure_archival_location´ data source is used to access information about
 an Azure archival location. An archival location is looked up using either the ID or
 the name.
 `

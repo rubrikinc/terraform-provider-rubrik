@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_aws_cloud_cluster Resource - terraform-provider-polaris"
+page_title: "rubrik_aws_cloud_cluster Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_aws_cloud_cluster` resource creates an AWS cloud cluster using RSC.
+The `rubrik_aws_cloud_cluster` resource creates an AWS cloud cluster using RSC.
 
 This resource creates a Rubrik Cloud Data Management (CDM) cluster with elastic storage
 in AWS using the specified configuration. The cluster will be deployed with the specified
@@ -24,10 +24,10 @@ number of nodes, instance types, and network configuration.
 
 ---
 
-# polaris_aws_cloud_cluster (Resource)
+# rubrik_aws_cloud_cluster (Resource)
 
 
-The `polaris_aws_cloud_cluster` resource creates an AWS cloud cluster using RSC.
+The `rubrik_aws_cloud_cluster` resource creates an AWS cloud cluster using RSC.
 
 This resource creates a Rubrik Cloud Data Management (CDM) cluster with elastic storage
 in AWS using the specified configuration. The cluster will be deployed with the specified
@@ -52,7 +52,7 @@ number of nodes, instance types, and network configuration.
 
 ```terraform
 # Create an AWS cloud cluster using RSC
-resource "polaris_aws_cloud_cluster" "example" {
+resource "rubrik_aws_cloud_cluster" "example" {
   cloud_account_id     = "12345678-1234-1234-1234-123456789012"
   region               = "us-west-2"
   use_placement_groups = true

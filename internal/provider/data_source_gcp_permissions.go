@@ -36,12 +36,12 @@ import (
 )
 
 const dataSourceGCPPermissionsDescription = `
-The ´polaris_gcp_permissions´ data source is used to access information about
+The ´rubrik_gcp_permissions´ data source is used to access information about
 the permissions required by RSC for an RSC feature.
 
-The ´polaris_gcp_permissions´ data source can be used with the
+The ´rubrik_gcp_permissions´ data source can be used with the
 ´google_project_iam_custom_role´ resource and the ´permissions´ field of the
-´polaris_gcp_project´ resource to automatically update the permissions of roles
+´rubrik_gcp_project´ resource to automatically update the permissions of roles
 and notify RSC about the updated.
 
 ## Permission Groups
@@ -72,7 +72,7 @@ are used when specifying the feature.
   * ´AUTOMATED_NETWORKING_SETUP´ - Represents the set of permissions required
     for automated networking setup. When automated networking setup is enabled,
     RSC is responsible for creating and maintaining the networking resources for
-    Exocompute. See the ´polaris_gcp_exocompute´ resource for more information.
+    Exocompute. See the ´rubrik_gcp_exocompute´ resource for more information.
 
 -> **Note:** When permission groups are specified, the ´BASIC´ permission group
    is always required .

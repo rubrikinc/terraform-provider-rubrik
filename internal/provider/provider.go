@@ -71,7 +71,7 @@ func Provider() *schema.Provider {
 			},
 		},
 
-		ResourcesMap: map[string]*schema.Resource{
+		ResourcesMap: withDeprecatedPolarisAlias(map[string]*schema.Resource{
 			keyPolarisAWSAccount:                         resourceAwsAccount(),
 			keyPolarisAWSArchivalLocation:                resourceAwsArchivalLocation(),
 			keyPolarisAWSCloudCluster:                    resourceAwsCloudCluster(),
@@ -106,9 +106,9 @@ func Provider() *schema.Provider {
 			keyPolarisSLADomain:                          resourceSLADomain(),
 			keyPolarisSLADomainAssignment:                resourceSLADomainAssignment(),
 			keyPolarisTagRule:                            resourceTagRule(),
-		},
+		}),
 
-		DataSourcesMap: map[string]*schema.Resource{
+		DataSourcesMap: withDeprecatedPolarisAlias(map[string]*schema.Resource{
 			keyPolarisAccount:                     dataSourceAccount(),
 			keyPolarisAWSAccount:                  dataSourceAwsAccount(),
 			keyPolarisAWSArchivalLocation:         dataSourceAwsArchivalLocation(),
@@ -131,7 +131,7 @@ func Provider() *schema.Provider {
 			keyPolarisSLADomain:                   dataSourceSLADomain(),
 			keyPolarisSLASourceCluster:            dataSourceSLASourceCluster(),
 			keyPolarisTagRule:                     dataSourceTagRule(),
-		},
+		}),
 
 		ConfigureContextFunc: providerConfigure,
 	}
@@ -151,6 +151,24 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (any, diag.D
 	}
 
 	return client, nil
+}
+
+// withDeprecatedPolarisAlias creates a new resource map where each polaris
+// keyed resource is registered under the rubrik prefix, and a deprecated
+// copy is added under the original polaris key.
+func withDeprecatedPolarisAlias(m map[string]*schema.Resource) map[string]*schema.Resource {
+	resources := make(map[string]*schema.Resource, len(m)*2)
+
+	for pk, res := range m {
+		rk := strings.Replace(pk, "polaris_", "rubrik_", 1)
+		resources[rk] = res
+
+		depRes := *res
+		depRes.DeprecationMessage = "use `" + rk + "` instead."
+		resources[pk] = &depRes
+	}
+
+	return resources
 }
 
 type client struct {

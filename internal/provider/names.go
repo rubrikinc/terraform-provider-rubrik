@@ -257,6 +257,7 @@ const (
 	keyPodOverlayNetworkCIDR                        = "pod_overlay_network_cidr"
 	keyPodSubnetID                                  = "pod_subnet_id"
 	keyPolaris                                      = "polaris"
+	keyRubrik                                       = "rubrik"
 	keyPolarisAccount                               = "polaris_account"
 	keyPolarisAWSAccount                            = "polaris_aws_account"
 	keyPolarisAWSArchivalLocation                   = "polaris_aws_archival_location"

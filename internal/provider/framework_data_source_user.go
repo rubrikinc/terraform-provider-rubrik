@@ -35,7 +35,7 @@ import (
 )
 
 const dataSourceUserDescription = `
-The ´polaris_user´ data source is used to access information about an RSC user.
+The ´rubrik_user´ data source is used to access information about an RSC user.
 Information for both local and SSO users can be accessed. A user is looked up
 using either the ID or the email address.
 
@@ -50,6 +50,7 @@ var _ datasource.DataSource = &userDataSource{}
 
 type userDataSource struct {
 	client *client
+	prefix string
 }
 
 type userModel struct {
@@ -63,13 +64,17 @@ type userModel struct {
 }
 
 func newUserDataSource() datasource.DataSource {
-	return &userDataSource{}
+	return &userDataSource{prefix: keyRubrik}
+}
+
+func newPolarisUserDataSource() datasource.DataSource {
+	return &userDataSource{prefix: keyPolaris}
 }
 
 func (d *userDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "userDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyUser
+	res.TypeName = d.prefix + "_" + keyUser
 }
 
 func (d *userDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -131,6 +136,10 @@ func (d *userDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest,
 				},
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_user` data source instead."
 	}
 }
 

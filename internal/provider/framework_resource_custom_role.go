@@ -40,7 +40,7 @@ import (
 )
 
 const resourceCustomRoleDescription = `
-The ´polaris_custom_role´ resource is used to create and manage custom roles in
+The ´rubrik_custom_role´ resource is used to create and manage custom roles in
 RSC.
 `
 
@@ -48,10 +48,12 @@ var (
 	_ resource.Resource                = &customRoleResource{}
 	_ resource.ResourceWithIdentity    = &customRoleResource{}
 	_ resource.ResourceWithImportState = &customRoleResource{}
+	_ resource.ResourceWithMoveState   = &customRoleResource{}
 )
 
 type customRoleResource struct {
 	client *client
+	prefix string
 }
 
 type customRoleModel struct {
@@ -66,13 +68,17 @@ type customRoleIdentityModel struct {
 }
 
 func newCustomRoleResource() resource.Resource {
-	return &customRoleResource{}
+	return &customRoleResource{prefix: keyRubrik}
+}
+
+func newPolarisCustomRoleResource() resource.Resource {
+	return &customRoleResource{prefix: keyPolaris}
 }
 
 func (r *customRoleResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "customRoleResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyCustomRole
+	res.TypeName = r.prefix + "_" + keyCustomRole
 }
 
 func (r *customRoleResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -149,6 +155,10 @@ func (r *customRoleResource) Schema(ctx context.Context, _ resource.SchemaReques
 				},
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_custom_role` instead."
 	}
 }
 

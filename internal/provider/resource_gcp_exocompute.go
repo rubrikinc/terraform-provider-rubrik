@@ -35,7 +35,7 @@ import (
 )
 
 const resourceGCPExocomputeDescription = `
-The ´polaris_gcp_exocompute´ resource creates an RSC Exocompute configuration
+The ´rubrik_gcp_exocompute´ resource creates an RSC Exocompute configuration
 for GCP workloads. This resource should only be used with customer managed
 networking. Customer managed networking is used when the ´EXOCOMPUTE´ feature
 of the GCP project was onboarded without the ´AUTOMATED_NETWORKING_SETUP´
@@ -64,7 +64,7 @@ func resourceGcpExocompute() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				Description: "RSC cloud account ID. This is the ID of the `polaris_gcp_project` resource for " +
+				Description: "RSC cloud account ID. This is the ID of the `rubrik_gcp_project` resource for " +
 					"which the Exocompute service runs. Changing this forces a new resource to be created.",
 				ValidateFunc: validation.IsUUID,
 			},

@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_aws_exocompute Resource - terraform-provider-polaris"
+page_title: "rubrik_aws_exocompute Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_aws_exocompute` resource creates an RSC Exocompute configuration
+The `rubrik_aws_exocompute` resource creates an RSC Exocompute configuration
 for AWS workloads.
 
 There are 3 types of Exocompute configurations:
@@ -14,7 +14,7 @@ There are 3 types of Exocompute configurations:
  2. *Customer Managed Host* - When a customer managed host configuration is
     created, RSC will not deploy any resources. Instead it will use the AWS EKS
     cluster attached by the customer, using the
-    `polaris_aws_exocompute_cluster_attachment` resource, for all operations.
+    `rubrik_aws_exocompute_cluster_attachment` resource, for all operations.
  3. *Application* - An application configuration is created by mapping the
     application cloud account to a host cloud account. The application cloud
     account will leverage the Exocompute resources deployed for the host
@@ -24,7 +24,7 @@ Items 1 and 2 above requires that the AWS account has been onboarded with the
 `EXOCOMPUTE` feature.
 
 Since there are 3 types of Exocompute configurations, there are 3 ways to create
-a `polaris_aws_exocompute` resource:
+a `rubrik_aws_exocompute` resource:
  1. Using the `account_id`, `region`, `vpc_id` and `subnets` or `subnet` fields
     creates an RSC managed host configuration. Use the `subnet` block when pod
     subnets are needed. The `cluster_security_group_id` and
@@ -32,7 +32,7 @@ a `polaris_aws_exocompute` resource:
     configuration where the customer manage the security groups. The
     `cluster_access` field can be used to configure private EKS cluster access.
  2. Using the `account_id` and `region` fields creates a customer managed host
-    configuration. Note, the `polaris_aws_exocompute_cluster_attachment`
+    configuration. Note, the `rubrik_aws_exocompute_cluster_attachment`
     resource must be used to attach an AWS EKS cluster to the Exocompute
     configuration.
  3. Using the `account_id` and `host_cloud_account_id` fields creates an
@@ -44,10 +44,10 @@ a `polaris_aws_exocompute` resource:
 
 ---
 
-# polaris_aws_exocompute (Resource)
+# rubrik_aws_exocompute (Resource)
 
 
-The `polaris_aws_exocompute` resource creates an RSC Exocompute configuration
+The `rubrik_aws_exocompute` resource creates an RSC Exocompute configuration
 for AWS workloads.
 
 There are 3 types of Exocompute configurations:
@@ -58,7 +58,7 @@ There are 3 types of Exocompute configurations:
  2. *Customer Managed Host* - When a customer managed host configuration is
     created, RSC will not deploy any resources. Instead it will use the AWS EKS
     cluster attached by the customer, using the
-    `polaris_aws_exocompute_cluster_attachment` resource, for all operations.
+    `rubrik_aws_exocompute_cluster_attachment` resource, for all operations.
  3. *Application* - An application configuration is created by mapping the
     application cloud account to a host cloud account. The application cloud
     account will leverage the Exocompute resources deployed for the host
@@ -68,7 +68,7 @@ Items 1 and 2 above requires that the AWS account has been onboarded with the
 `EXOCOMPUTE` feature.
 
 Since there are 3 types of Exocompute configurations, there are 3 ways to create
-a `polaris_aws_exocompute` resource:
+a `rubrik_aws_exocompute` resource:
  1. Using the `account_id`, `region`, `vpc_id` and `subnets` or `subnet` fields
     creates an RSC managed host configuration. Use the `subnet` block when pod
     subnets are needed. The `cluster_security_group_id` and
@@ -76,7 +76,7 @@ a `polaris_aws_exocompute` resource:
     configuration where the customer manage the security groups. The
     `cluster_access` field can be used to configure private EKS cluster access.
  2. Using the `account_id` and `region` fields creates a customer managed host
-    configuration. Note, the `polaris_aws_exocompute_cluster_attachment`
+    configuration. Note, the `rubrik_aws_exocompute_cluster_attachment`
     resource must be used to attach an AWS EKS cluster to the Exocompute
     configuration.
  3. Using the `account_id` and `host_cloud_account_id` fields creates an
@@ -91,13 +91,13 @@ a `polaris_aws_exocompute` resource:
 ## Example Usage
 
 ```terraform
-data "polaris_aws_account" "host" {
+data "rubrik_aws_account" "host" {
   name = "host-account"
 }
 
 # RSC managed Exocompute and security groups.
-resource "polaris_aws_exocompute" "host" {
-  account_id = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "host" {
+  account_id = data.rubrik_aws_account.host.id
   region     = "us-east-2"
   vpc_id     = "vpc-4859acb9"
 
@@ -108,8 +108,8 @@ resource "polaris_aws_exocompute" "host" {
 }
 
 # RSC managed Exocompute with private cluster access.
-resource "polaris_aws_exocompute" "host_private" {
-  account_id     = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "host_private" {
+  account_id     = data.rubrik_aws_account.host.id
   region         = "us-east-2"
   vpc_id         = "vpc-4859acb9"
   cluster_access = "EKS_CLUSTER_ACCESS_TYPE_PRIVATE"
@@ -121,8 +121,8 @@ resource "polaris_aws_exocompute" "host_private" {
 }
 
 # RSC managed Exocompute and customer managed security groups.
-resource "polaris_aws_exocompute" "host" {
-  account_id                = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "host" {
+  account_id                = data.rubrik_aws_account.host.id
   cluster_security_group_id = "sg-005656347687b8170"
   node_security_group_id    = "sg-00e147656785d7e2f"
   region                    = "us-east-2"
@@ -135,8 +135,8 @@ resource "polaris_aws_exocompute" "host" {
 }
 
 # RSC managed Exocompute with pod subnets.
-resource "polaris_aws_exocompute" "host_pods" {
-  account_id = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "host_pods" {
+  account_id = data.rubrik_aws_account.host.id
   region     = "us-east-2"
   vpc_id     = "vpc-4859acb9"
 
@@ -151,24 +151,24 @@ resource "polaris_aws_exocompute" "host_pods" {
 }
 
 # Customer managed Exocompute.
-resource "polaris_aws_exocompute" "host" {
-  account_id = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "host" {
+  account_id = data.rubrik_aws_account.host.id
   region     = "us-east-2"
 }
 
-resource "polaris_aws_exocompute_cluster_attachment" "cluster" {
+resource "rubrik_aws_exocompute_cluster_attachment" "cluster" {
   cluster_name  = "my-eks-cluster"
-  exocompute_id = polaris_aws_exocompute.host.id
+  exocompute_id = rubrik_aws_exocompute.host.id
 }
 
-data "polaris_aws_account" "application" {
+data "rubrik_aws_account" "application" {
   name = "application-account"
 }
 
 # Application Exocompute.
-resource "polaris_aws_exocompute" "application" {
-  account_id      = data.polaris_aws_account.application.id
-  host_account_id = data.polaris_aws_account.host.id
+resource "rubrik_aws_exocompute" "application" {
+  account_id      = data.rubrik_aws_account.application.id
+  host_account_id = data.rubrik_aws_account.host.id
 }
 ```
 
@@ -197,7 +197,7 @@ resource "polaris_aws_exocompute" "application" {
 ### Read-Only
 
 - `id` (String) Exocompute configuration ID (UUID).
-- `polaris_managed` (Boolean) If true the security groups are managed by RSC.
+- `rubrik_managed` (Boolean) If true the security groups are managed by RSC.
 
 ## Import
 
@@ -210,7 +210,7 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 
 ```terraform
 import {
-  to = polaris_aws_exocompute.host
+  to = rubrik_aws_exocompute.host
   id = "58e2a8bb-078d-4f67-8b66-5515fd701c8e"
 }
 ```
@@ -220,6 +220,6 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import polaris_aws_exocompute.host 58e2a8bb-078d-4f67-8b66-5515fd701c8e
+% terraform import rubrik_aws_exocompute.host 58e2a8bb-078d-4f67-8b66-5515fd701c8e
 ```
 

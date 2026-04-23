@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_aws_cnp_permissions Data Source - terraform-provider-polaris"
+page_title: "rubrik_aws_cnp_permissions Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_aws_cnp_permissions` data source is used to access information
+The `rubrik_aws_cnp_permissions` data source is used to access information
 about the permissions required by RSC for a specified feature set.
 
 ## Permission Groups
@@ -57,10 +57,10 @@ are used when specifying the feature set.
 
 ---
 
-# polaris_aws_cnp_permissions (Data Source)
+# rubrik_aws_cnp_permissions (Data Source)
 
 
-The `polaris_aws_cnp_permissions` data source is used to access information
+The `rubrik_aws_cnp_permissions` data source is used to access information
 about the permissions required by RSC for a specified feature set.
 
 ## Permission Groups
@@ -117,7 +117,7 @@ are used when specifying the feature set.
 ## Example Usage
 
 ```terraform
-data "polaris_aws_cnp_artifacts" "artifacts" {
+data "rubrik_aws_cnp_artifacts" "artifacts" {
   feature {
     name = "CLOUD_NATIVE_PROTECTION"
     permission_groups = [
@@ -135,13 +135,13 @@ data "polaris_aws_cnp_artifacts" "artifacts" {
 }
 
 # Lookup the required permissions using the output from the
-# polaris_aws_cnp_artifacts data source.
-data "polaris_aws_cnp_permissions" "permissions" {
-  for_each = data.polaris_aws_cnp_artifacts.artifacts.role_keys
+# rubrik_aws_cnp_artifacts data source.
+data "rubrik_aws_cnp_permissions" "permissions" {
+  for_each = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
   role_key = each.key
 
   dynamic "feature" {
-    for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+    for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
     content {
       name              = feature.value["name"]
       permission_groups = feature.value["permission_groups"]

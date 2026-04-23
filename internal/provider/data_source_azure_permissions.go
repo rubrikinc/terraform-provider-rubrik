@@ -34,12 +34,12 @@ import (
 )
 
 const dataSourceAzurePermissionsDescription = `
-The ´polaris_azure_permissions´ data source is used to access information about
+The ´rubrik_azure_permissions´ data source is used to access information about
 the permissions required by RSC for an RSC feature.
 
-The ´polaris_azure_permissions´ data source can be used with the
+The ´rubrik_azure_permissions´ data source can be used with the
 ´azurerm_role_definition´ resource and the ´permissions´ field of the
-´polaris_azure_subscription´ resource to automatically update the permissions
+´rubrik_azure_subscription´ resource to automatically update the permissions
 of roles and notify RSC about the updated.
 
 ## Permission Groups

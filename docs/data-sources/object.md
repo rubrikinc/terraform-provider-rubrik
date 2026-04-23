@@ -1,17 +1,17 @@
 ---
-page_title: "polaris_object Data Source - terraform-provider-polaris"
+page_title: "rubrik_object Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-    The polaris_object data source is used to look up an RSC hierarchy object by
+    The rubrik_object data source is used to look up an RSC hierarchy object by
   name and type. This is useful for finding the ID of an object when only its
   name and type are known.
   Supported object types:
   AwsNativeAccount - AWS Native AccountAwsNativeEbsVolume - AWS Native EBS VolumeAwsNativeEc2Instance - AWS Native EC2 InstanceAwsNativeRdsInstance - AWS Native RDS InstanceAzureNativeSubscription - Azure Native SubscriptionAzureNativeVirtualMachine - Azure Native Virtual Machine
 ---
 
-# polaris_object (Data Source)
+# rubrik_object (Data Source)
 
-The `polaris_object` data source is used to look up an RSC hierarchy object by
+The `rubrik_object` data source is used to look up an RSC hierarchy object by
 name and type. This is useful for finding the ID of an object when only its
 name and type are known.
 

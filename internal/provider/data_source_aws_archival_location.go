@@ -34,7 +34,7 @@ import (
 )
 
 const dataSourceAWSArchivalLocationDescription = `
-The ´polaris_aws_archival_location´ data source is used to access information about an
+The ´rubrik_aws_archival_location´ data source is used to access information about an
 AWS archival location. An archival location is looked up using either the ID or the name.
 `
 

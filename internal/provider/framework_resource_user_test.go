@@ -23,12 +23,14 @@ package provider
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestAccUserResource(t *testing.T) {
@@ -231,6 +233,102 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 			Config:                   tfConfig,
 			ConfigVariables: config.Variables{
 				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+			PlanOnly: true,
+		}},
+	})
+}
+
+// TestAccUserResource_MoveState verifies that state from a polaris_user
+// resource created by the rubrikinc/polaris provider can be moved to a
+// rubrik_user resource using the moved {} block.
+func TestAccUserResource_MoveState(t *testing.T) {
+	roleName := "Test MoveState Auditor " + uuid.New().String()
+
+	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_8_0),
+		},
+		CheckDestroy: userCheckDestroy(t.Context()),
+		Steps: []resource.TestStep{{
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"polaris": {
+					Source:            "rubrikinc/polaris",
+					VersionConstraint: "1.5.0",
+				},
+			},
+			Config: `
+				variable "user_email" {
+					type = string
+				}
+				variable "role_name" {
+					type = string
+				}
+
+				resource "polaris_custom_role" "auditor" {
+					name        = var.role_name
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "EXPORT_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+				}
+
+				resource "polaris_user" "user" {
+					email    = var.user_email
+					role_ids = [polaris_custom_role.auditor.id]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+				"role_name":  config.StringVariable(roleName),
+			},
+		}, {
+			ProtoV6ProviderFactories: protoV6ProviderFactories,
+			Config: `
+				variable "user_email" {
+					type = string
+				}
+				variable "role_name" {
+					type = string
+				}
+
+				moved {
+					from = polaris_user.user
+					to   = rubrik_user.user
+				}
+				moved {
+					from = polaris_custom_role.auditor
+					to   = rubrik_custom_role.auditor
+				}
+
+				resource "rubrik_custom_role" "auditor" {
+					provider    = rubrik
+					name        = var.role_name
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "EXPORT_DATA_CLASS_GLOBAL"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["GlobalResource"]
+						}
+					}
+				}
+
+				resource "rubrik_user" "user" {
+					provider = rubrik
+					email    = var.user_email
+					role_ids = [rubrik_custom_role.auditor.id]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+				"role_name":  config.StringVariable(roleName),
 			},
 			PlanOnly: true,
 		}},

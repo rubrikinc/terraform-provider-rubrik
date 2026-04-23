@@ -43,26 +43,28 @@ import (
 )
 
 const resourceRoleAssignmentDescription = `
-The ´polaris_role_assignment´ resource is used to assign roles to a user or SSO
+The ´rubrik_role_assignment´ resource is used to assign roles to a user or SSO
 group in RSC.
 
-~> **Warning:** When using multiple ´polaris_role_assignment´ resources to
+~> **Warning:** When using multiple ´rubrik_role_assignment´ resources to
    assign roles to the same user or SSO group, there is a risk for a race
    condition when the resources are destroyed. This can result in RSC roles
    still being assigned to the user or SSO group. The race condition can be
    avoided by either assigning all roles to the user using a single
-   ´polaris_role_assignment´ resource or by using the ´depends_on´ field to make
+   ´rubrik_role_assignment´ resource or by using the ´depends_on´ field to make
    sure that the resources are destroyed in a serial fashion.
 `
 
 var (
 	_ resource.Resource                 = &roleAssignmentResource{}
 	_ resource.ResourceWithImportState  = &roleAssignmentResource{}
+	_ resource.ResourceWithMoveState    = &roleAssignmentResource{}
 	_ resource.ResourceWithUpgradeState = &roleAssignmentResource{}
 )
 
 type roleAssignmentResource struct {
 	client *client
+	prefix string
 }
 
 type roleAssignmentModel struct {
@@ -75,13 +77,17 @@ type roleAssignmentModel struct {
 }
 
 func newRoleAssignmentResource() resource.Resource {
-	return &roleAssignmentResource{}
+	return &roleAssignmentResource{prefix: keyRubrik}
+}
+
+func newPolarisRoleAssignmentResource() resource.Resource {
+	return &roleAssignmentResource{prefix: keyPolaris}
 }
 
 func (r *roleAssignmentResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "roleAssignmentResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyRoleAssignment
+	res.TypeName = r.prefix + "_" + keyRoleAssignment
 }
 
 func (r *roleAssignmentResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -130,8 +136,8 @@ func (r *roleAssignmentResource) Schema(ctx context.Context, _ resource.SchemaRe
 			keyUserEmail: schema.StringAttribute{
 				Optional: true,
 				Description: "User email address. Changing this forces a new resource to be created. " +
-					"**Deprecated:** use `user_id` with the `polaris_user` data source instead.",
-				DeprecationMessage: "use `user_id` with the `polaris_user` data source instead.",
+					"**Deprecated:** use `user_id` with the `rubrik_user` data source instead.",
+				DeprecationMessage: "use `user_id` with the `rubrik_user` data source instead.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -151,6 +157,10 @@ func (r *roleAssignmentResource) Schema(ctx context.Context, _ resource.SchemaRe
 			},
 		},
 		Version: 1,
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_role_assignment` instead."
 	}
 }
 

@@ -38,7 +38,7 @@ import (
 )
 
 const dataSourceIdentityProviderDescription = `
-The ´polaris_identity_provider´ data source is used to access information about
+The ´rubrik_identity_provider´ data source is used to access information about
 an identity provider configured in RSC. An identity provider is looked up using
 either the ´identity_provider_id´ or the ´name´.
 
@@ -51,6 +51,7 @@ var _ datasource.DataSource = &identityProviderDataSource{}
 
 type identityProviderDataSource struct {
 	client *client
+	prefix string
 }
 
 type identityProviderModel struct {
@@ -72,13 +73,17 @@ type identityProviderModel struct {
 }
 
 func newIdentityProviderDataSource() datasource.DataSource {
-	return &identityProviderDataSource{}
+	return &identityProviderDataSource{prefix: keyRubrik}
+}
+
+func newPolarisIdentityProviderDataSource() datasource.DataSource {
+	return &identityProviderDataSource{prefix: keyPolaris}
 }
 
 func (d *identityProviderDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "identityProviderDataSource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyIdentityProvider
+	res.TypeName = d.prefix + "_" + keyIdentityProvider
 }
 
 func (d *identityProviderDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -168,6 +173,10 @@ func (d *identityProviderDataSource) Schema(ctx context.Context, _ datasource.Sc
 				Description: "Service provider initiated test URL.",
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_identity_provider` data source instead."
 	}
 }
 

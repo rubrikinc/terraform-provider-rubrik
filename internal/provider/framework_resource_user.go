@@ -45,18 +45,20 @@ import (
 )
 
 const frameworkResourceUserDescription = `
-The ´polaris_user´ resource is used to create and manage local users in RSC.
+The ´rubrik_user´ resource is used to create and manage local users in RSC.
 `
 
 var (
 	_ resource.Resource                 = &userResource{}
 	_ resource.ResourceWithIdentity     = &userResource{}
 	_ resource.ResourceWithImportState  = &userResource{}
+	_ resource.ResourceWithMoveState    = &userResource{}
 	_ resource.ResourceWithUpgradeState = &userResource{}
 )
 
 type userResource struct {
 	client *client
+	prefix string
 }
 
 type userResourceModel struct {
@@ -73,13 +75,17 @@ type userIdentityModel struct {
 }
 
 func newUserResource() resource.Resource {
-	return &userResource{}
+	return &userResource{prefix: keyRubrik}
+}
+
+func newPolarisUserResource() resource.Resource {
+	return &userResource{prefix: keyPolaris}
 }
 
 func (r *userResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "userResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keyUser
+	res.TypeName = r.prefix + "_" + keyUser
 }
 
 func (r *userResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -137,6 +143,10 @@ func (r *userResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			},
 		},
 		Version: 1,
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_user` instead."
 	}
 }
 

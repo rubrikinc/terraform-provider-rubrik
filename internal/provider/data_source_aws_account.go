@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceAWSAccountDescription = `
-The ´polaris_aws_account´ data source is used to access information about an AWS
+The ´rubrik_aws_account´ data source is used to access information about an AWS
 account added to RSC. An AWS account is looked up using either the AWS account
 ID, the RSC cloud account ID or the name.
 

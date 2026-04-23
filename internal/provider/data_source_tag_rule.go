@@ -35,7 +35,7 @@ import (
 )
 
 const dataSourceTagRuleDescription = `
-The ´polaris_tag_rule´ data source is used to access information about RSC tag
+The ´rubrik_tag_rule´ data source is used to access information about RSC tag
 rules. A tag rule is looked up using either the tag rule ID or the tag rule
 name.
 `

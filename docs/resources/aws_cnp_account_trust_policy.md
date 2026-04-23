@@ -1,5 +1,5 @@
 ---
-page_title: "polaris_aws_cnp_account_trust_policy Resource - terraform-provider-polaris"
+page_title: "rubrik_aws_cnp_account_trust_policy Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
@@ -7,12 +7,12 @@ The `aws_cnp_account_trust_policy` resource gets the AWS IAM trust policies
 required by RSC. The `policy` field of `aws_cnp_account_trust_policy` resource
 should be used with the `assume_role_policy` of the `aws_iam_role` resource.
 
-~> **Note:** The `polaris_aws_cnp_account` resource can now be used to get the
-   IAM trust policies for all role keys. The `polaris_aws_cnp_account_trust_policy`
+~> **Note:** The `rubrik_aws_cnp_account` resource can now be used to get the
+   IAM trust policies for all role keys. The `rubrik_aws_cnp_account_trust_policy`
    resource is no longer required and will be deprecated in a future version.
 
 ~> **Note:** This resource does not support role chaining. Use the `trust_policies`
-   field of the `polaris_aws_cnp_account` resource for accounts using role chaining.
+   field of the `rubrik_aws_cnp_account` resource for accounts using role chaining.
 
 ~> **Note:** Once `external_id` has been set it cannot be changed. Unless the
    cloud account is removed and onboarded again.
@@ -22,19 +22,19 @@ should be used with the `assume_role_policy` of the `aws_iam_role` resource.
 
 ---
 
-# polaris_aws_cnp_account_trust_policy (Resource)
+# rubrik_aws_cnp_account_trust_policy (Resource)
 
 
 The `aws_cnp_account_trust_policy` resource gets the AWS IAM trust policies
 required by RSC. The `policy` field of `aws_cnp_account_trust_policy` resource
 should be used with the `assume_role_policy` of the `aws_iam_role` resource.
 
-~> **Note:** The `polaris_aws_cnp_account` resource can now be used to get the
-   IAM trust policies for all role keys. The `polaris_aws_cnp_account_trust_policy`
+~> **Note:** The `rubrik_aws_cnp_account` resource can now be used to get the
+   IAM trust policies for all role keys. The `rubrik_aws_cnp_account_trust_policy`
    resource is no longer required and will be deprecated in a future version.
 
 ~> **Note:** This resource does not support role chaining. Use the `trust_policies`
-   field of the `polaris_aws_cnp_account` resource for accounts using role chaining.
+   field of the `rubrik_aws_cnp_account` resource for accounts using role chaining.
 
 ~> **Note:** Once `external_id` has been set it cannot be changed. Unless the
    cloud account is removed and onboarded again.
@@ -47,7 +47,7 @@ should be used with the `assume_role_policy` of the `aws_iam_role` resource.
 ## Example Usage
 
 ```terraform
-data "polaris_aws_cnp_artifacts" "artifacts" {
+data "rubrik_aws_cnp_artifacts" "artifacts" {
   feature {
     name = "CLOUD_NATIVE_ARCHIVAL"
     permission_groups = [
@@ -64,12 +64,12 @@ data "polaris_aws_cnp_artifacts" "artifacts" {
   }
 }
 
-resource "polaris_aws_cnp_account" "account" {
+resource "rubrik_aws_cnp_account" "account" {
   name      = "My Account"
   native_id = "123456789123"
 
   dynamic "feature" {
-    for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+    for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
     content {
       name              = feature.value["name"]
       permission_groups = feature.value["permission_groups"]
@@ -83,9 +83,9 @@ resource "polaris_aws_cnp_account" "account" {
 
 # Lookup the trust policies using the artifacts data source and the
 # account resource.
-resource "polaris_aws_cnp_account_trust_policy" "trust_policy" {
-  for_each   = data.polaris_aws_cnp_artifacts.artifacts.role_keys
-  account_id = polaris_aws_cnp_account.account.id
+resource "rubrik_aws_cnp_account_trust_policy" "trust_policy" {
+  for_each   = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+  account_id = rubrik_aws_cnp_account.account.id
   role_key   = each.key
 }
 ```
@@ -134,7 +134,7 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 
 ```terraform
 import {
-  to = polaris_aws_cnp_account_trust_policy.trust_policy
+  to = rubrik_aws_cnp_account_trust_policy.trust_policy
   id = "CROSSACCOUNT-acfd7b71-6259-45bc-b0c6-f067918c5cc7"
 }
 ```
@@ -144,6 +144,6 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import polaris_aws_cnp_account_trust_policy.trust_policy CROSSACCOUNT-acfd7b71-6259-45bc-b0c6-f067918c5cc7
+% terraform import rubrik_aws_cnp_account_trust_policy.trust_policy CROSSACCOUNT-acfd7b71-6259-45bc-b0c6-f067918c5cc7
 ```
 

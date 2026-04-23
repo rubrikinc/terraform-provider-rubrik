@@ -33,7 +33,7 @@ import (
 )
 
 const dataSourceSLADomainDescription = `
-The ´polaris_sla_domain´ data source is used to access information about RSC SLA
+The ´rubrik_sla_domain´ data source is used to access information about RSC SLA
 domains. A SLA domain is looked up using either the ID or the name.
 `
 

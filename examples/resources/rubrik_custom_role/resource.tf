@@ -1,0 +1,69 @@
+# Manually defined role.
+resource "rubrik_custom_role" "auditor" {
+  name        = "Compliance Auditor Role"
+  description = "Compliance Auditor"
+
+  permission {
+    operation = "EXPORT_DATA_CLASS_GLOBAL"
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids = [
+        "GlobalResource"
+      ]
+    }
+  }
+
+  permission {
+    operation = "VIEW_DATA_CLASS_GLOBAL"
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids = [
+        "GlobalResource"
+      ]
+    }
+  }
+
+  # Permission with multiple snappable types. When a single operation applies
+  # to multiple snappable types, use multiple hierarchy blocks within the same
+  # permission block.
+  permission {
+    operation = "RESTORE_TO_ORIGIN"
+    hierarchy {
+      snappable_type = "AwsNativeRdsInstance"
+      object_ids = [
+        "AWSNATIVE_ROOT"
+      ]
+    }
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids = [
+        "ORACLE_ROOT"
+      ]
+    }
+  }
+}
+
+# From role template.
+data "rubrik_role_template" "auditor" {
+  name = "Compliance Auditor"
+}
+
+resource "rubrik_custom_role" "auditor" {
+  name        = "Compliance Auditor Role"
+  description = "Based on the ${data.rubrik_role_template.auditor.name} template"
+
+  dynamic "permission" {
+    for_each = data.rubrik_role_template.auditor.permission
+    content {
+      operation = permission.value["operation"]
+
+      dynamic "hierarchy" {
+        for_each = permission.value["hierarchy"]
+        content {
+          snappable_type = hierarchy.value["snappable_type"]
+          object_ids     = hierarchy.value["object_ids"]
+        }
+      }
+    }
+  }
+}

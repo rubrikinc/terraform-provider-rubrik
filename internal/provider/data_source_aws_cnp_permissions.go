@@ -36,7 +36,7 @@ import (
 )
 
 const dataSourceAWSPermissionsDescription = `
-The ´polaris_aws_cnp_permissions´ data source is used to access information
+The ´rubrik_aws_cnp_permissions´ data source is used to access information
 about the permissions required by RSC for a specified feature set.
 
 ## Permission Groups

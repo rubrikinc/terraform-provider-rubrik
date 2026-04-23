@@ -1,18 +1,18 @@
 ---
-page_title: "polaris_azure_archival_location Data Source - terraform-provider-polaris"
+page_title: "rubrik_azure_archival_location Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_azure_archival_location` data source is used to access information about
+The `rubrik_azure_archival_location` data source is used to access information about
 an Azure archival location. An archival location is looked up using either the ID or
 the name.
 
 ---
 
-# polaris_azure_archival_location (Data Source)
+# rubrik_azure_archival_location (Data Source)
 
 
-The `polaris_azure_archival_location` data source is used to access information about
+The `rubrik_azure_archival_location` data source is used to access information about
 an Azure archival location. An archival location is looked up using either the ID or
 the name.
 
@@ -22,12 +22,12 @@ the name.
 
 ```terraform
 # Using the archival location ID.
-data "polaris_azure_archival_location" "archival_location" {
+data "rubrik_azure_archival_location" "archival_location" {
   id = "db34f042-79ea-48b1-bab8-c40dfbf2ab82"
 }
 
 # Using the archival location name.
-data "polaris_azure_archival_location" "archival_location" {
+data "rubrik_azure_archival_location" "archival_location" {
   name = "my-archival-location"
 }
 ```

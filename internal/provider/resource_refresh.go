@@ -34,10 +34,10 @@ import (
 )
 
 const resourceRefreshDescription = `
-The ´polaris_refresh´ resource blocks until an account or subscription's
+The ´rubrik_refresh´ resource blocks until an account or subscription's
 inventory refresh in RSC is newer than a user-specified timestamp. This is
 useful for ensuring that leaf objects such as virtual machines or EC2 instances
-are discoverable via ´polaris_object´ after a subscription or account is
+are discoverable via ´rubrik_object´ after a subscription or account is
 onboarded.
 
 The resource does not trigger a refresh — RSC handles that automatically. It
@@ -68,7 +68,7 @@ func resourceRefresh() *schema.Resource {
 				Type:         schema.TypeString,
 				Required:     true,
 				ForceNew:     true,
-				Description:  "RSC object ID (UUID) to monitor. Typically the output of ´polaris_object´.",
+				Description:  "RSC object ID (UUID) to monitor. Typically the output of ´rubrik_object´.",
 				ValidateFunc: validation.IsUUID,
 			},
 			keyObjectType: {

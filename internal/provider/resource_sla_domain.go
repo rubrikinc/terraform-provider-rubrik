@@ -43,7 +43,7 @@ import (
 )
 
 const resourceSLADomainDescription = `
-The ´polaris_sla_domain´ resource is used to manage RSC global SLA Domains. SLA
+The ´rubrik_sla_domain´ resource is used to manage RSC global SLA Domains. SLA
 Domain defines how you want to take snapshots of objects like virtual machines,
 databases, SaaS apps and cloud objects. An SLA Domain can define frequency,
 retention, archival and replication.
@@ -263,7 +263,7 @@ func resourceSLADomain() *schema.Resource {
 							Optional: true,
 							Description: "Override which snapshot frequencies to archive. When not specified, " +
 								"frequencies are derived from the snapshot schedule and will not be visible " +
-								"in state. Use the polaris_sla_domain data source to see the effective " +
+								"in state. Use the rubrik_sla_domain data source to see the effective " +
 								"frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, " +
 								"`MONTHS`, `QUARTERS`, `YEARS`.",
 						},

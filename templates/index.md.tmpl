@@ -1,15 +1,15 @@
 ---
-page_title: "Provider: RSC"
+page_title: "Provider: Rubrik"
 ---
 
-# RSC Provider
-The RSC provider, formerly known as the Polaris provider, provides resources to interact with the Rubrik RSC platform.
-Additional examples on how to use the provider are available in the
+# Rubrik Provider
+The Rubrik provider, formerly known as the Polaris provider, provides resources to interact with the Rubrik RSC
+platform. Additional examples on how to use the provider are available in the
 [terraform-provider-polaris-examples](https://github.com/rubrikinc/terraform-provider-polaris-examples) GitHub
 repository. Documentation for the Rubrik Security Cloud is available at https://docs.rubrik.com/en-us/saas/index.html.
 
 !> Since v0.7.0, all RSC authentication tokens are cached on disk by default. This default behavior can be turned off
-   by setting the `token_cache` provider configuration field to `false` or the `RUBRIK_POLARIS_TOKEN_CACHE` environment
+   by setting the `token_cache` provider configuration field to `false` or the `RUBRIK_TOKEN_CACHE` environment
    variable to `FALSE`.
 
 ## Configuration
@@ -17,38 +17,38 @@ repository. Documentation for the Rubrik Security Cloud is available at https://
 ### Authentication Token Cache
 All RSC authentication tokens are cached on disk by default. They are placed in the operating system's default
 directory for temporary files (`$TMPDIR` or `/tmp` on Linux and `%TMP%`, `%TEMP%` or `%USERPROFILE%` on Windows), this
-can be overridden using the `token_cache_dir` provider configuration field or the `RUBRIK_POLARIS_TOKEN_CACHE_DIR`
+can be overridden using the `token_cache_dir` provider configuration field or the `RUBRIK_TOKEN_CACHE_DIR`
 environmental variable.
 
 Each authentication token written to the cache is encrypted using 256-bit AES encryption. The encryption key is derived
 from the RSC account information passed to the provider, this can be overridden using the `token_cache_secret` provider
-configuration field or the `RUBRIK_POLARIS_TOKEN_CACHE_SECRET` environmental variable. When a secret is provided, the
+configuration field or the `RUBRIK_TOKEN_CACHE_SECRET` environmental variable. When a secret is provided, the
 encryption key will be derived from the secret instead of the account information.
 
 The cache can be disabled by setting the `token_cache` provider configuration field to `false` or the
-`RUBRIK_POLARIS_TOKEN_CACHE` environmental variable to `FALSE`.
+`RUBRIK_TOKEN_CACHE` environmental variable to `FALSE`.
 
 ### Service Account
 First download the service account credentials as a JSON file from the RSC User Management UI page. Next, configure the
 provider to use the downloaded credentials file in the Terraform configuration:
 ```terraform
-provider "polaris" {
+provider "rubrik" {
   credentials = "/path/to/service-account-credentials.json"
 }
 ```
 The content of the service account file, the JSON data, can also be passed directly to the provider configuration:
 ```terraform
-provider "polaris" {
+provider "rubrik" {
   credentials = "<content of service-account-credentials.json>"
 }
 ```
-The service account can also be passed to the provider using one of the `RUBRIK_POLARIS_SERVICEACCOUNT_FILE` and
-`RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS` environment variables. The `RUBRIK_POLARIS_SERVICEACCOUNT_FILE` environment
-variable should contain the path to the downloaded credentials file. The `RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS`
+The service account can also be passed to the provider using one of the `RUBRIK_SERVICEACCOUNT_FILE` and
+`RUBRIK_SERVICEACCOUNT_CREDENTIALS` environment variables. The `RUBRIK_SERVICEACCOUNT_FILE` environment
+variable should contain the path to the downloaded credentials file. The `RUBRIK_SERVICEACCOUNT_CREDENTIALS`
 environment variable should contain the JSON data content of the downloaded credentials file. When passing the service
 account using the environment variable, leave the provider configuration empty:
 ```terraform
-provider "polaris" {}
+provider "rubrik" {}
 ```
 For documentation on how to create a service account using RSC, visit the
 [Rubrik Support Portal](http://support.rubrik.com).
@@ -72,7 +72,7 @@ with `/api` added to the end.
 
 To configure the provider to use a local user account specify the name as the provider credentials:
 ```terraform
-provider "polaris" {
+provider "rubrik" {
   credentials = "my-account"
 }
 ```
@@ -81,56 +81,56 @@ For documentation on how to create a local user account using RSC, visit the
 
 ### Environment Variables
 The following environmental variables can be used to override the default behavior of the provider:
-* `RUBRIK_POLARIS_LOGLEVEL` - Overrides the log level of the provider. Valid log levels are: `FATAL`, `ERROR`, `WARN`,
+* `RUBRIK_LOGLEVEL` - Overrides the log level of the provider. Valid log levels are: `FATAL`, `ERROR`, `WARN`,
   `INFO`, `DEBUG`, `TRACE` and `OFF`. The default log level of the provider is `WARN`.
-* `RUBRIK_POLARIS_TOKEN_CACHE` - Overrides whether the token cache should be used or not. By default, the token
+* `RUBRIK_TOKEN_CACHE` - Overrides whether the token cache should be used or not. By default, the token
   cache is used.
-* `RUBRIK_POLARIS_TOKEN_CACHE_DIR` - Overrides the directory where cached authentication tokens are stored. By
+* `RUBRIK_TOKEN_CACHE_DIR` - Overrides the directory where cached authentication tokens are stored. By
   default, the OS default directory for temporary files is used.
-* `RUBRIK_POLARIS_TOKEN_CACHE_SECRET` - Overrides the secret used as input when generating an encryption key for the
+* `RUBRIK_TOKEN_CACHE_SECRET` - Overrides the secret used as input when generating an encryption key for the
   authentication token.
 
 When using a service account the following environmental variables can be used to override the default service account
 behavior:
-* `RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS` - Overrides the content of the service account credentials file.
-* `RUBRIK_POLARIS_SERVICEACCOUNT_FILE` - Overrides the name and path of the service account credentials file.
-* `RUBRIK_POLARIS_SERVICEACCOUNT_NAME` - Overrides the name of the service account.
-* `RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTID` - Overrides the client id of the service account.
-* `RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTSECRET` - Overrides the client secret of the service account.
-* `RUBRIK_POLARIS_SERVICEACCOUNT_ACCESSTOKENURI` - Overrides the service account access token URI. When using a service
+* `RUBRIK_SERVICEACCOUNT_CREDENTIALS` - Overrides the content of the service account credentials file.
+* `RUBRIK_SERVICEACCOUNT_FILE` - Overrides the name and path of the service account credentials file.
+* `RUBRIK_SERVICEACCOUNT_NAME` - Overrides the name of the service account.
+* `RUBRIK_SERVICEACCOUNT_CLIENTID` - Overrides the client id of the service account.
+* `RUBRIK_SERVICEACCOUNT_CLIENTSECRET` - Overrides the client secret of the service account.
+* `RUBRIK_SERVICEACCOUNT_ACCESSTOKENURI` - Overrides the service account access token URI. When using a service
   account the RSC API URL is derived from this URI.
 
 When using a local user account the following environmental variables can be used to override the default local user
 account behavior:
-* `RUBRIK_POLARIS_ACCOUNT_CREDENTIALS` - Overrides the content of the local user accounts file.
-* `RUBRIK_POLARIS_ACCOUNT_FILE` - Overrides the name and path of the file to read local user accounts from.
-* `RUBRIK_POLARIS_ACCOUNT_NAME` - Overrides the name of the local user account given to the credentials parameter in the
+* `RUBRIK_ACCOUNT_CREDENTIALS` - Overrides the content of the local user accounts file.
+* `RUBRIK_ACCOUNT_FILE` - Overrides the name and path of the file to read local user accounts from.
+* `RUBRIK_ACCOUNT_NAME` - Overrides the name of the local user account given to the credentials parameter in the
   provider configuration.
-* `RUBRIK_POLARIS_ACCOUNT_USERNAME` - Overrides the username of the local user account.
-* `RUBRIK_POLARIS_ACCOUNT_PASSWORD` - Overrides the password of the local user account.
-* `RUBRIK_POLARIS_ACCOUNT_URL` - Overrides the RSC API URL.
+* `RUBRIK_ACCOUNT_USERNAME` - Overrides the username of the local user account.
+* `RUBRIK_ACCOUNT_PASSWORD` - Overrides the password of the local user account.
+* `RUBRIK_ACCOUNT_URL` - Overrides the RSC API URL.
 
 ### Terraform Logging Support
 The provider supports Terraform's native logging system (tflog) for improved debugging and troubleshooting. This provides structured logging with better integration into Terraform's logging infrastructure.
 
 #### Terraform Logging Environment Variables
-* `TF_LOG_PROVIDER_POLARIS` - Controls the log level for the Terraform provider itself. Valid log levels are: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, and `OFF`. This variable follows Terraform's standard logging conventions.
-* `TF_LOG_PROVIDER_POLARIS_API` - Controls the log level specifically for API calls made by the provider to the Polaris service. This allows you to separately control the verbosity of API-related logging.
+* `TF_LOG_PROVIDER_RUBRIK` - Controls the log level for the Terraform provider itself. Valid log levels are: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, and `OFF`. This variable follows Terraform's standard logging conventions.
+* `TF_LOG_PROVIDER_RUBRIK_API` - Controls the log level specifically for API calls made by the provider to the Polaris service. This allows you to separately control the verbosity of API-related logging.
 
 #### Usage Examples
 ```shell
 # Enable DEBUG logging for the provider, including API calls
-export TF_LOG_PROVIDER_POLARIS=DEBUG
+export TF_LOG_PROVIDER_RUBRIK=DEBUG
 
 # Enable TRACE logging for API calls only
-export TF_LOG_PROVIDER_POLARIS_API=TRACE
+export TF_LOG_PROVIDER_RUBRIK_API=TRACE
 
 # Enable both provider and API logging at different levels
-export TF_LOG_PROVIDER_POLARIS=INFO
-export TF_LOG_PROVIDER_POLARIS_API=DEBUG
+export TF_LOG_PROVIDER_RUBRIK=INFO
+export TF_LOG_PROVIDER_RUBRIK_API=DEBUG
 
 # Direct provider logs to a specific file
-export TF_LOG_PROVIDER_PATH=./polaris-provider.log
+export TF_LOG_PROVIDER_PATH=./rubrik-provider.log
 ```
 
 ## Example Usage

@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_gcp_exocompute Resource - terraform-provider-polaris"
+page_title: "rubrik_gcp_exocompute Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_gcp_exocompute` resource creates an RSC Exocompute configuration
+The `rubrik_gcp_exocompute` resource creates an RSC Exocompute configuration
 for GCP workloads. This resource should only be used with customer managed
 networking. Customer managed networking is used when the `EXOCOMPUTE` feature
 of the GCP project was onboarded without the `AUTOMATED_NETWORKING_SETUP`
@@ -13,10 +13,10 @@ and manage the networking resources for Exocompute.
 
 ---
 
-# polaris_gcp_exocompute (Resource)
+# rubrik_gcp_exocompute (Resource)
 
 
-The `polaris_gcp_exocompute` resource creates an RSC Exocompute configuration
+The `rubrik_gcp_exocompute` resource creates an RSC Exocompute configuration
 for GCP workloads. This resource should only be used with customer managed
 networking. Customer managed networking is used when the `EXOCOMPUTE` feature
 of the GCP project was onboarded without the `AUTOMATED_NETWORKING_SETUP`
@@ -29,8 +29,8 @@ and manage the networking resources for Exocompute.
 ## Example Usage
 
 ```terraform
-resource "polaris_gcp_exocompute" "exocompute" {
-  cloud_account_id     = polaris_gcp_project.project.id
+resource "rubrik_gcp_exocompute" "exocompute" {
+  cloud_account_id     = rubrik_gcp_project.project.id
   trigger_health_check = true
 
   regional_config {
@@ -52,7 +52,7 @@ resource "polaris_gcp_exocompute" "exocompute" {
 
 ### Required
 
-- `cloud_account_id` (String) RSC cloud account ID. This is the ID of the `polaris_gcp_project` resource for which the Exocompute service runs. Changing this forces a new resource to be created.
+- `cloud_account_id` (String) RSC cloud account ID. This is the ID of the `rubrik_gcp_project` resource for which the Exocompute service runs. Changing this forces a new resource to be created.
 - `regional_config` (Block Set, Min: 1) Regional configuration for the Exocompute service. (see [below for nested schema](#nestedblock--regional_config))
 
 ### Optional
@@ -84,7 +84,7 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 
 ```terraform
 import {
-  to = polaris_gcp_exocompute.exocompute
+  to = rubrik_gcp_exocompute.exocompute
   id = "3084e4c8-dbc0-43a9-97d6-80c5ba2c51d6"
 }
 ```
@@ -94,6 +94,6 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import polaris_gcp_exocompute.exocompute 3084e4c8-dbc0-43a9-97d6-80c5ba2c51d6
+% terraform import rubrik_gcp_exocompute.exocompute 3084e4c8-dbc0-43a9-97d6-80c5ba2c51d6
 ```
 

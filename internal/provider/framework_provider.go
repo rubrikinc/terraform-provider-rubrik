@@ -35,7 +35,7 @@ import (
 
 var _ provider.ProviderWithListResources = &FrameworkProvider{}
 
-const Name = "registry.terraform.io/rubrikinc/polaris"
+const Name = "registry.terraform.io/rubrikinc/rubrik"
 
 type FrameworkProvider struct {
 	Version string
@@ -124,9 +124,13 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 
 	return []func() resource.Resource{
 		newCustomRoleResource,
+		newPolarisCustomRoleResource,
 		newRoleAssignmentResource,
+		newPolarisRoleAssignmentResource,
 		newSSOGroupResource,
+		newPolarisSSOGroupResource,
 		newUserResource,
+		newPolarisUserResource,
 	}
 }
 
@@ -135,11 +139,17 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 
 	return []func() datasource.DataSource{
 		newFeatureFlagDataSource,
+		newPolarisFeatureFlagDataSource,
 		newIdentityProviderDataSource,
+		newPolarisIdentityProviderDataSource,
 		newRoleDataSource,
+		newPolarisRoleDataSource,
 		newRoleTemplateDataSource,
+		newPolarisRoleTemplateDataSource,
 		newSSOGroupDataSource,
+		newPolarisSSOGroupDataSource,
 		newUserDataSource,
+		newPolarisUserDataSource,
 	}
 }
 
@@ -148,7 +158,10 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 
 	return []func() list.ListResource{
 		newCustomRoleListResource,
+		newPolarisCustomRoleListResource,
 		newSSOGroupListResource,
+		newPolarisSSOGroupListResource,
 		newUserListResource,
+		newPolarisUserListResource,
 	}
 }

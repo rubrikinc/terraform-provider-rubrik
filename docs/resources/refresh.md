@@ -1,11 +1,11 @@
 ---
-page_title: "polaris_refresh Resource - terraform-provider-polaris"
+page_title: "rubrik_refresh Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-    The polaris_refresh resource blocks until an account or subscription's
+    The rubrik_refresh resource blocks until an account or subscription's
   inventory refresh in RSC is newer than a user-specified timestamp. This is
   useful for ensuring that leaf objects such as virtual machines or EC2 instances
-  are discoverable via polaris_object after a subscription or account is
+  are discoverable via rubrik_object after a subscription or account is
   onboarded.
   The resource does not trigger a refresh — RSC handles that automatically. It
   simply polls until the condition is met. All arguments are ForceNew, so any
@@ -17,12 +17,12 @@ description: |-
   block.
 ---
 
-# polaris_refresh (Resource)
+# rubrik_refresh (Resource)
 
-The `polaris_refresh` resource blocks until an account or subscription's
+The `rubrik_refresh` resource blocks until an account or subscription's
 inventory refresh in RSC is newer than a user-specified timestamp. This is
 useful for ensuring that leaf objects such as virtual machines or EC2 instances
-are discoverable via `polaris_object` after a subscription or account is
+are discoverable via `rubrik_object` after a subscription or account is
 onboarded.
 
 The resource does not trigger a refresh — RSC handles that automatically. It
@@ -41,7 +41,7 @@ block.
 
 ```terraform
 # AWS example: wait for an AWS account to be refreshed after onboarding.
-resource "polaris_aws_account" "account" {
+resource "rubrik_aws_account" "account" {
   name    = "my-account"
   profile = "default"
 
@@ -56,26 +56,26 @@ resource "polaris_aws_account" "account" {
   }
 }
 
-data "polaris_object" "account" {
-  name        = polaris_aws_account.account.name
+data "rubrik_object" "account" {
+  name        = rubrik_aws_account.account.name
   object_type = "AwsNativeAccount"
 }
 
-resource "polaris_refresh" "account" {
-  object_id   = data.polaris_object.account.id
+resource "rubrik_refresh" "account" {
+  object_id   = data.rubrik_object.account.id
   object_type = "AwsNativeAccount"
   timestamp   = "2026-03-12T10:00:00Z"
 }
 
-data "polaris_object" "ec2" {
+data "rubrik_object" "ec2" {
   name        = "my-instance"
   object_type = "AwsNativeEc2Instance"
 
-  depends_on = [polaris_refresh.account]
+  depends_on = [rubrik_refresh.account]
 }
 
 # Azure example: wait for an Azure subscription to be refreshed after onboarding.
-resource "polaris_azure_subscription" "sub" {
+resource "rubrik_azure_subscription" "sub" {
   subscription_id   = "00000000-0000-0000-0000-000000000000"
   subscription_name = "my-subscription"
   tenant_domain     = "my-tenant.onmicrosoft.com"
@@ -93,13 +93,13 @@ resource "polaris_azure_subscription" "sub" {
   }
 }
 
-data "polaris_object" "sub" {
-  name        = polaris_azure_subscription.sub.subscription_name
+data "rubrik_object" "sub" {
+  name        = rubrik_azure_subscription.sub.subscription_name
   object_type = "AzureNativeSubscription"
 }
 
-resource "polaris_refresh" "sub" {
-  object_id   = data.polaris_object.sub.id
+resource "rubrik_refresh" "sub" {
+  object_id   = data.rubrik_object.sub.id
   object_type = "AzureNativeSubscription"
   timestamp   = "2026-03-12T10:00:00Z"
 
@@ -108,11 +108,11 @@ resource "polaris_refresh" "sub" {
   }
 }
 
-data "polaris_object" "vm" {
+data "rubrik_object" "vm" {
   name        = "my-vm"
   object_type = "AzureNativeVirtualMachine"
 
-  depends_on = [polaris_refresh.sub]
+  depends_on = [rubrik_refresh.sub]
 }
 ```
 
@@ -122,7 +122,7 @@ data "polaris_object" "vm" {
 
 ### Required
 
-- `object_id` (String) RSC object ID (UUID) to monitor. Typically the output of `polaris_object`.
+- `object_id` (String) RSC object ID (UUID) to monitor. Typically the output of `rubrik_object`.
 - `object_type` (String) Object type to monitor. Supported types: `AwsNativeAccount`, `AzureNativeSubscription`.
 - `timestamp` (String) RFC3339 timestamp. The resource blocks until all features have been refreshed after this time.
 

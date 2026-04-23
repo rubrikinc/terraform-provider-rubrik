@@ -32,7 +32,7 @@ import (
 )
 
 const resourceCDMRegistrationDescription = `
-The ´polaris_cdm_registration´ resource registers a Rubrik cluster with the
+The ´rubrik_cdm_registration´ resource registers a Rubrik cluster with the
 Rubrik Security Cloud (RSC).
 
 ~> **Note:** The Terraform provider can only register clusters, it cannot

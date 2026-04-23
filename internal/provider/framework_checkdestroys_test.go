@@ -12,8 +12,8 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 )
 
-// customRoleCheckDestroy verifies that all polaris_custom_role resources have
-// been deleted.
+// customRoleCheckDestroy verifies that all custom_role resources have been
+// deleted.
 func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
 	return func(s *terraform.State) error {
 		client, err := testClient(ctx)
@@ -22,7 +22,7 @@ func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
 		}
 
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_custom_role" {
+			if rs.Type != "polaris_custom_role" && rs.Type != "rubrik_custom_role" {
 				continue
 			}
 
@@ -45,8 +45,8 @@ func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
 }
 
 // roleAssignmentCheckDestroy verifies that the specific roles managed by each
-// polaris_role_assignment resource have been unassigned. Roles outside the
-// resource's management are ignored. Users or SSO groups not found are ignored.
+// role_assignment resource have been unassigned. Roles outside the resource's
+// management are ignored. Users or SSO groups not found are ignored.
 func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) error {
 	return func(s *terraform.State) error {
 		client, err := testClient(ctx)
@@ -55,7 +55,7 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 		}
 
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_role_assignment" {
+			if rs.Type != "polaris_role_assignment" && rs.Type != "rubrik_role_assignment" {
 				continue
 			}
 
@@ -116,7 +116,7 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 	}
 }
 
-// userCheckDestroy verifies that all polaris_user resources have been deleted.
+// userCheckDestroy verifies that all user resources have been deleted.
 func userCheckDestroy(ctx context.Context) func(*terraform.State) error {
 	return func(s *terraform.State) error {
 		client, err := testClient(ctx)
@@ -125,7 +125,7 @@ func userCheckDestroy(ctx context.Context) func(*terraform.State) error {
 		}
 
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_user" {
+			if rs.Type != "polaris_user" && rs.Type != "rubrik_user" {
 				continue
 			}
 

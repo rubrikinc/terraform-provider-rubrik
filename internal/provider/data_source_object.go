@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceObjectDescription = `
-The ´polaris_object´ data source is used to look up an RSC hierarchy object by
+The ´rubrik_object´ data source is used to look up an RSC hierarchy object by
 name and type. This is useful for finding the ID of an object when only its
 name and type are known.
 

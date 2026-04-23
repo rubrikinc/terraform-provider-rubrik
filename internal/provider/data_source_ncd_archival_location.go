@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceNCDArchivalLocationDescription = `
-The ´polaris_ncd_archival_location´ data source is used to access information about
+The ´rubrik_ncd_archival_location´ data source is used to access information about
 a NAS Cloud Direct (NCD) archival location for a specific cluster. An archival location
 is looked up using the cluster ID and archival location name.
 

@@ -38,7 +38,7 @@ const (
 )
 
 const resourceCDMBootstrapDescription = `
-The ´polaris_cdm_bootstrap´ resource bootstraps a Rubrik cluster.
+The ´rubrik_cdm_bootstrap´ resource bootstraps a Rubrik cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot
    decommission clusters or read the state of a cluster. Destroying the resource

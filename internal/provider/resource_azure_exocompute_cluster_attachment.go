@@ -32,7 +32,7 @@ import (
 )
 
 const azureExocomputeClusterAttachmentDescription = `
-The ´polaris_azure_exocompute_cluster_attachment´ resource attaches an Azure AKS
+The ´rubrik_azure_exocompute_cluster_attachment´ resource attaches an Azure AKS
 cluster to a customer managed host Exocompute configuration, allowing RSC to use
 the cluster for Exocompute operations.
 

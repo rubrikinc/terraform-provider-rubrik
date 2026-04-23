@@ -34,7 +34,7 @@ import (
 )
 
 const dataSourceGCPArchivalLocationDescription = `
-The ´polaris_gcp_archival_location´ data source is used to access information
+The ´rubrik_gcp_archival_location´ data source is used to access information
 about a GCP archival location. An archival location is looked up using either
 the ID or the name.
 `

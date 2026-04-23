@@ -1,17 +1,17 @@
 ---
-page_title: "polaris_sso_group Data Source - terraform-provider-polaris"
+page_title: "rubrik_sso_group Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_sso_group` data source is used to access information about an SSO
+The `rubrik_sso_group` data source is used to access information about an SSO
 group in RSC. An SSO group is looked up using either the ID or the name.
 
 ---
 
-# polaris_sso_group (Data Source)
+# rubrik_sso_group (Data Source)
 
 
-The `polaris_sso_group` data source is used to access information about an SSO
+The `rubrik_sso_group` data source is used to access information about an SSO
 group in RSC. An SSO group is looked up using either the ID or the name.
 
 
@@ -20,12 +20,12 @@ group in RSC. An SSO group is looked up using either the ID or the name.
 
 ```terraform
 # Look up SSO group by name.
-data "polaris_sso_group" "admins" {
+data "rubrik_sso_group" "admins" {
   name = "Administrators"
 }
 
 # Look up SSO group by ID.
-data "polaris_sso_group" "admins" {
+data "rubrik_sso_group" "admins" {
   sso_group_id = "<id>"
 }
 ```

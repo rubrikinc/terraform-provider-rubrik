@@ -1,9 +1,9 @@
 ---
-page_title: "polaris_user Data Source - terraform-provider-polaris"
+page_title: "rubrik_user Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_user` data source is used to access information about an RSC user.
+The `rubrik_user` data source is used to access information about an RSC user.
 Information for both local and SSO users can be accessed. A user is looked up
 using either the ID or the email address.
 
@@ -15,10 +15,10 @@ using either the ID or the email address.
 
 ---
 
-# polaris_user (Data Source)
+# rubrik_user (Data Source)
 
 
-The `polaris_user` data source is used to access information about an RSC user.
+The `rubrik_user` data source is used to access information about an RSC user.
 Information for both local and SSO users can be accessed. A user is looked up
 using either the ID or the email address.
 
@@ -34,18 +34,18 @@ using either the ID or the email address.
 
 ```terraform
 # Look up user by email address.
-data "polaris_user" "admin" {
+data "rubrik_user" "admin" {
   email = "admin@example.org"
 }
 
 # Look up user by email address and user domain.
-data "polaris_user" "admin" {
+data "rubrik_user" "admin" {
   email  = "admin@example.org"
   domain = "SSO"
 }
 
 # Look up user by user ID.
-data "polaris_user" "admin" {
+data "rubrik_user" "admin" {
   user_id = "<id>"
 }
 ```

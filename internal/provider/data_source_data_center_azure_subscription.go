@@ -31,7 +31,7 @@ import (
 )
 
 const dataSourceDataCenterAzureSubscriptionDescription = `
-The ´polaris_data_center_azure_subscription´ data source is used to access
+The ´rubrik_data_center_azure_subscription´ data source is used to access
 information about an Azure data center subscription added to RSC. A data center
 subscription is looked up using the name.
 

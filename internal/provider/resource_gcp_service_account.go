@@ -34,7 +34,7 @@ import (
 )
 
 const resourceGCPServiceAccountDescription = `
-The ´polaris_gcp_service_account´ resource adds the GCP service account to RSC
+The ´rubrik_gcp_service_account´ resource adds the GCP service account to RSC
 as the default service account. The default service account will be used by RSC
 to authenticate to the GCP for projects added to RSC without a service account.
 
@@ -42,7 +42,7 @@ to authenticate to the GCP for projects added to RSC without a service account.
    considerable time to propagate through the system. Use the ´ignore_changes´
    field of the ´lifecycle´ block if it becomes an issue.
 
-~> **Note:** Destroying the ´polaris_gcp_service_account´ resource only updates
+~> **Note:** Destroying the ´rubrik_gcp_service_account´ resource only updates
    the local state, it does not remove the service account from RSC. However,
    it's possible to overwrite the RSC global service account with new service
    accounts.
@@ -84,8 +84,8 @@ func resourceGcpServiceAccount() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Description: "Signals that the permissions has been updated. **Deprecated:** use the " +
-					"`permissions` field of the `feature` block of the `polaris_gcp_project` resource instead.",
-				Deprecated: "Use the `permissions` field of the `feature` block of `polaris_gcp_project` " +
+					"`permissions` field of the `feature` block of the `rubrik_gcp_project` resource instead.",
+				Deprecated: "Use the `permissions` field of the `feature` block of `rubrik_gcp_project` " +
 					"instead.",
 			},
 		},

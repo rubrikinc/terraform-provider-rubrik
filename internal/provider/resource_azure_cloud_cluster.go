@@ -40,7 +40,7 @@ import (
 )
 
 const resourceAzureCloudClusterDescription = `
-The ´polaris_azure_cloud_cluster´ resource creates an Azure cloud cluster using RSC.
+The ´rubrik_azure_cloud_cluster´ resource creates an Azure cloud cluster using RSC.
 
 This resource creates a Rubrik Cloud Data Management (CDM) cluster with elastic storage
 in Azure using the specified configuration. The cluster will be deployed with the specified

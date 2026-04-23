@@ -43,7 +43,7 @@ import (
 )
 
 const resourceTagRuleDescription = `
-The ´polaris_tag_rule´ resource manages RSC tag rules.
+The ´rubrik_tag_rule´ resource manages RSC tag rules.
 
 A tag is a key-value pair used to group cloud resources for a specific purpose.
 This rule-based approach allows resource protection across multiple projects and

@@ -39,7 +39,7 @@ import (
 )
 
 const resourceAzureArchivalLocationDescription = `
-The ´polaris_azure_archival_location´ resource creates an RSC archival location for
+The ´rubrik_azure_archival_location´ resource creates an RSC archival location for
 cloud-native workloads. This resource requires that the Azure subscription has been
 onboarded with the ´cloud_native_archival´ feature.
 

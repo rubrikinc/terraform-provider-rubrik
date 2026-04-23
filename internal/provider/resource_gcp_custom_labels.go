@@ -32,7 +32,7 @@ import (
 )
 
 var resourceGCPCustomLabelsDescription = `
-The ´polaris_gcp_custom_labels´ resource manages RSC custom GCP labels.
+The ´rubrik_gcp_custom_labels´ resource manages RSC custom GCP labels.
 Simplify your cloud resource management by assigning custom labels for easy
 identification. These custom labels will be used on all existing and future GCP
 projects in your RSC account.
@@ -40,16 +40,16 @@ projects in your RSC account.
 -> **Note:** The newly updated custom labels will be applied to all existing and
    new resources, while the previously applied labels will remain unchanged.
 
-~> **Warning:** When using multiple ´polaris_gcp_custom_labels´ resources in the
+~> **Warning:** When using multiple ´rubrik_gcp_custom_labels´ resources in the
    same RSC account, there is a risk of a race condition when the resources are
    destroyed. This can result in custom labels remaining in RSC even after all
-   ´polaris_gcp_custom_labels´ resources have been destroyed. The race condition
+   ´rubrik_gcp_custom_labels´ resources have been destroyed. The race condition
    can be avoided by either managing all custom labels using a single
-   ´polaris_gcp_custom_labels´ resource or by using ´depends_on´ to ensure that
+   ´rubrik_gcp_custom_labels´ resource or by using ´depends_on´ to ensure that
    the resources are destroyed in a serial fashion.
 
 ~> **Warning:** The ´override_resource_labels´ field refers to a single global
-   value in RSC. So multiple ´polaris_gcp_custom_labels´ resources with
+   value in RSC. So multiple ´rubrik_gcp_custom_labels´ resources with
    different values for the ´override_resource_labels´ field will result in a
    perpetual diff.
 `

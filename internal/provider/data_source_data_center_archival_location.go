@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceDataCenterArchivalLocationDescription = `
-The ´polaris_data_center_archival_location´ data source is used to access information about
+The ´rubrik_data_center_archival_location´ data source is used to access information about
 a data center archival location for a specific cluster. An archival location is looked
 up using the cluster ID and archival location name.
 `

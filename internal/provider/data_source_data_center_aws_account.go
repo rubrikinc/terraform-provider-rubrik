@@ -31,7 +31,7 @@ import (
 )
 
 const dataSourceDataCenterAWSAccountDescription = `
-The ´polaris_data_center_aws_account´ data source is used to access information
+The ´rubrik_data_center_aws_account´ data source is used to access information
 about an AWS data center account added to RSC. A data center account is looked
 up using the name.
 

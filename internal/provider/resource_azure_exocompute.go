@@ -37,7 +37,7 @@ import (
 )
 
 const resourceAzureExocomputeDescription = `
-The ´polaris_azure_exocompute´ resource creates an RSC Exocompute configuration
+The ´rubrik_azure_exocompute´ resource creates an RSC Exocompute configuration
 for Azure workloads.
 
 There are 3 types of Exocompute configurations:
@@ -49,7 +49,7 @@ There are 3 types of Exocompute configurations:
  2. *Customer Managed Host* - When a customer managed host configuration is
     created, RSC will not deploy any resources. Instead it will use the Azure
     AKS cluster attached by the customer, using the
-    ´polaris_azure_exocompute_cluster_attachment´ resource, for all operations.
+    ´rubrik_azure_exocompute_cluster_attachment´ resource, for all operations.
  3. *Application* - An application configuration is created by mapping the
     application cloud account to a host cloud account. The application cloud
     account will leverage the Exocompute resources deployed for the host
@@ -59,11 +59,11 @@ Item 1 and 2 above requires that the Azure subscription has been onboarded with
 the ´exocompute´ feature.
 
 Since there are 3 types of Exocompute configurations, there are 3 ways to create
-a ´polaris_azure_exocompute´ resource:
+a ´rubrik_azure_exocompute´ resource:
  1. Using the ´cloud_account_id´, ´region´, ´subnet´ and
    ´pod_overlay_network_cidr´ fields creates an RSC managed host configuration.
  2. Using the ´cloud_account_id´ and ´region´ fields creates a customer managed
-    host configuration. Note, the ´polaris_azure_exocompute_cluster_attachment´
+    host configuration. Note, the ´rubrik_azure_exocompute_cluster_attachment´
     resource must be used to attach an Azure AKS cluster to the Exocompute
     configuration.
  3. Using the ´cloud_account_id´ and ´host_cloud_account_id´ fields creates an
@@ -98,7 +98,7 @@ func resourceAzureExocompute() *schema.Resource {
 				Optional:     true,
 				ForceNew:     true,
 				ExactlyOneOf: []string{keySubscriptionID},
-				Description: "RSC cloud account ID. This is the ID of the `polaris_azure_subscription` resource for " +
+				Description: "RSC cloud account ID. This is the ID of the `rubrik_azure_subscription` resource for " +
 					"which the Exocompute service runs. Changing this forces a new resource to be created.",
 				ValidateFunc: validation.IsUUID,
 			},
@@ -265,7 +265,7 @@ func resourceAzureExocompute() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-				Description: "RSC cloud account ID. This is the ID of the `polaris_azure_subscription` resource for " +
+				Description: "RSC cloud account ID. This is the ID of the `rubrik_azure_subscription` resource for " +
 					"which the Exocompute service runs. Changing this forces a new resource to be created. " +
 					"**Deprecated:** use `cloud_account_id` instead.",
 				Deprecated:   "use `cloud_account_id` instead.",

@@ -1,17 +1,17 @@
 ---
-page_title: "polaris_role_template Data Source - terraform-provider-polaris"
+page_title: "rubrik_role_template Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_role_template` data source is used to access information about an
+The `rubrik_role_template` data source is used to access information about an
 RSC role template. A role template is looked up using either the ID or the name.
 
 ---
 
-# polaris_role_template (Data Source)
+# rubrik_role_template (Data Source)
 
 
-The `polaris_role_template` data source is used to access information about an
+The `rubrik_role_template` data source is used to access information about an
 RSC role template. A role template is looked up using either the ID or the name.
 
 
@@ -20,12 +20,12 @@ RSC role template. A role template is looked up using either the ID or the name.
 
 ```terraform
 # Look up role template by name.
-data "polaris_role_template" "compliance_auditor" {
+data "rubrik_role_template" "compliance_auditor" {
   name = "Compliance Auditor"
 }
 
 # Look up role template by ID.
-data "polaris_role_template" "compliance_auditor" {
+data "rubrik_role_template" "compliance_auditor" {
   role_template_id = "00000000-0000-0000-0000-000000000007"
 }
 ```

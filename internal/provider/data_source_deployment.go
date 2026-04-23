@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceDeploymentDescription = `
-The ´polaris_deployment´ data source is used to access information about the RSC
+The ´rubrik_deployment´ data source is used to access information about the RSC
 deployment.
 `
 

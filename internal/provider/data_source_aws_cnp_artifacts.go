@@ -34,7 +34,7 @@ import (
 )
 
 const dataSourceAWSArtifactsDescription = `
-The ´polaris_aws_archival_location´ data source is used to access information
+The ´rubrik_aws_archival_location´ data source is used to access information
 about instance profiles and roles required by RSC for a specified feature set.
 
 ## Permission Groups

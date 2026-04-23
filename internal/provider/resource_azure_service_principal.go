@@ -32,11 +32,11 @@ import (
 )
 
 const resourceAzureServicePrincipalDescription = `
-The ´polaris_azure_service_principal´ resource adds an Azure service principal to
+The ´rubrik_azure_service_principal´ resource adds an Azure service principal to
 RSC. A service principal must be added for each Azure tenant before subscriptions
 for the tenants can be added to RSC.
 
-There are 3 ways to create a ´polaris_azure_service principal´ resource:
+There are 3 ways to create a ´rubrik_azure_service principal´ resource:
   1. Using the ´app_id´, ´app_name´, ´app_secret´, ´tenant_id´ and ´tenant_domain´
      fields.
   2. Using the ´credentials´ field which is the path to a custom service principal 
@@ -53,9 +53,9 @@ without replacing the service principal.
    the service principal can be replaced using
    ´terraform apply -replace=<address-of-service-principal>´.
 
-~> **Note:** Destroying the ´polaris_azure_service_principal´ resource only updates
+~> **Note:** Destroying the ´rubrik_azure_service_principal´ resource only updates
    the local state, it does not remove the service principal from RSC. However,
-   creating another ´polaris_azure_service_principal´ resource for the same Azure
+   creating another ´rubrik_azure_service_principal´ resource for the same Azure
    tenant will overwrite the old service principal in RSC.
 
 -> **Note:** There is no way to verify if a service principal has been added to RSC
@@ -129,10 +129,10 @@ func resourceAzureServicePrincipal() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Description: "Permissions updated signal. When this field is updated, the provider will notify RSC " +
-					"that permissions has been updated. Use this field with the `polaris_azure_permissions` data " +
-					"source. **Deprecated:** use the `polaris_azure_subscription` resource's `permissions` fields " +
+					"that permissions has been updated. Use this field with the `rubrik_azure_permissions` data " +
+					"source. **Deprecated:** use the `rubrik_azure_subscription` resource's `permissions` fields " +
 					"instead.",
-				Deprecated:   "use the `polaris_azure_subscription` resource's `permissions` fields instead.",
+				Deprecated:   "use the `rubrik_azure_subscription` resource's `permissions` fields instead.",
 				ValidateFunc: validation.StringIsNotWhiteSpace,
 			},
 			keyPermissionsHash: {

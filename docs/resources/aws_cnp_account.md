@@ -1,13 +1,13 @@
 ---
-page_title: "polaris_aws_cnp_account Resource - terraform-provider-polaris"
+page_title: "rubrik_aws_cnp_account Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `polaris_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
+The `rubrik_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
 permissions to perform certain operations on the account, IAM roles needs to be
-created and communicated to RSC using the `polaris_aws_cnp_attachment` resource.
+created and communicated to RSC using the `rubrik_aws_cnp_attachment` resource.
 The roles and permissions needed by RSC can be looked up using the
-`polaris_aws_cnp_artifact` and `polaris_aws_cnp_permissions` data sources.
+`rubrik_aws_cnp_artifact` and `rubrik_aws_cnp_permissions` data sources.
 
 The `CLOUD_DISCOVERY` feature enables RSC to discover resources in the AWS
 account without enabling protection. It is currently optional but will become
@@ -64,18 +64,18 @@ are used when specifying the feature set.
    is always required except for the `SERVERS_AND_APPS` feature.
 
 -> **Note:** To onboard an account using a CloudFormation stack instead of IAM
-   roles, use the `polaris_aws_account` resource.
+   roles, use the `rubrik_aws_account` resource.
 
 ---
 
-# polaris_aws_cnp_account (Resource)
+# rubrik_aws_cnp_account (Resource)
 
 
-The `polaris_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
+The `rubrik_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
 permissions to perform certain operations on the account, IAM roles needs to be
-created and communicated to RSC using the `polaris_aws_cnp_attachment` resource.
+created and communicated to RSC using the `rubrik_aws_cnp_attachment` resource.
 The roles and permissions needed by RSC can be looked up using the
-`polaris_aws_cnp_artifact` and `polaris_aws_cnp_permissions` data sources.
+`rubrik_aws_cnp_artifact` and `rubrik_aws_cnp_permissions` data sources.
 
 The `CLOUD_DISCOVERY` feature enables RSC to discover resources in the AWS
 account without enabling protection. It is currently optional but will become
@@ -132,7 +132,7 @@ are used when specifying the feature set.
    is always required except for the `SERVERS_AND_APPS` feature.
 
 -> **Note:** To onboard an account using a CloudFormation stack instead of IAM
-   roles, use the `polaris_aws_account` resource.
+   roles, use the `rubrik_aws_account` resource.
 
 
 
@@ -140,7 +140,7 @@ are used when specifying the feature set.
 
 ```terraform
 # Basic example.
-resource "polaris_aws_cnp_account" "account" {
+resource "rubrik_aws_cnp_account" "account" {
   name      = "My Account"
   native_id = "123456789123"
 
@@ -165,7 +165,7 @@ resource "polaris_aws_cnp_account" "account" {
 }
 
 # Role-chaining account, can be used by one or more role-chained accounts.
-resource "polaris_aws_cnp_account" "role_chaining" {
+resource "rubrik_aws_cnp_account" "role_chaining" {
   name      = "Role-chaining Account"
   native_id = "123456789123"
 
@@ -182,10 +182,10 @@ resource "polaris_aws_cnp_account" "role_chaining" {
 }
 
 # Role-chained account, using a previously onboarded role-chaining account.
-resource "polaris_aws_cnp_account" "role_chained" {
+resource "rubrik_aws_cnp_account" "role_chained" {
   name                     = "Role-Chained Account"
   native_id                = "234567891234"
-  role_chaining_account_id = polaris_aws_cnp_account.role_chaining.id
+  role_chaining_account_id = rubrik_aws_cnp_account.role_chaining.id
 
   feature {
     name = "CLOUD_NATIVE_PROTECTION"
@@ -209,7 +209,7 @@ resource "polaris_aws_cnp_account" "role_chained" {
 }
 
 # Using variables for the account values and the features. The dynamic
-# feature block could also be expanded from the polaris_aws_cnp_artifacts
+# feature block could also be expanded from the rubrik_aws_cnp_artifacts
 # data source.
 variable "name" {
   type        = string
@@ -233,7 +233,7 @@ variable "features" {
   description = "RSC features with permission groups."
 }
 
-resource "polaris_aws_cnp_account" "account" {
+resource "rubrik_aws_cnp_account" "account" {
   name      = var.name
   native_id = var.native_id
   regions   = var.regions
@@ -307,7 +307,7 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 
 ```terraform
 import {
-  to = polaris_aws_cnp_account.account
+  to = rubrik_aws_cnp_account.account
   id = "3553bc74-7061-40e3-bac5-d2639e58bb7e-external-id"
 }
 ```
@@ -317,6 +317,6 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import polaris_aws_cnp_account.account 3553bc74-7061-40e3-bac5-d2639e58bb7e-external-id
+% terraform import rubrik_aws_cnp_account.account 3553bc74-7061-40e3-bac5-d2639e58bb7e-external-id
 ```
 

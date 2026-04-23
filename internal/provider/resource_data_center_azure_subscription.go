@@ -35,7 +35,7 @@ import (
 )
 
 const resourceDataCenterAzureSubscriptionDescription = `
-The ´polaris_data_center_azure_subscription´ resource adds a data center Azure
+The ´rubrik_data_center_azure_subscription´ resource adds a data center Azure
 subscription to RSC. A data center subscription can only be used with data
 center archival.
 

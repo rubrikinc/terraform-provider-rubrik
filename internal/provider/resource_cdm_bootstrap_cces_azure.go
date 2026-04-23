@@ -32,7 +32,7 @@ import (
 )
 
 const resourceCDMBootstrapCCESAzureDescription = `
-The ´polaris_cdm_bootstrap_cces_azure´ resource bootstraps a Rubrik Azure cloud
+The ´rubrik_cdm_bootstrap_cces_azure´ resource bootstraps a Rubrik Azure cloud
 cluster.
 
 ~> **Note:** The Terraform provider can only bootstrap clusters, it cannot

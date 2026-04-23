@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceAzureSubscriptionDescription = `
-The ´polaris_azure_subscription´ data source is used to access information
+The ´rubrik_azure_subscription´ data source is used to access information
 about an Azure subscription added to RSC. An Azure subscription is looked up
 using either the Azure subscription ID, the RSC cloud account ID, or the name.
 When looking up an Azure subscription using the subscription name, the tenant

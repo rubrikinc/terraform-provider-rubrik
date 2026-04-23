@@ -32,7 +32,7 @@ import (
 )
 
 const listResourceSSOGroupDescription = `
-The ´polaris_sso_group´ list resource lists SSO groups in RSC.
+The ´rubrik_sso_group´ list resource lists SSO groups in RSC.
 `
 
 var (
@@ -42,6 +42,7 @@ var (
 
 type ssoGroupListResource struct {
 	client *client
+	prefix string
 }
 
 type ssoGroupListConfigModel struct {
@@ -50,13 +51,17 @@ type ssoGroupListConfigModel struct {
 }
 
 func newSSOGroupListResource() list.ListResource {
-	return &ssoGroupListResource{}
+	return &ssoGroupListResource{prefix: keyRubrik}
+}
+
+func newPolarisSSOGroupListResource() list.ListResource {
+	return &ssoGroupListResource{prefix: keyPolaris}
 }
 
 func (r *ssoGroupListResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "ssoGroupListResource.Metadata")
 
-	res.TypeName = req.ProviderTypeName + "_" + keySSOGroup
+	res.TypeName = r.prefix + "_" + keySSOGroup
 }
 
 func (r *ssoGroupListResource) ListResourceConfigSchema(ctx context.Context, _ list.ListResourceSchemaRequest, res *list.ListResourceSchemaResponse) {
@@ -74,6 +79,10 @@ func (r *ssoGroupListResource) ListResourceConfigSchema(ctx context.Context, _ l
 				Description: "Filter SSO groups by auth domain ID (identity provider ID).",
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_sso_group` list resource instead."
 	}
 }
 

@@ -32,7 +32,7 @@ import (
 )
 
 const dataSourceSnapshotDescription = `
-The ´polaris_snapshot´ data source looks up the closest snapshot to a given
+The ´rubrik_snapshot´ data source looks up the closest snapshot to a given
 point in time for a workload object.
 
 Exactly one of ´before_time´ or ´after_time´ must be specified:

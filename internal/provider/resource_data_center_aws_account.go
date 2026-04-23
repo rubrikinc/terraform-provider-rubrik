@@ -36,7 +36,7 @@ import (
 )
 
 const resourceDataCenterAWSAccountDescription = `
-The ´polaris_data_center_aws_account´ resource adds a data center AWS account to
+The ´rubrik_data_center_aws_account´ resource adds a data center AWS account to
 RSC. A data center account can only be used with data center archival.
 
 ~> **Note:** Due to technical issue in RSC, names of removed data center AWS

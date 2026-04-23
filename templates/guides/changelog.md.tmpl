@@ -22,6 +22,10 @@ page_title: "Changelog"
   including users not managed by Terraform.
 * Add Terraform search support for the `polaris_sso_group` resource. Enables `terraform query` to discover SSO groups
   in RSC, including groups not managed by Terraform. Supports filtering by name and auth domain ID.
+* Add `rubrik_` prefixed aliases for all resources and data sources, preparing for the provider rename from
+  `rubrikinc/polaris` to `rubrikinc/rubrik`.
+* Add `MoveState` support for all Plugin Framework resources, enabling migration from `polaris_` to `rubrik_` resource
+  types using the `moved {}` block.
 
 ## v1.6.3
 * New data source added for `polaris_feature_flag` which checks if a feature flag is enabled for the RSC account.
