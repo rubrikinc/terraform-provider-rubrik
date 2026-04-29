@@ -1,4 +1,4 @@
-module github.com/rubrikinc/terraform-provider-polaris
+module github.com/rubrikinc/terraform-provider-rubrik
 
 go 1.25.8
 
