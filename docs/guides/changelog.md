@@ -5,8 +5,21 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.7.0
+* Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
+  the `rubrik` prefix. The `polaris` prefixed names are kept as deprecated aliases for backwards compatibility and
+  will be removed in a future release. See the [Upgrade Guide](upgrade_guide_v1.7.0.md) for migration instructions.
+* Add `moved {}` block support to the `rubrik_custom_role`, `rubrik_role_assignment`, `rubrik_sso_group` and
+  `rubrik_user` resources. This enables migration from the deprecated `polaris` prefixed resource types to the
+  `rubrik` prefixed resource types via a Terraform `moved {}` block.
+* Rename the provider environment variables from `RUBRIK_POLARIS_*` to `RUBRIK_*`. The `RUBRIK_POLARIS_*` variants
+  continue to work via fallback. Likewise, `TF_LOG_PROVIDER_POLARIS` is replaced by `TF_LOG_PROVIDER_RUBRIK` (Terraform
+  derives this from the provider name automatically) and `TF_LOG_PROVIDER_POLARIS_API` by `TF_LOG_PROVIDER_RUBRIK_API`.
 * Add Terraform search support for the `polaris_custom_role` resource. Enables `terraform query` to discover custom
   roles in RSC, including roles not managed by Terraform.
+* Add Terraform search support for the `polaris_user` resource. Enables `terraform query` to discover users in RSC,
+  including users not managed by Terraform.
+* Add Terraform search support for the `polaris_sso_group` resource. Enables `terraform query` to discover SSO groups
+  in RSC, including groups not managed by Terraform. Supports filtering by name and auth domain ID.
 * Improve handling of optional retention fields in the object-specific configuration blocks of the
   `polaris_sla_domain` resource (`sap_hana_config`, `db2_config`, `mssql_config`, `oracle_config`, `mongo_config`,
   `managed_volume_config`, `postgres_db_cluster_config`, `mysql_config`, `informix_config`, `gcp_cloud_sql_config`).
@@ -18,14 +31,6 @@ page_title: "Changelog"
 * Set the default for `log_archival_method` in the `db2_config` block of the `polaris_sla_domain` resource to
   `LOGARCHMETH1`, matching the RSC backend default. Previously, omitting the field produced a drift on subsequent
   plans because the API returned `LOGARCHMETH1` while the schema treated the field as unset.
-* Add Terraform search support for the `polaris_user` resource. Enables `terraform query` to discover users in RSC,
-  including users not managed by Terraform.
-* Add Terraform search support for the `polaris_sso_group` resource. Enables `terraform query` to discover SSO groups
-  in RSC, including groups not managed by Terraform. Supports filtering by name and auth domain ID.
-* Add `rubrik_` prefixed aliases for all resources and data sources, preparing for the provider rename from
-  `rubrikinc/polaris` to `rubrikinc/rubrik`.
-* Add `MoveState` support for all Plugin Framework resources, enabling migration from `polaris_` to `rubrik_` resource
-  types using the `moved {}` block.
 
 ## v1.6.3
 * New data source added for `polaris_feature_flag` which checks if a feature flag is enabled for the RSC account.
