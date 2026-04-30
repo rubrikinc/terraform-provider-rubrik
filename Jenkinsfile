@@ -102,7 +102,7 @@ pipeline {
                     unzip -o terraform.zip
                     chmod +x terraform
                 '''
-                sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv@v0.6.1 -precheck'
+                sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv@v0.8.4 -precheck'
             }
         }
         stage('Test') {
