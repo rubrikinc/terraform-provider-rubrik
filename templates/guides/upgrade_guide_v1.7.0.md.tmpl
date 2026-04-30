@@ -7,13 +7,17 @@ page_title: "Upgrade Guide: v1.7.0"
 ## Before Upgrading
 
 Review the [changelog](changelog.md) to understand what has changed and what might cause an issue when upgrading the
-provider. Note that the v1.7.0 release introduces the renamed `rubrikinc/rubrik` provider alongside the existing
-`rubrikinc/polaris` provider. Both providers will continue to be published and supported for the foreseeable future, so
-existing configurations using `rubrikinc/polaris` do not need to change.
+provider.
 
-If you choose to switch to the `rubrikinc/rubrik` provider, the `polaris` prefixed resources and data sources remain
-available as deprecated aliases of their `rubrik` counterparts so that existing configurations keep working without
-changes.
+The v1.7.0 release introduces the renamed `rubrikinc/rubrik` provider alongside the existing `rubrikinc/polaris`
+provider. The `rubrikinc/polaris` provider will continue to be released and supported for some time, so there is no
+need to switch right now. The `rubrikinc/polaris` provider will eventually be retired, however, and existing
+configurations will need to migrate to `rubrikinc/rubrik` before then. The migration paths will improve over time as
+more resources gain support for Terraform's `moved {}` block, making the switch progressively simpler.
+
+If you choose to switch to the `rubrikinc/rubrik` provider now, the `polaris` prefixed resources and data sources
+remain available as deprecated aliases of their `rubrik` counterparts so that existing configurations keep working
+without changes.
 
 ## How to Upgrade
 
