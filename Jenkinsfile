@@ -28,7 +28,7 @@ pipeline {
         go 'go-1.22'
     }
     triggers {
-        cron(env.BRANCH_NAME == 'main' ? 'H 01 * * *' : '')
+        cron(env.BRANCH_NAME == 'main' ? 'H 07 * * *' : '')
     }
     parameters {
         booleanParam(name: 'RUN_ACCEPTANCE_TEST', defaultValue: false)
