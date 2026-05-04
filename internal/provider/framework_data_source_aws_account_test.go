@@ -39,6 +39,7 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsAccountCheckDestroy(t.Context()),
 		Steps: []resource.TestStep{{
 			Config: `
 				variable "profile" {
@@ -172,6 +173,7 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 			},
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsAccountCheckDestroy(t.Context()),
 		Steps: []resource.TestStep{{
 			// Onboard an AWS account using the SDKv2 resource and verify that
 			// the SDKv2 and Framework data sources return identical values.
