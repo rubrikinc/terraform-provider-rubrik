@@ -51,6 +51,7 @@ const (
 	keyAws                                          = "aws"
 	keyAzure                                        = "azure"
 	keyBucketLabels                                 = "bucket_labels"
+	keyAWSAccount                                   = "aws_account"
 	keyAWSCrossAccount                              = "aws_cross_account"
 	keyAWSDynamoDBConfig                            = "aws_dynamodb_config"
 	keyAWSRDSConfig                                 = "aws_rds_config"
