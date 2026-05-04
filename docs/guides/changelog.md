@@ -4,6 +4,9 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.8.0
+* Migrate the `polaris_aws_account` data source to the Terraform Plugin Framework.
+
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
   the `rubrik` prefix. The `polaris` prefixed names are kept as deprecated aliases for backwards compatibility and
