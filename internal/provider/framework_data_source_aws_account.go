@@ -60,12 +60,7 @@ type awsAccountModel struct {
 	Feature        types.Set    `tfsdk:"feature"`
 }
 
-type awsAccountFeatureModel struct {
-	Name             types.String `tfsdk:"name"`
-	PermissionGroups types.Set    `tfsdk:"permission_groups"`
-}
-
-func awsAccountFeatureModelAttrTypes() map[string]attr.Type {
+func awsAccountFeatureAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keyName:             types.StringType,
 		keyPermissionGroups: types.SetType{ElemType: types.StringType},
@@ -229,19 +224,19 @@ func fromAWSAccountFeatures(features []aws.Feature) (types.Set, diag.Diagnostics
 
 		groupSet, diags := types.SetValue(types.StringType, groupValues)
 		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: awsAccountFeatureModelAttrTypes()}), diags
+			return types.SetNull(types.ObjectType{AttrTypes: awsAccountFeatureAttrTypes()}), diags
 		}
 
-		featureValue, diags := types.ObjectValue(awsAccountFeatureModelAttrTypes(), map[string]attr.Value{
+		featureValue, diags := types.ObjectValue(awsAccountFeatureAttrTypes(), map[string]attr.Value{
 			keyName:             types.StringValue(f.Name),
 			keyPermissionGroups: groupSet,
 		})
 		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: awsAccountFeatureModelAttrTypes()}), diags
+			return types.SetNull(types.ObjectType{AttrTypes: awsAccountFeatureAttrTypes()}), diags
 		}
 
 		featureValues = append(featureValues, featureValue)
 	}
 
-	return types.SetValue(types.ObjectType{AttrTypes: awsAccountFeatureModelAttrTypes()}, featureValues)
+	return types.SetValue(types.ObjectType{AttrTypes: awsAccountFeatureAttrTypes()}, featureValues)
 }
