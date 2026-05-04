@@ -60,13 +60,6 @@ type awsAccountModel struct {
 	Feature        types.Set    `tfsdk:"feature"`
 }
 
-func awsAccountFeatureAttrTypes() map[string]attr.Type {
-	return map[string]attr.Type{
-		keyName:             types.StringType,
-		keyPermissionGroups: types.SetType{ElemType: types.StringType},
-	}
-}
-
 func newAwsAccountDataSource() datasource.DataSource {
 	return &awsAccountDataSource{prefix: keyRubrik}
 }
@@ -210,6 +203,14 @@ func (d *awsAccountDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
+}
+
+// awsAccountFeatureAttrTypes returns the attribute types for the feature nested set.
+func awsAccountFeatureAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		keyName:             types.StringType,
+		keyPermissionGroups: types.SetType{ElemType: types.StringType},
+	}
 }
 
 // fromAWSAccountFeatures converts a slice of aws.Feature to a Terraform
