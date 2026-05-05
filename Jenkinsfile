@@ -102,7 +102,7 @@ pipeline {
                     unzip -o terraform.zip
                     chmod +x terraform
                 '''
-                sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv@v0.6.1 -precheck'
+                sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv'
             }
         }
         stage('Test') {
@@ -116,7 +116,7 @@ pipeline {
             archiveArtifacts artifacts: '**/terraform_cli.log', allowEmptyArchive: true
             script {
                 if (env.TF_ACC == "true") {
-                    sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv@v0.6.1 -cleanup'
+                    sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv -cleanup'
                 }
             }
         }
