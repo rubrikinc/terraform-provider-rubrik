@@ -5,12 +5,23 @@ subcategory: ""
 description: |-
   The rubrik_custom_role resource is used to create and manage custom roles in
   RSC.
+  -> Note: The permission and hierarchy blocks are shown as Optional in
+  the schema below for technical reasons, but at least one permission block
+  must be specified, and each permission must contain at least one
+  hierarchy block. The block-style syntax is preserved to remain compatible
+  with existing Terraform configurations.
 ---
 
 # rubrik_custom_role (Resource)
 
 The `rubrik_custom_role` resource is used to create and manage custom roles in
 RSC.
+
+-> **Note:** The `permission` and `hierarchy` blocks are shown as Optional in
+   the schema below for technical reasons, but at least one `permission` block
+   must be specified, and each `permission` must contain at least one
+   `hierarchy` block. The block-style syntax is preserved to remain compatible
+   with existing Terraform configurations.
 
 ## Example Usage
 
@@ -96,7 +107,7 @@ resource "rubrik_custom_role" "auditor" {
 ### Optional
 
 - `description` (String) Role description.
-- `permission` (Block Set) Role permission. (see [below for nested schema](#nestedblock--permission))
+- `permission` (Block Set) Role permission. At least one `permission` block must be specified. (see [below for nested schema](#nestedblock--permission))
 
 ### Read-Only
 
@@ -111,7 +122,7 @@ Required:
 
 Optional:
 
-- `hierarchy` (Block Set) Snappable hierarchy. (see [below for nested schema](#nestedblock--permission--hierarchy))
+- `hierarchy` (Block Set) Snappable hierarchy. At least one `hierarchy` block must be specified per `permission`. (see [below for nested schema](#nestedblock--permission--hierarchy))
 
 <a id="nestedblock--permission--hierarchy"></a>
 ### Nested Schema for `permission.hierarchy`
