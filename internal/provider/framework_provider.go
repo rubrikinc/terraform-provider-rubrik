@@ -142,6 +142,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisAwsAccountDataSource,
 		newAwsArtifactsDataSource,
 		newPolarisAwsArtifactsDataSource,
+		newAwsPermissionsDataSource,
+		newPolarisAwsPermissionsDataSource,
 		newFeatureFlagDataSource,
 		newPolarisFeatureFlagDataSource,
 		newIdentityProviderDataSource,
