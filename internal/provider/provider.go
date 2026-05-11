@@ -110,7 +110,6 @@ func Provider() *schema.Provider {
 
 		DataSourcesMap: withDeprecatedPolarisAlias(map[string]*schema.Resource{
 			keyPolarisAccount:                     dataSourceAccount(),
-			keyPolarisAWSAccount:                  dataSourceAwsAccount(),
 			keyPolarisAWSArchivalLocation:         dataSourceAwsArchivalLocation(),
 			keyPolarisAWSCNPArtifacts:             dataSourceAwsArtifacts(),
 			keyPolarisAWSCNPPermissions:           dataSourceAwsPermissions(),

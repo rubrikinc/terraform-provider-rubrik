@@ -38,7 +38,7 @@ data "rubrik_aws_account" "account" {
 
 ### Read-Only
 
-- `feature` (Set of Object) RSC feature with permission groups. (see [below for nested schema](#nestedatt--feature))
+- `feature` (Attributes Set) RSC feature with permission groups. (see [below for nested schema](#nestedatt--feature))
 - `id` (String) RSC cloud account ID (UUID).
 
 <a id="nestedatt--feature"></a>
@@ -46,5 +46,5 @@ data "rubrik_aws_account" "account" {
 
 Read-Only:
 
-- `name` (String)
-- `permission_groups` (Set of String)
+- `name` (String) RSC feature name.
+- `permission_groups` (Set of String) Permission groups for the RSC feature.

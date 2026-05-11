@@ -9,8 +9,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 )
+
+// awsAccountCheckDestroy verifies that all aws_account resources have been
+// deleted.
+func awsAccountCheckDestroy(ctx context.Context) func(*terraform.State) error {
+	return func(s *terraform.State) error {
+		client, err := testClient(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_account" && rs.Type != "rubrik_aws_account" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = aws.Wrap(client).AccountByID(ctx, id)
+			if err == nil {
+				return fmt.Errorf("aws account %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
 
 // customRoleCheckDestroy verifies that all custom_role resources have been
 // deleted.
