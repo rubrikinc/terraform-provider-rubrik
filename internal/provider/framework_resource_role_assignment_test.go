@@ -173,9 +173,13 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					compare.ValuesSame()),
 			},
 		}, {
-			// Verify that the resource can be imported. Note, the import will
-			// import all roles assigned to the user.
+			// Terraform import. Note, the import will take over all roles
+			// assigned to the user, not just the ones managed by this resource.
+			// The import {} block forms (with id or identity) are not testable
+			// here because the framework requires plannable imports to be a
+			// no-op, while this resource's import takes ownership of all roles.
 			ResourceName:            "polaris_role_assignment.auditor",
+			ImportStateKind:         resource.ImportCommandWithID,
 			ImportState:             true,
 			ImportStateVerify:       true,
 			ImportStateVerifyIgnore: []string{keyUserEmail, keyRoleIDs},

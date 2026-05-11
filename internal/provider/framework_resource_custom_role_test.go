@@ -130,10 +130,31 @@ func TestAccCustomRoleResource(t *testing.T) {
 				statecheck.ExpectIdentityValueMatchesState("polaris_custom_role.role", tfjsonpath.New(keyID)),
 			},
 		}, {
-			// Verify that the resource can be imported.
+			// Terraform import.
 			ResourceName:      "polaris_custom_role.role",
+			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
+		}, {
+			// import {} block with id attribute.
+			ResourceName:    "polaris_custom_role.role",
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// import {} block with identity attribute.
+			ResourceName:    "polaris_custom_role.role",
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
@@ -166,12 +167,39 @@ func TestAccUserResource(t *testing.T) {
 				statecheck.ExpectIdentityValueMatchesState("polaris_user.user", tfjsonpath.New(keyID)),
 			},
 		}, {
-			// Verify that the resource can be imported.
+			// Terraform import.
 			ResourceName:      "polaris_user.user",
+			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 			ConfigVariables: config.Variables{
 				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+		}, {
+			// import {} block with id attribute.
+			ResourceName:    "polaris_user.user",
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// import {} block with identity attribute.
+			ResourceName:    "polaris_user.user",
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ConfigVariables: config.Variables{
+				"user_email": config.StringVariable(testUserEmail(t)),
+			},
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
 			},
 		}},
 	})
