@@ -50,25 +50,20 @@ func (r *userResource) moveStateV0() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "User email address.",
+					Computed: true,
 				},
 				keyEmail: schema.StringAttribute{
-					Required:    true,
-					Description: "User email address.",
+					Required: true,
 				},
 				keyIsAccountOwner: schema.BoolAttribute{
-					Computed:    true,
-					Description: "True if the user is the account owner.",
+					Computed: true,
 				},
 				keyRoleIDs: schema.SetAttribute{
 					ElementType: types.StringType,
 					Required:    true,
-					Description: "Roles assigned to the user (UUIDs).",
 				},
 				keyStatus: schema.StringAttribute{
-					Computed:    true,
-					Description: "User status.",
+					Computed: true,
 				},
 			},
 		},
@@ -130,29 +125,23 @@ func (r *userResource) moveStateV1() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "User ID (UUID).",
+					Computed: true,
 				},
 				keyDomain: schema.StringAttribute{
-					Computed:    true,
-					Description: "User domain.",
+					Computed: true,
 				},
 				keyEmail: schema.StringAttribute{
-					Required:    true,
-					Description: "User email address.",
+					Required: true,
 				},
 				keyIsAccountOwner: schema.BoolAttribute{
-					Computed:    true,
-					Description: "True if the user is the account owner.",
+					Computed: true,
 				},
 				keyRoleIDs: schema.SetAttribute{
 					ElementType: types.StringType,
 					Required:    true,
-					Description: "Roles assigned to the user (UUIDs).",
 				},
 				keyStatus: schema.StringAttribute{
-					Computed:    true,
-					Description: "User status.",
+					Computed: true,
 				},
 			},
 		},
