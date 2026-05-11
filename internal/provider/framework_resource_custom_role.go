@@ -42,6 +42,12 @@ import (
 const resourceCustomRoleDescription = `
 The ´rubrik_custom_role´ resource is used to create and manage custom roles in
 RSC.
+
+-> **Note:** The ´permission´ and ´hierarchy´ blocks are shown as Optional in
+   the schema below for technical reasons, but at least one ´permission´ block
+   must be specified, and each ´permission´ must contain at least one
+   ´hierarchy´ block. The block-style syntax is preserved to remain compatible
+   with existing Terraform configurations.
 `
 
 var (
@@ -111,7 +117,7 @@ func (r *customRoleResource) Schema(ctx context.Context, _ resource.SchemaReques
 		},
 		Blocks: map[string]schema.Block{
 			keyPermission: schema.SetNestedBlock{
-				Description: "Role permission.",
+				Description: "Role permission. At least one `permission` block must be specified.",
 				Validators: []validator.Set{
 					setvalidator.SizeAtLeast(1),
 				},
@@ -127,7 +133,7 @@ func (r *customRoleResource) Schema(ctx context.Context, _ resource.SchemaReques
 					},
 					Blocks: map[string]schema.Block{
 						keyHierarchy: schema.SetNestedBlock{
-							Description: "Snappable hierarchy.",
+							Description: "Snappable hierarchy. At least one `hierarchy` block must be specified per `permission`.",
 							Validators: []validator.Set{
 								setvalidator.SizeAtLeast(1),
 							},
