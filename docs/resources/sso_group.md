@@ -76,7 +76,8 @@ In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp
 import {
   to = rubrik_sso_group.auditors
   identity = {
-    id = "8deda554-e76f-4025-91d9-cb20def6b7b8"
+    id             = "samlpgroup|8deda554-e76f-4025-91d9-cb20def6b7b8|auditors"
+    auth_domain_id = "8deda554-e76f-4025-91d9-cb20def6b7b8"
   }
 }
 ```
@@ -86,6 +87,7 @@ import {
 
 #### Required
 
+- `auth_domain_id` (String) Auth domain ID (identity provider ID).
 - `id` (String) SSO group ID.
 
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
@@ -93,12 +95,12 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 ```terraform
 import {
   to = rubrik_sso_group.auditors
-  id = "8deda554-e76f-4025-91d9-cb20def6b7b8"
+  id = "auditors:8deda554-e76f-4025-91d9-cb20def6b7b8"
 }
 ```
 
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-% terraform import rubrik_sso_group.auditors 8deda554-e76f-4025-91d9-cb20def6b7b8
+% terraform import rubrik_sso_group.auditors "auditors:8deda554-e76f-4025-91d9-cb20def6b7b8"
 ```
