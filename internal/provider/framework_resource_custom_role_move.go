@@ -45,41 +45,33 @@ func (r *customRoleResource) moveStateV0() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "Role ID (UUID).",
+					Computed: true,
 				},
 				keyName: schema.StringAttribute{
-					Required:    true,
-					Description: "Role name.",
+					Required: true,
 				},
 				keyDescription: schema.StringAttribute{
-					Optional:    true,
-					Description: "Role description.",
+					Optional: true,
 				},
 			},
 			Blocks: map[string]schema.Block{
 				keyPermission: schema.SetNestedBlock{
-					Description: "Role permission.",
 					NestedObject: schema.NestedBlockObject{
 						Attributes: map[string]schema.Attribute{
 							keyOperation: schema.StringAttribute{
-								Required:    true,
-								Description: "Operation to allow on object IDs under the snappable hierarchy.",
+								Required: true,
 							},
 						},
 						Blocks: map[string]schema.Block{
 							keyHierarchy: schema.SetNestedBlock{
-								Description: "Snappable hierarchy.",
 								NestedObject: schema.NestedBlockObject{
 									Attributes: map[string]schema.Attribute{
 										keySnappableType: schema.StringAttribute{
-											Required:    true,
-											Description: "Snappable/workload type.",
+											Required: true,
 										},
 										keyObjectIDs: schema.SetAttribute{
 											ElementType: types.StringType,
 											Required:    true,
-											Description: "Object/workload identifiers.",
 										},
 									},
 								},

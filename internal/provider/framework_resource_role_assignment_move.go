@@ -51,16 +51,13 @@ func (r *roleAssignmentResource) moveStateV0() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "SHA-256 hash of the user email and the role ID.",
+					Computed: true,
 				},
 				keyRoleID: schema.StringAttribute{
-					Required:    true,
-					Description: "Role ID (UUID).",
+					Required: true,
 				},
 				keyUserEmail: schema.StringAttribute{
-					Required:    true,
-					Description: "User email address.",
+					Required: true,
 				},
 			},
 		},
@@ -124,29 +121,23 @@ func (r *roleAssignmentResource) moveStateV1() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "User or SSO group ID.",
+					Computed: true,
 				},
 				keyRoleID: schema.StringAttribute{
-					Optional:    true,
-					Description: "Role ID (UUID).",
+					Optional: true,
 				},
 				keyRoleIDs: schema.SetAttribute{
 					ElementType: types.StringType,
 					Optional:    true,
-					Description: "Role IDs (UUID).",
 				},
 				keySSOGroupID: schema.StringAttribute{
-					Optional:    true,
-					Description: "SSO group ID.",
+					Optional: true,
 				},
 				keyUserEmail: schema.StringAttribute{
-					Optional:    true,
-					Description: "User email address.",
+					Optional: true,
 				},
 				keyUserID: schema.StringAttribute{
-					Optional:    true,
-					Description: "User ID.",
+					Optional: true,
 				},
 			},
 		},

@@ -45,25 +45,20 @@ func (r *ssoGroupResource) moveStateV0() resource.StateMover {
 		SourceSchema: &schema.Schema{
 			Attributes: map[string]schema.Attribute{
 				keyID: schema.StringAttribute{
-					Computed:    true,
-					Description: "SSO group ID.",
+					Computed: true,
 				},
 				keyAuthDomainID: schema.StringAttribute{
-					Required:    true,
-					Description: "Auth domain ID (identity provider ID).",
+					Required: true,
 				},
 				keyDomainName: schema.StringAttribute{
-					Computed:    true,
-					Description: "The domain name of the SSO group.",
+					Computed: true,
 				},
 				keyGroupName: schema.StringAttribute{
-					Required:    true,
-					Description: "SSO group name.",
+					Required: true,
 				},
 				keyRoleIDs: schema.SetAttribute{
 					ElementType: types.StringType,
 					Required:    true,
-					Description: "Roles assigned to the SSO group (UUIDs).",
 				},
 			},
 		},
