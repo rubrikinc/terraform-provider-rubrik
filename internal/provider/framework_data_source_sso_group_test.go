@@ -32,28 +32,54 @@ import (
 )
 
 func TestAccSSOGroupDataSource(t *testing.T) {
-	// Check if the test SSO group is available, if not, the test is skipped.
-	checkTestSSOGroup(t, testSSOGroupName(t))
+	checkTestSSOGroup(t)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			customRoleCheckDestroy(t.Context()),
+			ssoGroupCheckDestroy(t.Context()),
+		),
 		Steps: []resource.TestStep{{
 			// Verify that the data source can look up the SSO group
 			// by ID and name.
 			Config: `
+				variable "auth_domain_id" {
+					type = string
+				}
 				variable "sso_group_name" {
 					type = string
 				}
 
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role for SSO Group Data Source"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+
+				resource "polaris_sso_group" "group" {
+					auth_domain_id = var.auth_domain_id
+					group_name     = var.sso_group_name
+					role_ids       = [polaris_custom_role.role.id]
+				}
+
 				data "polaris_sso_group" "by_name" {
-					name = var.sso_group_name
+					name = polaris_sso_group.group.group_name
 				}
 
 				data "polaris_sso_group" "by_id" {
-					sso_group_id = data.polaris_sso_group.by_name.id
+					sso_group_id = polaris_sso_group.group.id
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
 				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -99,8 +125,7 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 // TestAccSSOGroupDataSource_FrameworkMigration verifies that the migrated SSO
 // group data source is backwards compatible with the SDKv2 provider.
 func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
-	// Check if the test SSO group is available, if not, the test is skipped.
-	checkTestSSOGroup(t, testSSOGroupName(t))
+	checkTestSSOGroup(t)
 
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
@@ -110,24 +135,51 @@ func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
 			},
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			customRoleCheckDestroy(t.Context()),
+			ssoGroupCheckDestroy(t.Context()),
+		),
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.
 			Config: `
+				variable "auth_domain_id" {
+					type = string
+				}
 				variable "sso_group_name" {
 					type = string
+				}
+
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role for SSO Group Data Source Migration"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+
+				resource "polaris_sso_group" "group" {
+					auth_domain_id = var.auth_domain_id
+					group_name     = var.sso_group_name
+					role_ids       = [polaris_custom_role.role.id]
 				}
 
 				data "polaris_sso_group" "old" {
 					provider = polaris-sdkv2
 
-					name = var.sso_group_name
+					name = polaris_sso_group.group.group_name
 				}
 
 				data "polaris_sso_group" "new" {
-					name = var.sso_group_name
+					name = polaris_sso_group.group.group_name
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
 				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{

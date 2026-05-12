@@ -31,25 +31,93 @@ import (
 )
 
 func TestAccSSOGroupListResource(t *testing.T) {
-	groupID := checkTestSSOGroup(t, testSSOGroupName(t))
+	checkTestSSOGroup(t)
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_14_0),
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			customRoleCheckDestroy(t.Context()),
+			ssoGroupCheckDestroy(t.Context()),
+		),
 		Steps: []resource.TestStep{{
+			// Create the SSO group so the list resource has something to
+			// return. The list step below uses the same group.
+			Config: `
+				variable "sso_group_name" {
+					type = string
+				}
+				variable "auth_domain_id" {
+					type = string
+				}
+
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role for SSO Group List"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+
+				resource "polaris_sso_group" "group" {
+					auth_domain_id = var.auth_domain_id
+					group_name     = var.sso_group_name
+					role_ids       = [polaris_custom_role.role.id]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
+				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
+			},
+		}, {
 			Query: true,
 			Config: `
+				variable "sso_group_name" {
+					type = string
+				}
+				variable "auth_domain_id" {
+					type = string
+				}
+
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role for SSO Group List"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+
+				resource "polaris_sso_group" "group" {
+					auth_domain_id = var.auth_domain_id
+					group_name     = var.sso_group_name
+					role_ids       = [polaris_custom_role.role.id]
+				}
+
 				provider "polaris" {}
 
 				list "polaris_sso_group" "all" {
 					provider = polaris
 				}
 			`,
+			ConfigVariables: config.Variables{
+				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
+				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
+			},
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_sso_group.all", map[string]knownvalue.Check{
-					keyID: knownvalue.StringExact(groupID),
+					keyID: NonNullUUID(),
 				}),
 			},
 		}, {
@@ -57,6 +125,28 @@ func TestAccSSOGroupListResource(t *testing.T) {
 			Config: `
 				variable "sso_group_name" {
 					type = string
+				}
+				variable "auth_domain_id" {
+					type = string
+				}
+
+				resource "polaris_custom_role" "role" {
+					name        = "Test Role for SSO Group List"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+
+				resource "polaris_sso_group" "group" {
+					auth_domain_id = var.auth_domain_id
+					group_name     = var.sso_group_name
+					role_ids       = [polaris_custom_role.role.id]
 				}
 
 				provider "polaris" {}
@@ -70,11 +160,12 @@ func TestAccSSOGroupListResource(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
 				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
 			},
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_sso_group.filtered", map[string]knownvalue.Check{
-					keyID: knownvalue.StringExact(groupID),
+					keyID: NonNullUUID(),
 				}),
 				querycheck.ExpectLength("polaris_sso_group.filtered", 1),
 			},
