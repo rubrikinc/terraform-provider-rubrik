@@ -7,75 +7,60 @@ description: |-
 
 # {{.Name}} ({{.Type}})
 
-{{.Description}}
+{{ .Description | trimspace }}
 
-{{if .HasExample}}
+{{ if .HasExample -}}
 ## Example Usage
 
-{{tffile .ExampleFile}}
-{{end}}
+{{ tffile .ExampleFile }}
+{{- end }}
 
-## Schema
+{{ .SchemaMarkdown | trimspace }}
 
-### Required
-
-- `feature` (Block Set, Min: 1) RSC feature with permission groups. (see [below for nested schema](#nestedblock--feature))
-- `native_id` (String) AWS account ID. Changing this forces a new resource to be created.
-- `regions` (Set of String) Regions.
-
-### Optional
-
-- `cloud` (String) AWS cloud type. Possible values are `STANDARD`, `CHINA` and `GOV`. Default value is `STANDARD`. Changing this forces a new resource to be created.
-- `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed.
-- `external_id` (String) External ID. Changing this forces a new resource to be created.
-- `name` (String) Account name.
-- `role_chaining_account_id` (String) RSC cloud account ID of the role chaining account. When specified, the account will use cross-account role chaining. Changing this forces a new resource to be created.
-
-### Read-Only
-
-- `id` (String) RSC cloud account ID (UUID).
-- `trust_policies` (Set of Object) AWS IAM trust policies required by RSC. The `policy` field should be used with the `assume_role_policy` of the `aws_iam_role` resource. (see [below for nested schema](#nestedatt--trust_policies))
-
-<a id="nestedblock--feature"></a>
-### Nested Schema for `feature`
-
-Required:
-
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `KUBERNETES_PROTECTION`, `SERVERS_AND_APPS`, `EXOCOMPUTE` and `RDS_PROTECTION`.
-- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
-
-<a id="nestedatt--trust_policies"></a>
-### Nested Schema for `trust_policies`
-
-Read-Only:
-
-- `policy` (String) RSC artifact key for the AWS role.
-- `role_key` (String) AWS IAM trust policy.
-
+{{ if or .HasImport .HasImportIDConfig .HasImportIdentityConfig -}}
 ## Import
 
-If an `external_id` was specified when the account was onboarded, it must also be specified as part of the import ID.
-This is done by appending the external ID to the account ID. E.g, to import an account onboarded with `external_id` set
-to `ExternalID`:
+If an `external_id` was specified when the account was onboarded, it must also be
+provided when importing the account. With identity-based import this goes in the
+`external_id` field of the `identity` block. With the legacy string-id form the
+external ID is appended to the account ID separated by either `:` or `-`, e.g.
+an account onboarded with `external_id` set to `ExternalID` is imported as:
 ```text
-f503742e-0a15-4a53-8579-54c2f978e49d-ExternalID
+f503742e-0a15-4a53-8579-54c2f978e49d:ExternalID
 ```
 
-If the wrong external ID is specified, the import will fail with an error similar to:
+The `:` separator matches the convention used by other composite-id imports in
+the provider; the `-` form is also accepted for backwards compatibility.
+
+For accounts onboarded without an `external_id` (RSC generates one in that case),
+omit the `external_id` field from the identity block, or pass just the account
+ID with no separator suffix.
+
+If the wrong external ID is specified, the next refresh will fail with an error
+similar to:
 ```text
 Error: failed to get trust policies: Already a value is registered as an external id.
 ```
 
 Import is supported using the following syntax:
 
-{{if .HasImportIDConfig}}
+{{ if .HasImportIdentityConfig -}}
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
+
+{{ tffile .ImportIdentityConfigFile }}
+
+{{ .IdentitySchemaMarkdown | trimspace }}
+{{- end }}
+
+{{ if .HasImportIDConfig -}}
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
 
-{{tffile .ImportIDConfigFile}}
-{{end}}
+{{ tffile .ImportIDConfigFile }}
+{{- end }}
 
-{{if .HasImport}}
+{{ if .HasImport -}}
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
-{{tffile .ImportFile}}
-{{end}}
+{{ codefile "shell" .ImportFile }}
+{{- end }}
+{{- end }}

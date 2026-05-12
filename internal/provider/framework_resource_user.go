@@ -203,6 +203,9 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	// even if the read fails.
 	plan.ID = types.StringValue(id)
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
 
 	user, err := access.Wrap(polarisClient).UserByID(ctx, id)
 	if err != nil {
