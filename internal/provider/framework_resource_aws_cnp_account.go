@@ -624,21 +624,12 @@ func (r *awsCnpAccountResource) Update(ctx context.Context, req resource.UpdateR
 		currentFeatures = append(currentFeatures, feature.Feature)
 	}
 
-	roleChainingAccountID := account.RoleChainingAccountID
-	if roleChainingAccountID == uuid.Nil && !plan.RoleChainingAccountID.IsNull() {
-		roleChainingAccountID, err = uuid.Parse(plan.RoleChainingAccountID.ValueString())
-		if err != nil {
-			res.Diagnostics.AddAttributeError(path.Root(keyRoleChainingAccountID), "Invalid UUID", err.Error())
-			return
-		}
-	}
-
 	policies, err := aws.Wrap(polarisClient).TrustPolicies(ctx, aws.TrustPoliciesParams{
 		Cloud:                 gqlaws.Cloud(account.Cloud),
 		CloudAccountID:        id,
 		Features:              currentFeatures,
 		ExternalID:            plan.ExternalID.ValueString(),
-		RoleChainingAccountID: roleChainingAccountID,
+		RoleChainingAccountID: account.RoleChainingAccountID,
 	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read AWS trust policies", err.Error())
