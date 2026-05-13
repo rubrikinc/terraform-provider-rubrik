@@ -29,34 +29,70 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
 )
 
-type permissionModel struct {
-	Operation types.String `tfsdk:"operation"`
-	Hierarchy types.Set    `tfsdk:"hierarchy"`
-}
-
-func permissionModelAttrTypes() map[string]attr.Type {
+func permissionAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keyOperation: types.StringType,
-		keyHierarchy: types.SetType{ElemType: types.ObjectType{AttrTypes: hierarchyModelAttrTypes()}},
+		keyHierarchy: types.SetType{ElemType: types.ObjectType{AttrTypes: hierarchyAttrTypes()}},
 	}
 }
 
-type hierarchyModel struct {
-	SnappableType types.String `tfsdk:"snappable_type"`
-	ObjectIDs     types.Set    `tfsdk:"object_ids"`
-}
-
-func hierarchyModelAttrTypes() map[string]attr.Type {
+func hierarchyAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keySnappableType: types.StringType,
 		keyObjectIDs:     types.SetType{ElemType: types.StringType},
 	}
 }
 
-// toPermissions converts a Terraform Framework permission set to a Go SDK
-// permission slice.
+func fromPermissions(ctx context.Context, permissions []access.Permission) (types.Set, diag.Diagnostics) {
+	permissionValues := make([]attr.Value, 0, len(permissions))
+	for _, p := range permissions {
+		hierarchyValues := make([]attr.Value, 0, len(p.ObjectsForHierarchyTypes))
+		for _, h := range p.ObjectsForHierarchyTypes {
+			objectValues := make([]attr.Value, 0, len(h.ObjectIDs))
+			for _, id := range h.ObjectIDs {
+				objectValues = append(objectValues, types.StringValue(id))
+			}
+
+			objectSet, diags := types.SetValue(types.StringType, objectValues)
+			if diags.HasError() {
+				return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+			}
+
+			hierarchyValue, diags := types.ObjectValue(hierarchyAttrTypes(), map[string]attr.Value{
+				keySnappableType: types.StringValue(h.SnappableType),
+				keyObjectIDs:     objectSet,
+			})
+			if diags.HasError() {
+				return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+			}
+
+			hierarchyValues = append(hierarchyValues, hierarchyValue)
+		}
+
+		hierarchySet, diags := types.SetValue(types.ObjectType{AttrTypes: hierarchyAttrTypes()}, hierarchyValues)
+		if diags.HasError() {
+			return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+		}
+
+		permissionValue, diags := types.ObjectValue(permissionAttrTypes(), map[string]attr.Value{
+			keyOperation: types.StringValue(p.Operation),
+			keyHierarchy: hierarchySet,
+		})
+		if diags.HasError() {
+			return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+		}
+
+		permissionValues = append(permissionValues, permissionValue)
+	}
+
+	return types.SetValue(types.ObjectType{AttrTypes: permissionAttrTypes()}, permissionValues)
+}
+
 func toPermissions(ctx context.Context, permissionSet types.Set) ([]access.Permission, diag.Diagnostics) {
-	var permissionModels []permissionModel
+	var permissionModels []struct {
+		Operation types.String `tfsdk:"operation"`
+		Hierarchy types.Set    `tfsdk:"hierarchy"`
+	}
 	diags := permissionSet.ElementsAs(ctx, &permissionModels, false)
 	if diags.HasError() {
 		return nil, diags
@@ -64,7 +100,10 @@ func toPermissions(ctx context.Context, permissionSet types.Set) ([]access.Permi
 
 	permissions := make([]access.Permission, 0, len(permissionModels))
 	for _, pm := range permissionModels {
-		var hierarchyModels []hierarchyModel
+		var hierarchyModels []struct {
+			SnappableType types.String `tfsdk:"snappable_type"`
+			ObjectIDs     types.Set    `tfsdk:"object_ids"`
+		}
 		diags.Append(pm.Hierarchy.ElementsAs(ctx, &hierarchyModels, false)...)
 		if diags.HasError() {
 			return nil, diags
@@ -91,51 +130,4 @@ func toPermissions(ctx context.Context, permissionSet types.Set) ([]access.Permi
 	}
 
 	return permissions, diags
-}
-
-// fromPermissions converts a Go SDK permission slice to a Terraform Framework
-// permission set.
-func fromPermissions(ctx context.Context, permissions []access.Permission) (types.Set, diag.Diagnostics) {
-	permissionValues := make([]attr.Value, 0, len(permissions))
-	for _, p := range permissions {
-		hierarchyValues := make([]attr.Value, 0, len(p.ObjectsForHierarchyTypes))
-		for _, h := range p.ObjectsForHierarchyTypes {
-			objectValues := make([]attr.Value, 0, len(h.ObjectIDs))
-			for _, id := range h.ObjectIDs {
-				objectValues = append(objectValues, types.StringValue(id))
-			}
-
-			objectSet, diags := types.SetValue(types.StringType, objectValues)
-			if diags.HasError() {
-				return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
-			}
-
-			hierarchyValue, diags := types.ObjectValue(hierarchyModelAttrTypes(), map[string]attr.Value{
-				keySnappableType: types.StringValue(h.SnappableType),
-				keyObjectIDs:     objectSet,
-			})
-			if diags.HasError() {
-				return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
-			}
-
-			hierarchyValues = append(hierarchyValues, hierarchyValue)
-		}
-
-		hierarchySet, diags := types.SetValue(types.ObjectType{AttrTypes: hierarchyModelAttrTypes()}, hierarchyValues)
-		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
-		}
-
-		permissionValue, diags := types.ObjectValue(permissionModelAttrTypes(), map[string]attr.Value{
-			keyOperation: types.StringValue(p.Operation),
-			keyHierarchy: hierarchySet,
-		})
-		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
-		}
-
-		permissionValues = append(permissionValues, permissionValue)
-	}
-
-	return types.SetValue(types.ObjectType{AttrTypes: permissionModelAttrTypes()}, permissionValues)
 }

@@ -29,12 +29,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const dataSourceAWSCNPArtifactsDescription = `
@@ -109,11 +107,6 @@ type awsArtifactsModel struct {
 	Feature             types.Set    `tfsdk:"feature"`
 	InstanceProfileKeys types.Set    `tfsdk:"instance_profile_keys"`
 	RoleKeys            types.Set    `tfsdk:"role_keys"`
-}
-
-type awsArtifactsFeatureModel struct {
-	Name             types.String `tfsdk:"name"`
-	PermissionGroups types.Set    `tfsdk:"permission_groups"`
 }
 
 func newAwsArtifactsDataSource() datasource.DataSource {
@@ -246,7 +239,7 @@ func (d *awsArtifactsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		cloud = config.Cloud.ValueString()
 	}
 
-	features, diags := toAWSArtifactsFeatures(ctx, config.Feature)
+	features, diags := awsToFeatures(ctx, config.Feature)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -299,31 +292,4 @@ func (d *awsArtifactsDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
-}
-
-// toAWSArtifactsFeatures converts a Terraform Framework feature set to a Go
-// SDK core.Feature slice.
-func toAWSArtifactsFeatures(ctx context.Context, featureSet types.Set) ([]core.Feature, diag.Diagnostics) {
-	var featureModels []awsArtifactsFeatureModel
-	diags := featureSet.ElementsAs(ctx, &featureModels, false)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	features := make([]core.Feature, 0, len(featureModels))
-	for _, fm := range featureModels {
-		var groups []string
-		diags.Append(fm.PermissionGroups.ElementsAs(ctx, &groups, false)...)
-		if diags.HasError() {
-			return nil, diags
-		}
-
-		feature := core.Feature{Name: fm.Name.ValueString()}
-		for _, g := range groups {
-			feature = feature.WithPermissionGroups(core.PermissionGroup(g))
-		}
-		features = append(features, feature)
-	}
-
-	return features, diags
 }

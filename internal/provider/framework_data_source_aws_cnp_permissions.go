@@ -292,7 +292,7 @@ func (d *awsPermissionsDataSource) Read(ctx context.Context, req datasource.Read
 		ec2RecoveryRolePath = config.EC2RecoveryRolePath.ValueString()
 	}
 
-	features, diags := toAWSArtifactsFeatures(ctx, config.Feature)
+	features, diags := awsToFeatures(ctx, config.Feature)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
