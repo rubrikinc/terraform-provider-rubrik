@@ -3,8 +3,10 @@
 page_title: "rubrik_aws_cnp_account List Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The rubrik_aws_cnp_account list resource lists AWS CNP accounts onboarded
-  in RSC.
+  The rubrik_aws_cnp_account list resource lists AWS accounts onboarded via
+  the AWS IAM roles workflow in RSC. Accounts onboarded through the AWS
+  CloudFormation workflow are skipped: they are managed by the
+  rubrik_aws_account resource.
   The trust_policies attribute is not populated in list results because RSC
   does not return the external ID required to compute trust policies. To
   manage trust policies for an account discovered through this list resource,
@@ -12,9 +14,8 @@ description: |-
   identity, then manage it as a normal rubrik_aws_cnp_account resource.
   Bulk Import
   The list resource can be combined with an import block to bulk-import
-  existing AWS CNP accounts. RSC does not return external IDs, so the user
-  must supply them via a variable keyed on the AWS account ID
-  (native_id):
+  existing AWS accounts. RSC does not return external IDs, so the user must
+  supply them via a variable keyed on the AWS account ID (native_id):
   
   variable "external_ids" {
     type        = map(string)
@@ -39,8 +40,10 @@ description: |-
 
 # rubrik_aws_cnp_account (List Resource)
 
-The `rubrik_aws_cnp_account` list resource lists AWS CNP accounts onboarded
-in RSC.
+The `rubrik_aws_cnp_account` list resource lists AWS accounts onboarded via
+the AWS IAM roles workflow in RSC. Accounts onboarded through the AWS
+CloudFormation workflow are skipped: they are managed by the
+`rubrik_aws_account` resource.
 
 The `trust_policies` attribute is not populated in list results because RSC
 does not return the external ID required to compute trust policies. To
@@ -51,9 +54,8 @@ identity, then manage it as a normal `rubrik_aws_cnp_account` resource.
 ## Bulk Import
 
 The list resource can be combined with an `import` block to bulk-import
-existing AWS CNP accounts. RSC does not return external IDs, so the user
-must supply them via a variable keyed on the AWS account ID
-(`native_id`):
+existing AWS accounts. RSC does not return external IDs, so the user must
+supply them via a variable keyed on the AWS account ID (`native_id`):
 
 ```hcl
 variable "external_ids" {

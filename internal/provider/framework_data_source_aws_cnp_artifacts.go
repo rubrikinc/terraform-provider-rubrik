@@ -36,8 +36,10 @@ import (
 )
 
 const dataSourceAWSCNPArtifactsDescription = `
-The ´rubrik_aws_cnp_artifacts´ data source is used to access information about
-instance profiles and roles required by RSC for a specified feature set.
+The ´rubrik_aws_cnp_artifacts´ data source returns the instance profiles and
+roles required by RSC for a given feature set, used when onboarding an AWS
+account via the AWS IAM roles workflow with the ´rubrik_aws_cnp_account´
+and ´rubrik_aws_cnp_account_attachments´ resources.
 
 -> **Note:** The ´feature´ block is shown as Optional in the schema below for
    technical reasons, but at least one ´feature´ block must be specified. The
@@ -59,6 +61,14 @@ are used when specifying the feature set.
 ´CLOUD_NATIVE_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
+  * ´DOWNLOAD_FILE´ - Represents the set of permissions required to download
+    files from snapshots.
+  * ´EXPORT_POWER_OFF´ - Represents the set of permissions required to export
+    EC2 instances and leave them powered off.
+  * ´EXPORT_POWER_ON´ - Represents the set of permissions required to export
+    EC2 instances and power them on.
+  * ´RESTORE´ - Represents the set of permissions required to restore from
+    snapshots.
 
 ´CLOUD_NATIVE_DYNAMODB_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the

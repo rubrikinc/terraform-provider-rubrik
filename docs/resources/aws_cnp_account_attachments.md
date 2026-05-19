@@ -4,9 +4,9 @@ page_title: "rubrik_aws_cnp_account_attachments Resource - terraform-provider-ru
 subcategory: ""
 description: |-
   The rubrik_aws_cnp_account_attachments resource attaches AWS instance
-  profiles and IAM roles to an RSC cloud account, finalizing the onboarding
-  that begins with rubrik_aws_cnp_account. RSC uses the attached roles to
-  perform cloud-native operations against the AWS account.
+  profiles and IAM roles to an RSC cloud account, finalizing the AWS IAM
+  roles workflow that begins with rubrik_aws_cnp_account. RSC uses the
+  attached roles to perform cloud-native operations against the AWS account.
   The set of artifact keys (role keys and instance profile keys) required for a
   given combination of features can be looked up with the
   rubrik_aws_cnp_artifacts data source. The IAM policy documents that each
@@ -41,9 +41,9 @@ description: |-
 # rubrik_aws_cnp_account_attachments (Resource)
 
 The `rubrik_aws_cnp_account_attachments` resource attaches AWS instance
-profiles and IAM roles to an RSC cloud account, finalizing the onboarding
-that begins with `rubrik_aws_cnp_account`. RSC uses the attached roles to
-perform cloud-native operations against the AWS account.
+profiles and IAM roles to an RSC cloud account, finalizing the AWS IAM
+roles workflow that begins with `rubrik_aws_cnp_account`. RSC uses the
+attached roles to perform cloud-native operations against the AWS account.
 
 The set of artifact keys (role keys and instance profile keys) required for a
 given combination of features can be looked up with the
@@ -117,7 +117,7 @@ resource "rubrik_aws_cnp_account_attachments" "attachments" {
     for_each = aws_iam_instance_profile.profile
     content {
       key  = instance_profile.key
-      name = instance_profile.value["name"]
+      name = instance_profile.value["arn"]
     }
   }
 
@@ -141,7 +141,7 @@ resource "rubrik_aws_cnp_account_attachments" "role_chained_attachments" {
     for_each = aws_iam_instance_profile.profile
     content {
       key  = instance_profile.key
-      name = instance_profile.value["name"]
+      name = instance_profile.value["arn"]
     }
   }
 
