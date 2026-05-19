@@ -3,29 +3,137 @@
 page_title: "rubrik_aws_cnp_account_attachments Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The aws_cnp_account_attachments resource attaches AWS instance profiles and AWS
-  roles to an RSC cloud account.
-  -> Note: The features field takes only the feature names and not the permission
-  groups associated with the features.
+  The rubrik_aws_cnp_account_attachments resource attaches AWS instance
+  profiles and IAM roles to an RSC cloud account, finalizing the onboarding
+  that begins with rubrik_aws_cnp_account. RSC uses the attached roles to
+  perform cloud-native operations against the AWS account.
+  The set of artifact keys (role keys and instance profile keys) required for a
+  given combination of features can be looked up with the
+  rubrik_aws_cnp_artifacts data source. The IAM policy documents that each
+  role must carry can be looked up with the rubrik_aws_cnp_permissions data
+  source.
+  -> Note: The features field takes only the feature names and not the
+  permission groups associated with the features. The feature set should
+  match the features enabled on the parent rubrik_aws_cnp_account.
+  -> Note: The role block is shown as Optional in the schema below for
+  technical reasons, but at least one role block must be specified. The
+  block-style syntax is preserved to remain compatible with existing
+  Terraform configurations.
+  -> Note: Set role_chaining_account_id to the RSC cloud account ID of the
+  role-chaining account when onboarding a role-chained account. The roles
+  attached here are then used as the chained roles, while the role-chaining
+  account provides the trust anchor.
+  -> Note: The permissions field on each role block is a sentinel:
+  changing its value signals to RSC that the IAM policy attached to the role
+  has been updated. Pair it with the id field of the
+  rubrik_aws_cnp_permissions data source so the sentinel changes whenever
+  the required policy changes. The value is not returned by RSC and is
+  carried forward from prior state on read.
+  -> Note: Destroying this resource does not call RSC. The attached
+  artifacts are removed when the parent rubrik_aws_cnp_account is
+  destroyed.
 ---
 
 # rubrik_aws_cnp_account_attachments (Resource)
 
-The `aws_cnp_account_attachments` resource attaches AWS instance profiles and AWS
-roles to an RSC cloud account.
+The `rubrik_aws_cnp_account_attachments` resource attaches AWS instance
+profiles and IAM roles to an RSC cloud account, finalizing the onboarding
+that begins with `rubrik_aws_cnp_account`. RSC uses the attached roles to
+perform cloud-native operations against the AWS account.
 
--> **Note:** The `features` field takes only the feature names and not the permission
-   groups associated with the features.
+The set of artifact keys (role keys and instance profile keys) required for a
+given combination of features can be looked up with the
+`rubrik_aws_cnp_artifacts` data source. The IAM policy documents that each
+role must carry can be looked up with the `rubrik_aws_cnp_permissions` data
+source.
+
+-> **Note:** The `features` field takes only the feature names and not the
+   permission groups associated with the features. The feature set should
+   match the features enabled on the parent `rubrik_aws_cnp_account`.
+
+-> **Note:** The `role` block is shown as Optional in the schema below for
+   technical reasons, but at least one `role` block must be specified. The
+   block-style syntax is preserved to remain compatible with existing
+   Terraform configurations.
+
+-> **Note:** Set `role_chaining_account_id` to the RSC cloud account ID of the
+   role-chaining account when onboarding a role-chained account. The roles
+   attached here are then used as the chained roles, while the role-chaining
+   account provides the trust anchor.
+
+-> **Note:** The `permissions` field on each `role` block is a sentinel:
+   changing its value signals to RSC that the IAM policy attached to the role
+   has been updated. Pair it with the `id` field of the
+   `rubrik_aws_cnp_permissions` data source so the sentinel changes whenever
+   the required policy changes. The value is not returned by RSC and is
+   carried forward from prior state on read.
+
+-> **Note:** Destroying this resource does not call RSC. The attached
+   artifacts are removed when the parent `rubrik_aws_cnp_account` is
+   destroyed.
 
 ## Example Usage
 
 ```terraform
-# Attach artifacts to an account. Artifacts are IAM roles and instance
-# profiles. The artifacts required can be looked up using the
-# rubrik_aws_cnp_artifacts and rubrik_aws_cnp_permissions data
-# sources. The configuration assumes that one AWS IAM instance profile
-# and role has been defined for each RSC artifact.
+# Minimal literal example for one feature. Shows the schema directly:
+# one role block per RSC artifact key. The role itself must already
+# exist in AWS, with the IAM policy returned by
+# data.rubrik_aws_cnp_permissions attached to it.
 resource "rubrik_aws_cnp_account_attachments" "attachments" {
+  account_id = rubrik_aws_cnp_account.account.id
+  features   = ["CLOUD_NATIVE_PROTECTION"]
+
+  role {
+    key         = "CROSSACCOUNT"
+    arn         = "arn:aws:iam::123456789012:role/Rubrik-CROSSACCOUNT"
+    permissions = data.rubrik_aws_cnp_permissions.crossaccount.id
+  }
+}
+
+data "rubrik_aws_cnp_permissions" "crossaccount" {
+  role_key = "CROSSACCOUNT"
+  feature {
+    name              = "CLOUD_NATIVE_PROTECTION"
+    permission_groups = ["BASIC"]
+  }
+}
+
+# Production form. The set of artifact keys required for a feature
+# combination is discovered with rubrik_aws_cnp_artifacts; the IAM
+# policy each role must carry comes from rubrik_aws_cnp_permissions.
+# IAM roles and instance profiles are then created keyed by RSC
+# artifact key so they line up with the dynamic blocks below.
+data "rubrik_aws_cnp_artifacts" "artifacts" {
+  feature {
+    name              = "CLOUD_NATIVE_PROTECTION"
+    permission_groups = ["BASIC"]
+  }
+  feature {
+    name              = "EXOCOMPUTE"
+    permission_groups = ["BASIC", "RSC_MANAGED_CLUSTER"]
+  }
+}
+
+data "rubrik_aws_cnp_permissions" "permissions" {
+  for_each = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+  role_key = each.key
+  dynamic "feature" {
+    for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
+    content {
+      name              = feature.value["name"]
+      permission_groups = feature.value["permission_groups"]
+    }
+  }
+}
+
+# One aws_iam_role per data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+# entry, plus one aws_iam_instance_profile per
+# data.rubrik_aws_cnp_artifacts.artifacts.instance_profile_keys entry,
+# both keyed by the artifact key. The trust policy for each role is
+# rubrik_aws_cnp_account.account.trust_policies; the IAM policy is
+# data.rubrik_aws_cnp_permissions.permissions[<key>].
+
+resource "rubrik_aws_cnp_account_attachments" "attachments_full" {
   account_id = rubrik_aws_cnp_account.account.id
   features   = rubrik_aws_cnp_account.account.feature.*.name
 
@@ -47,11 +155,13 @@ resource "rubrik_aws_cnp_account_attachments" "attachments" {
   }
 }
 
-# Attach artifacts to a role-chained account. To attach artifacts to
-# the role-chaining account, use the above example.
-resource "rubrik_aws_cnp_account_attachments" "attachments" {
-  account_id               = rubrik_aws_cnp_account.account.id
-  features                 = rubrik_aws_cnp_account.account.feature.*.name
+# Role-chained variant. Same shape as above, plus role_chaining_account_id
+# pointing at the role-chaining account. The role-chaining account itself
+# is onboarded with its own rubrik_aws_cnp_account_attachments resource
+# (using the standard form, above).
+resource "rubrik_aws_cnp_account_attachments" "role_chained_attachments" {
+  account_id               = rubrik_aws_cnp_account.role_chained.id
+  features                 = rubrik_aws_cnp_account.role_chained.feature.*.name
   role_chaining_account_id = rubrik_aws_cnp_account.role_chaining.id
 
   dynamic "instance_profile" {
@@ -80,16 +190,25 @@ resource "rubrik_aws_cnp_account_attachments" "attachments" {
 
 - `account_id` (String) RSC cloud account ID (UUID). Changing this forces a new resource to be created.
 - `features` (Set of String) RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
-- `role` (Block Set, Min: 1) Roles to attach to the cloud account. (see [below for nested schema](#nestedblock--role))
 
 ### Optional
 
 - `instance_profile` (Block Set) Instance profiles to attach to the cloud account. (see [below for nested schema](#nestedblock--instance_profile))
-- `role_chaining_account_id` (String) RSC cloud account ID of the role chaining account. When specified, the account will use cross-account role chaining.
+- `role` (Block Set) Roles to attach to the cloud account. At least one `role` block must be specified. (see [below for nested schema](#nestedblock--role))
+- `role_chaining_account_id` (String) RSC cloud account ID of the role chaining account. When specified, the account will use cross-account role chaining. Changing this forces a new resource to be created.
 
 ### Read-Only
 
 - `id` (String) RSC cloud account ID (UUID).
+
+<a id="nestedblock--instance_profile"></a>
+### Nested Schema for `instance_profile`
+
+Required:
+
+- `key` (String) RSC artifact key for the AWS instance profile.
+- `name` (String) AWS instance profile name.
+
 
 <a id="nestedblock--role"></a>
 ### Nested Schema for `role`
@@ -103,18 +222,27 @@ Optional:
 
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `id` field of the `rubrik_aws_cnp_permissions` data source.
 
-
-<a id="nestedblock--instance_profile"></a>
-### Nested Schema for `instance_profile`
-
-Required:
-
-- `key` (String) RSC artifact key for the AWS instance profile.
-- `name` (String) AWS instance profile name.
-
 ## Import
 
 Import is supported using the following syntax:
+
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
+
+```terraform
+import {
+  to = rubrik_aws_cnp_account_attachments.attachments
+  identity = {
+    id = "51ecb385-e4a5-410d-8604-50170378b7a0"
+  }
+}
+```
+
+<!-- schema generated by tfplugindocs -->
+### Identity Schema
+
+#### Required
+
+- `id` (String) RSC cloud account ID (UUID).
 
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
 

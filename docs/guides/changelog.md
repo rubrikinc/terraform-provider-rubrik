@@ -7,6 +7,7 @@ page_title: "Changelog"
 ## v1.8.0
 * Migrate the `polaris_aws_account` data source to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_account` resource to the Terraform Plugin Framework.
+* Migrate the `polaris_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_artifacts` data source to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_permissions` data source to the Terraform Plugin Framework.
 

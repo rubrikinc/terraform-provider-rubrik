@@ -97,6 +97,40 @@ func awsCnpAccountCheckDestroy(ctx context.Context) func(*terraform.State) error
 	}
 }
 
+// awsCnpAccountAttachmentsCheckDestroy verifies that all
+// aws_cnp_account_attachments resources have been deleted. Since attachments
+// share their lifecycle with the parent aws_cnp_account, the parent account
+// being gone implies the attachments are gone too.
+func awsCnpAccountAttachmentsCheckDestroy(ctx context.Context) func(*terraform.State) error {
+	return func(s *terraform.State) error {
+		client, err := testClient(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_cnp_account_attachments" && rs.Type != "rubrik_aws_cnp_account_attachments" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = aws.Wrap(client).AccountByID(ctx, id)
+			if err == nil {
+				return fmt.Errorf("aws_cnp_account_attachments %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // customRoleCheckDestroy verifies that all custom_role resources have been
 // deleted.
 func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {

@@ -59,8 +59,12 @@ pipeline {
         // avoid intermittent download failures from hc-install.
         TF_ACC_TERRAFORM_PATH = "${WORKSPACE}/terraform"
 
+        // Use a cache for external providers.
+        TF_PLUGIN_CACHE_DIR="${WORKSPACE}/.terraform-cache"
+
         // Enable logging from the terraform cli binary used by acceptance tests
         TF_ACC_LOG_PATH='terraform_cli.log'
+
         // Enable verbose Go SDK logging
         RUBRIK_POLARIS_LOGLEVEL='trace'
 
