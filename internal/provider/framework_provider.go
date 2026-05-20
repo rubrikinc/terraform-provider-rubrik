@@ -165,6 +165,8 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 	tflog.Trace(ctx, "FrameworkProvider.ListResources")
 
 	return []func() list.ListResource{
+		newAwsCnpAccountListResource,
+		newPolarisAwsCnpAccountListResource,
 		newCustomRoleListResource,
 		newPolarisCustomRoleListResource,
 		newSSOGroupListResource,
