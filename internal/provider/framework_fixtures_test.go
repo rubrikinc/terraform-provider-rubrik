@@ -22,14 +22,12 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqlaccess "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
 )
 
@@ -59,7 +57,9 @@ func testUserEmail(t *testing.T) string {
 	return rsc.NewUserEmail
 }
 
-// testSSOGroupName returns the SSO group name from the RSC test configuration.
+// testSSOGroupName returns the new SSO group name from the RSC test
+// configuration. Used by tests that exercise the SSO group resource lifecycle.
+// The test is skipped if the value is not set in the RSC test configuration.
 func testSSOGroupName(t *testing.T) string {
 	t.Helper()
 	skipIfNotAcceptance(t)
@@ -68,30 +68,36 @@ func testSSOGroupName(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if rsc.NewSSOGroupName == "" {
+		t.Skip("SSO group fixture not available: newSsoGroupName not set")
+	}
 
-	return rsc.SSOGroupName
+	return rsc.NewSSOGroupName
 }
 
-// checkTestSSOGroup checks if the SSO group with the specified name exists. If
-// it does not, the test is skipped. Returns the group ID.
-func checkTestSSOGroup(t *testing.T, name string) string {
+// testAuthDomainID returns the RSC-side auth domain ID from the RSC test
+// configuration. The test is skipped if the value is not set.
+func testAuthDomainID(t *testing.T) string {
 	t.Helper()
 	skipIfNotAcceptance(t)
 
-	polarisClient, err := testClient(t.Context())
+	rsc, err := loadRSCTestConf()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	group, err := access.Wrap(polarisClient).SSOGroupByName(t.Context(), name)
-	if errors.Is(err, graphql.ErrNotFound) {
-		t.Skip("SSO group not available")
-	}
-	if err != nil {
-		t.Fatal(err)
+	if rsc.AuthDomainID == "" {
+		t.Skip("SSO group fixture not available: authDomainId not set")
 	}
 
-	return group.ID
+	return rsc.AuthDomainID
+}
+
+// checkTestSSOGroup skips the test when either fixture field required for
+// SSO group tests are not set.
+func checkTestSSOGroup(t *testing.T) {
+	t.Helper()
+	testAuthDomainID(t)
+	testSSOGroupName(t)
 }
 
 // createTestRole creates a custom role via the SDK and registers a cleanup

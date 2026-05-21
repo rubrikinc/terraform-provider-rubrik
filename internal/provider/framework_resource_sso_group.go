@@ -67,7 +67,8 @@ type ssoGroupResourceModel struct {
 }
 
 type ssoGroupIdentityModel struct {
-	ID types.String `tfsdk:"id"`
+	ID           types.String `tfsdk:"id"`
+	AuthDomainID types.String `tfsdk:"auth_domain_id"`
 }
 
 func newSSOGroupResource() resource.Resource {
@@ -152,6 +153,10 @@ func (r *ssoGroupResource) IdentitySchema(ctx context.Context, _ resource.Identi
 				RequiredForImport: true,
 				Description:       "SSO group ID.",
 			},
+			keyAuthDomainID: identityschema.StringAttribute{
+				RequiredForImport: true,
+				Description:       "Auth domain ID (identity provider ID).",
+			},
 		},
 	}
 }
@@ -214,7 +219,7 @@ func (r *ssoGroupResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	identity := ssoGroupIdentityModel{ID: plan.ID}
+	identity := ssoGroupIdentityModel{ID: plan.ID, AuthDomainID: plan.AuthDomainID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
@@ -262,7 +267,7 @@ func (r *ssoGroupResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	identity := ssoGroupIdentityModel{ID: state.ID}
+	identity := ssoGroupIdentityModel{ID: state.ID, AuthDomainID: state.AuthDomainID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
@@ -329,7 +334,7 @@ func (r *ssoGroupResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	identity := ssoGroupIdentityModel{ID: plan.ID}
+	identity := ssoGroupIdentityModel{ID: plan.ID, AuthDomainID: plan.AuthDomainID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
@@ -366,33 +371,27 @@ func (r *ssoGroupResource) ImportState(ctx context.Context, req resource.ImportS
 		return
 	}
 
-	// Import by identity block (Terraform 1.12+).
-	if req.Identity != nil {
+	// Import by identity block.
+	if req.ID == "" {
 		var identity ssoGroupIdentityModel
 		res.Diagnostics.Append(req.Identity.Get(ctx, &identity)...)
 		if res.Diagnostics.HasError() {
 			return
 		}
 
-		res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), identity.ID.ValueString())...)
+		res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), identity.ID)...)
+		res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyAuthDomainID), identity.AuthDomainID)...)
 		res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 		return
 	}
 
-	// Import by raw UUID.
-	if _, err := uuid.Parse(req.ID); err == nil {
-		res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), req.ID)...)
-
-		identity := ssoGroupIdentityModel{ID: types.StringValue(req.ID)}
-		res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
-		return
-	}
-
-	// Import by legacy composite format: "<group_name>:<identity_provider_id>".
+	// Import by string ID using the format "<group_name>:<auth_domain_id>".
+	// Importers that already know the group ID should use the identity block
+	// instead.
 	parts := strings.SplitN(req.ID, ":", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		res.Diagnostics.AddError("Invalid import ID",
-			`Expected a UUID or the legacy format "<group_name>:<identity_provider_id>"`)
+			`Expected the format "<group_name>:<auth_domain_id>"`)
 		return
 	}
 	groupName := parts[0]
@@ -400,7 +399,7 @@ func (r *ssoGroupResource) ImportState(ctx context.Context, req resource.ImportS
 
 	if _, err := uuid.Parse(authDomainID); err != nil {
 		res.Diagnostics.AddError("Invalid import ID",
-			fmt.Sprintf("The identity provider ID %q is not a valid UUID: %s", authDomainID, err))
+			fmt.Sprintf("The auth domain ID %q is not a valid UUID: %s", authDomainID, err))
 		return
 	}
 
@@ -413,7 +412,10 @@ func (r *ssoGroupResource) ImportState(ctx context.Context, req resource.ImportS
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), group.ID)...)
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyAuthDomainID), authDomainID)...)
 
-	identity := ssoGroupIdentityModel{ID: types.StringValue(group.ID)}
+	identity := ssoGroupIdentityModel{
+		ID:           types.StringValue(group.ID),
+		AuthDomainID: types.StringValue(authDomainID),
+	}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 

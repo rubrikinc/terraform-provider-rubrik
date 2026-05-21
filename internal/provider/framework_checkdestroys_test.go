@@ -201,6 +201,33 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 	}
 }
 
+// ssoGroupCheckDestroy verifies that all sso_group resources have been
+// deleted.
+func ssoGroupCheckDestroy(ctx context.Context) func(*terraform.State) error {
+	return func(s *terraform.State) error {
+		client, err := testClient(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_sso_group" && rs.Type != "rubrik_sso_group" {
+				continue
+			}
+
+			_, err := access.Wrap(client).SSOGroupByID(ctx, rs.Primary.ID)
+			if err == nil {
+				return fmt.Errorf("SSO group %s still exists", rs.Primary.ID)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // userCheckDestroy verifies that all user resources have been deleted.
 func userCheckDestroy(ctx context.Context) func(*terraform.State) error {
 	return func(s *terraform.State) error {

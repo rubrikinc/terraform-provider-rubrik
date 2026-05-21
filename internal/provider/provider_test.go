@@ -217,7 +217,10 @@ func loadGCPTestConfig() (testConfig, testGCPProject, error) {
 // acceptance tests.
 type testRSCConfig struct {
 	NewUserEmail string `json:"newUserEmail"`
-	SSOGroupName string `json:"ssoGroupName"`
+
+	// Optional for acceptance tests, if omitted the tests are skipped.
+	AuthDomainID    string `json:"authDomainId"`
+	NewSSOGroupName string `json:"newSsoGroupName"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default

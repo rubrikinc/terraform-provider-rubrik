@@ -70,13 +70,13 @@ func (r *ssoGroupListResource) ListResourceConfigSchema(ctx context.Context, _ l
 	res.Schema = listschema.Schema{
 		Description: description(listResourceSSOGroupDescription),
 		Attributes: map[string]listschema.Attribute{
+			keyAuthDomainID: listschema.StringAttribute{
+				Required:    true,
+				Description: "Auth domain ID (identity provider ID) to list SSO groups in.",
+			},
 			keyName: listschema.StringAttribute{
 				Optional:    true,
 				Description: "Filter SSO groups by name. Matches groups whose name contains the given value (case-insensitive).",
-			},
-			keyAuthDomainID: listschema.StringAttribute{
-				Optional:    true,
-				Description: "Filter SSO groups by auth domain ID (identity provider ID).",
 			},
 		},
 	}
@@ -112,12 +112,12 @@ func (r *ssoGroupListResource) List(ctx context.Context, req list.ListRequest, s
 		return
 	}
 
-	var filter gqlaccess.SSOGroupFilter
+	authDomainID := config.AuthDomainID.ValueString()
+	filter := gqlaccess.SSOGroupFilter{
+		AuthDomainIDs: []string{authDomainID},
+	}
 	if !config.Name.IsNull() {
 		filter.Name = config.Name.ValueString()
-	}
-	if !config.AuthDomainID.IsNull() {
-		filter.AuthDomainIDs = []string{config.AuthDomainID.ValueString()}
 	}
 
 	groups, err := gqlaccess.ListSSOGroups(ctx, polarisClient.GQL, filter)
@@ -137,7 +137,8 @@ func (r *ssoGroupListResource) List(ctx context.Context, req list.ListRequest, s
 			result.DisplayName = group.Name
 
 			identity := ssoGroupIdentityModel{
-				ID: types.StringValue(group.ID),
+				ID:           types.StringValue(group.ID),
+				AuthDomainID: types.StringValue(authDomainID),
 			}
 			result.Diagnostics.Append(result.Identity.Set(ctx, identity)...)
 			if result.Diagnostics.HasError() {
@@ -158,10 +159,11 @@ func (r *ssoGroupListResource) List(ctx context.Context, req list.ListRequest, s
 				}
 
 				model := ssoGroupResourceModel{
-					ID:         types.StringValue(group.ID),
-					DomainName: types.StringValue(group.DomainName),
-					GroupName:  types.StringValue(group.Name),
-					RoleIDs:    roleIDsSet,
+					ID:           types.StringValue(group.ID),
+					AuthDomainID: types.StringValue(authDomainID),
+					DomainName:   types.StringValue(group.DomainName),
+					GroupName:    types.StringValue(group.Name),
+					RoleIDs:      roleIDsSet,
 				}
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {
