@@ -41,19 +41,18 @@ import (
 )
 
 const resourceAWSCNPAccountTrustPolicyDescription = `
-The ´aws_cnp_account_trust_policy´ resource gets the AWS IAM trust policies
-required by RSC. The ´policy´ field of ´aws_cnp_account_trust_policy´ resource
-should be used with the ´assume_role_policy´ of the ´aws_iam_role´ resource.
+The ´rubrik_aws_cnp_account_trust_policy´ resource returns the AWS IAM
+trust policy for a given role key, used when onboarding an AWS account via
+the AWS IAM roles workflow with the ´rubrik_aws_cnp_account´ and
+´rubrik_aws_cnp_account_attachments´ resources. The ´policy´ field should
+be used with the ´assume_role_policy´ of the ´aws_iam_role´ resource.
 
-~> **Note:** The ´rubrik_aws_cnp_account´ resource can now be used to get the
-   IAM trust policies for all role keys. The ´rubrik_aws_cnp_account_trust_policy´
-   resource is no longer required and will be deprecated in a future version.
+~> **Note:** This resource is deprecated. Use the ´trust_policies´ field of
+   the ´rubrik_aws_cnp_account´ resource instead, which returns the IAM trust
+   policies for all role keys and supports role chaining.
 
-~> **Note:** This resource does not support role chaining. Use the ´trust_policies´
-   field of the ´rubrik_aws_cnp_account´ resource for accounts using role chaining.
-
-~> **Note:** Once ´external_id´ has been set it cannot be changed. Unless the
-   cloud account is removed and onboarded again.
+~> **Note:** Once ´external_id´ has been set it cannot be changed. Unless
+   the cloud account is removed and onboarded again.
 
 -> **Note:** The ´features´ field takes only the feature names and not the
    permission groups associated with the features.
@@ -128,6 +127,7 @@ func resourceAwsCnpAccountTrustPolicy() *schema.Resource {
 				ValidateFunc: validation.StringInSlice(trustPolicyRoleKeys, false),
 			},
 		},
+		DeprecationMessage: "use the `trust_policies` field of the `rubrik_aws_cnp_account` resource instead.",
 		Importer: &schema.ResourceImporter{
 			StateContext: awsImportCnpAccountTrustPolicy,
 		},

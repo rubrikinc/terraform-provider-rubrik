@@ -5,6 +5,8 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
+* Deprecate the `rubrik_aws_cnp_account_trust_policy` resource. Use the `trust_policies` field of the
+  `rubrik_aws_cnp_account` resource instead.
 * Migrate the `polaris_aws_account` data source to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_account` resource to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.
