@@ -380,6 +380,7 @@ const (
 	keySPInitiatedSignInURL                         = "sp_initiated_sign_in_url"
 	keySPInitiatedTestURL                           = "sp_initiated_test_url"
 	keySourceCluster                                = "source_cluster"
+	keySelfServeRollingUpgrade                      = "self_serve_rolling_upgrade"
 	keySSOGroup                                     = "sso_group"
 	keySSOGroupID                                   = "sso_group_id"
 	keyStackARN                                     = "stack_arn"

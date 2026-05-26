@@ -5,6 +5,8 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
+* New resource added for `rubrik_self_serve_rolling_upgrade` which manages the account-wide self-serve rolling upgrade
+  setting in RSC. [[docs](../resources/self_serve_rolling_upgrade.md)]
 * Migrate the `polaris_aws_account` data source to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_account` resource to the Terraform Plugin Framework.
 * Migrate the `polaris_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.

@@ -131,6 +131,7 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisCustomRoleResource,
 		newRoleAssignmentResource,
 		newPolarisRoleAssignmentResource,
+		newSelfServeRollingUpgradeResource,
 		newSSOGroupResource,
 		newPolarisSSOGroupResource,
 		newUserResource,
