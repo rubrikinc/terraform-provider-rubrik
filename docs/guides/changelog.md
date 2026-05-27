@@ -17,7 +17,7 @@ page_title: "Changelog"
   filtering by account name and AWS account ID.
 * Add Terraform search support for the `rubrik_aws_cnp_account_attachments` resource. Enables `terraform query` to
   discover AWS account attachments onboarded via the AWS IAM roles workflow in RSC, including attachments not managed by
-  Terraform. Accounts onboarded via the AWS CloudFormation workflow are skipped.
+  Terraform.
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
