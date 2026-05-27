@@ -7,14 +7,17 @@ page_title: "Changelog"
 ## v1.8.0
 * Deprecate the `rubrik_aws_cnp_account_trust_policy` resource. Use the `trust_policies` field of the
   `rubrik_aws_cnp_account` resource instead.
-* Migrate the `polaris_aws_account` data source to the Terraform Plugin Framework.
-* Migrate the `polaris_aws_cnp_account` resource to the Terraform Plugin Framework.
-* Migrate the `polaris_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.
-* Migrate the `polaris_aws_cnp_artifacts` data source to the Terraform Plugin Framework.
-* Migrate the `polaris_aws_cnp_permissions` data source to the Terraform Plugin Framework.
-* Add Terraform search support for the `polaris_aws_cnp_account` resource. Enables `terraform query` to discover AWS
-  accounts onboarded via the AWS IAM workflow in RSC, including accounts not managed by Terraform. Supports filtering
-  by account name and AWS account ID.
+* Migrate the `rubrik_aws_account` data source to the Terraform Plugin Framework.
+* Migrate the `rubrik_aws_cnp_account` resource to the Terraform Plugin Framework.
+* Migrate the `rubrik_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.
+* Migrate the `rubrik_aws_cnp_artifacts` data source to the Terraform Plugin Framework.
+* Migrate the `rubrik_aws_cnp_permissions` data source to the Terraform Plugin Framework.
+* Add Terraform search support for the `rubrik_aws_cnp_account` resource. Enables `terraform query` to discover AWS
+  accounts onboarded via the AWS IAM roles workflow in RSC, including accounts not managed by Terraform. Supports
+  filtering by account name and AWS account ID.
+* Add Terraform search support for the `rubrik_aws_cnp_account_attachments` resource. Enables `terraform query` to
+  discover AWS account attachments onboarded via the AWS IAM roles workflow in RSC, including attachments not managed by
+  Terraform.
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with

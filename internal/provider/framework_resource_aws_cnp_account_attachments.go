@@ -45,9 +45,9 @@ import (
 
 const resourceAWSCNPAccountAttachmentsDescription = `
 The ´rubrik_aws_cnp_account_attachments´ resource attaches AWS instance
-profiles and IAM roles to an RSC cloud account, finalizing the onboarding
-that begins with ´rubrik_aws_cnp_account´. RSC uses the attached roles to
-perform cloud-native operations against the AWS account.
+profiles and IAM roles to an RSC cloud account, finalizing the AWS IAM
+roles workflow that begins with ´rubrik_aws_cnp_account´. RSC uses the
+attached roles to perform cloud-native operations against the AWS account.
 
 The set of artifact keys (role keys and instance profile keys) required for a
 given combination of features can be looked up with the
@@ -86,6 +86,11 @@ source.
    destroyed.
 `
 
+const (
+	artifactCrossAccount = "CROSSACCOUNT"
+	artifactRoleChaining = "ROLE_CHAINING"
+)
+
 var (
 	_ resource.Resource                = &awsCnpAccountAttachmentsResource{}
 	_ resource.ResourceWithConfigure   = &awsCnpAccountAttachmentsResource{}
@@ -111,17 +116,6 @@ type awsCnpAccountAttachmentsModel struct {
 
 type awsCnpAccountAttachmentsIdentityModel struct {
 	ID types.String `tfsdk:"id"`
-}
-
-type awsCnpAccountAttachmentsInstanceProfileModel struct {
-	Key  types.String `tfsdk:"key"`
-	Name types.String `tfsdk:"name"`
-}
-
-type awsCnpAccountAttachmentsRoleModel struct {
-	Key         types.String `tfsdk:"key"`
-	ARN         types.String `tfsdk:"arn"`
-	Permissions types.String `tfsdk:"permissions"`
 }
 
 func newAwsCnpAccountAttachmentsResource() resource.Resource {
@@ -310,13 +304,13 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	profiles, diags := awsAttachmentsToInstanceProfiles(ctx, plan.InstanceProfile)
+	profiles, diags := awsToInstanceProfiles(ctx, plan.InstanceProfile)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	roles, diags := awsAttachmentsToRoles(ctx, plan.Role)
+	roles, diags := awsToRoles(ctx, plan.Role)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -392,11 +386,11 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		return
 	}
 
-	// Workaround: the ROLE_CHAINING artifact is registered as a duplicate of
-	// CROSSACCOUNT by ensureRoleChainingArtifact during Create/Update. Strip
-	// it from the read response so it doesn't appear in state and cause a
+	// Workaround: the role chaining artifact is registered as a duplicate
+	// of the cross account artifact by the create and update functions. Remove
+	// it from the read response so it doesn't appear in the state and cause a
 	// perpetual diff.
-	delete(roles, "ROLE_CHAINING")
+	delete(roles, artifactRoleChaining)
 
 	featureValues := make([]attr.Value, 0, len(account.Features))
 	for _, feature := range account.Features {
@@ -408,14 +402,7 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		return
 	}
 
-	profileModels := make([]awsCnpAccountAttachmentsInstanceProfileModel, 0, len(instanceProfiles))
-	for key, name := range instanceProfiles {
-		profileModels = append(profileModels, awsCnpAccountAttachmentsInstanceProfileModel{
-			Key:  types.StringValue(key),
-			Name: types.StringValue(name),
-		})
-	}
-	profileSet, diags := types.SetValueFrom(ctx, state.InstanceProfile.ElementType(ctx), profileModels)
+	profileSet, diags := types.SetValueFrom(ctx, types.ObjectType{AttrTypes: awsInstanceProfileAttrTypes()}, awsFromInstanceProfiles(instanceProfiles))
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -423,26 +410,24 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 
 	// Preserve the per-role permissions value from existing state since RSC
 	// does not return it.
-	var stateRoles []awsCnpAccountAttachmentsRoleModel
+	roleModels := awsFromRoles(roles)
 	if !state.Role.IsNull() {
+		var stateRoles []awsRoleModel
 		res.Diagnostics.Append(state.Role.ElementsAs(ctx, &stateRoles, false)...)
 		if res.Diagnostics.HasError() {
 			return
 		}
+		priorPermissions := make(map[string]types.String, len(stateRoles))
+		for _, r := range stateRoles {
+			priorPermissions[r.Key.ValueString()] = r.Permissions
+		}
+		for i := range roleModels {
+			if prior, ok := priorPermissions[roleModels[i].Key.ValueString()]; ok {
+				roleModels[i].Permissions = prior
+			}
+		}
 	}
-	stateRolesByKey := make(map[string]awsCnpAccountAttachmentsRoleModel, len(stateRoles))
-	for _, r := range stateRoles {
-		stateRolesByKey[r.Key.ValueString()] = r
-	}
-
-	roleModels := make([]awsCnpAccountAttachmentsRoleModel, 0, len(roles))
-	for key, arn := range roles {
-		elem := stateRolesByKey[key]
-		elem.Key = types.StringValue(key)
-		elem.ARN = types.StringValue(arn)
-		roleModels = append(roleModels, elem)
-	}
-	roleSet, diags := types.SetValueFrom(ctx, state.Role.ElementType(ctx), roleModels)
+	roleSet, diags := types.SetValueFrom(ctx, types.ObjectType{AttrTypes: awsRoleAttrTypes()}, roleModels)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -489,13 +474,13 @@ func (r *awsCnpAccountAttachmentsResource) Update(ctx context.Context, req resou
 		return
 	}
 
-	profiles, diags := awsAttachmentsToInstanceProfiles(ctx, plan.InstanceProfile)
+	profiles, diags := awsToInstanceProfiles(ctx, plan.InstanceProfile)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	roles, diags := awsAttachmentsToRoles(ctx, plan.Role)
+	roles, diags := awsToRoles(ctx, plan.Role)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -624,45 +609,19 @@ func awsAttachmentsToFeatures(ctx context.Context, set types.Set) ([]core.Featur
 	return features, diags
 }
 
-func awsAttachmentsToInstanceProfiles(ctx context.Context, set types.Set) (map[string]string, diag.Diagnostics) {
-	var models []awsCnpAccountAttachmentsInstanceProfileModel
-	diags := set.ElementsAs(ctx, &models, false)
-	if diags.HasError() {
-		return nil, diags
-	}
-	profiles := make(map[string]string, len(models))
-	for _, m := range models {
-		profiles[m.Key.ValueString()] = m.Name.ValueString()
-	}
-	return profiles, diags
-}
-
-func awsAttachmentsToRoles(ctx context.Context, set types.Set) (map[string]string, diag.Diagnostics) {
-	var models []awsCnpAccountAttachmentsRoleModel
-	diags := set.ElementsAs(ctx, &models, false)
-	if diags.HasError() {
-		return nil, diags
-	}
-	roles := make(map[string]string, len(models))
-	for _, m := range models {
-		roles[m.Key.ValueString()] = m.ARN.ValueString()
-	}
-	return roles, diags
-}
-
-// ensureRoleChainingArtifact duplicates the CROSSACCOUNT role ARN as
-// ROLE_CHAINING when the ROLE_CHAINING feature is present. This is a
-// workaround for the RSC backend not returning the ROLE_CHAINING_ROLE_ARN
-// artifact.
+// ensureRoleChainingArtifact duplicates the cross account artifact as the
+// role chaining artifact when the role chaining feature is present. This is
+// a workaround for the RSC backend not returning the role chaining artifact
+// in the set of required artifacts.
 func ensureRoleChainingArtifact(roles map[string]string, features []core.Feature) {
-	crossAccountARN, ok := roles["CROSSACCOUNT"]
+	crossAccountARN, ok := roles[artifactCrossAccount]
 	if !ok {
 		return
 	}
-	if _, ok := roles["ROLE_CHAINING"]; ok {
+	if _, ok := roles[artifactRoleChaining]; ok {
 		return
 	}
 	if _, ok := core.LookupFeature(features, core.FeatureRoleChaining); ok {
-		roles["ROLE_CHAINING"] = crossAccountARN
+		roles[artifactRoleChaining] = crossAccountARN
 	}
 }

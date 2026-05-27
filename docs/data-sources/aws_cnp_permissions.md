@@ -3,8 +3,11 @@
 page_title: "rubrik_aws_cnp_permissions Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The rubrik_aws_cnp_permissions data source is used to access information
-  about the permissions required by RSC for a specified feature set.
+  The rubrik_aws_cnp_permissions data source returns the IAM policy
+  documents that each role must carry for a given feature set, used when
+  onboarding an AWS account via the AWS IAM roles workflow with the
+  rubrik_aws_cnp_account and rubrik_aws_cnp_account_attachments
+  resources.
   -> Note: The feature block is shown as Optional in the schema below for
   technical reasons, but at least one feature block must be specified. The
   block-style syntax is preserved to remain compatible with existing Terraform
@@ -20,7 +23,11 @@ description: |-
   feature.
   CLOUD_NATIVE_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
-  feature.
+  feature.DOWNLOAD_FILE - Represents the set of permissions required to download
+  files from snapshots.EXPORT_POWER_OFF - Represents the set of permissions required to export
+  EC2 instances and leave them powered off.EXPORT_POWER_ON - Represents the set of permissions required to export
+  EC2 instances and power them on.RESTORE - Represents the set of permissions required to restore from
+  snapshots.
   CLOUD_NATIVE_DYNAMODB_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
   feature.
@@ -49,8 +56,11 @@ description: |-
 
 # rubrik_aws_cnp_permissions (Data Source)
 
-The `rubrik_aws_cnp_permissions` data source is used to access information
-about the permissions required by RSC for a specified feature set.
+The `rubrik_aws_cnp_permissions` data source returns the IAM policy
+documents that each role must carry for a given feature set, used when
+onboarding an AWS account via the AWS IAM roles workflow with the
+`rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments`
+resources.
 
 -> **Note:** The `feature` block is shown as Optional in the schema below for
    technical reasons, but at least one `feature` block must be specified. The
@@ -72,6 +82,14 @@ are used when specifying the feature set.
 `CLOUD_NATIVE_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `DOWNLOAD_FILE` - Represents the set of permissions required to download
+    files from snapshots.
+  * `EXPORT_POWER_OFF` - Represents the set of permissions required to export
+    EC2 instances and leave them powered off.
+  * `EXPORT_POWER_ON` - Represents the set of permissions required to export
+    EC2 instances and power them on.
+  * `RESTORE` - Represents the set of permissions required to restore from
+    snapshots.
 
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -166,8 +184,8 @@ data "rubrik_aws_cnp_permissions" "permissions" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `KUBERNETES_PROTECTION`, `SERVERS_AND_APPS`, `EXOCOMPUTE` and `RDS_PROTECTION`.
-- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
+- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 
 <a id="nestedatt--customer_managed_policies"></a>

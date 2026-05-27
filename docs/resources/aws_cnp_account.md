@@ -3,9 +3,10 @@ page_title: "rubrik_aws_cnp_account Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
   
-The `rubrik_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
-permissions to perform certain operations on the account, IAM roles needs to be
-created and communicated to RSC using the `rubrik_aws_cnp_attachment` resource.
+The `rubrik_aws_cnp_account` resource onboards an AWS account to RSC using the
+AWS IAM roles workflow. To grant RSC permissions to perform certain operations
+on the account, IAM roles need to be created and communicated to RSC using the
+`rubrik_aws_cnp_attachments` resource.
 The roles and permissions needed by RSC can be looked up using the
 `rubrik_aws_cnp_artifact` and `rubrik_aws_cnp_permissions` data sources.
 
@@ -37,6 +38,14 @@ are used when specifying the feature set.
 `CLOUD_NATIVE_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `DOWNLOAD_FILE` - Represents the set of permissions required to download
+    files from snapshots.
+  * `EXPORT_POWER_OFF` - Represents the set of permissions required to export
+    EC2 instances and leave them powered off.
+  * `EXPORT_POWER_ON` - Represents the set of permissions required to export
+    EC2 instances and power them on.
+  * `RESTORE` - Represents the set of permissions required to restore from
+    snapshots.
 
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -75,9 +84,10 @@ are used when specifying the feature set.
 
 # rubrik_aws_cnp_account (Resource)
 
-The `rubrik_aws_cnp_account` resource adds an AWS account to RSC. To grant RSC
-permissions to perform certain operations on the account, IAM roles needs to be
-created and communicated to RSC using the `rubrik_aws_cnp_attachment` resource.
+The `rubrik_aws_cnp_account` resource onboards an AWS account to RSC using the
+AWS IAM roles workflow. To grant RSC permissions to perform certain operations
+on the account, IAM roles need to be created and communicated to RSC using the
+`rubrik_aws_cnp_attachments` resource.
 The roles and permissions needed by RSC can be looked up using the
 `rubrik_aws_cnp_artifact` and `rubrik_aws_cnp_permissions` data sources.
 
@@ -109,6 +119,14 @@ are used when specifying the feature set.
 `CLOUD_NATIVE_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `DOWNLOAD_FILE` - Represents the set of permissions required to download
+    files from snapshots.
+  * `EXPORT_POWER_OFF` - Represents the set of permissions required to export
+    EC2 instances and leave them powered off.
+  * `EXPORT_POWER_ON` - Represents the set of permissions required to export
+    EC2 instances and power them on.
+  * `RESTORE` - Represents the set of permissions required to restore from
+    snapshots.
 
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
