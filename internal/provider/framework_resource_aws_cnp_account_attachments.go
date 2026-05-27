@@ -86,6 +86,11 @@ source.
    destroyed.
 `
 
+const (
+	artifactCrossAccount = "CROSSACCOUNT"
+	artifactRoleChaining = "ROLE_CHAINING"
+)
+
 var (
 	_ resource.Resource                = &awsCnpAccountAttachmentsResource{}
 	_ resource.ResourceWithConfigure   = &awsCnpAccountAttachmentsResource{}
@@ -381,11 +386,11 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		return
 	}
 
-	// Workaround: the ROLE_CHAINING artifact is registered as a duplicate of
-	// CROSSACCOUNT by ensureRoleChainingArtifact during Create/Update. Strip
-	// it from the read response so it doesn't appear in state and cause a
+	// Workaround: the role chaining artifact is registered as a duplicate
+	// of the cross account artifact by the create and update functions. Remove
+	// it from the read response so it doesn't appear in the state and cause a
 	// perpetual diff.
-	delete(roles, "ROLE_CHAINING")
+	delete(roles, artifactRoleChaining)
 
 	featureValues := make([]attr.Value, 0, len(account.Features))
 	for _, feature := range account.Features {
@@ -604,19 +609,19 @@ func awsAttachmentsToFeatures(ctx context.Context, set types.Set) ([]core.Featur
 	return features, diags
 }
 
-// ensureRoleChainingArtifact duplicates the CROSSACCOUNT role ARN as
-// ROLE_CHAINING when the ROLE_CHAINING feature is present. This is a
-// workaround for the RSC backend not returning the ROLE_CHAINING_ROLE_ARN
-// artifact.
+// ensureRoleChainingArtifact duplicates the cross account artifact as the
+// role chaining artifact when the role chaining feature is present. This is
+// a workaround for the RSC backend not returning the role chaining artifact
+// in the set of required artifacts.
 func ensureRoleChainingArtifact(roles map[string]string, features []core.Feature) {
-	crossAccountARN, ok := roles["CROSSACCOUNT"]
+	crossAccountARN, ok := roles[artifactCrossAccount]
 	if !ok {
 		return
 	}
-	if _, ok := roles["ROLE_CHAINING"]; ok {
+	if _, ok := roles[artifactRoleChaining]; ok {
 		return
 	}
 	if _, ok := core.LookupFeature(features, core.FeatureRoleChaining); ok {
-		roles["ROLE_CHAINING"] = crossAccountARN
+		roles[artifactRoleChaining] = crossAccountARN
 	}
 }
