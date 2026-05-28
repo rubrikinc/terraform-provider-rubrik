@@ -163,7 +163,7 @@ func discoveryOnboardingEnabled(t *testing.T) bool {
 	return c.flag(ctx, core.FeatureFlagName("CNP_DISCOVERY_ONBOARDING_ENABLED"))
 }
 
-func TestAccPolarisRefresh_awsAccount(t *testing.T) {
+func TestAccPolarisAwsAccountRefresh(t *testing.T) {
 	config, account, err := loadAWSTestConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestAccPolarisRefresh_awsAccount(t *testing.T) {
 	})
 }
 
-func TestAccPolarisRefresh_azureSubscription(t *testing.T) {
+func TestAccPolarisAzureSubscriptionRefresh(t *testing.T) {
 	config, subscription, err := loadAzureTestConfig()
 	if err != nil {
 		t.Fatal(err)
