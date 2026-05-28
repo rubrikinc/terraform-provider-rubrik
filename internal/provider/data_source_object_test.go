@@ -117,7 +117,7 @@ data "polaris_object" "azure_subscription" {
 }
 `
 
-func TestAccPolarisaAureSubscriptionObject(t *testing.T) {
+func TestAccPolarisAzureSubscriptionObject(t *testing.T) {
 	config, subscription, err := loadAzureTestConfig()
 	if err != nil {
 		t.Fatal(err)
