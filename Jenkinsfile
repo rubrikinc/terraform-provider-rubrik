@@ -110,14 +110,38 @@ pipeline {
             }
         }
         stage('Test') {
-            steps {
-                sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test -skip=^TestAccCDM -count=1 -timeout=120m -v ./...'
+            failFast false
+            parallel {
+                stage('Test AWS') {
+                    environment { TF_ACC_LOG_PATH = 'terraform_cli_aws.log' }
+                    steps {
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=^TestAcc(Aws|PolarisAWS)" -count=1 -timeout=120m -v ./...'
+                    }
+                }
+                stage('Test Azure') {
+                    environment { TF_ACC_LOG_PATH = 'terraform_cli_azure.log' }
+                    steps {
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=^TestAcc(Azure|PolarisAzure)" -count=1 -timeout=120m -v ./...'
+                    }
+                }
+                stage('Test GCP') {
+                    environment { TF_ACC_LOG_PATH = 'terraform_cli_gcp.log' }
+                    steps {
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=^TestAcc(GCP|PolarisGCP)" -count=1 -timeout=120m -v ./...'
+                    }
+                }
+                stage('Test Other') {
+                    environment { TF_ACC_LOG_PATH = 'terraform_cli_other.log' }
+                    steps {
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-skip=^TestAccCDM|^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)" -count=1 -timeout=120m -v ./...'
+                    }
+                }
             }
         }
     }
     post {
         always {
-            archiveArtifacts artifacts: '**/terraform_cli.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: '**/terraform_cli*.log', allowEmptyArchive: true
             script {
                 if (env.TF_ACC == "true") {
                     sh 'go run github.com/rubrikinc/rubrik-polaris-sdk-for-go/cmd/testenv -cleanup'
