@@ -2,10 +2,10 @@ default: testacc
 
 .PHONY: testacc testacc-aws testacc-azure testacc-gcp testacc-other
 
-AWS_RUN    := ^TestAcc(Aws|PolarisAWS)
-AZURE_RUN  := ^TestAcc(Azure|PolarisAzure)
-GCP_RUN    := ^TestAcc(GCP|PolarisGCP)
-OTHER_SKIP := ^TestAccCDM|^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)
+AWS_RUN    := (?i)^TestAcc(Aws|PolarisAWS)
+AZURE_RUN  := (?i)^TestAcc(Azure|PolarisAzure)
+GCP_RUN    := (?i)^TestAcc(GCP|PolarisGCP)
+OTHER_SKIP := (?i)^TestAccCDM|^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)
 
 testacc:
 	TF_ACC=1 go test -count=1 -timeout=120m -v $(TESTARGS) ./...
