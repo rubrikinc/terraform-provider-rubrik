@@ -133,7 +133,7 @@ pipeline {
                 stage('Test Other') {
                     environment { TF_ACC_LOG_PATH = 'terraform_cli_other.log' }
                     steps {
-                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-skip=(?i)^TestAccCDM|^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)" -count=1 -timeout=120m -v ./...'
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-skip=(?i)^TestAccCDM|(?i)^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)" -count=1 -timeout=120m -v ./...'
                     }
                 }
             }
