@@ -53,7 +53,7 @@ data "polaris_object" "aws_account" {
 }
 `
 
-func TestAccPolarisObject_awsAccount(t *testing.T) {
+func TestAccPolarisAwsAccountObject(t *testing.T) {
 	config, account, err := loadAWSTestConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ data "polaris_object" "azure_subscription" {
 }
 `
 
-func TestAccPolarisObject_azureSubscription(t *testing.T) {
+func TestAccPolarisAzureSubscriptionObject(t *testing.T) {
 	config, subscription, err := loadAzureTestConfig()
 	if err != nil {
 		t.Fatal(err)
