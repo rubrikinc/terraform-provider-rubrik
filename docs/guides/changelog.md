@@ -13,6 +13,13 @@ page_title: "Changelog"
   The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
   `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
   [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
+* **Deprecated:** `features` field in the `rubrik_aws_cnp_account_attachments` resource. Permission groups for each
+  feature are now read from the cloud account managed by `rubrik_aws_cnp_account` when artifacts are registered, so
+  this field no longer needs to track them. The field is retained for backwards compatibility and will be removed in
+  a future major release.
+* Add support for the `RECOVERY` permission group in the `RDS_PROTECTION` and `CLOUD_NATIVE_DYNAMODB_PROTECTION`
+  features in the `rubrik_aws_account`, `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments`
+  resources. `RECOVERY` grants the elevated AWS permissions required to perform recovery operations.
 * Deprecate the `rubrik_aws_cnp_account_trust_policy` resource. Use the `trust_policies` field of the
   `rubrik_aws_cnp_account` resource instead.
 * Migrate the `rubrik_aws_account` data source to the Terraform Plugin Framework.

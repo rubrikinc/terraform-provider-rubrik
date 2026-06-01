@@ -16,9 +16,10 @@ description: |-
   and instance_profile blocks are not created by this resource. Manage
   them with the aws_iam_role and aws_iam_instance_profile resources,
   attaching the IAM policy from rubrik_aws_cnp_permissions to each role.
-  -> Note: The features field takes only the feature names and not the
-  permission groups associated with the features. The feature set should
-  match the features enabled on the parent rubrik_aws_cnp_account.
+  -> Note: Permission groups for each feature are read from the cloud
+  account managed by rubrik_aws_cnp_account when artifacts are registered.
+  The features field is retained for backwards compatibility and is
+  deprecated; if omitted, it is populated from the cloud account.
   -> Note: The role block is shown as Optional in the schema below for
   technical reasons, but at least one role block must be specified. The
   block-style syntax is preserved to remain compatible with existing
@@ -56,9 +57,10 @@ source.
    them with the `aws_iam_role` and `aws_iam_instance_profile` resources,
    attaching the IAM policy from `rubrik_aws_cnp_permissions` to each role.
 
--> **Note:** The `features` field takes only the feature names and not the
-   permission groups associated with the features. The feature set should
-   match the features enabled on the parent `rubrik_aws_cnp_account`.
+-> **Note:** Permission groups for each feature are read from the cloud
+   account managed by `rubrik_aws_cnp_account` when artifacts are registered.
+   The `features` field is retained for backwards compatibility and is
+   deprecated; if omitted, it is populated from the cloud account.
 
 -> **Note:** The `role` block is shown as Optional in the schema below for
    technical reasons, but at least one `role` block must be specified. The
@@ -162,10 +164,10 @@ resource "rubrik_aws_cnp_account_attachments" "role_chained_attachments" {
 ### Required
 
 - `account_id` (String) RSC cloud account ID (UUID). Changing this forces a new resource to be created.
-- `features` (Set of String) RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
 
 ### Optional
 
+- `features` (Set of String, Deprecated) RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
 - `instance_profile` (Block Set) Instance profiles to attach to the cloud account. (see [below for nested schema](#nestedblock--instance_profile))
 - `role` (Block Set) Roles to attach to the cloud account. At least one `role` block must be specified. (see [below for nested schema](#nestedblock--role))
 - `role_chaining_account_id` (String) RSC cloud account ID of the role chaining account. When specified, the account will use cross-account role chaining. Changing this forces a new resource to be created.

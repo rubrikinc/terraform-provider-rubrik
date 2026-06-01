@@ -68,6 +68,36 @@ The resource contains a non-null value for write-only attribute
 
 ## New Features
 
+### RECOVERY permission group for RDS and DynamoDB
+
+The `RDS_PROTECTION` and `CLOUD_NATIVE_DYNAMODB_PROTECTION` features now support a separate `RECOVERY` permission group
+alongside `BASIC`. `BASIC` covers backup; `RECOVERY` grants the elevated AWS permissions required to perform recovery
+operations. This split lets you keep the day-to-day footprint minimal and grant elevated privileges only when needed.
+
+The new group is available on the `rubrik_aws_account`, `rubrik_aws_cnp_account` and
+`rubrik_aws_cnp_account_attachments` resources, and on the `rubrik_aws_cnp_permissions` data source. To opt in, add
+`RECOVERY` to the `permission_groups` set on the matching feature block in `rubrik_aws_cnp_account` (or, for
+`rubrik_aws_account`, enable the relevant sub-fields in the `cloud_native_dynamodb_protection` or `rds_protection`
+block):
+
+```terraform
+resource "rubrik_aws_cnp_account" "account" {
+  # ...
+  feature {
+    name              = "RDS_PROTECTION"
+    permission_groups = ["BASIC", "RECOVERY"]
+  }
+
+  feature {
+    name              = "CLOUD_NATIVE_DYNAMODB_PROTECTION"
+    permission_groups = ["BASIC", "RECOVERY"]
+  }
+}
+```
+
+If your RSC tenant is not yet running the backend split, configuring `RECOVERY` is a no-op until the backend rolls it
+out; no `terraform apply` is required at that point — the next refresh will reconcile state.
+
 ### Multi-AZ Resiliency for Cloud Clusters
 
 The `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources now support deploying clusters across
@@ -197,3 +227,17 @@ output "az_resiliency_enabled" {
 ```
 
 If the feature flag is not enabled, contact Rubrik support to enable it before using Multi-AZ resiliency.
+
+## Deprecations
+
+### rubrik_aws_cnp_account_attachments: `features` field
+
+The `features` field on the `rubrik_aws_cnp_account_attachments` resource is now deprecated. Permission groups for
+each feature are read directly from the cloud account managed by `rubrik_aws_cnp_account` when artifacts are
+registered, so the attachments resource no longer needs to track them. This means new permission groups like
+`RECOVERY` flow through automatically once they are configured on `rubrik_aws_cnp_account`, with no schema change to
+the attachments resource.
+
+No action is required for existing configurations — the field is retained for backwards compatibility. You will see
+a deprecation warning during `terraform plan`. The field will be removed in a future major release; at that point you
+will be able to drop it entirely.

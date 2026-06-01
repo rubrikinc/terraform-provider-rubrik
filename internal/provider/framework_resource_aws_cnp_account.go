@@ -96,6 +96,8 @@ are used when specifying the feature set.
 ´CLOUD_NATIVE_DYNAMODB_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
+  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 ´CLOUD_NATIVE_S3_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
@@ -114,6 +116,8 @@ are used when specifying the feature set.
 ´RDS_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
+  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 ´ROLE_CHAINING´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
@@ -307,11 +311,12 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 							Required:    true,
 							Description: "RSC permission groups for the feature. Possible values are " +
 								"`BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT_POWER_ON`, " +
-								"`EXPORT_POWER_OFF`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards " +
-								"compatibility, `[]` is interpreted as all applicable permission groups.",
+								"`EXPORT_POWER_OFF`, `RECOVERY`, `RESTORE` and `RSC_MANAGED_CLUSTER`. " +
+								"For backwards compatibility, `[]` is interpreted as all applicable " +
+								"permission groups.",
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									"BASIC", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
+									"BASIC", "RECOVERY", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
 									"EXPORT_POWER_ON", "EXPORT_POWER_OFF", "RESTORE", "DOWNLOAD_FILE",
 									// The following permission groups cannot be used when onboarding an
 									// AWS account. They have been accepted in the past so we still

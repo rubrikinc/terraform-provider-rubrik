@@ -34,10 +34,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -60,9 +62,10 @@ source.
    them with the ´aws_iam_role´ and ´aws_iam_instance_profile´ resources,
    attaching the IAM policy from ´rubrik_aws_cnp_permissions´ to each role.
 
--> **Note:** The ´features´ field takes only the feature names and not the
-   permission groups associated with the features. The feature set should
-   match the features enabled on the parent ´rubrik_aws_cnp_account´.
+-> **Note:** Permission groups for each feature are read from the cloud
+   account managed by ´rubrik_aws_cnp_account´ when artifacts are registered.
+   The ´features´ field is retained for backwards compatibility and is
+   deprecated; if omitted, it is populated from the cloud account.
 
 -> **Note:** The ´role´ block is shown as Optional in the schema below for
    technical reasons, but at least one ´role´ block must be specified. The
@@ -157,13 +160,20 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 			},
 			keyFeatures: schema.SetAttribute{
 				ElementType: types.StringType,
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
 					"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
 					"`EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
 					"`SERVERS_AND_APPS`.",
+				DeprecationMessage: "Permission groups are now read from the cloud account managed by " +
+					"`rubrik_aws_cnp_account` when artifacts are registered, so the attachments resource no " +
+					"longer needs to track features. This field is retained for backwards compatibility, is " +
+					"populated from the cloud account if omitted, and will be removed in a future major release.",
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 				Validators: []validator.Set{
-					setvalidator.SizeAtLeast(1),
 					setvalidator.ValueStringsAre(stringvalidator.OneOf(
 						"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION",
 						"CLOUD_NATIVE_S3_PROTECTION", "CLOUD_NATIVE_DYNAMODB_PROTECTION", "EXOCOMPUTE",
@@ -298,9 +308,9 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	features, diags := awsAttachmentsToFeatures(ctx, plan.Features)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
+	features, err := awsAccountFeatures(ctx, polarisClient, accountID)
+	if err != nil {
+		res.Diagnostics.AddError("Failed to read AWS cloud account features", err.Error())
 		return
 	}
 
@@ -468,9 +478,9 @@ func (r *awsCnpAccountAttachmentsResource) Update(ctx context.Context, req resou
 		return
 	}
 
-	features, diags := awsAttachmentsToFeatures(ctx, plan.Features)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
+	features, err := awsAccountFeatures(ctx, polarisClient, accountID)
+	if err != nil {
+		res.Diagnostics.AddError("Failed to read AWS cloud account features", err.Error())
 		return
 	}
 
@@ -594,6 +604,21 @@ func (r *awsCnpAccountAttachmentsResource) ImportState(ctx context.Context, req 
 	}
 
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
+}
+
+// awsAccountFeatures returns the features currently registered on the cloud
+// account, so newly added features and permission groups are picked up when
+// artifacts are added or updated without requiring schema changes here.
+func awsAccountFeatures(ctx context.Context, client *polaris.Client, accountID uuid.UUID) ([]core.Feature, error) {
+	account, err := aws.Wrap(client).AccountByID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	features := make([]core.Feature, 0, len(account.Features))
+	for _, f := range account.Features {
+		features = append(features, f.Feature)
+	}
+	return features, nil
 }
 
 func awsAttachmentsToFeatures(ctx context.Context, set types.Set) ([]core.Feature, diag.Diagnostics) {

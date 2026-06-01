@@ -50,6 +50,8 @@ are used when specifying the feature set.
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `CLOUD_NATIVE_S3_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -68,6 +70,8 @@ are used when specifying the feature set.
 `RDS_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `ROLE_CHAINING`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -131,6 +135,8 @@ are used when specifying the feature set.
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `CLOUD_NATIVE_S3_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -149,6 +155,8 @@ are used when specifying the feature set.
 `RDS_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `ROLE_CHAINING`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -262,7 +270,7 @@ resource "rubrik_aws_cnp_account" "role_chained" {
 Required:
 
 - `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
-- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
+- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 
 <a id="nestedatt--trust_policies"></a>
