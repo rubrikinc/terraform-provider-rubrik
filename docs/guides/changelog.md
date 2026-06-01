@@ -5,6 +5,10 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
+* New data source added for `rubrik_aws_permission_groups` which returns the live permission group catalog and the
+  IAM action statements required by each group for a single RSC AWS feature. Useful for IAM-based onboarding flows
+  that previously hard-coded the `BASIC` / `RECOVERY` lists per feature.
+  [[docs](../data-sources/aws_permission_groups.md)]
 * Add support for Multi-AZ resiliency in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources.
   The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
   `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
