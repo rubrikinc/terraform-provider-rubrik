@@ -5,6 +5,10 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
+* Add support for Multi-AZ resiliency in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources.
+  The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
+  `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
+  [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
 * Deprecate the `rubrik_aws_cnp_account_trust_policy` resource. Use the `trust_policies` field of the
   `rubrik_aws_cnp_account` resource instead.
 * Migrate the `rubrik_aws_account` data source to the Terraform Plugin Framework.
