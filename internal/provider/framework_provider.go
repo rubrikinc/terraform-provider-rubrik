@@ -127,6 +127,7 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisAwsCnpAccountResource,
 		newAwsCnpAccountAttachmentsResource,
 		newPolarisAwsCnpAccountAttachmentsResource,
+		newClusterSettingsResource,
 		newCustomRoleResource,
 		newPolarisCustomRoleResource,
 		newRoleAssignmentResource,
