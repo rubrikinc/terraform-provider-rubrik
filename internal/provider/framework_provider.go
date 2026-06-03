@@ -172,6 +172,7 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 		newPolarisAwsCnpAccountListResource,
 		newAwsCnpAccountAttachmentsListResource,
 		newPolarisAwsCnpAccountAttachmentsListResource,
+		newClusterSettingsListResource,
 		newCustomRoleListResource,
 		newPolarisCustomRoleListResource,
 		newSSOGroupListResource,

@@ -65,6 +65,11 @@ func TestAccCDMClusterSettingsResource(t *testing.T) {
 				"package_url",
 				"package_md5",
 			},
+			// The import step reuses the previous step's config, which declares
+			// the cluster_id variable, so the value must be supplied again here.
+			ConfigVariables: config.Variables{
+				"cluster_id": config.StringVariable(clusterID),
+			},
 		}},
 	})
 }
