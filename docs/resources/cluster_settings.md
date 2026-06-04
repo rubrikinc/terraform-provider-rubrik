@@ -8,14 +8,21 @@ description: |-
   Setting version drives the cluster to that installed version: the provider
   downloads the matching package (resolved from the Rubrik support portal, or
   from package_url/package_md5 for air-gapped environments) and then upgrades
-  the cluster, blocking until the cluster reports the target version. When
+  the cluster, blocking until the cluster reports the target version. When the
+  target is more than one release ahead, the provider automatically upgrades
+  through the required intermediate releases one hop at a time. When
   package_url/package_md5 are set the support portal is not queried, and they
-  require version or downloaded_version to be set as the download target.
+  require version or downloaded_version to be set as the download target; a
+  custom package can only drive a single direct hop, not a multi-hop upgrade.
   Setting only downloaded_version pre-stages a package without upgrading. Both
   may be set together to upgrade to version and pre-stage a newer
   downloaded_version for a future upgrade in the same apply; downloaded_version
   must not be older than version.
   Setting upgrade_mode toggles the cluster between FAST and ROLLING upgrades.
+  A multi-hop upgrade runs each hop sequentially within a single apply, so the
+  total time scales with the number of intermediate releases. The create and
+  update timeouts (default 6 hours) bound the whole chain, not a single hop;
+  increase timeouts.update when a target is several releases ahead.
   Deleting the resource only removes it from Terraform state; the cluster and its
   installed version are left untouched.
 ---
@@ -28,9 +35,12 @@ upgrade lifecycle of a single Rubrik cluster registered with RSC.
 Setting `version` drives the cluster to that installed version: the provider
 downloads the matching package (resolved from the Rubrik support portal, or
 from `package_url`/`package_md5` for air-gapped environments) and then upgrades
-the cluster, blocking until the cluster reports the target version. When
+the cluster, blocking until the cluster reports the target version. When the
+target is more than one release ahead, the provider automatically upgrades
+through the required intermediate releases one hop at a time. When
 `package_url`/`package_md5` are set the support portal is not queried, and they
-require `version` or `downloaded_version` to be set as the download target.
+require `version` or `downloaded_version` to be set as the download target; a
+custom package can only drive a single direct hop, not a multi-hop upgrade.
 
 Setting only `downloaded_version` pre-stages a package without upgrading. Both
 may be set together to upgrade to `version` and pre-stage a newer
@@ -38,6 +48,11 @@ may be set together to upgrade to `version` and pre-stage a newer
 must not be older than `version`.
 
 Setting `upgrade_mode` toggles the cluster between FAST and ROLLING upgrades.
+
+A multi-hop upgrade runs each hop sequentially within a single apply, so the
+total time scales with the number of intermediate releases. The create and
+update `timeouts` (default 6 hours) bound the whole chain, not a single hop;
+increase `timeouts.update` when a target is several releases ahead.
 
 Deleting the resource only removes it from Terraform state; the cluster and its
 installed version are left untouched.
@@ -78,7 +93,7 @@ resource "rubrik_cluster_settings" "fast" {
 - `package_url` (String) Override URL for the CDM package tarball. When set together with `package_md5`, the support portal lookup is skipped and these are passed directly to the download. Use this for air-gapped environments.
 - `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 - `upgrade_mode` (String) Upgrade mode for the cluster. One of `FAST` or `ROLLING`.
-- `version` (String) Desired installed CDM version. When set, the cluster is downloaded (if needed) and upgraded to this version. Leave unset to not manage the installed version.
+- `version` (String) Desired installed CDM version. When set, the cluster is downloaded (if needed) and upgraded to this version, automatically upgrading through any required intermediate releases. Leave unset to not manage the installed version.
 
 ### Read-Only
 
