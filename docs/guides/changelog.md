@@ -5,9 +5,9 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
-* New data source added for `rubrik_azure_resource_groups` which lists the Azure resource groups visible to RSC,
-  optionally filtered by subscription ID and/or by exact resource group name.
-  [[docs](../data-sources/azure_resource_groups.md)]
+* Add support for the `AzureNativeResourceGroup` object type in the `polaris_object` data source. Pair with the
+  new `subscription_id` field to resolve an Azure resource group to its RSC ID by `(subscription_id, name)`.
+  [[docs](../data-sources/object.md)]
 * New data source added for `rubrik_aws_permission_groups` which returns the live permission group catalog and the
   IAM action statements required by each group for a single RSC AWS feature. Useful for IAM-based onboarding flows
   that previously hard-coded the `BASIC` / `RECOVERY` lists per feature.
