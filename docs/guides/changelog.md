@@ -23,6 +23,8 @@ page_title: "Changelog"
 * Add Terraform search support for the `rubrik_cluster_settings` resource. Enables `terraform query` to discover the
   upgrade and download state of Rubrik clusters registered with RSC, including clusters not managed by Terraform.
   Supports filtering by cluster name and installed version.
+* New data source added for `rubrik_cluster_settings` which returns the upgrade state of a single Rubrik cluster
+  registered with RSC. [[docs](../data-sources/cluster_settings.md)]
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
