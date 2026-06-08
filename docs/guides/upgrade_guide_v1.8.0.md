@@ -16,7 +16,7 @@ each intermediate version as well. Each guide documents breaking changes and mig
 
 Some resources in this version of the provider require **Terraform v1.11.0 or later**. See the
 [Significant Changes](#significant-changes) section below for details on which resources are affected. For instructions
-on upgrading Terraform, see the [HashiCorp installation guide](https://developer.hashicorp.com/terraform/install).
+on installing Terraform, see the [HashiCorp installation guide](https://developer.hashicorp.com/terraform/install).
 
 ## How to Upgrade
 
@@ -65,38 +65,6 @@ The resource contains a non-null value for write-only attribute
 "admin_email" Write-only attributes are only supported in Terraform
 1.11 and later.
 ```
-
-## New Features
-
-### RECOVERY permission group for RDS and DynamoDB
-
-The `RDS_PROTECTION` and `CLOUD_NATIVE_DYNAMODB_PROTECTION` features now support a separate `RECOVERY` permission group
-alongside `BASIC`. `BASIC` covers backup; `RECOVERY` grants the elevated AWS permissions required to perform recovery
-operations. This split lets you keep the day-to-day footprint minimal and grant elevated privileges only when needed.
-
-The new group is available on the `rubrik_aws_account`, `rubrik_aws_cnp_account` and
-`rubrik_aws_cnp_account_attachments` resources, and on the `rubrik_aws_cnp_permissions` data source. To opt in, add
-`RECOVERY` to the `permission_groups` set on the matching feature block in `rubrik_aws_cnp_account` (or, for
-`rubrik_aws_account`, enable the relevant sub-fields in the `cloud_native_dynamodb_protection` or `rds_protection`
-block):
-
-```terraform
-resource "rubrik_aws_cnp_account" "account" {
-  # ...
-  feature {
-    name              = "RDS_PROTECTION"
-    permission_groups = ["BASIC", "RECOVERY"]
-  }
-
-  feature {
-    name              = "CLOUD_NATIVE_DYNAMODB_PROTECTION"
-    permission_groups = ["BASIC", "RECOVERY"]
-  }
-}
-```
-
-If your RSC tenant is not yet running the backend split, configuring `RECOVERY` is a no-op until the backend rolls it
-out; no `terraform apply` is required at that point — the next refresh will reconcile state.
 
 ### Multi-AZ Resiliency for Cloud Clusters
 
@@ -228,16 +196,49 @@ output "az_resiliency_enabled" {
 
 If the feature flag is not enabled, contact Rubrik support to enable it before using Multi-AZ resiliency.
 
-## Deprecations
+### Deprecation: `features` field on `rubrik_aws_cnp_account_attachments`
 
-### rubrik_aws_cnp_account_attachments: `features` field
+The `features` field on the `rubrik_aws_cnp_account_attachments` resource is now deprecated. The set of features
+(and their permission groups) is read directly from the cloud account managed by `rubrik_aws_cnp_account` when
+artifacts are registered, so the attachments resource no longer needs to track the feature list. New permission
+groups configured on `rubrik_aws_cnp_account` — including `RECOVERY` — flow through automatically without any change
+to the attachments resource.
 
-The `features` field on the `rubrik_aws_cnp_account_attachments` resource is now deprecated. Permission groups for
-each feature are read directly from the cloud account managed by `rubrik_aws_cnp_account` when artifacts are
-registered, so the attachments resource no longer needs to track them. This means new permission groups like
-`RECOVERY` flow through automatically once they are configured on `rubrik_aws_cnp_account`, with no schema change to
-the attachments resource.
+No action is required for existing configurations — the field is retained for backwards compatibility and is
+populated from the cloud account when omitted. You will see a deprecation warning during `terraform plan`. The field
+will be removed in a future major release; at that point you will be able to drop it entirely.
 
-No action is required for existing configurations — the field is retained for backwards compatibility. You will see
-a deprecation warning during `terraform plan`. The field will be removed in a future major release; at that point you
-will be able to drop it entirely.
+## New Features
+
+### RECOVERY permission group for RDS and DynamoDB
+
+The `RDS_PROTECTION` and `CLOUD_NATIVE_DYNAMODB_PROTECTION` features now support a separate `RECOVERY` permission group
+alongside `BASIC`. `BASIC` covers backup; `RECOVERY` grants the elevated AWS permissions required to perform recovery
+operations. This split lets you keep the day-to-day footprint minimal and grant elevated privileges only when needed.
+
+The new group is available on the `rubrik_aws_account` and `rubrik_aws_cnp_account` resources, and on the
+`rubrik_aws_cnp_permissions` data source. To opt in, add `RECOVERY` to the `permission_groups` set on the matching
+feature block in `rubrik_aws_cnp_account` (or, for `rubrik_aws_account`, enable the relevant sub-fields in the
+`cloud_native_dynamodb_protection` or `rds_protection` block):
+
+```terraform
+resource "rubrik_aws_cnp_account" "account" {
+  # ...
+  feature {
+    name              = "RDS_PROTECTION"
+    permission_groups = ["BASIC", "RECOVERY"]
+  }
+
+  feature {
+    name              = "CLOUD_NATIVE_DYNAMODB_PROTECTION"
+    permission_groups = ["BASIC", "RECOVERY"]
+  }
+}
+```
+
+~> **Note:** The split between `BASIC` and `RECOVERY` is gated on the RSC account by the
+`REL_ENABLE_AWS_PAAS_DB_PRIVILEGE_ELEVATION` feature flag. Until the flag is enabled, RSC returns the combined set of
+actions under `BASIC` and listing `RECOVERY` has no effect. You can check the flag using the `rubrik_feature_flag`
+data source. There is no need to re-run `terraform apply` once RSC enables the flag — RSC begins returning the split
+catalog immediately and the next plan against the affected configuration will pick up the new permission set.
+
