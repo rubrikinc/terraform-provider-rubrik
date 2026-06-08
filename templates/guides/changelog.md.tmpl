@@ -18,6 +18,8 @@ page_title: "Changelog"
 * Add Terraform search support for the `rubrik_aws_cnp_account_attachments` resource. Enables `terraform query` to
   discover AWS account attachments onboarded via the AWS IAM roles workflow in RSC, including attachments not managed by
   Terraform.
+* New resource added for `rubrik_cluster_settings` which manages the CDM package download and upgrade lifecycle of a
+  Rubrik cluster registered with RSC. [[docs](../resources/cluster_settings.md)]
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with

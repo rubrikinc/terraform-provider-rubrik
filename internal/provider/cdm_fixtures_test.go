@@ -22,7 +22,11 @@
 
 package provider
 
-import "github.com/google/uuid"
+import (
+	"testing"
+
+	"github.com/google/uuid"
+)
 
 // testDataCenter holds the CDM cluster and archival location
 // configuration loaded from TEST_DATACENTER_FILE.
@@ -56,4 +60,19 @@ func loadDataCenterTestConfig() (testConfig, testDataCenter, error) {
 	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_DATACENTER_FILE", &dc)
 
 	return config, dc, err
+}
+
+// testClusterID returns the CDM cluster UUID from the Data Center test
+// configuration (TEST_DATACENTER_FILE) as a string, for use in test config
+// variables and attribute checks.
+func testClusterID(t *testing.T) string {
+	t.Helper()
+	skipIfNotAcceptance(t)
+
+	_, dc, err := loadDataCenterTestConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return dc.ClusterUUID.String()
 }

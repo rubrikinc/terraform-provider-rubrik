@@ -470,8 +470,8 @@ func azureReadCloudCluster(ctx context.Context, d *schema.ResourceData, m any) d
 		ID: []string{id.String()},
 	}
 
-	// Use AllCloudClusters and filter for cluster
-	cloudClusters, err := gqlcloudcluster.Wrap(client.GQL).AllCloudClusters(ctx, 1, "", clusterFilter, gqlcluster.SortByClusterName, core.SortOrderDesc)
+	// List clusters and filter for the matching cluster
+	cloudClusters, err := cluster.Wrap(client).ListClusters(ctx, clusterFilter, gqlcluster.SortByClusterName, core.SortOrderDesc)
 	if err != nil {
 		return diag.FromErr(err)
 	}

@@ -440,7 +440,8 @@ func awsReadCloudCluster(ctx context.Context, d *schema.ResourceData, m any) dia
 	}
 
 	// create gqlapi client
-	client := m.(*client).polarisClient.GQL
+	polarisClient := m.(*client).polarisClient
+	client := polarisClient.GQL
 	id, err := uuid.Parse(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
@@ -450,8 +451,8 @@ func awsReadCloudCluster(ctx context.Context, d *schema.ResourceData, m any) dia
 		ID: []string{id.String()},
 	}
 
-	// Use AllCloudClusters and filter for cluster
-	cloudClusters, err := gqlcloudcluster.Wrap(client).AllCloudClusters(ctx, 1, "", clusterFilter, gqlcluster.SortByClusterName, core.SortOrderDesc)
+	// List clusters and filter for the matching cluster
+	cloudClusters, err := cluster.Wrap(polarisClient).ListClusters(ctx, clusterFilter, gqlcluster.SortByClusterName, core.SortOrderDesc)
 	if err != nil {
 		return diag.FromErr(err)
 	}
