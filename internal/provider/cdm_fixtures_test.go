@@ -33,6 +33,8 @@ import (
 type testDataCenter struct {
 	ClusterUUID       uuid.UUID              `json:"clusterUuid"`
 	ClusterIP         string                 `json:"clusterIp"`
+	ClusterName       string                 `json:"clusterName"`
+	ClusterVersion    string                 `json:"clusterVersion"`
 	ArchivalLocations []testArchivalLocation `json:"archivalLocations"`
 }
 
@@ -75,4 +77,26 @@ func testClusterID(t *testing.T) string {
 	}
 
 	return dc.ClusterUUID.String()
+}
+
+// testClusterIdentity returns the CDM cluster UUID, name and installed version
+// from the Data Center test configuration (TEST_DATACENTER_FILE), for use in
+// test config variables and attribute checks. The name and version are required
+// to exercise the cluster_settings list resource filters.
+func testClusterIdentity(t *testing.T) (id, name, version string) {
+	t.Helper()
+	skipIfNotAcceptance(t)
+
+	_, dc, err := loadDataCenterTestConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dc.ClusterName == "" {
+		t.Fatal("clusterName must be set in TEST_DATACENTER_FILE")
+	}
+	if dc.ClusterVersion == "" {
+		t.Fatal("clusterVersion must be set in TEST_DATACENTER_FILE")
+	}
+
+	return dc.ClusterUUID.String(), dc.ClusterName, dc.ClusterVersion
 }

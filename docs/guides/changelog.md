@@ -20,6 +20,9 @@ page_title: "Changelog"
   Terraform.
 * New resource added for `rubrik_cluster_settings` which manages the CDM package download and upgrade lifecycle of a
   Rubrik cluster registered with RSC. [[docs](../resources/cluster_settings.md)]
+* Add Terraform search support for the `rubrik_cluster_settings` resource. Enables `terraform query` to discover the
+  upgrade and download state of Rubrik clusters registered with RSC, including clusters not managed by Terraform.
+  Supports filtering by cluster name and installed version.
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
