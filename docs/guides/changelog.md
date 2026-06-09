@@ -5,6 +5,25 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.8.0
+* Add support for the `AzureNativeResourceGroup` object type in the `polaris_object` data source. Pair with the
+  new `subscription_id` field to resolve an Azure resource group to its RSC ID by `(subscription_id, name)`.
+  [[docs](../data-sources/object.md)]
+* New data source added for `rubrik_aws_permission_groups` which returns the permission groups available for a
+  single RSC AWS feature, along with the IAM action statements that each permission group requires. Useful for
+  programmatically discovering the available permission groups (for example, the `BASIC` and `RECOVERY` split on
+  `RDS_PROTECTION`) at plan time.
+  [[docs](../data-sources/aws_permission_groups.md)]
+* Add support for Multi-AZ resiliency in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources.
+  The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
+  `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
+  [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
+* **Deprecated:** `features` field in the `rubrik_aws_cnp_account_attachments` resource. The set of features (and
+  their permission groups) is now read from the cloud account managed by `rubrik_aws_cnp_account` when artifacts are
+  registered, so this field no longer needs to track them. The field is retained for backwards compatibility and
+  will be removed in a future major release.
+* Add support for the `RECOVERY` permission group in the `RDS_PROTECTION` and `CLOUD_NATIVE_DYNAMODB_PROTECTION`
+  features in the `rubrik_aws_account`, `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments`
+  resources. `RECOVERY` grants the elevated AWS permissions required to perform recovery operations.
 * Deprecate the `rubrik_aws_cnp_account_trust_policy` resource. Use the `trust_policies` field of the
   `rubrik_aws_cnp_account` resource instead.
 * Migrate the `rubrik_aws_account` data source to the Terraform Plugin Framework.
