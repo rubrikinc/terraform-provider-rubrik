@@ -25,6 +25,8 @@ page_title: "Changelog"
   Supports filtering by cluster name and installed version.
 * New data source added for `rubrik_cluster_settings` which returns the upgrade state of a single Rubrik cluster
   registered with RSC. [[docs](../data-sources/cluster_settings.md)]
+* New data source added for `rubrik_cluster_versions` which lists the CDM releases available to a Rubrik cluster, for
+  driving upgrades of the `rubrik_cluster_settings` resource. [[docs](../data-sources/cluster_versions.md)]
 
 ## v1.7.0
 * Rename the provider from `rubrikinc/polaris` to `rubrikinc/rubrik`. All resources and data sources are now named with
