@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,9 +53,12 @@ upgrade lifecycle of a single Rubrik cluster registered with RSC.
 Setting ´version´ drives the cluster to that installed version: the provider
 downloads the matching package (resolved from the Rubrik support portal, or
 from ´package_url´/´package_md5´ for air-gapped environments) and then upgrades
-the cluster, blocking until the cluster reports the target version. When
+the cluster, blocking until the cluster reports the target version. When the
+target is more than one release ahead, the provider automatically upgrades
+through the required intermediate releases one hop at a time. When
 ´package_url´/´package_md5´ are set the support portal is not queried, and they
-require ´version´ or ´downloaded_version´ to be set as the download target.
+require ´version´ or ´downloaded_version´ to be set as the download target; a
+custom package can only drive a single direct hop, not a multi-hop upgrade.
 
 Setting only ´downloaded_version´ pre-stages a package without upgrading. Both
 may be set together to upgrade to ´version´ and pre-stage a newer
@@ -62,6 +66,11 @@ may be set together to upgrade to ´version´ and pre-stage a newer
 must not be older than ´version´.
 
 Setting ´upgrade_mode´ toggles the cluster between FAST and ROLLING upgrades.
+
+A multi-hop upgrade runs each hop sequentially within a single apply, so the
+total time scales with the number of intermediate releases. The create and
+update ´timeouts´ (default 6 hours) bound the whole chain, not a single hop;
+increase ´timeouts.update´ when a target is several releases ahead.
 
 Deleting the resource only removes it from Terraform state; the cluster and its
 installed version are left untouched.
@@ -133,7 +142,8 @@ func (r *clusterSettingsResource) Schema(ctx context.Context, _ resource.SchemaR
 			keyVersion: schema.StringAttribute{
 				Optional: true,
 				Description: "Desired installed CDM version. When set, the cluster is " +
-					"downloaded (if needed) and upgraded to this version. Leave unset to " +
+					"downloaded (if needed) and upgraded to this version, automatically " +
+					"upgrading through any required intermediate releases. Leave unset to " +
 					"not manage the installed version.",
 			},
 			keyDownloadedVersion: schema.StringAttribute{
@@ -477,33 +487,48 @@ func (r *clusterSettingsResource) reconcile(ctx context.Context, plan *clusterSe
 		}
 	}
 
-	// 3. Reach the desired installed version: download its package (unless
-	// already staged or installed) and upgrade to it.
+	// 3. Reach the desired installed version. When the target is more than one
+	// release ahead, walk the intermediate hops in turn, downloading (unless
+	// already staged) and upgrading to each. Each hop is a direct upgrade from
+	// the previous one, so resolveDownload resolves it from the support portal.
 	if target := plan.Version.ValueString(); target != "" && (info == nil || info.Version != target) {
-		if !alreadyStaged(info, target) {
-			url, md5, ok := r.resolveDownload(ctx, polarisClient, clusterUUID, *plan, target, diags)
-			if !ok {
+		hops, ok := r.upgradePath(ctx, polarisClient, clusterUUID, info, target, *plan, diags)
+		if !ok {
+			return
+		}
+		for i, hop := range hops {
+			tflog.Info(ctx, "upgrading cluster", map[string]any{
+				"cluster": clusterUUID.String(),
+				"hop":     hop,
+				"step":    fmt.Sprintf("%d/%d", i+1, len(hops)),
+				"target":  target,
+			})
+			if !alreadyStaged(info, hop) {
+				url, md5, ok := r.resolveDownload(ctx, polarisClient, clusterUUID, *plan, hop, diags)
+				if !ok {
+					return
+				}
+				if _, err := api.DownloadPackageAndWait(ctx, clusterUUID, url, md5, hop); err != nil {
+					diags.AddError("Failed to download cluster package", err.Error())
+					return
+				}
+			}
+			if _, err := api.Upgrade(ctx, clusterUUID, upgradeType, hop); err != nil {
+				diags.AddError("Failed to start cluster upgrade", err.Error())
 				return
 			}
-			if _, err := api.DownloadPackageAndWait(ctx, clusterUUID, url, md5, target); err != nil {
-				diags.AddError("Failed to download cluster package", err.Error())
+			if _, err := api.WaitForUpgrade(ctx, clusterUUID, hop); err != nil {
+				diags.AddError("Failed waiting for cluster upgrade", err.Error())
 				return
 			}
+			// Refresh so the next hop (and the pre-stage step below) sees the
+			// new installed version.
+			if details, err = api.ClusterUpgrade(ctx, clusterUUID); err != nil {
+				diags.AddError("Failed to read cluster settings", err.Error())
+				return
+			}
+			info = details.CDMInfo
 		}
-		if _, err := api.Upgrade(ctx, clusterUUID, upgradeType, target); err != nil {
-			diags.AddError("Failed to start cluster upgrade", err.Error())
-			return
-		}
-		if _, err := api.WaitForUpgrade(ctx, clusterUUID, target); err != nil {
-			diags.AddError("Failed waiting for cluster upgrade", err.Error())
-			return
-		}
-		// Refresh so the pre-stage step below sees the new installed version.
-		if details, err = api.ClusterUpgrade(ctx, clusterUUID); err != nil {
-			diags.AddError("Failed to read cluster settings", err.Error())
-			return
-		}
-		info = details.CDMInfo
 	}
 
 	// 4. Pre-stage downloaded_version when it differs from the installed
@@ -527,6 +552,65 @@ func (r *clusterSettingsResource) reconcile(ctx context.Context, plan *clusterSe
 		return
 	}
 	plan.applyComputed(details)
+}
+
+// upgradePath returns the ordered list of CDM versions to upgrade through to
+// reach targetVersion from the cluster's currently installed version, excluding
+// the installed version itself. A single-hop upgrade yields just
+// [targetVersion]; a multi-release jump yields each intermediate version
+// followed by the target, as computed by MultiHopUpgradePath.
+//
+// When package_url is set the user supplies a single explicit package, which can
+// only drive one direct hop; a computed multi-hop path is rejected.
+func (r *clusterSettingsResource) upgradePath(ctx context.Context, polarisClient *polaris.Client, clusterUUID uuid.UUID, info *gqlcluster.CDMInfo, targetVersion string, plan clusterSettingsResourceModel, diags *diag.Diagnostics) ([]string, bool) {
+	// With no observed install version the source is unknown; fall back to a
+	// single direct hop and let resolveDownload validate it.
+	if info == nil {
+		return []string{targetVersion}, true
+	}
+
+	// Request full release names (including patch and build, e.g.
+	// "9.4.0-p2-30507") so each hop matches the cluster's reported
+	// info.Version, the support-portal release names used by resolveDownload,
+	// and the exact-match comparison in WaitForUpgrade. Short names would never
+	// match and the installed-version drop in upgradeHops would fail.
+	path, err := gqlcluster.MultiHopUpgradePath(ctx, polarisClient.GQL, clusterUUID, "", targetVersion, true)
+	if err != nil {
+		diags.AddError("Failed to resolve upgrade path", err.Error())
+		return nil, false
+	}
+
+	hops := upgradeHops(path, info.Version, targetVersion)
+
+	// A custom package can only drive a single direct hop: we have one URL and
+	// MD5, not one per intermediate version.
+	if plan.PackageURL.ValueString() != "" && len(hops) > 1 {
+		diags.AddError("package_url cannot drive a multi-hop upgrade",
+			fmt.Sprintf("upgrading cluster %q from %q to %q requires %d hops (%s); package_url/package_md5 can only supply a single direct upgrade package. Remove package_url to stage each hop from the support portal, or set version to an intermediate release and upgrade one hop at a time.",
+				clusterUUID, info.Version, targetVersion, len(hops), strings.Join(hops, " -> ")))
+		return nil, false
+	}
+
+	return hops, true
+}
+
+// upgradeHops reduces a MultiHopUpgradePath result to the ordered hops to apply.
+// The path is source→target inclusive and already ordered for sequential
+// application, so the hops are simply everything after the installed (source)
+// version. If the installed version is not present, or it is the last element,
+// the path carries no actionable hops; fall back to a single direct hop to the
+// target and let resolveDownload surface a precise error for an unknown or
+// unreachable target.
+func upgradeHops(path []string, installed, target string) []string {
+	for i, v := range path {
+		if v == installed {
+			if hops := path[i+1:]; len(hops) > 0 {
+				return hops
+			}
+			return []string{target}
+		}
+	}
+	return []string{target}
 }
 
 // resolveDownload returns the package URL and MD5 to stage targetVersion. The
@@ -561,7 +645,7 @@ func (r *clusterSettingsResource) resolveDownload(ctx context.Context, polarisCl
 		}
 		if !release.Upgradable {
 			diags.AddError("Version not directly upgradable",
-				fmt.Sprintf("version %q is not a direct upgrade target for cluster %q; multi-hop upgrades are not supported, pick an intermediate version", targetVersion, clusterUUID))
+				fmt.Sprintf("version %q is not a direct upgrade target for cluster %q; it cannot be staged in a single hop from the current version", targetVersion, clusterUUID))
 			return "", "", false
 		}
 		if release.URL == "" || release.MD5Sum == "" {

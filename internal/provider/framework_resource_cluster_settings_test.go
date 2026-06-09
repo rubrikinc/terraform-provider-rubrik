@@ -267,6 +267,73 @@ func TestAlreadyStaged(t *testing.T) {
 	}
 }
 
+func TestUpgradeHops(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      []string
+		installed string
+		target    string
+		want      []string
+	}{
+		{
+			name:      "single direct hop",
+			path:      []string{"9.2.0", "9.3.0"},
+			installed: "9.2.0",
+			target:    "9.3.0",
+			want:      []string{"9.3.0"},
+		},
+		{
+			name:      "multi hop returns rest after installed",
+			path:      []string{"9.1.0", "9.2.0", "9.3.0"},
+			installed: "9.1.0",
+			target:    "9.3.0",
+			want:      []string{"9.2.0", "9.3.0"},
+		},
+		{
+			name:      "installed mid-path ignores earlier entries",
+			path:      []string{"9.0.0", "9.1.0", "9.2.0", "9.3.0"},
+			installed: "9.1.0",
+			target:    "9.3.0",
+			want:      []string{"9.2.0", "9.3.0"},
+		},
+		{
+			name:      "empty path falls back to target",
+			path:      nil,
+			installed: "9.1.0",
+			target:    "9.3.0",
+			want:      []string{"9.3.0"},
+		},
+		{
+			name:      "installed is last element falls back to target",
+			path:      []string{"9.1.0"},
+			installed: "9.1.0",
+			target:    "9.3.0",
+			want:      []string{"9.3.0"},
+		},
+		{
+			name:      "installed not in path falls back to target",
+			path:      []string{"9.2.0", "9.3.0"},
+			installed: "9.1.0",
+			target:    "9.3.0",
+			want:      []string{"9.3.0"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := upgradeHops(tt.path, tt.installed, tt.target)
+			if len(got) != len(tt.want) {
+				t.Fatalf("upgradeHops() = %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("upgradeHops()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestCurrentUpgradeType(t *testing.T) {
 	tests := []struct {
 		name string
