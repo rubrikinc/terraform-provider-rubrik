@@ -5,11 +5,38 @@ subcategory: ""
 description: |-
   The rubrik_custom_role resource is used to create and manage custom roles in
   RSC.
+  Each permission block pairs one RSC operation with one or more hierarchy
+  blocks scoping the operation to a snappable type and the object IDs it
+  applies to. To grant a single operation across multiple snappable types, add
+  multiple hierarchy blocks to the same permission block:
+  
+  permission {
+    operation = "RESTORE_TO_ORIGIN"
+    hierarchy {
+      snappable_type = "AwsNativeRdsInstance"
+      object_ids     = ["AWSNATIVE_ROOT"]
+    }
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids     = ["ORACLE_ROOT"]
+    }
+  }
+  
+  -> Note: Each operation must appear in exactly one permission block.
+  Splitting the same operation across multiple permission blocks is not
+  supported.
   -> Note: The permission and hierarchy blocks are shown as Optional in
   the schema below for technical reasons, but at least one permission block
   must be specified, and each permission must contain at least one
   hierarchy block. The block-style syntax is preserved to remain compatible
   with existing Terraform configurations.
+  -> Note: Valid values for operation and snappable_type are listed in
+  the RSC GraphQL API reference at
+  https://rubrikinc.github.io/rubrik-api-documentation/schema/reference/operation.doc.html
+  and
+  https://rubrikinc.github.io/rubrik-api-documentation/schema/reference/workloadlevelhierarchy.doc.html.
+  -> Note: To seed a custom role from a built-in RSC role template, use the
+  rubrik_role_template data source.
 ---
 
 # rubrik_custom_role (Resource)
@@ -17,11 +44,43 @@ description: |-
 The `rubrik_custom_role` resource is used to create and manage custom roles in
 RSC.
 
+Each `permission` block pairs one RSC `operation` with one or more `hierarchy`
+blocks scoping the operation to a snappable type and the object IDs it
+applies to. To grant a single operation across multiple snappable types, add
+multiple `hierarchy` blocks to the same `permission` block:
+
+```terraform
+permission {
+  operation = "RESTORE_TO_ORIGIN"
+  hierarchy {
+    snappable_type = "AwsNativeRdsInstance"
+    object_ids     = ["AWSNATIVE_ROOT"]
+  }
+  hierarchy {
+    snappable_type = "AllSubHierarchyType"
+    object_ids     = ["ORACLE_ROOT"]
+  }
+}
+```
+
+-> **Note:** Each operation must appear in exactly one `permission` block.
+   Splitting the same operation across multiple `permission` blocks is not
+   supported.
+
 -> **Note:** The `permission` and `hierarchy` blocks are shown as Optional in
    the schema below for technical reasons, but at least one `permission` block
    must be specified, and each `permission` must contain at least one
    `hierarchy` block. The block-style syntax is preserved to remain compatible
    with existing Terraform configurations.
+
+-> **Note:** Valid values for `operation` and `snappable_type` are listed in
+   the RSC GraphQL API reference at
+   https://rubrikinc.github.io/rubrik-api-documentation/schema/reference/operation.doc.html
+   and
+   https://rubrikinc.github.io/rubrik-api-documentation/schema/reference/workloadlevelhierarchy.doc.html.
+
+-> **Note:** To seed a custom role from a built-in RSC role template, use the
+   `rubrik_role_template` data source.
 
 ## Example Usage
 

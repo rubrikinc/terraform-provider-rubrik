@@ -7,15 +7,15 @@ RSC requires permissions to operate and as new features are added to RSC the set
 guide explains how Terraform can be used to keep this set of permissions up to date.
 
 ## AWS
-There are two ways to onboard AWS accounts to RSC, using a CloudFormation stack or not. Depending on the way an account
-is onboarded, permissions are managed in different ways.
+There are two ways to onboard AWS accounts to RSC, the AWS CloudFormation workflow and the AWS IAM roles workflow.
+Depending on the way an account is onboarded, permissions are managed in different ways.
 
-### Using a CloudFormation Stack
+### AWS CloudFormation Workflow
 When an account is onboarded using a CloudFormation stack, the permissions are managed through the stack. When the
 status of an account feature is `MISSING_PERMISSIONS` the CloudFormation stack must be updated for the RSC feature to
 continue to function. This can be managed by setting the `permissions` argument to `update`.
 ```terraform
-resource "polaris_aws_account" "default" {
+resource "rubrik_aws_account" "default" {
   profile     = "default"
   permissions = "update"
 
@@ -30,11 +30,12 @@ This will generate a diff when the status of at least one feature is in the `MIS
 account resource for this diff will update the CloudFormation stack. If the `permissions` argument is not specified the
 provider will not attempt to update the CloudFormation stack.
 
-### Not Using a CloudFormation Stack
-When an account is onboarded without using a CloudFormation stack, the permissions can be managed using the
-`polaris_aws_cnp_artifacts` and `polaris_aws_cnp_permissions` data sources and the
-[aws](https://registry.terraform.io/providers/hashicorp/aws/latest) provider, using IAM roles. Please see the
-[AWS CNP Account](aws_cnp_account.md) guide for more information on how create IAM roles using the data sources.
+### AWS IAM Roles Workflow
+When an account is onboarded with the AWS IAM roles workflow, the permissions can be managed using the
+`rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data sources and the
+[aws](https://registry.terraform.io/providers/hashicorp/aws/latest) provider. Please see the
+[AWS IAM roles workflow](aws_cnp_account.md) guide for more information on how to create the IAM roles using the data
+sources.
 
 ## Azure
 For Azure permissions are managed through the subscription. When the status of a subscription feature is
@@ -46,13 +47,13 @@ variable "features" {
   description = "List of RSC features to enable for subscription."
 }
 
-data "polaris_azure_permissions" "features" {
+data "rubrik_azure_permissions" "features" {
   for_each = var.features
   feature  = each.key
 }
 
 resource "azurerm_role_definition" "subscription" {
-  for_each = data.polaris_azure_permissions.features
+  for_each = data.rubrik_azure_permissions.features
   name     = "RSC - Subscription Level - ${each.value.feature}"
   scope    = data.azurerm_subscription.subscription.id
 
@@ -65,14 +66,14 @@ resource "azurerm_role_definition" "subscription" {
 }
 
 resource "azurerm_role_assignment" "subscription" {
-  for_each           = data.polaris_azure_permissions.features
+  for_each           = data.rubrik_azure_permissions.features
   principal_id       = "9e7f3952-1fc1-11ec-b57a-972144d12d97"
   role_definition_id = azurerm_role_definition.subscription[each.key].role_definition_resource_id
   scope              = data.azurerm_subscription.subscription.id
 }
 
 resource "azurerm_role_definition" "resource_group" {
-  for_each = data.polaris_azure_permissions.features
+  for_each = data.rubrik_azure_permissions.features
   name     = "RSC - Resource Group Level - ${each.value.feature}"
   scope    = data.azurerm_resource_group.resource_group.id
 
@@ -85,23 +86,23 @@ resource "azurerm_role_definition" "resource_group" {
 }
 
 resource "azurerm_role_assignment" "resource_group" {
-  for_each           = data.polaris_azure_permissions.features
+  for_each           = data.rubrik_azure_permissions.features
   principal_id       = "9e7f3952-1fc1-11ec-b57a-972144d12d97"
   role_definition_id = azurerm_role_definition.resource_group[each.key].role_definition_resource_id
   scope              = data.azurerm_resource_group.resource_group.id
 }
 
-resource "polaris_azure_service_principal" "service_principal" {
+resource "rubrik_azure_service_principal" "service_principal" {
   ...
 }
 
-resource "polaris_azure_subscription" "subscription" {
+resource "rubrik_azure_subscription" "subscription" {
   subscription_id   = data.azurerm_subscription.subscription.subscription_id
   subscription_name = data.azurerm_subscription.subscription.display_name
-  tenant_domain     = polaris_azure_service_principal.service_principal.tenant_domain
+  tenant_domain     = rubrik_azure_service_principal.service_principal.tenant_domain
 
   cloud_native_protection {
-    permissions           = data.polaris_azure_permissions.features["CLOUD_NATIVE_PROTECTION"].id
+    permissions           = data.rubrik_azure_permissions.features["CLOUD_NATIVE_PROTECTION"].id
     resource_group_name   = data.azurerm_resource_group.resource_group.name
     resource_group_region = data.azurerm_resource_group.resource_group.location
     regions               = ["eastus2"]
@@ -128,7 +129,7 @@ Terraform using the [google](https://registry.terraform.io/providers/hashicorp/g
 When the service account is specified as part of the project resource:
 
 ```terraform
-data "polaris_gcp_permissions" "default" {
+data "rubrik_gcp_permissions" "default" {
   features = [
     "cloud-native-protection",
   ]
@@ -137,7 +138,7 @@ data "polaris_gcp_permissions" "default" {
 resource "google_project_iam_custom_role" "default" {
   role_id     = "terraform"
   title       = "Terraform"
-  permissions = data.polaris_gcp_permissions.default.permissions
+  permissions = data.rubrik_gcp_permissions.default.permissions
 }
 
 resource "google_project_iam_member" "default" {
@@ -145,9 +146,9 @@ resource "google_project_iam_member" "default" {
   member = "serviceAccount:terraform@my-project.iam.gserviceaccount.com"
 }
 
-resource "polaris_gcp_project" "default" {
+resource "rubrik_gcp_project" "default" {
   credentials      = "${path.module}//my-project-d978f94d6c4d.json"
-  permissions_hash = data.polaris_gcp_permissions.default.hash
+  permissions_hash = data.rubrik_gcp_permissions.default.hash
 
   cloud_native_protection {
   }
@@ -165,7 +166,7 @@ custom role and then notify RSC about the update.
 ### Default Service Account
 When the service account is specified as part of the service account resource:
 ```terraform
-data "polaris_gcp_permissions" "default" {
+data "rubrik_gcp_permissions" "default" {
   features = [
     "cloud-native-protection",
   ]
@@ -174,7 +175,7 @@ data "polaris_gcp_permissions" "default" {
 resource "google_project_iam_custom_role" "default" {
   role_id     = "terraform"
   title       = "Terraform"
-  permissions = data.polaris_gcp_permissions.default.permissions
+  permissions = data.rubrik_gcp_permissions.default.permissions
 }
 
 resource "google_project_iam_member" "default" {
@@ -182,9 +183,9 @@ resource "google_project_iam_member" "default" {
   member = "serviceAccount:terraform@my-project.iam.gserviceaccount.com"
 }
 
-resource "polaris_gcp_service_account" "default" {
+resource "rubrik_gcp_service_account" "default" {
   credentials      = "${path.module}/my-project-d978f94d6c4d.json"
-  permissions_hash = data.polaris_gcp_permissions.default.hash
+  permissions_hash = data.rubrik_gcp_permissions.default.hash
 
   depends_on = [
     google_project_iam_custom_role.default,
