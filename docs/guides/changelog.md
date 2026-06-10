@@ -13,6 +13,11 @@ page_title: "Changelog"
   programmatically discovering the available permission groups (for example, the `BASIC` and `RECOVERY` split on
   `RDS_PROTECTION`) at plan time.
   [[docs](../data-sources/aws_permission_groups.md)]
+* New data source added for `rubrik_azure_permission_groups` which returns the permission groups available for a
+  single RSC Azure feature, along with the Azure RBAC actions and data actions each permission group requires.
+  Statements are tagged with their scope (`subscription` or `resource_group`) and kind (`action` or
+  `data_action`). Useful for programmatically discovering the available permission groups at plan time.
+  [[docs](../data-sources/azure_permission_groups.md)]
 * Add support for Multi-AZ resiliency in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources.
   The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
   `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
