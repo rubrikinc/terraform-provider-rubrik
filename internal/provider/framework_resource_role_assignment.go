@@ -46,6 +46,12 @@ const resourceRoleAssignmentDescription = `
 The ´rubrik_role_assignment´ resource is used to assign roles to a user or SSO
 group in RSC.
 
+-> **Note:** Use ´rubrik_role_assignment´ only for users or SSO groups managed
+   outside Terraform (e.g. created in the RSC UI). For a user managed by the
+   ´rubrik_user´ resource, assign roles via the ´role_ids´ field of that
+   resource instead — mixing the two on the same user causes conflicting
+   updates.
+
 ~> **Warning:** When using multiple ´rubrik_role_assignment´ resources to
    assign roles to the same user or SSO group, there is a risk for a race
    condition when the resources are destroyed. This can result in RSC roles

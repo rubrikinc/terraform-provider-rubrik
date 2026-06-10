@@ -6,6 +6,14 @@ description: |-
 The `rubrik_role_template` data source is used to access information about an
 RSC role template. A role template is looked up using either the ID or the name.
 
+Role templates are most commonly used as input to the `rubrik_custom_role`
+resource — iterating over `permission` on the template seeds the custom role
+with the template's permission set, which can then be extended or trimmed in
+the resource block.
+
+-> **Note:** The available template names can be found in the RSC UI under
+   _Settings / Users and Access / Roles / Create Role_.
+
 ---
 
 # rubrik_role_template (Data Source)
@@ -13,6 +21,14 @@ RSC role template. A role template is looked up using either the ID or the name.
 
 The `rubrik_role_template` data source is used to access information about an
 RSC role template. A role template is looked up using either the ID or the name.
+
+Role templates are most commonly used as input to the `rubrik_custom_role`
+resource — iterating over `permission` on the template seeds the custom role
+with the template's permission set, which can then be extended or trimmed in
+the resource block.
+
+-> **Note:** The available template names can be found in the RSC UI under
+   _Settings / Users and Access / Roles / Create Role_.
 
 
 

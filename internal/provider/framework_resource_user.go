@@ -46,6 +46,13 @@ import (
 
 const frameworkResourceUserDescription = `
 The ´rubrik_user´ resource is used to create and manage local users in RSC.
+
+-> **Note:** Assign roles to the user via the ´role_ids´ field of this
+   resource. Do not also reference the same user from a
+   ´rubrik_role_assignment´ resource — the two will fight over the same
+   assignment set and produce conflicting updates. Use
+   ´rubrik_role_assignment´ only for users or SSO groups that this provider
+   does not manage.
 `
 
 var (

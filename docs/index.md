@@ -8,10 +8,6 @@ platform. Additional examples on how to use the provider are available in the
 [terraform-provider-polaris-examples](https://github.com/rubrikinc/terraform-provider-polaris-examples) GitHub
 repository. Documentation for the Rubrik Security Cloud is available at https://docs.rubrik.com/en-us/saas/index.html.
 
-!> Since v0.7.0, all RSC authentication tokens are cached on disk by default. This default behavior can be turned off
-   by setting the `token_cache` provider configuration field to `false` or the `RUBRIK_TOKEN_CACHE` environment
-   variable to `FALSE`.
-
 ## Configuration
 
 ### Authentication Token Cache
@@ -53,32 +49,6 @@ provider "rubrik" {}
 For documentation on how to create a service account using RSC, visit the
 [Rubrik Support Portal](http://support.rubrik.com).
 
-### Local User Account
-First create a directory called `.rubrik` in your home directory. Next, create a file called `polaris-accounts.json` in
-that directory. This JSON file holds one or more local user accounts:
-```json
-{
-  "&lt;my-account&gt;": {
-    "username": "&lt;my-username&gt;",
-    "password": "&lt;my-password&gt;",
-    "url": "&lt;my-rsc-url&gt;"
-  }
-}
-```
-Where *my-account* is an arbitrary name used to refer to the account when configuring the provider. *my-username* and
-*my-password* are the username and password of the local user account. *my-rsc-url* is the URL of the RSC API. The
-URL follows the pattern `https://{rsc-domain}.my.rubrik.com/api`. Which is the same URL as for accessing the RSC UI but
-with `/api` added to the end.
-
-To configure the provider to use a local user account specify the name as the provider credentials:
-```terraform
-provider "rubrik" {
-  credentials = "my-account"
-}
-```
-For documentation on how to create a local user account using RSC, visit the
-[Rubrik Support Portal](http://support.rubrik.com).
-
 ### Environment Variables
 The following environmental variables can be used to override the default behavior of the provider:
 * `RUBRIK_LOGLEVEL` - Overrides the log level of the provider. Valid log levels are: `FATAL`, `ERROR`, `WARN`,
@@ -100,22 +70,12 @@ behavior:
 * `RUBRIK_SERVICEACCOUNT_ACCESSTOKENURI` - Overrides the service account access token URI. When using a service
   account the RSC API URL is derived from this URI.
 
-When using a local user account the following environmental variables can be used to override the default local user
-account behavior:
-* `RUBRIK_ACCOUNT_CREDENTIALS` - Overrides the content of the local user accounts file.
-* `RUBRIK_ACCOUNT_FILE` - Overrides the name and path of the file to read local user accounts from.
-* `RUBRIK_ACCOUNT_NAME` - Overrides the name of the local user account given to the credentials parameter in the
-  provider configuration.
-* `RUBRIK_ACCOUNT_USERNAME` - Overrides the username of the local user account.
-* `RUBRIK_ACCOUNT_PASSWORD` - Overrides the password of the local user account.
-* `RUBRIK_ACCOUNT_URL` - Overrides the RSC API URL.
-
 ### Terraform Logging Support
 The provider supports Terraform's native logging system (tflog) for improved debugging and troubleshooting. This provides structured logging with better integration into Terraform's logging infrastructure.
 
 #### Terraform Logging Environment Variables
 * `TF_LOG_PROVIDER_RUBRIK` - Controls the log level for the Terraform provider itself. Valid log levels are: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, and `OFF`. This variable follows Terraform's standard logging conventions.
-* `TF_LOG_PROVIDER_RUBRIK_API` - Controls the log level specifically for API calls made by the provider to the Polaris service. This allows you to separately control the verbosity of API-related logging.
+* `TF_LOG_PROVIDER_RUBRIK_API` - Controls the log level specifically for API calls made by the provider to RSC. This allows you to separately control the verbosity of API-related logging.
 
 #### Usage Examples
 ```shell

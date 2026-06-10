@@ -30,7 +30,7 @@ The following environmental variables can be used to override the default behavi
 * *RUBRIK_TOKEN_CACHE* — Overrides whether the token cache should be used or not. By default, the token
   cache is used.
 * *RUBRIK_TOKEN_CACHE_DIR* — Overrides the directory where cached authentication tokens are stored. By default,
-  the OS default directory for temporary files are used.
+  the OS default directory for temporary files is used.
 * *RUBRIK_TOKEN_CACHE_SECRET* — Overrides the secret used as input when generating an encryption key for the
   authentication token.
 
@@ -65,13 +65,11 @@ export TF_LOG_PROVIDER_PATH=./rubrik-provider.log
 
 ### Provider Credentials
 
-The provider supports both local user accounts and service accounts. For documentation on how to create either using
+The provider authenticates with RSC using a service account. For documentation on how to create a service account using
 RSC see the [Rubrik Support Portal](http://support.rubrik.com).
 
-#### Service Account
-
 To use a service account with the provider first download the service account credentials as a JSON file from the
-RSC User Management UI page. Next, configure the provider to use the the downloaded credentials file in the
+RSC User Management UI page. Next, configure the provider to use the downloaded credentials file in the
 Terraform configuration:
 
 ```terraform
@@ -88,7 +86,7 @@ provider "rubrik" {
 }
 ```
 
-##### Environment Variables for Service Accounts
+#### Environment Variables for Service Accounts
 
 When using a service account the following environmental variables can be used to override the default service account
 behaviour:
@@ -100,69 +98,6 @@ behaviour:
 * *RUBRIK_SERVICEACCOUNT_CLIENTSECRET* — Overrides the client secret of the service account.
 * *RUBRIK_SERVICEACCOUNT_ACCESSTOKENURI* — Overrides the service account access token URI. When using a
   service account the RSC API URL is derived from this URI.
-
-#### Local User Account
-
-To use a local user account with the provider first create a directory called `.rubrik` in your home directory. In that
-directory create a file called `polaris-accounts.json`. This JSON file can hold one or more local user accounts as per
-this pattern:
-
-```json
-{
-  "<my-account>": {
-    "username": "<my-username>",
-    "password": "<my-password>",
-    "url": "<my-rsc-url>"
-  }
-}
-```
-
-Where _my-account_ is an arbitrary name used to refer to the account when configuring the provider in the Terraform
-configuration. _my-username_ and _my-password_ are the username and password of the local user account. _my-rsc-url_
-is the URL of the RSC API. The URL normally follows the pattern `https://{rsc-domain}.my.rubrik.com/api`. Which is the
-same URL as for accessing the RSC UI but with `/api` added to the end.
-
-As an example, assume our RSC domain is `my-rsc-domain` and that the username and password of our local user account is
-`john.doe@example.org` and `password123` the content of the `polaris-accounts.json` file then should be:
-
-```json
-{
-  "johndoe": {
-    "username": "john.doe@example.org",
-    "password": "password123",
-    "url": "https://my-rsc-domain.my.rubrik.com/api"
-  }
-}
-```
-
-Where `johndoe` will be used to refer to this account from our Terraform configuration:
-
-```terraform
-terraform {
-  required_providers {
-    rubrik = {
-      source = "rubrikinc/rubrik"
-    }
-  }
-}
-
-provider "rubrik" {
-  credentials = "johndoe"
-}
-```
-
-##### Environment Variables for Local User Accounts
-
-When using a local user account the following environmental variables can be used to override the default local user
-account behaviour:
-
-* *RUBRIK_ACCOUNT_CREDENTIALS* — Overrides the content of the local user account file.
-* *RUBRIK_ACCOUNT_FILE* — Overrides the name and path of the file to read local user accounts from.
-* *RUBRIK_ACCOUNT_NAME* — Overrides the name of the local user account given to the credentials parameter in the
-  provider configuration.
-* *RUBRIK_ACCOUNT_USERNAME* — Overrides the username of the local user account.
-* *RUBRIK_ACCOUNT_PASSWORD* — Overrides the password of the local user account.
-* *RUBRIK_ACCOUNT_URL* — Overrides the RSC API URL.
 
 ## Use Your Own Build
 
