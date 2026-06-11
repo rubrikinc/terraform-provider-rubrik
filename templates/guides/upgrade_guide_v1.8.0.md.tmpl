@@ -7,7 +7,9 @@ page_title: "Upgrade Guide: v1.8.0"
 The v1.8.0 release migrates the AWS IAM roles workflow resources and data sources to the Terraform Plugin Framework,
 adds Terraform search support for AWS accounts onboarded with that workflow, and deprecates the
 `rubrik_aws_cnp_account_trust_policy` resource. It also adds Multi-AZ resiliency and write-only credential attributes
-to the cloud cluster resources, and a `RECOVERY` permission group for RDS and DynamoDB.
+to the cloud cluster resources, and a `RECOVERY` permission group for RDS and DynamoDB. Finally, it introduces a new
+`rubrik_cluster_settings` resource for managing CDM package downloads and upgrades on Rubrik clusters registered with
+RSC, along with `rubrik_cluster_settings` and `rubrik_cluster_versions` data sources to drive it.
 
 As part of the framework migration, the `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments` resources now
 support Terraform's `moved {}` block. This makes migrating an AWS IAM roles workflow module from the `rubrikinc/polaris`
@@ -157,6 +159,63 @@ proceed by running:
 This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.8.0 version.
 
 ## New Features
+
+### Cluster Upgrade Lifecycle
+
+A new `rubrik_cluster_settings` resource manages the CDM package download and upgrade lifecycle of a single Rubrik
+cluster registered with RSC. Setting `version` drives the cluster to a target installed version: the provider
+downloads the matching package and upgrades the cluster, blocking until the cluster reports the target version. When
+the target is more than one release ahead, the provider automatically traverses the required intermediate releases
+one hop at a time within a single apply.
+
+Setting only `downloaded_version` pre-stages a package without upgrading. Both may be set together to upgrade to
+`version` and pre-stage a newer `downloaded_version` for a future upgrade in the same apply. Setting `upgrade_mode`
+toggles the cluster between `FAST` and `ROLLING` upgrades.
+
+The companion `rubrik_cluster_versions` data source lists the CDM releases available to a cluster, including the
+release recommended by RSC. The `rubrik_cluster_settings` data source returns the current upgrade state of a single
+cluster. Both are typically used together to drive the resource:
+
+```terraform
+data "rubrik_cluster_versions" "cluster" {
+  cluster_id = "db34f042-79ea-48b1-bab8-c40dfbf2ab82"
+}
+
+resource "rubrik_cluster_settings" "cluster" {
+  cluster_id = data.rubrik_cluster_versions.cluster.cluster_id
+  version    = data.rubrik_cluster_versions.cluster.recommended_version
+}
+```
+
+The resource also supports air-gapped environments via the `package_url` and `package_md5` fields, which bypass the
+Rubrik support portal. A custom package can only drive a single direct hop, not a multi-hop upgrade.
+
+~> **Note:** A multi-hop upgrade runs each hop sequentially within a single apply, so the total time scales with the
+number of intermediate releases. The default `timeouts.update` of 6 hours bounds the whole chain, not a single hop —
+increase it when a target is several releases ahead.
+
+Deleting the resource only removes it from Terraform state; the cluster and its installed version are left untouched.
+
+The `rubrik_cluster_settings` resource also supports `terraform query`, so you can discover the upgrade and download
+state of Rubrik clusters registered with RSC, including clusters not managed by Terraform:
+
+```terraform
+list "rubrik_cluster_settings" "all" {
+  provider = rubrik
+}
+
+list "rubrik_cluster_settings" "by_version" {
+  provider = rubrik
+
+  config {
+    version = "9.2.0-p1-25184"
+  }
+}
+```
+
+For more details, see the [rubrik_cluster_settings resource documentation](../resources/cluster_settings.md), the
+[rubrik_cluster_settings data source documentation](../data-sources/cluster_settings.md) and the
+[rubrik_cluster_versions data source documentation](../data-sources/cluster_versions.md).
 
 ### Terraform Search Support for the AWS IAM Roles Workflow
 

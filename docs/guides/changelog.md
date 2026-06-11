@@ -22,6 +22,10 @@ page_title: "Changelog"
   The new `az_resilient` field enables deploying clusters across multiple availability zones, and the new
   `subnet_az_config` block in `vm_config` specifies per-zone subnet mappings.
   [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
+* Add write-only attributes for `admin_email` and `admin_password` in the `cluster_config` block of the
+  `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources. The credentials are only consumed during
+  initial cluster creation and are no longer persisted to state. Requires Terraform v1.11.0 or later.
+  [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
 * **Deprecated:** `features` field in the `rubrik_aws_cnp_account_attachments` resource. The set of features (and
   their permission groups) is now read from the cloud account managed by `rubrik_aws_cnp_account` when artifacts are
   registered, so this field no longer needs to track them. The field is retained for backwards compatibility and
@@ -36,6 +40,10 @@ page_title: "Changelog"
 * Migrate the `rubrik_aws_cnp_account_attachments` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_aws_cnp_artifacts` data source to the Terraform Plugin Framework.
 * Migrate the `rubrik_aws_cnp_permissions` data source to the Terraform Plugin Framework.
+* Add `moved {}` block support to the `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments` resources.
+  This enables in-place migration from the deprecated `polaris` prefixed resource types to the `rubrik` prefixed
+  resource types via a Terraform `moved {}` block, without removing the resources from state and re-importing them.
+  See the [v1.8.0 upgrade guide](upgrade_guide_v1.8.0.md) for migration instructions.
 * Add Terraform search support for the `rubrik_aws_cnp_account` resource. Enables `terraform query` to discover AWS
   accounts onboarded via the AWS IAM roles workflow in RSC, including accounts not managed by Terraform. Supports
   filtering by account name and AWS account ID.
