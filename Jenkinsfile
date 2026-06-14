@@ -92,9 +92,73 @@ pipeline {
             }
         }
         stage('Build') {
+            // Pinned tool versions and the SHA256 of their linux/amd64 release
+            // archives (from each release's checksums.txt). When bumping a
+            // version, update the matching hash and keep GORELEASER_VERSION in
+            // sync with .github/workflows/release.yml.
+            environment {
+                GORELEASER_VERSION = 'v2.14.3'
+                GORELEASER_SHA256  = 'dc7faeeeb6da8bdfda788626263a4ae725892a8c7504b975c3234127d4a44579'
+                SYFT_VERSION       = 'v1.45.1'
+                SYFT_SHA256        = '20c84195e24927f50a3b2269946be51f4c4abc9d2f145fee7388b4199149f716'
+            }
             steps {
-                sh 'mkdir -p $HOME/bin && curl -sSfL https://get.anchore.io/syft | sh -s -- -b $HOME/bin'
-                sh 'curl -sfL https://goreleaser.com/static/run | VERSION=v2.14.3 PATH=$HOME/bin:$PATH bash -s -- --snapshot --skip=publish,sign --clean'
+                // Install goreleaser and syft from pinned releases, verifying
+                // each download against a SHA256 committed here before running
+                // it (instead of piping an unverified installer into a shell).
+                sh '''
+                    set -eu
+                    TOOLS_DIR="$HOME/.cache/build-tools"
+
+                    # Keep the tool dir owner-only.
+                    mkdir -p "$TOOLS_DIR"
+                    chmod 700 "$TOOLS_DIR"
+
+                    # Resolve $name@$version, installing it if absent. Verifies the
+                    # download against the pinned SHA256, then publishes it to an
+                    # immutable version-addressed path via an atomic rename. Prints
+                    # the binary's absolute path on stdout; logs go to stderr.
+                    ensure_tool() {
+                        name="$1"; version="$2"; sha256="$3"; url="$4"
+                        dir="$TOOLS_DIR/$name/$version"
+                        bin="$dir/$name"
+                        if [ -x "$bin" ]; then
+                            echo "$bin"
+                            return 0
+                        fi
+                        mkdir -p "$dir"
+                        # Temp dir on the same filesystem as $dir -> atomic publish.
+                        tmp="$(mktemp -d "$dir/.dl.XXXXXX")"
+                        trap 'rm -rf "$tmp"' EXIT
+                        archive="$tmp/$name.tar.gz"
+                        curl -fsSL -o "$archive" "$url" >&2
+                        # Verify before extracting. Explicit guard so a checksum
+                        # mismatch can never fall through to publish, regardless
+                        # of how this function is invoked.
+                        if ! echo "$sha256  $archive" | sha256sum -c - >&2; then
+                            echo "checksum verification failed for $name $version" >&2
+                            return 1
+                        fi
+                        tar -xzf "$archive" -C "$tmp" "$name" >&2
+                        chmod 0755 "$tmp/$name"
+                        mv -f "$tmp/$name" "$bin"
+                        echo "$bin"
+                    }
+
+                    # Note the explicit "|| exit 1": set -e is unreliable for a
+                    # command substitution in an assignment, so guard the install
+                    # failure here rather than relying on it.
+                    goreleaser_bin="$(ensure_tool goreleaser "$GORELEASER_VERSION" "$GORELEASER_SHA256" \
+                        "https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz")" || exit 1
+
+                    syft_bin="$(ensure_tool syft "$SYFT_VERSION" "$SYFT_SHA256" \
+                        "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz")" || exit 1
+
+                    # goreleaser's SBOM step discovers syft via PATH.
+                    PATH="$(dirname "$syft_bin"):$PATH"; export PATH
+
+                    "$goreleaser_bin" --snapshot --skip=publish,sign --clean
+                '''
             }
         }
         stage('Pre-test') {
