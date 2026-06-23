@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const dataSourceAWSCNPPermissionsDescription = `
@@ -112,24 +111,6 @@ are used when specifying the feature set.
 -> **Note:** When permission groups are specified, the ´BASIC´ permission group
    is always required except for the ´SERVERS_AND_APPS´ feature.
 `
-
-// roleChainingSyntheticPolicy is the policy document injected when the RSC
-// backend does not return any policy data for the ROLE_CHAINING feature.
-const roleChainingSyntheticPolicy = `{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "RoleChainingPolicySid",
-            "Effect": "Allow",
-            "Action": [
-                "sts:AssumeRole"
-            ],
-            "Resource": [
-                "*"
-            ]
-        }
-    ]
-}`
 
 var _ datasource.DataSource = &awsPermissionsDataSource{}
 
@@ -323,18 +304,6 @@ func (d *awsPermissionsDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	roleKey := config.RoleKey.ValueString()
-
-	// Workaround: the RSC backend does not return any policy data for the
-	// ROLE_CHAINING feature. Inject the expected sts:AssumeRole policy until
-	// the backend is fixed.
-	if len(features) == 1 && features[0].Equal(core.FeatureRoleChaining) && roleKey == "CROSSACCOUNT" && len(customerPolicies) == 0 {
-		customerPolicies = []aws.CustomerManagedPolicy{{
-			Artifact: roleKey,
-			Feature:  core.FeatureRoleChaining,
-			Name:     "RoleChaining",
-			Policy:   roleChainingSyntheticPolicy,
-		}}
-	}
 
 	slices.SortFunc(customerPolicies, func(i, j aws.CustomerManagedPolicy) int {
 		if r := cmp.Compare(i.Artifact, j.Artifact); r != 0 {

@@ -265,7 +265,8 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 						keyRoleKey: schema.StringAttribute{
 							Computed: true,
 							Description: "RSC artifact key for the AWS role. Possible values are `CROSSACCOUNT`, " +
-								"`EXOCOMPUTE_EKS_MASTERNODE`, `EXOCOMPUTE_EKS_WORKERNODE` and `EXOCOMPUTE_EKS_LAMBDA`.",
+								"`EXOCOMPUTE_EKS_LAMBDA`, `EXOCOMPUTE_EKS_MASTERNODE`, `EXOCOMPUTE_EKS_WORKERNODE`,  " +
+								"and `ROLE_CHAINING`.",
 						},
 						keyPolicy: schema.StringAttribute{
 							Computed:    true,

@@ -204,7 +204,6 @@ func (r *awsCnpAccountAttachmentsListResource) List(ctx context.Context, req lis
 					push(result)
 					return
 				}
-				delete(roles, artifactRoleChaining)
 
 				profileSet, diags := types.SetValueFrom(ctx, types.ObjectType{AttrTypes: awsInstanceProfileAttrTypes()}, awsFromInstanceProfiles(instanceProfiles))
 				result.Diagnostics.Append(diags...)
