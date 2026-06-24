@@ -4,11 +4,14 @@ page_title: "Changelog"
 
 # Changelog
 
-## v1.9.0
+## v1.8.1
 * Add support for the `SERVERS_AND_APPS` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project`
   and `rubrik_gcp_permissions` data sources. The feature uses the `CLOUD_CLUSTER_ES` permission group and, unlike
   other GCP features, does not use the `BASIC` permission group.
   [[docs](../resources/gcp_project.md)]
+* Fix a bug in the `rubrik_aws_cnp_account_attachments` resource where the deprecated `features` field, when omitted
+  from the configuration, could be left as an unknown value after apply, causing Terraform to fail with a "Provider
+  returned invalid result object after apply" error. The field is now populated from the cloud account during create.
 
 ## v1.8.0
 * Add support for the `AzureNativeResourceGroup` object type in the `polaris_object` data source. Pair with the
