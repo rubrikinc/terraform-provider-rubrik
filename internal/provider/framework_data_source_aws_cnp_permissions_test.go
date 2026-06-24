@@ -116,7 +116,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 				}
 
 				data "polaris_aws_cnp_permissions" "role_chaining" {
-					role_key = "CROSSACCOUNT"
+					role_key = "ROLE_CHAINING"
 					feature {
 						name              = "ROLE_CHAINING"
 						permission_groups = ["BASIC"]
@@ -238,10 +238,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 						knownvalue.StringExact("arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"),
 					})),
 
-				// Role chaining returns the synthetic sts:AssumeRole policy
-				// injected by the provider (the RSC backend does not return any
-				// policy data for ROLE_CHAINING). All values are provider-side
-				// constants, so an exact assertion is stable.
+				// ROLE_CHAINING.
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",
@@ -249,8 +246,10 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyFeature: knownvalue.StringExact("ROLE_CHAINING"),
-							keyName:    knownvalue.StringExact("RoleChaining"),
-							keyPolicy:  knownvalue.StringExact(roleChainingSyntheticPolicy),
+							keyName:    knownvalue.StringExact("RoleChainingPolicy"),
+							keyPolicy: knownvalue.StringExact(
+								`{"Statement":[{"Sid":"RoleChainingPolicySid","Effect":"Allow",` +
+									`"Action":["sts:AssumeRole"],"Resource":["*"]}],"Version":"2012-10-17"}`),
 						}),
 					})),
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",

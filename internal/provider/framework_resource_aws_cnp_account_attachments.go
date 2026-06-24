@@ -89,11 +89,6 @@ source.
    destroyed.
 `
 
-const (
-	artifactCrossAccount = "CROSSACCOUNT"
-	artifactRoleChaining = "ROLE_CHAINING"
-)
-
 var (
 	_ resource.Resource                = &awsCnpAccountAttachmentsResource{}
 	_ resource.ResourceWithConfigure   = &awsCnpAccountAttachmentsResource{}
@@ -326,8 +321,6 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	ensureRoleChainingArtifact(roles, features)
-
 	var roleChainingAccountID uuid.UUID
 	if !plan.RoleChainingAccountID.IsNull() {
 		roleChainingAccountID, err = uuid.Parse(plan.RoleChainingAccountID.ValueString())
@@ -412,12 +405,6 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		res.Diagnostics.AddError("Failed to read AWS account artifacts", err.Error())
 		return
 	}
-
-	// Workaround: the role chaining artifact is registered as a duplicate
-	// of the cross account artifact by the create and update functions. Remove
-	// it from the read response so it doesn't appear in the state and cause a
-	// perpetual diff.
-	delete(roles, artifactRoleChaining)
 
 	featureValues := make([]attr.Value, 0, len(account.Features))
 	for _, feature := range account.Features {
@@ -512,8 +499,6 @@ func (r *awsCnpAccountAttachmentsResource) Update(ctx context.Context, req resou
 	if res.Diagnostics.HasError() {
 		return
 	}
-
-	ensureRoleChainingArtifact(roles, features)
 
 	var roleChainingAccountID uuid.UUID
 	if !plan.RoleChainingAccountID.IsNull() {
@@ -649,21 +634,4 @@ func awsAttachmentsToFeatures(ctx context.Context, set types.Set) ([]core.Featur
 		features = append(features, core.Feature{Name: name})
 	}
 	return features, diags
-}
-
-// ensureRoleChainingArtifact duplicates the cross account artifact as the
-// role chaining artifact when the role chaining feature is present. This is
-// a workaround for the RSC backend not returning the role chaining artifact
-// in the set of required artifacts.
-func ensureRoleChainingArtifact(roles map[string]string, features []core.Feature) {
-	crossAccountARN, ok := roles[artifactCrossAccount]
-	if !ok {
-		return
-	}
-	if _, ok := roles[artifactRoleChaining]; ok {
-		return
-	}
-	if _, ok := core.LookupFeature(features, core.FeatureRoleChaining); ok {
-		roles[artifactRoleChaining] = crossAccountARN
-	}
 }

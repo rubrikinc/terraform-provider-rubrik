@@ -100,11 +100,8 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 				}
 
 				resource "aws_iam_role" "crossaccount" {
-					name_prefix = "tfacc-crossaccount-"
-
-					assume_role_policy = one([
-						for p in polaris_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
-					])
+					name_prefix        = "tfacc-crossaccount-"
+					assume_role_policy = one(polaris_aws_cnp_account.account.trust_policies).policy
 				}
 
 				resource "aws_iam_policy" "crossaccount" {
@@ -168,6 +165,149 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 					})),
 				statecheck.CompareValuePairs(
 					"aws_iam_role.crossaccount", tfjsonpath.New(keyARN),
+					"polaris_aws_cnp_account_attachments.attachments",
+					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
+			},
+		}},
+	})
+}
+
+// TestAccAwsCnpAccountWorkflow_RoleChaining exercises the AWS IAM-roles
+// onboarding workflow for a role-chaining account. RSC returns a duplicate
+// CROSSACCOUNT artifact alongside the ROLE_CHAINING artifact for these
+// accounts; the SDK filters it out so only the ROLE_CHAINING role is required
+// and registered. The post-apply plan check guards against the perpetual diff
+// that the duplicate artifact would otherwise cause.
+func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
+	account, err := loadAWSTestConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"aws": {
+				Source:            "hashicorp/aws",
+				VersionConstraint: ">=6.0.0",
+			},
+		},
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			awsCnpAccountCheckDestroy(t.Context()),
+			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+		),
+		Steps: []resource.TestStep{{
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+
+				data "polaris_aws_cnp_artifacts" "artifacts" {
+					feature {
+						name              = "ROLE_CHAINING"
+						permission_groups = ["BASIC"]
+					}
+				}
+
+				data "polaris_aws_cnp_permissions" "role_chaining" {
+					role_key = "ROLE_CHAINING"
+
+					dynamic "feature" {
+						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						content {
+							name              = feature.value["name"]
+							permission_groups = feature.value["permission_groups"]
+						}
+					}
+				}
+
+				resource "polaris_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					dynamic "feature" {
+						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						content {
+							name              = feature.value["name"]
+							permission_groups = feature.value["permission_groups"]
+						}
+					}
+				}
+
+				resource "aws_iam_role" "role_chaining" {
+					name_prefix        = "tfacc-rolechaining-"
+					assume_role_policy = one(polaris_aws_cnp_account.account.trust_policies).policy
+				}
+
+				resource "aws_iam_policy" "role_chaining" {
+					count       = length(data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies)
+					name_prefix = "tfacc-rolechaining-${data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].name}-"
+					policy      = data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].policy
+				}
+
+				resource "aws_iam_role_policy_attachment" "role_chaining" {
+					count      = length(aws_iam_policy.role_chaining)
+					role       = aws_iam_role.role_chaining.name
+					policy_arn = aws_iam_policy.role_chaining[count.index].arn
+				}
+
+				resource "aws_iam_role_policy_attachments_exclusive" "role_chaining" {
+					role_name   = aws_iam_role.role_chaining.name
+					policy_arns = concat(data.polaris_aws_cnp_permissions.role_chaining.managed_policies, aws_iam_policy.role_chaining[*].arn)
+				}
+
+				resource "polaris_aws_cnp_account_attachments" "attachments" {
+					account_id = polaris_aws_cnp_account.account.id
+					features   = data.polaris_aws_cnp_artifacts.artifacts.feature.*.name
+
+					role {
+						key         = "ROLE_CHAINING"
+						arn         = aws_iam_role.role_chaining.arn
+						permissions = data.polaris_aws_cnp_permissions.role_chaining.id
+					}
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"account_name":   config.StringVariable(account.AccountName),
+				"aws_account_id": config.StringVariable(account.AccountID),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+					tfjsonpath.New(keyRoleKeys),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact("ROLE_CHAINING"),
+					})),
+				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+					tfjsonpath.New(keyInstanceProfileKeys),
+					knownvalue.SetExact([]knownvalue.Check{})),
+				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+					tfjsonpath.New(keyName), knownvalue.StringExact(account.AccountName)),
+				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+					tfjsonpath.New(keyTrustPolicies),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyRoleKey: knownvalue.StringExact("ROLE_CHAINING"),
+						}),
+					})),
+				statecheck.CompareValuePairs(
+					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
+					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+					tfjsonpath.New(keyRole),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyKey: knownvalue.StringExact("ROLE_CHAINING"),
+						}),
+					})),
+				statecheck.CompareValuePairs(
+					"aws_iam_role.role_chaining", tfjsonpath.New(keyARN),
 					"polaris_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},

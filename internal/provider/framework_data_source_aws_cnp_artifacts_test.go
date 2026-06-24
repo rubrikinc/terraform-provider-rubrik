@@ -104,7 +104,7 @@ func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.role_chaining",
 					tfjsonpath.New(keyRoleKeys),
 					knownvalue.SetExact([]knownvalue.Check{
-						knownvalue.StringExact("CROSSACCOUNT"),
+						knownvalue.StringExact("ROLE_CHAINING"),
 					})),
 			},
 		}},
