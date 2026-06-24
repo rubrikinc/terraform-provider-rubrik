@@ -13,8 +13,8 @@ page_title: "Changelog"
   from the configuration, could be left as an unknown value after apply, causing Terraform to fail with a "Provider
   returned invalid result object after apply" error. The field is now populated from the cloud account during create.
 * Fix ROLE_CHAINING handling in the `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments` resources and the
-  `rubrik_aws_cnp_permissions` data source. The Go SDK now filters the spurious CROSSACCOUNT artifact RSC returns for
-  role-chaining accounts, so the provider no longer needs its client-side workarounds.
+  `rubrik_aws_cnp_permissions` data source. Role-chaining accounts surface the role under the `ROLE_CHAINING` artifact
+  key instead of `CROSSACCOUNT`; see the [v1.8.1 upgrade guide](upgrade_guide_v1.8.1.md) for the expected one-time diff.
 
 ## v1.8.0
 * Add support for the `AzureNativeResourceGroup` object type in the `polaris_object` data source. Pair with the
