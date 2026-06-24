@@ -350,6 +350,23 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 	}
 
 	plan.ID = types.StringValue(id.String())
+
+	// The features field is optional and computed. When omitted from the
+	// configuration it's populated from the cloud account's features so the
+	// computed value is known after apply.
+	if plan.Features.IsUnknown() {
+		featureValues := make([]attr.Value, 0, len(features))
+		for _, feature := range features {
+			featureValues = append(featureValues, types.StringValue(feature.Name))
+		}
+		featureSet, diags := types.SetValue(types.StringType, featureValues)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		plan.Features = featureSet
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
