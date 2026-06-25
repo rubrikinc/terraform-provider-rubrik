@@ -31,9 +31,9 @@ import (
 )
 
 func TestAccAwsCnpAccountListResource(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -41,7 +41,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 			tfversion.SkipBelow(tfversion.Version1_14_0),
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             awsCnpAccountCheckDestroy(t.Context()),
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Create the AWS CNP account so the list resource has something
 			// deterministic to return. The query steps below run against the
@@ -68,10 +68,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 		}, {
 			Query: true,
 			Config: `
@@ -81,10 +78,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 					provider = polaris
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_aws_cnp_account.all", map[string]knownvalue.Check{
 					keyID:         knownvalue.NotNull(),
@@ -104,10 +98,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_aws_cnp_account.filtered", map[string]knownvalue.Check{
 					keyID:         knownvalue.NotNull(),

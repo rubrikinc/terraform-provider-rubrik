@@ -30,7 +30,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-mux/tf5to6server"
 	"github.com/hashicorp/terraform-plugin-mux/tf6muxserver"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 )
 
 const (
@@ -70,22 +69,10 @@ func newMuxedProviderServer() (tfprotov6.ProviderServer, error) {
 	return muxServer.ProviderServer(), nil
 }
 
-// testClient returns a Polaris client for testing outside the Terraform
-// provider. E.g. checking if resources has been destroyed in a check destroy
-// function.
-func testClient(ctx context.Context) (*polaris.Client, error) {
-	// Looks for RSC credentials in standard environment variables. CacheParams
-	// have sane default values.
-	client, err := newClient(ctx, "", polaris.CacheParams{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create test client: %s", err)
-	}
-
-	return client.polaris()
-}
-
 // loadRSCTestConf loads the RSC test configuration using the filename pointed
 // to by the TEST_RSCCONFIG_FILE environment variable.
+//
+// Prefer to use the fixtures defined in framework_fixtures_test.go
 func loadRSCTestConf() (testRSCConfig, error) {
 	buf, err := os.ReadFile(os.Getenv(rscConfigFileEnv))
 	if err != nil {
@@ -103,7 +90,7 @@ func loadRSCTestConf() (testRSCConfig, error) {
 // loadAWSTestConf loads the AWS test configuration using the filename pointed
 // to by the TEST_AWSACCOUNT_FILE environment variables.
 //
-//lint:ignore U1000 Will be used by AWS Framework acceptance tests.
+// Prefer to use the fixtures defined in framework_fixtures_test.go
 func loadAWSTestConf() (testAWSAccount, error) {
 	buf, err := os.ReadFile(os.Getenv(awsAccountFileEnv))
 	if err != nil {
@@ -123,6 +110,8 @@ func loadAWSTestConf() (testAWSAccount, error) {
 
 // loadAzureTestConf loads the Azure test configuration using the filename
 // pointed to by the AzureSubscriptionFileEnv environment variables.
+//
+// Prefer to use the fixtures defined in framework_fixtures_test.go
 //
 //lint:ignore U1000 Will be used by Azure Framework acceptance tests.
 func loadAzureTestConf() (testAzureSubscription, error) {
@@ -144,6 +133,8 @@ func loadAzureTestConf() (testAzureSubscription, error) {
 
 // loadGCPTestConf loads the GCP test configuration using the filename pointed
 // to by the GCPProjectFileEnv environment variables.
+//
+// Prefer to use the fixtures defined in framework_fixtures_test.go
 //
 //lint:ignore U1000 Will be used by GCP Framework acceptance tests.
 func loadGCPTestConf() (testGCPProject, error) {
