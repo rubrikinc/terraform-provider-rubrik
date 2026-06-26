@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
 
 func TestAccRoleTemplateDataSource(t *testing.T) {
@@ -64,7 +65,7 @@ func TestAccRoleTemplateDataSource(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource")}),
+									knownvalue.StringExact(hierarchy.GlobalResource)}),
 							})}),
 						}),
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -72,7 +73,7 @@ func TestAccRoleTemplateDataSource(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource"),
+									knownvalue.StringExact(hierarchy.GlobalResource),
 								}),
 							})}),
 						}),

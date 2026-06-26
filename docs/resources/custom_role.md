@@ -25,6 +25,11 @@ description: |-
   -> Note: Each operation must appear in exactly one permission block.
   Splitting the same operation across multiple permission blocks is not
   supported.
+  -> Note: Granting the VIEW_CLUSTER operation requires also granting
+  VIEW_CLUSTER_REFERENCE. RSC automatically grants VIEW_CLUSTER_REFERENCE
+  whenever VIEW_CLUSTER is granted, so specifying VIEW_CLUSTER alone results
+  in perpetual configuration drift. VIEW_CLUSTER_REFERENCE may be granted on
+  its own.
   -> Note: The permission and hierarchy blocks are shown as Optional in
   the schema below for technical reasons, but at least one permission block
   must be specified, and each permission must contain at least one
@@ -66,6 +71,12 @@ permission {
 -> **Note:** Each operation must appear in exactly one `permission` block.
    Splitting the same operation across multiple `permission` blocks is not
    supported.
+
+-> **Note:** Granting the `VIEW_CLUSTER` operation requires also granting
+   `VIEW_CLUSTER_REFERENCE`. RSC automatically grants `VIEW_CLUSTER_REFERENCE`
+   whenever `VIEW_CLUSTER` is granted, so specifying `VIEW_CLUSTER` alone results
+   in perpetual configuration drift. `VIEW_CLUSTER_REFERENCE` may be granted on
+   its own.
 
 -> **Note:** The `permission` and `hierarchy` blocks are shown as Optional in
    the schema below for technical reasons, but at least one `permission` block

@@ -62,6 +62,13 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 
 				resource "polaris_sso_group" "group" {
@@ -155,6 +162,13 @@ func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
 
 					permission {
 						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
 						hierarchy {
 							snappable_type = "AllSubHierarchyType"
 							object_ids     = ["CLUSTER_ROOT"]

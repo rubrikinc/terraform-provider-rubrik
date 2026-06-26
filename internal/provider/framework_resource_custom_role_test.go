@@ -21,14 +21,19 @@
 package provider
 
 import (
+	"context"
+	"regexp"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
 
 func TestAccCustomRoleResource(t *testing.T) {
@@ -65,7 +70,7 @@ func TestAccCustomRoleResource(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource")}),
+									knownvalue.StringExact(hierarchy.GlobalResource)}),
 							})}),
 						}),
 					})),
@@ -95,6 +100,13 @@ func TestAccCustomRoleResource(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -111,7 +123,7 @@ func TestAccCustomRoleResource(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource")}),
+									knownvalue.StringExact(hierarchy.GlobalResource)}),
 							})}),
 						}),
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -119,7 +131,16 @@ func TestAccCustomRoleResource(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("CLUSTER_ROOT"),
+									knownvalue.StringExact(hierarchy.ClusterRoot),
+								}),
+							})}),
+						}),
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyOperation: knownvalue.StringExact("VIEW_CLUSTER_REFERENCE"),
+							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
+								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
+								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
+									knownvalue.StringExact(hierarchy.ClusterRoot),
 								}),
 							})}),
 						}),
@@ -204,7 +225,7 @@ func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource")}),
+									knownvalue.StringExact(hierarchy.GlobalResource)}),
 							})}),
 						}),
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -212,7 +233,76 @@ func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
 								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
 								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
-									knownvalue.StringExact("GlobalResource"),
+									knownvalue.StringExact(hierarchy.GlobalResource),
+								}),
+							})}),
+						}),
+					})),
+			},
+		}},
+	})
+}
+
+// TestAccCustomRoleResource_ViewClusterOnly verifies that the config validator
+// rejects a role granting VIEW_CLUSTER without VIEW_CLUSTER_REFERENCE.
+func TestAccCustomRoleResource_ViewClusterOnly(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				resource "polaris_custom_role" "role" {
+					name        = "Test Cluster Viewer"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+			`,
+			ExpectError: regexp.MustCompile("(?s)VIEW_CLUSTER requires VIEW_CLUSTER_REFERENCE"),
+		}},
+	})
+}
+
+// TestAccCustomRoleResource_ViewClusterReferenceOnly verifies that a role with
+// only the VIEW_CLUSTER_REFERENCE operation, i.e. without VIEW_CLUSTER, is
+// accepted by the validator and does not drift. VIEW_CLUSTER_REFERENCE is a
+// narrower permission that RSC does not expand, so the applied permission set
+// must remain exactly as configured.
+func TestAccCustomRoleResource_ViewClusterReferenceOnly(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             customRoleCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			Config: `
+				resource "polaris_custom_role" "role" {
+					name        = "Test Cluster Reference Viewer"
+					description = "Test Role: Delete Me!"
+
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+					NonNullUUID()),
+				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyPermission),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyOperation: knownvalue.StringExact(string(access.OperationViewClusterReference)),
+							keyHierarchy: knownvalue.SetExact([]knownvalue.Check{knownvalue.ObjectExact(map[string]knownvalue.Check{
+								keySnappableType: knownvalue.StringExact("AllSubHierarchyType"),
+								keyObjectIDs: knownvalue.SetExact([]knownvalue.Check{
+									knownvalue.StringExact(hierarchy.ClusterRoot),
 								}),
 							})}),
 						}),
@@ -242,6 +332,13 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 			}
 			permission {
 				operation = "VIEW_CLUSTER"
+				hierarchy {
+					snappable_type = "AllSubHierarchyType"
+					object_ids     = ["CLUSTER_ROOT"]
+				}
+			}
+			permission {
+				operation = "VIEW_CLUSTER_REFERENCE"
 				hierarchy {
 					snappable_type = "AllSubHierarchyType"
 					object_ids     = ["CLUSTER_ROOT"]
@@ -304,6 +401,13 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -329,6 +433,13 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 			`,
 			// Verify the plan is empty, move succeeded without drift, and
@@ -341,4 +452,67 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 			},
 		}},
 	})
+}
+
+func TestValidateCustomRoleConfig(t *testing.T) {
+	ctx := context.Background()
+
+	// permSet builds a permission set with one hierarchy per operation.
+	permSet := func(operations ...access.Operation) types.Set {
+		perms := make([]access.Permission, 0, len(operations))
+		for _, op := range operations {
+			perms = append(perms, access.Permission{
+				Operation: string(op),
+				ObjectsForHierarchyTypes: []access.ObjectsForHierarchyType{{
+					SnappableType: "AllSubHierarchyType",
+					ObjectIDs:     []string{hierarchy.ClusterRoot},
+				}},
+			})
+		}
+		permSet, diags := fromPermissions(ctx, perms)
+		if diags.HasError() {
+			t.Fatalf("failed to create permission set: %s", diags)
+		}
+
+		return permSet
+	}
+
+	tests := []struct {
+		name       string
+		permission types.Set
+		wantErr    bool
+	}{{
+		name:       "both present",
+		permission: permSet(access.OperationViewCluster, access.OperationViewClusterReference),
+		wantErr:    false,
+	}, {
+		name:       "both present with another operation",
+		permission: permSet(access.OperationViewCluster, access.OperationViewClusterReference, "EXPORT_DATA_CLASS_GLOBAL"),
+		wantErr:    false,
+	}, {
+		name:       "neither present",
+		permission: permSet("EXPORT_DATA_CLASS_GLOBAL"),
+		wantErr:    false,
+	}, {
+		name:       "only ViewCluster",
+		permission: permSet(access.OperationViewCluster),
+		wantErr:    true,
+	}, {
+		name:       "only ViewClusterReference is allowed",
+		permission: permSet(access.OperationViewClusterReference),
+		wantErr:    false,
+	}, {
+		name:       "null permission set",
+		permission: types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}),
+		wantErr:    false,
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := validateCustomRoleConfig(ctx, customRoleModel{Permission: tt.permission})
+			if got := diags.HasError(); got != tt.wantErr {
+				t.Errorf("validateCustomRoleConfig() error = %v, wantErr %v: %v", got, tt.wantErr, diags)
+			}
+		})
+	}
 }

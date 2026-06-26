@@ -31,6 +31,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
 	gqlaccess "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
 
 // testAWSAccountID returns the AWS account ID from the AWS test configuration.
@@ -154,8 +155,8 @@ func testAuthDomainID(t *testing.T) string {
 }
 
 // createTestRole creates a custom role via the SDK and registers a cleanup
-// function to delete it. The role will have the VIEW_CLUSTER permission on the
-// CLUSTER_ROOT. Returns the role ID.
+// function to delete it. The role will have the VIEW_CLUSTER and
+// VIEW_CLUSTER_REFERENCE permissions on the CLUSTER_ROOT. Returns the role ID.
 func createTestRole(t *testing.T, name string) uuid.UUID {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
@@ -164,10 +165,18 @@ func createTestRole(t *testing.T, name string) uuid.UUID {
 
 	desc := "Test Role: Delete Me!"
 	roleID, err := access.Wrap(polarisClient).CreateRole(t.Context(), name, desc, []gqlaccess.Permission{{
-		Operation: "VIEW_CLUSTER",
+		Operation: string(gqlaccess.OperationViewCluster),
 		ObjectsForHierarchyTypes: []gqlaccess.ObjectsForHierarchyType{{
 			SnappableType: "AllSubHierarchyType",
-			ObjectIDs:     []string{"CLUSTER_ROOT"},
+			ObjectIDs:     []string{hierarchy.ClusterRoot},
+		}},
+	}, {
+		// RSC adds VIEW_CLUSTER_REFERENCE automatically with VIEW_CLUSTER, so
+		// grant it explicitly to keep the role free of drift.
+		Operation: string(gqlaccess.OperationViewClusterReference),
+		ObjectsForHierarchyTypes: []gqlaccess.ObjectsForHierarchyType{{
+			SnappableType: "AllSubHierarchyType",
+			ObjectIDs:     []string{hierarchy.ClusterRoot},
 		}},
 	}})
 	if err != nil {
@@ -185,7 +194,8 @@ func createTestRole(t *testing.T, name string) uuid.UUID {
 
 // createTestRoleWithUniqueName creates a custom role with a unqiue name via
 // the SDK and registers a cleanup function to delete it. The role will have
-// the VIEW_CLUSTER permission on the CLUSTER_ROOT. Returns the role ID.
+// the VIEW_CLUSTER and VIEW_CLUSTER_REFERENCE permissions on the CLUSTER_ROOT.
+// Returns the role ID.
 func createTestRoleWithUniqueName(t *testing.T) uuid.UUID {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)

@@ -73,6 +73,13 @@ func TestAccSSOGroupResource(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 			
 				resource "polaris_custom_role" "role2" {
@@ -129,6 +136,13 @@ func TestAccSSOGroupResource(t *testing.T) {
 			
 					permission {
 						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
 						hierarchy {
 							snappable_type = "AllSubHierarchyType"
 							object_ids     = ["CLUSTER_ROOT"]
@@ -255,6 +269,13 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 							object_ids     = ["CLUSTER_ROOT"]
 						}
 					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
 				}
 
 				resource "polaris_sso_group" "group" {
@@ -294,6 +315,13 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 
 					permission {
 						operation = "VIEW_CLUSTER"
+						hierarchy {
+							snappable_type = "AllSubHierarchyType"
+							object_ids     = ["CLUSTER_ROOT"]
+						}
+					}
+					permission {
+						operation = "VIEW_CLUSTER_REFERENCE"
 						hierarchy {
 							snappable_type = "AllSubHierarchyType"
 							object_ids     = ["CLUSTER_ROOT"]
