@@ -35,9 +35,13 @@ import (
 )
 
 func TestAccUserResource(t *testing.T) {
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             userCheckDestroy(t.Context()),
+		CheckDestroy:             userCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created with one role.
 			Config: `
@@ -73,9 +77,7 @@ func TestAccUserResource(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
@@ -147,9 +149,7 @@ func TestAccUserResource(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyRoleIDs),
 					knownvalue.SetSizeExact(2)),
@@ -172,17 +172,13 @@ func TestAccUserResource(t *testing.T) {
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables:   vars,
 		}, {
 			// import {} block with id attribute.
 			ResourceName:    "polaris_user.user",
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
@@ -193,9 +189,7 @@ func TestAccUserResource(t *testing.T) {
 			ResourceName:    "polaris_user.user",
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
@@ -209,7 +203,7 @@ func TestAccUserResource(t *testing.T) {
 // by the SDKv2 provider (v1.5.0) can be read by the Framework provider
 // without drift.
 func TestAccUserResource_FrameworkMigration(t *testing.T) {
-	tfConfig := `
+	conf := `
 		variable "user_email" {
 			type = string
 		}
@@ -243,8 +237,12 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 		}
 	`
 
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
-		CheckDestroy: userCheckDestroy(t.Context()),
+		CheckDestroy: userCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -252,17 +250,13 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config:                   tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
-			PlanOnly: true,
+			Config:                   conf,
+			ConfigVariables:          vars,
+			PlanOnly:                 true,
 		}},
 	})
 }
@@ -271,13 +265,16 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 // resource created by the rubrikinc/polaris provider can be moved to a
 // rubrik_user resource using the moved {} block.
 func TestAccUserResource_MoveState(t *testing.T) {
-	roleName := "Test MoveState Auditor " + uuid.New().String()
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+		"role_name":  config.StringVariable("Test MoveState Auditor " + uuid.New().String()),
+	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
-		CheckDestroy: userCheckDestroy(t.Context()),
+		CheckDestroy: userCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -311,10 +308,7 @@ func TestAccUserResource_MoveState(t *testing.T) {
 					role_ids = [polaris_custom_role.auditor.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-				"role_name":  config.StringVariable(roleName),
-			},
+			ConfigVariables: vars,
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
@@ -354,11 +348,8 @@ func TestAccUserResource_MoveState(t *testing.T) {
 					role_ids = [rubrik_custom_role.auditor.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-				"role_name":  config.StringVariable(roleName),
-			},
-			PlanOnly: true,
+			ConfigVariables: vars,
+			PlanOnly:        true,
 		}},
 	})
 }

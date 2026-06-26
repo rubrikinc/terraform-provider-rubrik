@@ -69,7 +69,7 @@ func loadDataCenterTestConfig() (testConfig, testDataCenter, error) {
 // variables and attribute checks.
 func testClusterID(t *testing.T) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
 	_, dc, err := loadDataCenterTestConfig()
 	if err != nil {
@@ -85,7 +85,7 @@ func testClusterID(t *testing.T) string {
 // to exercise the cluster_settings list resource filters.
 func testClusterIdentity(t *testing.T) (id, name, version string) {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
 	_, dc, err := loadDataCenterTestConfig()
 	if err != nil {

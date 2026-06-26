@@ -31,7 +31,12 @@ import (
 )
 
 func TestAccSSOGroupListResource(t *testing.T) {
-	checkTestSSOGroup(t)
+	skipUnlessSSOGroupDefined(t)
+
+	vars := config.Variables{
+		"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
+		"sso_group_name": config.StringVariable(testSSOGroupName(t)),
+	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
@@ -39,8 +44,8 @@ func TestAccSSOGroupListResource(t *testing.T) {
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			customRoleCheckDestroy(t.Context()),
-			ssoGroupCheckDestroy(t.Context()),
+			customRoleCheckDestroy(t),
+			ssoGroupCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Create the SSO group so the list resource has something to
@@ -72,10 +77,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 					role_ids       = [polaris_custom_role.role.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 		}, {
 			Query: true,
 			Config: `
@@ -89,10 +91,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_sso_group.all", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),
@@ -113,10 +112,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_sso_group.filtered", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),

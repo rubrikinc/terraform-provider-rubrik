@@ -32,13 +32,13 @@ import (
 )
 
 func TestAccSSOGroupDataSource(t *testing.T) {
-	checkTestSSOGroup(t)
+	skipUnlessSSOGroupDefined(t)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			customRoleCheckDestroy(t.Context()),
-			ssoGroupCheckDestroy(t.Context()),
+			customRoleCheckDestroy(t),
+			ssoGroupCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Verify that the data source can look up the SSO group
@@ -125,7 +125,7 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 // TestAccSSOGroupDataSource_FrameworkMigration verifies that the migrated SSO
 // group data source is backwards compatible with the SDKv2 provider.
 func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
-	checkTestSSOGroup(t)
+	skipUnlessSSOGroupDefined(t)
 
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
@@ -136,8 +136,8 @@ func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			customRoleCheckDestroy(t.Context()),
-			ssoGroupCheckDestroy(t.Context()),
+			customRoleCheckDestroy(t),
+			ssoGroupCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.

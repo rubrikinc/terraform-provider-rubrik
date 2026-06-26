@@ -29,16 +29,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 // TestAccAwsCnpAccountWorkflow exercises the full AWS IAM-roles onboarding
 // workflow end-to-end.
 func TestAccAwsCnpAccountWorkflow(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		ExternalProviders: map[string]resource.ExternalProvider{
@@ -48,8 +44,8 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 			},
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Note, the Terraform Plugin Testing package does not support
@@ -133,8 +129,8 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
+				"account_name":   config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
@@ -148,7 +144,7 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-					tfjsonpath.New(keyName), knownvalue.StringExact(account.AccountName)),
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
 				statecheck.CompareValuePairs(
 					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
 					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyID),
@@ -179,10 +175,7 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 // and registered. The post-apply plan check guards against the perpetual diff
 // that the duplicate artifact would otherwise cause.
 func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAWSManualRoleChaining)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
@@ -193,8 +186,8 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 			},
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			Config: `
@@ -272,8 +265,8 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
+				"account_name":   config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
@@ -287,7 +280,7 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-					tfjsonpath.New(keyName), knownvalue.StringExact(account.AccountName)),
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyTrustPolicies),
 					knownvalue.SetExact([]knownvalue.Check{

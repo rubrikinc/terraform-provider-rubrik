@@ -21,10 +21,10 @@
 package provider
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
+	"testing"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -35,13 +35,11 @@ import (
 
 // awsAccountCheckDestroy verifies that all aws_account resources have been
 // deleted.
-func awsAccountCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func awsAccountCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_aws_account" && rs.Type != "rubrik_aws_account" {
 				continue
@@ -52,7 +50,7 @@ func awsAccountCheckDestroy(ctx context.Context) func(*terraform.State) error {
 				return err
 			}
 
-			_, err = aws.Wrap(client).AccountByID(ctx, id)
+			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws account %s still exists", id)
 			}
@@ -67,13 +65,11 @@ func awsAccountCheckDestroy(ctx context.Context) func(*terraform.State) error {
 
 // awsCnpAccountCheckDestroy verifies that all aws_cnp_account resources have
 // been deleted.
-func awsCnpAccountCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func awsCnpAccountCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_aws_cnp_account" && rs.Type != "rubrik_aws_cnp_account" {
 				continue
@@ -84,7 +80,7 @@ func awsCnpAccountCheckDestroy(ctx context.Context) func(*terraform.State) error
 				return err
 			}
 
-			_, err = aws.Wrap(client).AccountByID(ctx, id)
+			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account %s still exists", id)
 			}
@@ -101,13 +97,11 @@ func awsCnpAccountCheckDestroy(ctx context.Context) func(*terraform.State) error
 // aws_cnp_account_attachments resources have been deleted. Since attachments
 // share their lifecycle with the parent aws_cnp_account, the parent account
 // being gone implies the attachments are gone too.
-func awsCnpAccountAttachmentsCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func awsCnpAccountAttachmentsCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_aws_cnp_account_attachments" && rs.Type != "rubrik_aws_cnp_account_attachments" {
 				continue
@@ -118,7 +112,7 @@ func awsCnpAccountAttachmentsCheckDestroy(ctx context.Context) func(*terraform.S
 				return err
 			}
 
-			_, err = aws.Wrap(client).AccountByID(ctx, id)
+			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account_attachments %s still exists", id)
 			}
@@ -133,13 +127,11 @@ func awsCnpAccountAttachmentsCheckDestroy(ctx context.Context) func(*terraform.S
 
 // customRoleCheckDestroy verifies that all custom_role resources have been
 // deleted.
-func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func customRoleCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_custom_role" && rs.Type != "rubrik_custom_role" {
 				continue
@@ -150,7 +142,7 @@ func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
 				return err
 			}
 
-			_, err = access.Wrap(client).RoleByID(ctx, id)
+			_, err = access.Wrap(polarisClient).RoleByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("custom role %s still exists", id)
 			}
@@ -166,13 +158,11 @@ func customRoleCheckDestroy(ctx context.Context) func(*terraform.State) error {
 // roleAssignmentCheckDestroy verifies that the specific roles managed by each
 // role_assignment resource have been unassigned. Roles outside the resource's
 // management are ignored. Users or SSO groups not found are ignored.
-func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func roleAssignmentCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_role_assignment" && rs.Type != "rubrik_role_assignment" {
 				continue
@@ -203,7 +193,7 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 			}
 
 			// Try as user.
-			user, err := access.Wrap(client).UserByID(ctx, rs.Primary.ID)
+			user, err := access.Wrap(polarisClient).UserByID(t.Context(), rs.Primary.ID)
 			if err == nil {
 				for _, role := range user.Roles {
 					if _, ok := managedRoleIDs[role.ID]; ok {
@@ -217,7 +207,7 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 			}
 
 			// Try as SSO group.
-			group, err := access.Wrap(client).SSOGroupByID(ctx, rs.Primary.ID)
+			group, err := access.Wrap(polarisClient).SSOGroupByID(t.Context(), rs.Primary.ID)
 			if err == nil {
 				for _, role := range group.Roles {
 					if _, ok := managedRoleIDs[role.ID]; ok {
@@ -237,19 +227,17 @@ func roleAssignmentCheckDestroy(ctx context.Context) func(*terraform.State) erro
 
 // ssoGroupCheckDestroy verifies that all sso_group resources have been
 // deleted.
-func ssoGroupCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func ssoGroupCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_sso_group" && rs.Type != "rubrik_sso_group" {
 				continue
 			}
 
-			_, err := access.Wrap(client).SSOGroupByID(ctx, rs.Primary.ID)
+			_, err := access.Wrap(polarisClient).SSOGroupByID(t.Context(), rs.Primary.ID)
 			if err == nil {
 				return fmt.Errorf("SSO group %s still exists", rs.Primary.ID)
 			}
@@ -263,19 +251,17 @@ func ssoGroupCheckDestroy(ctx context.Context) func(*terraform.State) error {
 }
 
 // userCheckDestroy verifies that all user resources have been deleted.
-func userCheckDestroy(ctx context.Context) func(*terraform.State) error {
-	return func(s *terraform.State) error {
-		client, err := testClient(ctx)
-		if err != nil {
-			return err
-		}
+func userCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
 
+	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "polaris_user" && rs.Type != "rubrik_user" {
 				continue
 			}
 
-			_, err := access.Wrap(client).UserByID(ctx, rs.Primary.ID)
+			_, err := access.Wrap(polarisClient).UserByID(t.Context(), rs.Primary.ID)
 			if err == nil {
 				return fmt.Errorf("user %s still exists", rs.Primary.ID)
 			}

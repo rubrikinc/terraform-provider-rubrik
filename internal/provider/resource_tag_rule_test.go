@@ -21,12 +21,9 @@
 package provider
 
 import (
-	"context"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
@@ -172,29 +169,8 @@ func TestAccPolarisTagRule_singleTag(t *testing.T) {
 	})
 }
 
-// requireMultiTagFeatureFlag skips the test if the feature flag for multiple
-// key-value pairs in tag rules is not enabled.
-func requireMultiTagFeatureFlag(t *testing.T) {
-	t.Helper()
-
-	credentials := os.Getenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE")
-	if credentials == "" {
-		t.Skip("RUBRIK_POLARIS_SERVICEACCOUNT_FILE not set")
-	}
-
-	ctx := context.Background()
-	c, err := newClient(ctx, credentials, polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	if !c.flag(ctx, core.FeatureFlagMultipleKeyValuePairsInTagRules) {
-		t.Skipf("feature flag %s is not enabled", core.FeatureFlagMultipleKeyValuePairsInTagRules)
-	}
-}
-
 func TestAccPolarisTagRule_multiTag(t *testing.T) {
-	requireMultiTagFeatureFlag(t)
+	skipUnlessFeatureEnabled(t, core.FeatureFlagMultipleKeyValuePairsInTagRules)
 
 	config, _, err := loadRSCTestConfig()
 	if err != nil {

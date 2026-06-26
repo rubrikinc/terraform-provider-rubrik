@@ -33,9 +33,9 @@ import (
 )
 
 func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -50,8 +50,8 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 			},
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Seed the AWS CNP account and its attachments so the list resource
@@ -98,10 +98,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 		}, {
 			Query: true,
 			Config: `
@@ -111,10 +108,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 					provider = polaris
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_aws_cnp_account_attachments.all", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
@@ -133,10 +127,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectIdentity("polaris_aws_cnp_account_attachments.filtered", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
@@ -157,10 +148,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectResourceKnownValues(
 					"polaris_aws_cnp_account_attachments.with_resource",

@@ -36,9 +36,13 @@ import (
 func TestAccRoleAssignmentResource(t *testing.T) {
 	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
 
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             roleAssignmentCheckDestroy(t.Context()),
+		CheckDestroy:             roleAssignmentCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created.
 			Config: `
@@ -77,9 +81,7 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(
 					"polaris_role_assignment.auditor", tfjsonpath.New(keyID),
@@ -149,9 +151,7 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(
 					"polaris_role_assignment.auditor", tfjsonpath.New(keyID),
@@ -183,9 +183,7 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 			ImportState:             true,
 			ImportStateVerify:       true,
 			ImportStateVerifyIgnore: []string{keyUserEmail, keyRoleIDs},
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables:         vars,
 		}},
 	})
 }
@@ -196,8 +194,12 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
 
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+	}
+
 	// Test 1: Modern fields (user_id + role_ids).
-	tfConfig := `
+	conf := `
 		variable "user_email" {
 			type = string
 		}
@@ -235,7 +237,7 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 	`
 
 	resource.Test(t, resource.TestCase{
-		CheckDestroy: roleAssignmentCheckDestroy(t.Context()),
+		CheckDestroy: roleAssignmentCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -243,22 +245,18 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config:                   tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
-			PlanOnly: true,
+			Config:                   conf,
+			ConfigVariables:          vars,
+			PlanOnly:                 true,
 		}},
 	})
 
 	// Test 2: Deprecated fields (user_email + role_id).
-	tfConfig = `
+	conf = `
 		variable "user_email" {
 			type = string
 		}
@@ -289,7 +287,7 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 	`
 
 	resource.Test(t, resource.TestCase{
-		CheckDestroy: roleAssignmentCheckDestroy(t.Context()),
+		CheckDestroy: roleAssignmentCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -297,17 +295,13 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config:                   tfConfig,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
-			PlanOnly: true,
+			Config:                   conf,
+			ConfigVariables:          vars,
+			PlanOnly:                 true,
 		}},
 	})
 }
@@ -318,11 +312,15 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
 
+	vars := config.Variables{
+		"user_email": config.StringVariable(testUserEmail(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
-		CheckDestroy: roleAssignmentCheckDestroy(t.Context()),
+		CheckDestroy: roleAssignmentCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -366,9 +364,7 @@ func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_role_assignment.auditor", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
@@ -420,9 +416,7 @@ func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 					]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
-			},
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state. Without the apply step, destroy can
 			// fail due to resource dependency issues.

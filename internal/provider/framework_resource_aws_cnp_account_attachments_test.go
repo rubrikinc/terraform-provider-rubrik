@@ -34,9 +34,9 @@ import (
 )
 
 func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -48,8 +48,8 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 			},
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			Config: `
@@ -93,10 +93,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -171,10 +168,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole),
@@ -190,20 +184,14 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},
 		}, {
-			ResourceName: "polaris_aws_cnp_account_attachments.attachments",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:      "polaris_aws_cnp_account_attachments.attachments",
+			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			ResourceName: "polaris_aws_cnp_account_attachments.attachments",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:    "polaris_aws_cnp_account_attachments.attachments",
+			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -212,11 +200,8 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 				},
 			},
 		}, {
-			ResourceName: "polaris_aws_cnp_account_attachments.attachments",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:    "polaris_aws_cnp_account_attachments.attachments",
+			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -234,9 +219,9 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 // provider; step 2 refreshes state using the local Framework provider and
 // asserts the plan is empty.
 func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	tfConfig := `
@@ -283,8 +268,8 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
@@ -297,11 +282,8 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.6.3",
 				},
 			},
-			Config: tfConfig,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			Config:          tfConfig,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -314,12 +296,9 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: ">=6.0.0",
 				},
 			},
-			Config: tfConfig,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
-			PlanOnly: true,
+			Config:          tfConfig,
+			ConfigVariables: vars,
+			PlanOnly:        true,
 		}},
 	})
 }
@@ -329,9 +308,9 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 // provider can be moved to a rubrik_aws_cnp_account_attachments resource using
 // the moved {} block.
 func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -339,8 +318,8 @@ func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsCnpAccountCheckDestroy(t.Context()),
-			awsCnpAccountAttachmentsCheckDestroy(t.Context()),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
@@ -393,10 +372,7 @@ func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -457,10 +433,7 @@ func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),

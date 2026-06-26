@@ -34,7 +34,7 @@ import (
 func TestAccCustomRoleResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             customRoleCheckDestroy(t.Context()),
+		CheckDestroy:             customRoleCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created.
 			Config: `
@@ -162,7 +162,7 @@ func TestAccCustomRoleResource(t *testing.T) {
 func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             customRoleCheckDestroy(t.Context()),
+		CheckDestroy:             customRoleCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created from a role template.
 			Config: `
@@ -228,7 +228,7 @@ func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 // SDKv2 provider; step 2 refreshes state using the local Framework provider
 // and asserts the plan is empty.
 func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
-	config := `
+	conf := `
 		resource "polaris_custom_role" "role" {
 			name        = "Test Auditor"
 			description = "Test Role: Delete Me!"
@@ -251,7 +251,7 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 	`
 
 	resource.Test(t, resource.TestCase{
-		CheckDestroy: customRoleCheckDestroy(t.Context()),
+		CheckDestroy: customRoleCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -259,7 +259,7 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: config,
+			Config: conf,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -270,7 +270,7 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 			},
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config:                   config,
+			Config:                   conf,
 			PlanOnly:                 true,
 		}},
 	})
@@ -284,7 +284,7 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
-		CheckDestroy: customRoleCheckDestroy(t.Context()),
+		CheckDestroy: customRoleCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {

@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
@@ -69,13 +70,6 @@ func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
 						permission_groups = ["BASIC"]
 					}
 				}
-
-				data "polaris_aws_cnp_artifacts" "role_chaining" {
-					feature {
-						name              = "ROLE_CHAINING"
-						permission_groups = ["BASIC"]
-					}
-				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// All features.
@@ -94,7 +88,26 @@ func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
 						knownvalue.StringExact("EXOCOMPUTE_EKS_MASTERNODE"),
 						knownvalue.StringExact("EXOCOMPUTE_EKS_WORKERNODE"),
 					})),
+			},
+		}},
+	})
+}
 
+func TestAccAwsCnpArtifactsDataSource_RoleChaining(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAWSManualRoleChaining)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "polaris_aws_cnp_artifacts" "role_chaining" {
+					feature {
+						name              = "ROLE_CHAINING"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
 				// Role chaining.
 				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.role_chaining",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),

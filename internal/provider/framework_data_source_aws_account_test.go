@@ -32,14 +32,9 @@ import (
 )
 
 func TestAccAwsAccountDataSource(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             awsAccountCheckDestroy(t.Context()),
+		CheckDestroy:             awsAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: `
 				variable "profile" {
@@ -75,9 +70,9 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"profile":        config.StringVariable(account.Profile),
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
+				"profile":        config.StringVariable(testAWSProfile(t)),
+				"account_name":   config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Account.
@@ -160,11 +155,6 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 // TestAccAwsAccountDataSource_FrameworkMigration verifies that the migrated
 // aws_account data source is backwards compatible with the SDKv2 provider.
 func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"polaris-sdkv2": {
@@ -173,7 +163,7 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 			},
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             awsAccountCheckDestroy(t.Context()),
+		CheckDestroy:             awsAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Onboard an AWS account using the SDKv2 resource and verify that
 			// the SDKv2 and Framework data sources return identical values.
@@ -205,8 +195,8 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"profile":      config.StringVariable(account.Profile),
-				"account_name": config.StringVariable(account.AccountName),
+				"profile":      config.StringVariable(testAWSProfile(t)),
+				"account_name": config.StringVariable(testAWSAccountName(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(

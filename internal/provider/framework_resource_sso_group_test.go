@@ -36,7 +36,12 @@ import (
 )
 
 func TestAccSSOGroupResource(t *testing.T) {
-	checkTestSSOGroup(t)
+	skipUnlessSSOGroupDefined(t)
+
+	vars := config.Variables{
+		"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
+		"sso_group_name": config.StringVariable(testSSOGroupName(t)),
+	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
@@ -44,8 +49,8 @@ func TestAccSSOGroupResource(t *testing.T) {
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			customRoleCheckDestroy(t.Context()),
-			ssoGroupCheckDestroy(t.Context()),
+			customRoleCheckDestroy(t),
+			ssoGroupCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created.
@@ -89,10 +94,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					role_ids       = [polaris_custom_role.role1.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
@@ -153,10 +155,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					role_ids       = [polaris_custom_role.role2.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
@@ -182,10 +181,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 			ImportStateIdFunc: ssoGroupImportID("polaris_sso_group.group"),
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables:   vars,
 		}, {
 			// import {} block with id attribute, composite string format
 			// "<group_name>:<auth_domain_id>".
@@ -193,10 +189,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 			ImportStateKind:   resource.ImportBlockWithID,
 			ImportState:       true,
 			ImportStateIdFunc: ssoGroupImportID("polaris_sso_group.group"),
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables:   vars,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
@@ -207,10 +200,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 			ResourceName:    "polaris_sso_group.group",
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
@@ -224,15 +214,20 @@ func TestAccSSOGroupResource(t *testing.T) {
 // polaris_sso_group resource created by the rubrikinc/polaris provider can be
 // moved to a rubrik_sso_group resource using the moved {} block.
 func TestAccSSOGroupResource_MoveState(t *testing.T) {
-	checkTestSSOGroup(t)
+	skipUnlessSSOGroupDefined(t)
+
+	vars := config.Variables{
+		"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
+		"sso_group_name": config.StringVariable(testSSOGroupName(t)),
+	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			customRoleCheckDestroy(t.Context()),
-			ssoGroupCheckDestroy(t.Context()),
+			customRoleCheckDestroy(t),
+			ssoGroupCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
@@ -268,10 +263,7 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 					role_ids       = [polaris_custom_role.role.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
@@ -315,10 +307,7 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 					role_ids       = [rubrik_custom_role.role.id]
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
-				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
-			},
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state. Without the apply step, destroy can
 			// fail due to resource dependency issues.

@@ -27,14 +27,75 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
 	gqlaccess "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
+
+// testAWSAccountID returns the AWS account ID from the AWS test configuration.
+func testAWSAccountID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	conf, err := loadAWSTestConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return conf.AccountID
+}
+
+// testAWSAccountName returns the AWS account name from the AWS test
+// configuration.
+func testAWSAccountName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	conf, err := loadAWSTestConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return conf.AccountName
+}
+
+// testAWSProfile returns the AWS profile from the AWS test configuration.
+func testAWSProfile(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	conf, err := loadAWSTestConf()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return conf.Profile
+}
+
+// testClient returns an RSC client for testing outside the Terraform provider.
+// E.g. checking if resources have been destroyed in a check destroy function.
+func testClient(t *testing.T) *polaris.Client {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	c, err := newClient(context.Background(), testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create test client: %s", err)
+	}
+
+	pc, err := c.polaris()
+	if err != nil {
+		t.Fatalf("failed to create test client: %s", err)
+	}
+
+	return pc
+}
 
 // testCredentials returns the RSC credentials from the environment.
 func testCredentials(t *testing.T) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
 	credentials, err := loadTestCredentials("RUBRIK_POLARIS_SERVICEACCOUNT_FILE")
 	if err != nil {
@@ -47,14 +108,14 @@ func testCredentials(t *testing.T) string {
 // testUserEmail returns the new user email from the RSC test configuration.
 func testUserEmail(t *testing.T) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
-	rsc, err := loadRSCTestConf()
+	conf, err := loadRSCTestConf()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return rsc.NewUserEmail
+	return conf.NewUserEmail
 }
 
 // testSSOGroupName returns the new SSO group name from the RSC test
@@ -62,42 +123,34 @@ func testUserEmail(t *testing.T) string {
 // The test is skipped if the value is not set in the RSC test configuration.
 func testSSOGroupName(t *testing.T) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
-	rsc, err := loadRSCTestConf()
+	conf, err := loadRSCTestConf()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rsc.NewSSOGroupName == "" {
+	if conf.NewSSOGroupName == "" {
 		t.Skip("SSO group fixture not available: newSsoGroupName not set")
 	}
 
-	return rsc.NewSSOGroupName
+	return conf.NewSSOGroupName
 }
 
 // testAuthDomainID returns the RSC-side auth domain ID from the RSC test
 // configuration. The test is skipped if the value is not set.
 func testAuthDomainID(t *testing.T) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
-	rsc, err := loadRSCTestConf()
+	conf, err := loadRSCTestConf()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rsc.AuthDomainID == "" {
+	if conf.AuthDomainID == "" {
 		t.Skip("SSO group fixture not available: authDomainId not set")
 	}
 
-	return rsc.AuthDomainID
-}
-
-// checkTestSSOGroup skips the test when either fixture field required for
-// SSO group tests are not set.
-func checkTestSSOGroup(t *testing.T) {
-	t.Helper()
-	testAuthDomainID(t)
-	testSSOGroupName(t)
+	return conf.AuthDomainID
 }
 
 // createTestRole creates a custom role via the SDK and registers a cleanup
@@ -105,12 +158,9 @@ func checkTestSSOGroup(t *testing.T) {
 // CLUSTER_ROOT. Returns the role ID.
 func createTestRole(t *testing.T, name string) uuid.UUID {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
-	polarisClient, err := testClient(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	polarisClient := testClient(t)
 
 	desc := "Test Role: Delete Me!"
 	roleID, err := access.Wrap(polarisClient).CreateRole(t.Context(), name, desc, []gqlaccess.Permission{{
@@ -126,7 +176,7 @@ func createTestRole(t *testing.T, name string) uuid.UUID {
 
 	t.Cleanup(func() {
 		if err := access.Wrap(polarisClient).DeleteRole(context.Background(), roleID); err != nil {
-			t.Logf("failed to delete test role %q: %s", roleID, err)
+			t.Fatalf("failed to delete test role %q: %s", roleID, err)
 		}
 	})
 
@@ -138,7 +188,7 @@ func createTestRole(t *testing.T, name string) uuid.UUID {
 // the VIEW_CLUSTER permission on the CLUSTER_ROOT. Returns the role ID.
 func createTestRoleWithUniqueName(t *testing.T) uuid.UUID {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -152,12 +202,9 @@ func createTestRoleWithUniqueName(t *testing.T) uuid.UUID {
 // Registers a cleanup function to delete the user. Returns the user ID.
 func createTestUser(t *testing.T, email string, roleID uuid.UUID) string {
 	t.Helper()
-	skipIfNotAcceptance(t)
+	skipUnlessAcceptanceTest(t)
 
-	polarisClient, err := testClient(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	polarisClient := testClient(t)
 
 	userID, err := access.Wrap(polarisClient).CreateUser(t.Context(), email, []uuid.UUID{roleID})
 	if err != nil {
@@ -166,19 +213,46 @@ func createTestUser(t *testing.T, email string, roleID uuid.UUID) string {
 
 	t.Cleanup(func() {
 		if err := access.Wrap(polarisClient).DeleteUser(context.Background(), userID); err != nil {
-			t.Logf("failed to delete test user %q: %s", userID, err)
+			t.Fatalf("failed to delete test user %q: %s", userID, err)
 		}
 	})
 
 	return userID
 }
 
-// skipIfNotAcceptance skips the test if the TF_ACC environment variable is not
-// set.
-func skipIfNotAcceptance(t *testing.T) {
+// skipUnlessAcceptanceTest skips the test if the TF_ACC environment variable is
+// not set.
+func skipUnlessAcceptanceTest(t *testing.T) {
 	t.Helper()
 
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Acceptance tests skipped unless env 'TF_ACC' set")
+	}
+}
+
+// skipUnlessSSOGroupDefined skips the test if fixtures required for SSO group
+// tests are not set.
+func skipUnlessSSOGroupDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAuthDomainID(t)
+	testSSOGroupName(t)
+}
+
+// skipUnlessFeatureEnabled skips the test if the specified feature is not
+// enabled.
+func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	ctx := context.Background()
+	c, err := newClient(ctx, testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	if !c.flag(ctx, featureFlag) {
+		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
 }

@@ -39,14 +39,14 @@ import (
 )
 
 func TestAccAwsCnpAccountResource(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             awsCnpAccountCheckDestroy(t.Context()),
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: `
 				variable "account_name" {
@@ -74,10 +74,7 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -86,9 +83,9 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyDeleteSnapshotsOnDestroy), knownvalue.Bool(false)),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-					tfjsonpath.New(keyNativeID), knownvalue.StringExact(account.AccountID)),
+					tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-					tfjsonpath.New(keyName), knownvalue.StringExact(account.AccountName)),
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyRegions),
 					knownvalue.SetExact([]knownvalue.Check{
@@ -136,21 +133,15 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 			},
 		}, {
 			// Terraform import.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:      "polaris_aws_cnp_account.account",
+			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:    "polaris_aws_cnp_account.account",
+			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -160,11 +151,8 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:    "polaris_aws_cnp_account.account",
+			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -177,11 +165,6 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 }
 
 func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// importIDFunc builds the legacy "<uuid>:<external-id>" composite import
 	// id from the post-create state. Used by the two string-id import kinds.
 	importIDFunc := func(s *terraform.State) (string, error) {
@@ -192,9 +175,14 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 		return fmt.Sprintf("%s:%s", rs.Primary.ID, rs.Primary.Attributes[keyExternalID]), nil
 	}
 
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		CheckDestroy:             awsCnpAccountCheckDestroy(t.Context()),
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: `
 				variable "account_name" {
@@ -219,10 +207,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -238,22 +223,16 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			},
 		}, {
 			// Terraform import.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:      "polaris_aws_cnp_account.account",
+			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateIdFunc: importIDFunc,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:      "polaris_aws_cnp_account.account",
+			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportBlockWithID,
 			ImportState:       true,
 			ImportStateIdFunc: importIDFunc,
@@ -264,11 +243,8 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName: "polaris_aws_cnp_account.account",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(account.AccountName),
-				"aws_account_id": config.StringVariable(account.AccountID),
-			},
+			ResourceName:    "polaris_aws_cnp_account.account",
+			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -285,12 +261,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 // Step 1 onboards the account with the SDKv2 provider; Step 2 swaps to the
 // framework provider with the same config and asserts an empty plan.
 func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tfConfig := `
+	conf := `
 		variable "account_name" {
 			type = string
 		}
@@ -313,8 +284,13 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 		}
 	`
 
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
-		CheckDestroy: awsCnpAccountCheckDestroy(t.Context()),
+		CheckDestroy: awsCnpAccountCheckDestroy(t),
 		Steps: []resource.TestStep{
 			{
 				ExternalProviders: map[string]resource.ExternalProvider{
@@ -323,18 +299,15 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 						VersionConstraint: "1.6.3",
 					},
 				},
-				Config: tfConfig,
-				ConfigVariables: config.Variables{
-					"account_name":   config.StringVariable(account.AccountName),
-					"aws_account_id": config.StringVariable(account.AccountID),
-				},
+				Config:          conf,
+				ConfigVariables: vars,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 						tfjsonpath.New(keyID), NonNullUUID()),
 					statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-						tfjsonpath.New(keyName), knownvalue.StringExact(account.AccountName)),
+						tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
 					statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
-						tfjsonpath.New(keyNativeID), knownvalue.StringExact(account.AccountID)),
+						tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
 					statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 						tfjsonpath.New(keyRegions),
 						knownvalue.SetExact([]knownvalue.Check{
@@ -360,12 +333,9 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 			},
 			{
 				ProtoV6ProviderFactories: protoV6ProviderFactories,
-				Config:                   tfConfig,
-				ConfigVariables: config.Variables{
-					"account_name":   config.StringVariable(account.AccountName),
-					"aws_account_id": config.StringVariable(account.AccountID),
-				},
-				PlanOnly: true,
+				Config:                   conf,
+				ConfigVariables:          vars,
+				PlanOnly:                 true,
 			},
 		},
 	})
@@ -375,21 +345,16 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 // polaris_aws_cnp_account resource created by the rubrikinc/polaris provider
 // can be moved to a rubrik_aws_cnp_account resource using the moved {} block.
 func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
-	account, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	configVars := config.Variables{
-		"account_name":   config.StringVariable(account.AccountName),
-		"aws_account_id": config.StringVariable(account.AccountID),
+	vars := config.Variables{
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
 		},
-		CheckDestroy: awsCnpAccountCheckDestroy(t.Context()),
+		CheckDestroy: awsCnpAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
@@ -423,7 +388,7 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: configVars,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -460,7 +425,7 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
-			ConfigVariables: configVars,
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state. Without the apply step, destroy can
 			// fail due to resource dependency issues.
