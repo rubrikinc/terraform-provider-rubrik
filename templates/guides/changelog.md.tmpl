@@ -9,6 +9,21 @@ page_title: "Changelog"
   operation to be granted alongside `VIEW_CLUSTER`. RSC automatically adds `VIEW_CLUSTER_REFERENCE` whenever
   `VIEW_CLUSTER` is granted, so granting `VIEW_CLUSTER` alone resulted in perpetual drift. `VIEW_CLUSTER_REFERENCE`
   may still be granted on its own.
+* **Breaking Change:** When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the account, Azure SQL Database and
+  Managed Instance SLAs in the `rubrik_sla_domain` resource follow the new V1/V2 model: a V2 (Rubrik-managed) SLA
+  specifies a `backup_location` block instead of the top-level `archival` block, and the previous requirement that an
+  Azure SQL Database SLA include an instant-archival location no longer applies. Accounts without the feature enabled
+  are unaffected and keep the existing behavior. See the [v1.9.0 upgrade guide](upgrade_guide_v1.9.0.md).
+  [[docs](../resources/sla_domain.md)]
+* Add support for V1 (Azure-managed, long-term retention) Azure SQL SLAs in the `rubrik_sla_domain` resource via a new
+  `ltr_config` block in the `azure_sql_database_config` and `azure_sql_managed_instance_config` blocks, with weekly,
+  monthly, and yearly retention. A V1 SLA omits the Rubrik snapshot schedule and backup location. Requires the
+  `CNP_AZURE_SQL_SLA_REVAMP` feature. [[docs](../resources/sla_domain.md)]
+* Add a computed `backup_type` attribute to the `rubrik_sla_domain` resource, reporting whether an Azure SQL SLA's
+  backups are Azure-managed (`NATIVE`, V1) or Rubrik-managed (`RUBRIK`, V2).
+* Add support for combining the Azure SQL Database and Azure SQL Managed Instance object types in a single
+  `rubrik_sla_domain` (they may be combined with each other only, not with other object types), matching RSC.
+  [[docs](../resources/sla_domain.md)]
 
 ## v1.8.1
 * Add support for the `SERVERS_AND_APPS` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project`
