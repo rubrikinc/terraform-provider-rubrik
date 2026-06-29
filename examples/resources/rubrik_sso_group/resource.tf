@@ -21,6 +21,14 @@ resource "rubrik_custom_role" "viewer" {
       object_ids     = ["CLUSTER_ROOT"]
     }
   }
+
+  permission {
+    operation = "VIEW_CLUSTER_REFERENCE"
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids     = ["CLUSTER_ROOT"]
+    }
+  }
 }
 
 data "rubrik_identity_provider" "example" {
