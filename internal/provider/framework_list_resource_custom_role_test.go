@@ -42,12 +42,12 @@ func TestAccCustomRoleListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_custom_role" "all" {
+				list "rubrik_custom_role" "all" {
 					provider = polaris
 				}
 			`,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_custom_role.all", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_custom_role.all", map[string]knownvalue.Check{
 					keyID: knownvalue.StringExact(roleID.String()),
 				}),
 			},
@@ -56,7 +56,7 @@ func TestAccCustomRoleListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_custom_role" "filtered" {
+				list "rubrik_custom_role" "filtered" {
 					provider = polaris
 
 					config {
@@ -65,10 +65,10 @@ func TestAccCustomRoleListResource(t *testing.T) {
 				}
 			`,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_custom_role.filtered", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_custom_role.filtered", map[string]knownvalue.Check{
 					keyID: knownvalue.StringExact(roleID.String()),
 				}),
-				querycheck.ExpectLength("polaris_custom_role.filtered", 1),
+				querycheck.ExpectLength("rubrik_custom_role.filtered", 1),
 			},
 		}},
 	})

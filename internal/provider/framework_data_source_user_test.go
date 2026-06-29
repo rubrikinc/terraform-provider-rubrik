@@ -44,13 +44,13 @@ func TestAccUserDataSource(t *testing.T) {
 					type = string
 				}
 
-				data "polaris_user" "by_email" {
+				data "rubrik_user" "by_email" {
 					email  = var.user_email
 					domain = "LOCAL"
 				}
 
-				data "polaris_user" "by_id" {
-					user_id = data.polaris_user.by_email.id
+				data "rubrik_user" "by_id" {
+					user_id = data.rubrik_user.by_email.id
 				}
 			`,
 			ConfigVariables: config.Variables{
@@ -58,19 +58,19 @@ func TestAccUserDataSource(t *testing.T) {
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By Email.
-				statecheck.ExpectKnownValue("data.polaris_user.by_email", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_user.by_email", tfjsonpath.New(keyID),
 					knownvalue.StringExact(userID)),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyID),
-					"data.polaris_user.by_email", tfjsonpath.New(keyUserID),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyID),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyUserID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_user.by_email", tfjsonpath.New(keyDomain),
+				statecheck.ExpectKnownValue("data.rubrik_user.by_email", tfjsonpath.New(keyDomain),
 					knownvalue.StringExact("LOCAL")),
-				statecheck.ExpectKnownValue("data.polaris_user.by_email", tfjsonpath.New(keyIsAccountOwner),
+				statecheck.ExpectKnownValue("data.rubrik_user.by_email", tfjsonpath.New(keyIsAccountOwner),
 					knownvalue.Bool(false)),
-				statecheck.ExpectKnownValue("data.polaris_user.by_email", tfjsonpath.New(keyStatus),
+				statecheck.ExpectKnownValue("data.rubrik_user.by_email", tfjsonpath.New(keyStatus),
 					knownvalue.StringExact("ACTIVE")),
-				statecheck.ExpectKnownValue("data.polaris_user.by_email", tfjsonpath.New(keyRoles),
+				statecheck.ExpectKnownValue("data.rubrik_user.by_email", tfjsonpath.New(keyRoles),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
 							keyID: knownvalue.StringExact(roleID.String()),
@@ -78,32 +78,32 @@ func TestAccUserDataSource(t *testing.T) {
 					})),
 				// By ID.
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyID),
-					"data.polaris_user.by_id", tfjsonpath.New(keyID),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyID),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyUserID),
-					"data.polaris_user.by_id", tfjsonpath.New(keyUserID),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyUserID),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyUserID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyEmail),
-					"data.polaris_user.by_id", tfjsonpath.New(keyEmail),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyEmail),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyEmail),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyDomain),
-					"data.polaris_user.by_id", tfjsonpath.New(keyDomain),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyDomain),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyDomain),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyIsAccountOwner),
-					"data.polaris_user.by_id", tfjsonpath.New(keyIsAccountOwner),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyIsAccountOwner),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyIsAccountOwner),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyRoles),
-					"data.polaris_user.by_id", tfjsonpath.New(keyRoles),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyRoles),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyRoles),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_user.by_email", tfjsonpath.New(keyStatus),
-					"data.polaris_user.by_id", tfjsonpath.New(keyStatus),
+					"data.rubrik_user.by_email", tfjsonpath.New(keyStatus),
+					"data.rubrik_user.by_id", tfjsonpath.New(keyStatus),
 					compare.ValuesSame()),
 			},
 		}},

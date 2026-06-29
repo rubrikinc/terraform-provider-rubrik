@@ -68,7 +68,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "crossaccount" {
+				data "rubrik_aws_cnp_permissions" "crossaccount" {
 					role_key = "CROSSACCOUNT"
 
 					dynamic "feature" {
@@ -80,7 +80,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "masternode" {
+				data "rubrik_aws_cnp_permissions" "masternode" {
 					role_key = "EXOCOMPUTE_EKS_MASTERNODE"
 
 					dynamic "feature" {
@@ -92,7 +92,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "workernode" {
+				data "rubrik_aws_cnp_permissions" "workernode" {
 					role_key = "EXOCOMPUTE_EKS_WORKERNODE"
 
 					dynamic "feature" {
@@ -104,7 +104,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "lambda" {
+				data "rubrik_aws_cnp_permissions" "lambda" {
 					role_key = "EXOCOMPUTE_EKS_LAMBDA"
 
 					dynamic "feature" {
@@ -118,9 +118,9 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// CROSSACCOUNT.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.crossaccount",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.crossaccount",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
 					tfjsonpath.New(keyCustomerManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -168,26 +168,26 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 							keyName:    knownvalue.StringExact("ServersAndAppFeaturePolicy"),
 						}),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.crossaccount",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{})),
 
 				// EXOCOMPUTE_EKS_MASTERNODE.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.masternode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.masternode",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.masternode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.masternode",
 					tfjsonpath.New(keyCustomerManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.masternode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.masternode",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.StringExact("arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"),
 					})),
 
 				// EXOCOMPUTE_EKS_WORKERNODE.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.workernode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.workernode",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.workernode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.workernode",
 					tfjsonpath.New(keyCustomerManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -211,7 +211,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 							keyName:    knownvalue.StringExact("NodeRoleSSMPolicy"),
 						}),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.workernode",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.workernode",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.StringExact("arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"),
@@ -219,12 +219,12 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 					})),
 
 				// EXOCOMPUTE_EKS_LAMBDA.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.lambda",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.lambda",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.lambda",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.lambda",
 					tfjsonpath.New(keyCustomerManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.lambda",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.lambda",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.StringExact("arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"),
@@ -242,7 +242,7 @@ func TestAccAwsCnpPermissionsDataSource_RoleChaining(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_aws_cnp_permissions" "role_chaining" {
+				data "rubrik_aws_cnp_permissions" "role_chaining" {
 					role_key = "ROLE_CHAINING"
 					feature {
 						name              = "ROLE_CHAINING"
@@ -252,9 +252,9 @@ func TestAccAwsCnpPermissionsDataSource_RoleChaining(t *testing.T) {
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// ROLE_CHAINING.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.role_chaining",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.role_chaining",
 					tfjsonpath.New(keyCustomerManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -265,7 +265,7 @@ func TestAccAwsCnpPermissionsDataSource_RoleChaining(t *testing.T) {
 									`"Action":["sts:AssumeRole"],"Resource":["*"]}],"Version":"2012-10-17"}`),
 						}),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_permissions.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.role_chaining",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{})),
 			},

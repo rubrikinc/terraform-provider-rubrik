@@ -51,7 +51,7 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Role for SSO Group Data Source"
 					description = "Test Role: Delete Me!"
 
@@ -71,18 +71,18 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_sso_group" "group" {
+				resource "rubrik_sso_group" "group" {
 					auth_domain_id = var.auth_domain_id
 					group_name     = var.sso_group_name
-					role_ids       = [polaris_custom_role.role.id]
+					role_ids       = [rubrik_custom_role.role.id]
 				}
 
-				data "polaris_sso_group" "by_name" {
-					name = polaris_sso_group.group.group_name
+				data "rubrik_sso_group" "by_name" {
+					name = rubrik_sso_group.group.group_name
 				}
 
-				data "polaris_sso_group" "by_id" {
-					sso_group_id = polaris_sso_group.group.id
+				data "rubrik_sso_group" "by_id" {
+					sso_group_id = rubrik_sso_group.group.id
 				}
 			`,
 			ConfigVariables: config.Variables{
@@ -91,38 +91,38 @@ func TestAccSSOGroupDataSource(t *testing.T) {
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By Name.
-				statecheck.ExpectKnownValue("data.polaris_sso_group.by_name", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_sso_group.by_name", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyID),
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keySSOGroupID),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyID),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keySSOGroupID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_sso_group.by_name", tfjsonpath.New(keyDomainName),
+				statecheck.ExpectKnownValue("data.rubrik_sso_group.by_name", tfjsonpath.New(keyDomainName),
 					knownvalue.NotNull()),
 				// By ID.
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyID),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keyID),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyID),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keySSOGroupID),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keySSOGroupID),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keySSOGroupID),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keySSOGroupID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyName),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keyName),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyName),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyDomainName),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keyDomainName),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyDomainName),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keyDomainName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyRoles),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keyRoles),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyRoles),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keyRoles),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_sso_group.by_name", tfjsonpath.New(keyUsers),
-					"data.polaris_sso_group.by_id", tfjsonpath.New(keyUsers),
+					"data.rubrik_sso_group.by_name", tfjsonpath.New(keyUsers),
+					"data.rubrik_sso_group.by_id", tfjsonpath.New(keyUsers),
 					compare.ValuesSame()),
 			},
 		}},

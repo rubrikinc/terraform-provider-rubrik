@@ -58,7 +58,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Role for SSO Group List"
 					description = "Test Role: Delete Me!"
 
@@ -78,10 +78,10 @@ func TestAccSSOGroupListResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_sso_group" "group" {
+				resource "rubrik_sso_group" "group" {
 					auth_domain_id = var.auth_domain_id
 					group_name     = var.sso_group_name
-					role_ids       = [polaris_custom_role.role.id]
+					role_ids       = [rubrik_custom_role.role.id]
 				}
 			`,
 			ConfigVariables: vars,
@@ -90,7 +90,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_sso_group" "all" {
+				list "rubrik_sso_group" "all" {
 					provider = polaris
 
 					config {
@@ -100,7 +100,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_sso_group.all", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_sso_group.all", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),
 					keyAuthDomainID: knownvalue.StringExact(testAuthDomainID(t)),
 				}),
@@ -110,7 +110,7 @@ func TestAccSSOGroupListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_sso_group" "filtered" {
+				list "rubrik_sso_group" "filtered" {
 					provider = polaris
 
 					config {
@@ -121,11 +121,11 @@ func TestAccSSOGroupListResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_sso_group.filtered", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_sso_group.filtered", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),
 					keyAuthDomainID: knownvalue.StringExact(testAuthDomainID(t)),
 				}),
-				querycheck.ExpectLength("polaris_sso_group.filtered", 1),
+				querycheck.ExpectLength("rubrik_sso_group.filtered", 1),
 			},
 		}},
 	})

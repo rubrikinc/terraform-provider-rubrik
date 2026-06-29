@@ -60,7 +60,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
@@ -78,13 +78,13 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 				resource "aws_iam_role" "crossaccount" {
 					name_prefix        = "rubrik-tfacc-"
 					assume_role_policy = one([
-						for p in polaris_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
+						for p in rubrik_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
 					])
 				}
 
-				resource "polaris_aws_cnp_account_attachments" "attachments" {
-					account_id = polaris_aws_cnp_account.account.id
-					features   = polaris_aws_cnp_account.account.feature.*.name
+				resource "rubrik_aws_cnp_account_attachments" "attachments" {
+					account_id = rubrik_aws_cnp_account.account.id
+					features   = rubrik_aws_cnp_account.account.feature.*.name
 
 					role {
 						key         = "CROSSACCOUNT"
@@ -95,23 +95,23 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
+					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyFeatures),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("CLOUD_DISCOVERY"),
 						knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
 					})),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -121,7 +121,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					})),
 				statecheck.CompareValuePairs(
 					"aws_iam_role.crossaccount", tfjsonpath.New(keyARN),
-					"polaris_aws_cnp_account_attachments.attachments",
+					"rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},
 		}, {
@@ -136,7 +136,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
@@ -154,13 +154,13 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 				resource "aws_iam_role" "crossaccount" {
 					name_prefix        = "rubrik-tfacc-"
 					assume_role_policy = one([
-						for p in polaris_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
+						for p in rubrik_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
 					])
 				}
 
-				resource "polaris_aws_cnp_account_attachments" "attachments" {
-					account_id = polaris_aws_cnp_account.account.id
-					features   = polaris_aws_cnp_account.account.feature.*.name
+				resource "rubrik_aws_cnp_account_attachments" "attachments" {
+					account_id = rubrik_aws_cnp_account.account.id
+					features   = rubrik_aws_cnp_account.account.feature.*.name
 
 					role {
 						key = "CROSSACCOUNT"
@@ -170,7 +170,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -180,17 +180,17 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 					})),
 				statecheck.CompareValuePairs(
 					"aws_iam_role.crossaccount", tfjsonpath.New(keyARN),
-					"polaris_aws_cnp_account_attachments.attachments",
+					"rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},
 		}, {
-			ResourceName:      "polaris_aws_cnp_account_attachments.attachments",
+			ResourceName:      "rubrik_aws_cnp_account_attachments.attachments",
 			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			ResourceName:    "polaris_aws_cnp_account_attachments.attachments",
+			ResourceName:    "rubrik_aws_cnp_account_attachments.attachments",
 			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
@@ -200,7 +200,7 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 				},
 			},
 		}, {
-			ResourceName:    "polaris_aws_cnp_account_attachments.attachments",
+			ResourceName:    "rubrik_aws_cnp_account_attachments.attachments",
 			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,

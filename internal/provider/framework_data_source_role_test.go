@@ -37,7 +37,7 @@ func TestAccRoleDataSource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the data source can look up the role by ID and name.
 			Config: `
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Terraform Test Role"
 					description = "Terraform Integration Test Role"
 
@@ -64,63 +64,63 @@ func TestAccRoleDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_role" "by_id" {
-					role_id = polaris_custom_role.role.id
+				data "rubrik_role" "by_id" {
+					role_id = rubrik_custom_role.role.id
 				}
 
-				data "polaris_role" "by_name" {
-					name = polaris_custom_role.role.name
+				data "rubrik_role" "by_name" {
+					name = rubrik_custom_role.role.name
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Role.
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				// By ID.
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyID),
-					"data.polaris_role.by_id", tfjsonpath.New(keyID),
+					"rubrik_custom_role.role", tfjsonpath.New(keyID),
+					"data.rubrik_role.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyID),
-					"data.polaris_role.by_id", tfjsonpath.New(keyRoleID),
+					"rubrik_custom_role.role", tfjsonpath.New(keyID),
+					"data.rubrik_role.by_id", tfjsonpath.New(keyRoleID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyName),
-					"data.polaris_role.by_id", tfjsonpath.New(keyName),
+					"rubrik_custom_role.role", tfjsonpath.New(keyName),
+					"data.rubrik_role.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyDescription),
-					"data.polaris_role.by_id", tfjsonpath.New(keyDescription),
+					"rubrik_custom_role.role", tfjsonpath.New(keyDescription),
+					"data.rubrik_role.by_id", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyPermission),
-					"data.polaris_role.by_id", tfjsonpath.New(keyPermission),
+					"rubrik_custom_role.role", tfjsonpath.New(keyPermission),
+					"data.rubrik_role.by_id", tfjsonpath.New(keyPermission),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_role.by_id", tfjsonpath.New(keyIsOrgAdmin),
+				statecheck.ExpectKnownValue("data.rubrik_role.by_id", tfjsonpath.New(keyIsOrgAdmin),
 					knownvalue.Bool(false)),
 				// By Name.
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyID),
-					"data.polaris_role.by_name", tfjsonpath.New(keyID),
+					"rubrik_custom_role.role", tfjsonpath.New(keyID),
+					"data.rubrik_role.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyID),
-					"data.polaris_role.by_name", tfjsonpath.New(keyRoleID),
+					"rubrik_custom_role.role", tfjsonpath.New(keyID),
+					"data.rubrik_role.by_name", tfjsonpath.New(keyRoleID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyName),
-					"data.polaris_role.by_name", tfjsonpath.New(keyName),
+					"rubrik_custom_role.role", tfjsonpath.New(keyName),
+					"data.rubrik_role.by_name", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyDescription),
-					"data.polaris_role.by_name", tfjsonpath.New(keyDescription),
+					"rubrik_custom_role.role", tfjsonpath.New(keyDescription),
+					"data.rubrik_role.by_name", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_custom_role.role", tfjsonpath.New(keyPermission),
-					"data.polaris_role.by_name", tfjsonpath.New(keyPermission),
+					"rubrik_custom_role.role", tfjsonpath.New(keyPermission),
+					"data.rubrik_role.by_name", tfjsonpath.New(keyPermission),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_role.by_name", tfjsonpath.New(keyIsOrgAdmin),
+				statecheck.ExpectKnownValue("data.rubrik_role.by_name", tfjsonpath.New(keyIsOrgAdmin),
 					knownvalue.Bool(false)),
 			},
 		}},
