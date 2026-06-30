@@ -1,8 +1,8 @@
 ---
-page_title: "Upgrade Guide: v1.9.0"
+page_title: "Upgrade Guide: v1.8.2"
 ---
 
-# Upgrade Guide v1.9.0
+# Upgrade Guide v1.8.2
 
 ## Before Upgrading
 
@@ -16,7 +16,7 @@ as well. Each guide documents breaking changes and migration steps specific to t
 
 ### If you are already using the `rubrikinc/rubrik` provider
 
-Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.9.0 release. One
+Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.8.2 release. One
 way of doing this is by using the pessimistic constraint operator `~>`, which allows Terraform to upgrade to the latest
 release within the same minor version:
 ```terraform
@@ -24,7 +24,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -38,7 +38,7 @@ Validate the configuration:
 % terraform plan
 ```
 If you get an error or an unwanted diff, please see the _Significant Changes_ section below for additional
-instructions. Otherwise, refresh the state to the v1.9.0 version:
+instructions. Otherwise, refresh the state to the v1.8.2 version:
 ```shell
 % terraform apply -refresh-only
 ```
@@ -63,7 +63,7 @@ terraform {
   required_providers {
     polaris = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -82,7 +82,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -137,7 +137,7 @@ unwanted diff, see the _Significant Changes_ section below for additional contex
 ```shell
 % terraform apply
 ```
-This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.9.0 version.
+This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.8.2 version.
 
 ## Significant Changes
 
