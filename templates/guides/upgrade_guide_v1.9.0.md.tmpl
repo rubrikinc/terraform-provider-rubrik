@@ -174,3 +174,103 @@ resource "rubrik_custom_role" "viewer" {
 }
 ```
 Roles that did not grant `VIEW_CLUSTER` are unaffected.
+
+### Azure SQL Database and Managed Instance SLAs (feature-gated)
+
+When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for your account, Azure SQL Database and Managed Instance SLAs
+in the `rubrik_sla_domain` resource follow a new V1/V2 model:
+
+* A **V1** (Azure-managed, long-term retention) SLA carries a new `ltr_config` block (weekly, monthly, and yearly
+  retention) and takes no Rubrik snapshot schedule or backup location.
+* A **V2** (Rubrik-managed) SLA omits `ltr_config` and specifies a Rubrik snapshot schedule together with a
+  `backup_location` block.
+
+~> **Note:** These changes only take effect when `CNP_AZURE_SQL_SLA_REVAMP` is enabled for your account. If the feature
+is not enabled, Azure SQL SLAs behave exactly as they did in v1.8.x and **no configuration changes are required**.
+
+With the feature enabled, the way an Azure SQL SLA specifies its backup location changes:
+
+* **Before:** an Azure SQL Database SLA required exactly one top-level `archival` block with instant archival enabled,
+  and an Azure SQL Managed Instance SLA could not specify an archival location.
+* **After:** a V2 Azure SQL SLA specifies its location with a top-level `backup_location` block (the same block used by
+  AWS S3 multiple backup locations) and must not use the `archival` block.
+
+If the feature is enabled and you have an existing Azure SQL Database SLA that uses the `archival` block, replace it
+with a `backup_location` block:
+```terraform
+# Before
+resource "rubrik_sla_domain" "azure_sql" {
+  name         = "azure-sql"
+  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
+
+  hourly_schedule {
+    frequency      = 1
+    retention      = 1
+    retention_unit = "DAYS"
+  }
+
+  azure_sql_database_config {
+    log_retention = 7
+  }
+
+  archival {
+    archival_location_id = data.rubrik_azure_archival_location.example.id
+    threshold            = 0
+  }
+}
+
+# After
+resource "rubrik_sla_domain" "azure_sql" {
+  name         = "azure-sql"
+  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
+
+  hourly_schedule {
+    frequency      = 1
+    retention      = 1
+    retention_unit = "DAYS"
+  }
+
+  azure_sql_database_config {
+    log_retention = 7
+  }
+
+  backup_location {
+    archival_group_id = data.rubrik_azure_archival_location.example.id
+  }
+}
+```
+
+To manage Azure native long-term retention, configure a V1 SLA with `ltr_config` and no schedule or backup location:
+```terraform
+resource "rubrik_sla_domain" "azure_sql_v1" {
+  name         = "azure-sql-v1"
+  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
+
+  azure_sql_database_config {
+    log_retention = 7
+    ltr_config {
+      weekly_retention {
+        retention      = 4
+        retention_unit = "WEEKS"
+      }
+      monthly_retention {
+        retention      = 12
+        retention_unit = "MONTHS"
+      }
+      yearly_retention {
+        retention      = 7
+        retention_unit = "YEARS"
+        week_of_year   = 1
+      }
+    }
+  }
+}
+```
+
+~> **Note:** An existing SLA cannot be switched between V1 (Azure-managed) and V2 (Rubrik-managed) in place — the
+provider rejects a change that adds or removes `ltr_config` on an existing `rubrik_sla_domain`. To change the backup
+type, create a new SLA Domain and reassign the affected databases to it. This matches the RSC UI, which disables the
+backup-service selector when editing an existing SLA.
+
+The release also adds a computed `backup_type` attribute (`NATIVE` for V1, `RUBRIK` for V2) and allows combining the
+Azure SQL Database and Managed Instance object types in a single SLA.
