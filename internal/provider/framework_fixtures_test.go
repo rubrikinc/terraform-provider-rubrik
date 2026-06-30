@@ -98,7 +98,7 @@ func testCredentials(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	credentials, err := loadTestCredentials("RUBRIK_POLARIS_SERVICEACCOUNT_FILE")
+	credentials, err := loadTestCredentials("RUBRIK_SERVICEACCOUNT_FILE")
 	if err != nil {
 		t.Fatal(err)
 	}
