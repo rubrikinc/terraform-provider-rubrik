@@ -228,12 +228,9 @@ func validateCustomRoleConfig(ctx context.Context, config customRoleModel) diag.
 		return nil
 	}
 
-	// Only the operation values matter here; reuse the same element struct as
-	// toPermissions so the decode stays in sync with the schema.
-	var perms []struct {
-		Operation types.String `tfsdk:"operation"`
-		Hierarchy types.Set    `tfsdk:"hierarchy"`
-	}
+	// Only the operation values matter here, but decode into the full
+	// permissionModel so the decode stays in sync with the schema.
+	var perms []permissionModel
 
 	var diags diag.Diagnostics
 	diags.Append(config.Permission.ElementsAs(ctx, &perms, false)...)

@@ -503,7 +503,7 @@ func TestValidateCustomRoleConfig(t *testing.T) {
 		wantErr:    false,
 	}, {
 		name:       "null permission set",
-		permission: types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}),
+		permission: types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}),
 		wantErr:    false,
 	}}
 
