@@ -62,7 +62,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					type = string
 				}
 			
-				resource "polaris_custom_role" "role1" {
+				resource "rubrik_custom_role" "role1" {
 					name        = "Test Role 1 for SSO Group"
 					description = "Test Role: Delete Me!"
 			
@@ -82,7 +82,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					}
 				}
 			
-				resource "polaris_custom_role" "role2" {
+				resource "rubrik_custom_role" "role2" {
 					name        = "Test Role 2 for SSO Group"
 					description = "Test Role: Delete Me!"
 			
@@ -95,30 +95,30 @@ func TestAccSSOGroupResource(t *testing.T) {
 					}
 				}
 			
-				resource "polaris_sso_group" "group" {
+				resource "rubrik_sso_group" "group" {
 					auth_domain_id = var.auth_domain_id
 					group_name     = var.sso_group_name
-					role_ids       = [polaris_custom_role.role1.id]
+					role_ids       = [rubrik_custom_role.role1.id]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyAuthDomainID),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyAuthDomainID),
 					knownvalue.StringExact(testAuthDomainID(t))),
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyGroupName),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyGroupName),
 					knownvalue.StringExact(testSSOGroupName(t))),
 				statecheck.CompareValueCollection(
-					"polaris_sso_group.group", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.role1", tfjsonpath.New(keyID),
+					"rubrik_sso_group.group", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.role1", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("polaris_sso_group.group", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_sso_group.group", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),
 					keyAuthDomainID: knownvalue.StringExact(testAuthDomainID(t)),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_sso_group.group", tfjsonpath.New(keyID)),
-				statecheck.ExpectIdentityValueMatchesState("polaris_sso_group.group", tfjsonpath.New(keyAuthDomainID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_sso_group.group", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_sso_group.group", tfjsonpath.New(keyAuthDomainID)),
 			},
 		}, {
 			// Verify that the resource's role_ids can be updated.
@@ -130,7 +130,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					type = string
 				}
 			
-				resource "polaris_custom_role" "role1" {
+				resource "rubrik_custom_role" "role1" {
 					name        = "Test Role 1 for SSO Group"
 					description = "Test Role: Delete Me!"
 			
@@ -150,7 +150,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 					}
 				}
 			
-				resource "polaris_custom_role" "role2" {
+				resource "rubrik_custom_role" "role2" {
 					name        = "Test Role 2 for SSO Group"
 					description = "Test Role: Delete Me!"
 			
@@ -163,46 +163,46 @@ func TestAccSSOGroupResource(t *testing.T) {
 					}
 				}
 			
-				resource "polaris_sso_group" "group" {
+				resource "rubrik_sso_group" "group" {
 					auth_domain_id = var.auth_domain_id
 					group_name     = var.sso_group_name
-					role_ids       = [polaris_custom_role.role2.id]
+					role_ids       = [rubrik_custom_role.role2.id]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyAuthDomainID),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyAuthDomainID),
 					knownvalue.StringExact(testAuthDomainID(t))),
-				statecheck.ExpectKnownValue("polaris_sso_group.group", tfjsonpath.New(keyGroupName),
+				statecheck.ExpectKnownValue("rubrik_sso_group.group", tfjsonpath.New(keyGroupName),
 					knownvalue.StringExact(testSSOGroupName(t))),
 				statecheck.CompareValueCollection(
-					"polaris_sso_group.group", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.role2", tfjsonpath.New(keyID), compare.ValuesSame()),
-				statecheck.ExpectIdentity("polaris_sso_group.group", map[string]knownvalue.Check{
+					"rubrik_sso_group.group", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.role2", tfjsonpath.New(keyID), compare.ValuesSame()),
+				statecheck.ExpectIdentity("rubrik_sso_group.group", map[string]knownvalue.Check{
 					keyID:           knownvalue.NotNull(),
 					keyAuthDomainID: knownvalue.StringExact(testAuthDomainID(t)),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_sso_group.group", tfjsonpath.New(keyID)),
-				statecheck.ExpectIdentityValueMatchesState("polaris_sso_group.group", tfjsonpath.New(keyAuthDomainID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_sso_group.group", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_sso_group.group", tfjsonpath.New(keyAuthDomainID)),
 			},
 		}, {
 			// Terraform import via the composite string format
 			// "<group_name>:<auth_domain_id>".
-			ResourceName:      "polaris_sso_group.group",
+			ResourceName:      "rubrik_sso_group.group",
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
-			ImportStateIdFunc: ssoGroupImportID("polaris_sso_group.group"),
+			ImportStateIdFunc: ssoGroupImportID("rubrik_sso_group.group"),
 			ConfigVariables:   vars,
 		}, {
 			// import {} block with id attribute, composite string format
 			// "<group_name>:<auth_domain_id>".
-			ResourceName:      "polaris_sso_group.group",
+			ResourceName:      "rubrik_sso_group.group",
 			ImportStateKind:   resource.ImportBlockWithID,
 			ImportState:       true,
-			ImportStateIdFunc: ssoGroupImportID("polaris_sso_group.group"),
+			ImportStateIdFunc: ssoGroupImportID("rubrik_sso_group.group"),
 			ConfigVariables:   vars,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
@@ -211,7 +211,7 @@ func TestAccSSOGroupResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName:    "polaris_sso_group.group",
+			ResourceName:    "rubrik_sso_group.group",
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ConfigVariables: vars,

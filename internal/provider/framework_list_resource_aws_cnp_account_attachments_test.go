@@ -65,7 +65,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
@@ -83,13 +83,13 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 				resource "aws_iam_role" "crossaccount" {
 					name_prefix        = "rubrik-tfacc-"
 					assume_role_policy = one([
-						for p in polaris_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
+						for p in rubrik_aws_cnp_account.account.trust_policies : p.policy if p.role_key == "CROSSACCOUNT"
 					])
 				}
 
-				resource "polaris_aws_cnp_account_attachments" "attachments" {
-					account_id = polaris_aws_cnp_account.account.id
-					features   = polaris_aws_cnp_account.account.feature.*.name
+				resource "rubrik_aws_cnp_account_attachments" "attachments" {
+					account_id = rubrik_aws_cnp_account.account.id
+					features   = rubrik_aws_cnp_account.account.feature.*.name
 
 					role {
 						key         = "CROSSACCOUNT"
@@ -104,13 +104,13 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_aws_cnp_account_attachments" "all" {
+				list "rubrik_aws_cnp_account_attachments" "all" {
 					provider = polaris
 				}
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_aws_cnp_account_attachments.all", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_aws_cnp_account_attachments.all", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
 				}),
 			},
@@ -119,7 +119,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_aws_cnp_account_attachments" "filtered" {
+				list "rubrik_aws_cnp_account_attachments" "filtered" {
 					provider = polaris
 
 					config {
@@ -129,17 +129,17 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_aws_cnp_account_attachments.filtered", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_aws_cnp_account_attachments.filtered", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
 				}),
-				querycheck.ExpectLength("polaris_aws_cnp_account_attachments.filtered", 1),
+				querycheck.ExpectLength("rubrik_aws_cnp_account_attachments.filtered", 1),
 			},
 		}, {
 			Query: true,
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_aws_cnp_account_attachments" "with_resource" {
+				list "rubrik_aws_cnp_account_attachments" "with_resource" {
 					provider         = polaris
 					include_resource = true
 
@@ -151,7 +151,7 @@ func TestAccAwsCnpAccountAttachmentsListResource(t *testing.T) {
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
 				querycheck.ExpectResourceKnownValues(
-					"polaris_aws_cnp_account_attachments.with_resource",
+					"rubrik_aws_cnp_account_attachments.with_resource",
 					queryfilter.ByResourceIdentity(map[string]knownvalue.Check{
 						keyID: knownvalue.NotNull(),
 					}),

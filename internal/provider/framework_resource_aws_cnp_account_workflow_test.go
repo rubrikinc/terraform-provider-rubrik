@@ -58,7 +58,7 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 					type = string
 				}
 
-				data "polaris_aws_cnp_artifacts" "artifacts" {
+				data "rubrik_aws_cnp_artifacts" "artifacts" {
 					feature {
 						name              = "CLOUD_DISCOVERY"
 						permission_groups = ["BASIC"]
@@ -69,11 +69,11 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "crossaccount" {
+				data "rubrik_aws_cnp_permissions" "crossaccount" {
 					role_key = "CROSSACCOUNT"
 
 					dynamic "feature" {
-						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
 						content {
 							name              = feature.value["name"]
 							permission_groups = feature.value["permission_groups"]
@@ -81,13 +81,13 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 					}
 				}
 
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
 
 					dynamic "feature" {
-						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
 						content {
 							name              = feature.value["name"]
 							permission_groups = feature.value["permission_groups"]
@@ -97,13 +97,13 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 
 				resource "aws_iam_role" "crossaccount" {
 					name_prefix        = "tfacc-crossaccount-"
-					assume_role_policy = one(polaris_aws_cnp_account.account.trust_policies).policy
+					assume_role_policy = one(rubrik_aws_cnp_account.account.trust_policies).policy
 				}
 
 				resource "aws_iam_policy" "crossaccount" {
-					count       = length(data.polaris_aws_cnp_permissions.crossaccount.customer_managed_policies)
-					name_prefix = "tfacc-crossaccount-${data.polaris_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].name}-"
-					policy      = data.polaris_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].policy
+					count       = length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
+					name_prefix = "tfacc-crossaccount-${data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].name}-"
+					policy      = data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].policy
 				}
 
 				resource "aws_iam_role_policy_attachment" "crossaccount" {
@@ -114,17 +114,17 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 
 				resource "aws_iam_role_policy_attachments_exclusive" "crossaccount" {
 					role_name   = aws_iam_role.crossaccount.name
-					policy_arns = concat(data.polaris_aws_cnp_permissions.crossaccount.managed_policies, aws_iam_policy.crossaccount[*].arn)
+					policy_arns = concat(data.rubrik_aws_cnp_permissions.crossaccount.managed_policies, aws_iam_policy.crossaccount[*].arn)
 				}
 
-				resource "polaris_aws_cnp_account_attachments" "attachments" {
-					account_id = polaris_aws_cnp_account.account.id
-					features   = data.polaris_aws_cnp_artifacts.artifacts.feature.*.name
+				resource "rubrik_aws_cnp_account_attachments" "attachments" {
+					account_id = rubrik_aws_cnp_account.account.id
+					features   = data.rubrik_aws_cnp_artifacts.artifacts.feature.*.name
 
 					role {
 						key         = "CROSSACCOUNT"
 						arn         = aws_iam_role.crossaccount.arn
-						permissions = data.polaris_aws_cnp_permissions.crossaccount.id
+						permissions = data.rubrik_aws_cnp_permissions.crossaccount.id
 					}
 				}
 			`,
@@ -133,27 +133,27 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
 					tfjsonpath.New(keyRoleKeys),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("CROSSACCOUNT"),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
 					tfjsonpath.New(keyInstanceProfileKeys),
 					knownvalue.SetExact([]knownvalue.Check{})),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
 				statecheck.CompareValuePairs(
-					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
+					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyFeatures),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("CLOUD_DISCOVERY"),
@@ -161,7 +161,7 @@ func TestAccAwsCnpAccountWorkflow(t *testing.T) {
 					})),
 				statecheck.CompareValuePairs(
 					"aws_iam_role.crossaccount", tfjsonpath.New(keyARN),
-					"polaris_aws_cnp_account_attachments.attachments",
+					"rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},
 		}},
@@ -198,18 +198,18 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 					type = string
 				}
 
-				data "polaris_aws_cnp_artifacts" "artifacts" {
+				data "rubrik_aws_cnp_artifacts" "artifacts" {
 					feature {
 						name              = "ROLE_CHAINING"
 						permission_groups = ["BASIC"]
 					}
 				}
 
-				data "polaris_aws_cnp_permissions" "role_chaining" {
+				data "rubrik_aws_cnp_permissions" "role_chaining" {
 					role_key = "ROLE_CHAINING"
 
 					dynamic "feature" {
-						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
 						content {
 							name              = feature.value["name"]
 							permission_groups = feature.value["permission_groups"]
@@ -217,13 +217,13 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 					}
 				}
 
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
 
 					dynamic "feature" {
-						for_each = data.polaris_aws_cnp_artifacts.artifacts.feature
+						for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
 						content {
 							name              = feature.value["name"]
 							permission_groups = feature.value["permission_groups"]
@@ -233,13 +233,13 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 
 				resource "aws_iam_role" "role_chaining" {
 					name_prefix        = "tfacc-rolechaining-"
-					assume_role_policy = one(polaris_aws_cnp_account.account.trust_policies).policy
+					assume_role_policy = one(rubrik_aws_cnp_account.account.trust_policies).policy
 				}
 
 				resource "aws_iam_policy" "role_chaining" {
-					count       = length(data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies)
-					name_prefix = "tfacc-rolechaining-${data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].name}-"
-					policy      = data.polaris_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].policy
+					count       = length(data.rubrik_aws_cnp_permissions.role_chaining.customer_managed_policies)
+					name_prefix = "tfacc-rolechaining-${data.rubrik_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].name}-"
+					policy      = data.rubrik_aws_cnp_permissions.role_chaining.customer_managed_policies[count.index].policy
 				}
 
 				resource "aws_iam_role_policy_attachment" "role_chaining" {
@@ -250,17 +250,17 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 
 				resource "aws_iam_role_policy_attachments_exclusive" "role_chaining" {
 					role_name   = aws_iam_role.role_chaining.name
-					policy_arns = concat(data.polaris_aws_cnp_permissions.role_chaining.managed_policies, aws_iam_policy.role_chaining[*].arn)
+					policy_arns = concat(data.rubrik_aws_cnp_permissions.role_chaining.managed_policies, aws_iam_policy.role_chaining[*].arn)
 				}
 
-				resource "polaris_aws_cnp_account_attachments" "attachments" {
-					account_id = polaris_aws_cnp_account.account.id
-					features   = data.polaris_aws_cnp_artifacts.artifacts.feature.*.name
+				resource "rubrik_aws_cnp_account_attachments" "attachments" {
+					account_id = rubrik_aws_cnp_account.account.id
+					features   = data.rubrik_aws_cnp_artifacts.artifacts.feature.*.name
 
 					role {
 						key         = "ROLE_CHAINING"
 						arn         = aws_iam_role.role_chaining.arn
-						permissions = data.polaris_aws_cnp_permissions.role_chaining.id
+						permissions = data.rubrik_aws_cnp_permissions.role_chaining.id
 					}
 				}
 			`,
@@ -269,19 +269,19 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
 					tfjsonpath.New(keyRoleKeys),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("ROLE_CHAINING"),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.artifacts",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
 					tfjsonpath.New(keyInstanceProfileKeys),
 					knownvalue.SetExact([]knownvalue.Check{})),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyTrustPolicies),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -289,10 +289,10 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 						}),
 					})),
 				statecheck.CompareValuePairs(
-					"polaris_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"polaris_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
+					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
+					"rubrik_aws_cnp_account_attachments.attachments", tfjsonpath.New(keyAccountID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -301,7 +301,7 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 					})),
 				statecheck.CompareValuePairs(
 					"aws_iam_role.role_chaining", tfjsonpath.New(keyARN),
-					"polaris_aws_cnp_account_attachments.attachments",
+					"rubrik_aws_cnp_account_attachments.attachments",
 					tfjsonpath.New(keyRole).AtSliceIndex(0).AtMapKey(keyARN), compare.ValuesSame()),
 			},
 		}},

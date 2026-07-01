@@ -50,11 +50,11 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					type = string
 				}
 
-				data "polaris_user" "user" {
+				data "rubrik_user" "user" {
 					email = var.user_email
 				}
 
-				resource "polaris_custom_role" "auditor" {
+				resource "rubrik_custom_role" "auditor" {
 					name        = "Test Auditor"
 					description = "Test Role: Delete Me!"
 					permission {
@@ -73,29 +73,29 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_role_assignment" "auditor" {
-					user_id  = data.polaris_user.user.id
+				resource "rubrik_role_assignment" "auditor" {
+					user_id  = data.rubrik_user.user.id
 
 					role_ids = [
-						polaris_custom_role.auditor.id
+						rubrik_custom_role.auditor.id
 					]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(
-					"polaris_role_assignment.auditor", tfjsonpath.New(keyID),
-					"data.polaris_user.user", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", tfjsonpath.New(keyID),
+					"data.rubrik_user.user", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_role_assignment.auditor", tfjsonpath.New(keyUserID),
-					"data.polaris_user.user", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", tfjsonpath.New(keyUserID),
+					"data.rubrik_user.user", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("polaris_role_assignment.auditor", tfjsonpath.New(keyRoleIDs),
+				statecheck.ExpectKnownValue("rubrik_role_assignment.auditor", tfjsonpath.New(keyRoleIDs),
 					knownvalue.SetSizeExact(1)),
 				statecheck.CompareValueCollection(
-					"polaris_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.auditor", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.auditor", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 			},
 		}, {
@@ -105,11 +105,11 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					type = string
 				}
 
-				data "polaris_user" "user" {
+				data "rubrik_user" "user" {
 					email = var.user_email
 				}
 
-				resource "polaris_custom_role" "auditor" {
+				resource "rubrik_custom_role" "auditor" {
 					name        = "Test Auditor"
 					description = "Test Role: Delete Me!"
 
@@ -129,7 +129,7 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_custom_role" "cluster_viewer" {
+				resource "rubrik_custom_role" "cluster_viewer" {
 					name        = "Test Cluster Viewer"
 					description = "Test Role: Delete Me!"
 
@@ -149,34 +149,34 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_role_assignment" "auditor" {
-					user_id  = data.polaris_user.user.id
+				resource "rubrik_role_assignment" "auditor" {
+					user_id  = data.rubrik_user.user.id
 
 					role_ids = [
-						polaris_custom_role.auditor.id,
-						polaris_custom_role.cluster_viewer.id,
+						rubrik_custom_role.auditor.id,
+						rubrik_custom_role.cluster_viewer.id,
 					]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(
-					"polaris_role_assignment.auditor", tfjsonpath.New(keyID),
-					"data.polaris_user.user", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", tfjsonpath.New(keyID),
+					"data.rubrik_user.user", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_role_assignment.auditor", tfjsonpath.New(keyUserID),
-					"data.polaris_user.user", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", tfjsonpath.New(keyUserID),
+					"data.rubrik_user.user", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("polaris_role_assignment.auditor", tfjsonpath.New(keyRoleIDs),
+				statecheck.ExpectKnownValue("rubrik_role_assignment.auditor", tfjsonpath.New(keyRoleIDs),
 					knownvalue.SetSizeExact(2)),
 				statecheck.CompareValueCollection(
-					"polaris_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.auditor", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.auditor", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValueCollection(
-					"polaris_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.cluster_viewer", tfjsonpath.New(keyID),
+					"rubrik_role_assignment.auditor", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.cluster_viewer", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 			},
 		}, {
@@ -185,7 +185,7 @@ func TestAccRoleAssignmentResource(t *testing.T) {
 			// The import {} block forms (with id or identity) are not testable
 			// here because the framework requires plannable imports to be a
 			// no-op, while this resource's import takes ownership of all roles.
-			ResourceName:            "polaris_role_assignment.auditor",
+			ResourceName:            "rubrik_role_assignment.auditor",
 			ImportStateKind:         resource.ImportCommandWithID,
 			ImportState:             true,
 			ImportStateVerify:       true,

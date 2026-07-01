@@ -38,14 +38,14 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
 					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Administrator")),
 			},
 		}},
@@ -57,7 +57,7 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -72,14 +72,14 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
 					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Administrator")),
 			},
 		}},
@@ -91,7 +91,7 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -107,7 +107,7 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -123,7 +123,7 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,

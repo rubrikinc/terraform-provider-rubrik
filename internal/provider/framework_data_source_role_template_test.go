@@ -38,27 +38,27 @@ func TestAccRoleTemplateDataSource(t *testing.T) {
 			// Verify that the data source can look up the role template by
 			// name.
 			Config: `
-				data "polaris_role_template" "by_id" {
-					role_template_id = data.polaris_role_template.by_name.role_template_id
+				data "rubrik_role_template" "by_id" {
+					role_template_id = data.rubrik_role_template.by_name.role_template_id
 				}
 
-				data "polaris_role_template" "by_name" {
+				data "rubrik_role_template" "by_name" {
 					name = "Compliance Auditor"
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By ID.
-				statecheck.ExpectKnownValue("data.polaris_role_template.by_id", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_role_template.by_id", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyID),
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyRoleTemplateID),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyID),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyRoleTemplateID),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_role_template.by_id", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("data.rubrik_role_template.by_id", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Compliance Auditor")),
-				statecheck.ExpectKnownValue("data.polaris_role_template.by_id", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("data.rubrik_role_template.by_id", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Template for compliance auditor")),
-				statecheck.ExpectKnownValue("data.polaris_role_template.by_id", tfjsonpath.New(keyPermission),
+				statecheck.ExpectKnownValue("data.rubrik_role_template.by_id", tfjsonpath.New(keyPermission),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyOperation: knownvalue.StringExact("EXPORT_DATA_CLASS_GLOBAL"),
@@ -80,24 +80,24 @@ func TestAccRoleTemplateDataSource(t *testing.T) {
 					})),
 				// By Name.
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyID),
-					"data.polaris_role_template.by_name", tfjsonpath.New(keyID),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyID),
+					"data.rubrik_role_template.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyRoleTemplateID),
-					"data.polaris_role_template.by_name", tfjsonpath.New(keyRoleTemplateID),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyRoleTemplateID),
+					"data.rubrik_role_template.by_name", tfjsonpath.New(keyRoleTemplateID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyName),
-					"data.polaris_role_template.by_name", tfjsonpath.New(keyName),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyName),
+					"data.rubrik_role_template.by_name", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyDescription),
-					"data.polaris_role_template.by_name", tfjsonpath.New(keyDescription),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyDescription),
+					"data.rubrik_role_template.by_name", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.polaris_role_template.by_id", tfjsonpath.New(keyPermission),
-					"data.polaris_role_template.by_name", tfjsonpath.New(keyPermission),
+					"data.rubrik_role_template.by_id", tfjsonpath.New(keyPermission),
+					"data.rubrik_role_template.by_name", tfjsonpath.New(keyPermission),
 					compare.ValuesSame()),
 			},
 		}},
