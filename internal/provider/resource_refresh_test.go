@@ -149,7 +149,7 @@ resource "polaris_refresh" "account" {
 func discoveryOnboardingEnabled(t *testing.T) bool {
 	t.Helper()
 
-	credentials := os.Getenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE")
+	credentials := os.Getenv("RUBRIK_SERVICEACCOUNT_FILE")
 	if credentials == "" {
 		return false
 	}
