@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
@@ -318,7 +319,19 @@ func TestAccCustomRoleResource_ViewClusterReferenceOnly(t *testing.T) {
 // SDKv2 provider; step 2 refreshes state using the local Framework provider
 // and asserts the plan is empty.
 func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
+	vars := config.Variables{
+		"credentials": config.StringVariable(testCredentials(t)),
+	}
+
 	conf := `
+		variable "credentials" {
+			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
+		}
+
 		resource "polaris_custom_role" "role" {
 			name        = "Test Auditor"
 			description = "Test Role: Delete Me!"
@@ -356,7 +369,8 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: conf,
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -368,6 +382,7 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config:                   conf,
+			ConfigVariables:          vars,
 			PlanOnly:                 true,
 		}},
 	})
@@ -377,6 +392,10 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 // polaris_custom_role resource created by the rubrikinc/polaris provider can be
 // moved to a rubrik_custom_role resource using the moved {} block.
 func TestAccCustomRoleResource_MoveState(t *testing.T) {
+	vars := config.Variables{
+		"credentials": config.StringVariable(testCredentials(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
@@ -390,6 +409,14 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
+				}
+
 				resource "polaris_custom_role" "role" {
 					name        = "Test Role Move State"
 					description = "Test Role: Delete Me!"
@@ -410,6 +437,7 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -417,6 +445,10 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
 				moved {
 					from = polaris_custom_role.role
 					to   = rubrik_custom_role.role
@@ -442,6 +474,7 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state. Without the apply step, destroy can
 			// fail due to resource dependency issues.

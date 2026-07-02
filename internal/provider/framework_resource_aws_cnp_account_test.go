@@ -40,6 +40,7 @@ import (
 
 func TestAccAwsCnpAccountResource(t *testing.T) {
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -176,6 +177,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 	}
 
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -262,11 +264,17 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 // framework provider with the same config and asserts an empty plan.
 func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 	conf := `
+		variable "credentials" {
+			type = string
+		}
 		variable "account_name" {
 			type = string
 		}
 		variable "aws_account_id" {
 			type = string
+		}
+		provider "polaris" {
+			credentials = var.credentials
 		}
 		resource "polaris_aws_cnp_account" "account" {
 			name      = var.account_name
@@ -285,6 +293,7 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 	`
 
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -346,6 +355,7 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 // can be moved to a rubrik_aws_cnp_account resource using the moved {} block.
 func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -363,11 +373,17 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}
 				variable "aws_account_id" {
 					type = string
+				}
+				provider "polaris" {
+					credentials = var.credentials
 				}
 				resource "polaris_aws_cnp_account" "account" {
 					name      = var.account_name
@@ -396,6 +412,9 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}

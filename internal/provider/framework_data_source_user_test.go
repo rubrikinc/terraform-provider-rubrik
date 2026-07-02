@@ -126,8 +126,16 @@ func TestAccUserDataSource_FrameworkMigration(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
 				variable "user_email" {
 					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
 				}
 
 				data "polaris_user" "old" {
@@ -143,7 +151,8 @@ func TestAccUserDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"user_email": config.StringVariable(testUserEmail(t)),
+				"credentials": config.StringVariable(testCredentials(t)),
+				"user_email":  config.StringVariable(testUserEmail(t)),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("data.polaris_user.new", tfjsonpath.New(keyID),

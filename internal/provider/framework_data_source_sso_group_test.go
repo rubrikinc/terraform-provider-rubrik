@@ -149,11 +149,18 @@ func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "auth_domain_id" {
 					type = string
 				}
 				variable "sso_group_name" {
 					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
 				}
 
 				resource "polaris_custom_role" "role" {
@@ -193,6 +200,7 @@ func TestAccSSOGroupDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testCredentials(t)),
 				"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
 				"sso_group_name": config.StringVariable(testSSOGroupName(t)),
 			},

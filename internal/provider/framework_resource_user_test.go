@@ -211,8 +211,16 @@ func TestAccUserResource(t *testing.T) {
 // without drift.
 func TestAccUserResource_FrameworkMigration(t *testing.T) {
 	conf := `
+		variable "credentials" {
+			type = string
+		}
+
 		variable "user_email" {
 			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
 		}
 
 		resource "polaris_custom_role" "auditor" {
@@ -245,7 +253,8 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 	`
 
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -273,8 +282,9 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 // rubrik_user resource using the moved {} block.
 func TestAccUserResource_MoveState(t *testing.T) {
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
-		"role_name":  config.StringVariable("Test MoveState Auditor " + uuid.New().String()),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
+		"role_name":   config.StringVariable("Test MoveState Auditor " + uuid.New().String()),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -290,11 +300,18 @@ func TestAccUserResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "user_email" {
 					type = string
 				}
 				variable "role_name" {
 					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
 				}
 
 				resource "polaris_custom_role" "auditor" {
@@ -319,6 +336,9 @@ func TestAccUserResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "user_email" {
 					type = string
 				}

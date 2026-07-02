@@ -231,6 +231,7 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 	skipUnlessSSOGroupDefined(t)
 
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"auth_domain_id": config.StringVariable(testAuthDomainID(t)),
 		"sso_group_name": config.StringVariable(testSSOGroupName(t)),
 	}
@@ -251,11 +252,18 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "auth_domain_id" {
 					type = string
 				}
 				variable "sso_group_name" {
 					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
 				}
 
 				resource "polaris_custom_role" "role" {
@@ -292,6 +300,9 @@ func TestAccSSOGroupResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "auth_domain_id" {
 					type = string
 				}

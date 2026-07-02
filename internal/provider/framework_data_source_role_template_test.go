@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -118,6 +119,14 @@ func TestAccRoleTemplateDataSource_FrameworkMigration(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
 				data "polaris_role_template" "old" {
 					provider = polaris-sdkv2
 
@@ -128,6 +137,9 @@ func TestAccRoleTemplateDataSource_FrameworkMigration(t *testing.T) {
 					name = "Compliance Auditor"
 				}
 			`,
+			ConfigVariables: config.Variables{
+				"credentials": config.StringVariable(testCredentials(t)),
+			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("data.polaris_role_template.new", tfjsonpath.New(keyID),
 					NonNullUUID()),
