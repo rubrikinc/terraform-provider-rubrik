@@ -219,17 +219,19 @@ func TestAccAwsCnpAccountAttachmentsResource(t *testing.T) {
 // provider; step 2 refreshes state using the local Framework provider and
 // asserts the plan is empty.
 func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
-	vars := config.Variables{
-		"account_name":   config.StringVariable(testAWSAccountName(t)),
-		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
-	}
-
-	tfConfig := `
+	conf := `
+		variable "credentials" {
+			type = string
+		}
 		variable "account_name" {
 			type = string
 		}
 		variable "aws_account_id" {
 			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
 		}
 
 		resource "polaris_aws_cnp_account" "account" {
@@ -266,6 +268,12 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 		}
 	`
 
+	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			awsCnpAccountCheckDestroy(t),
@@ -282,7 +290,7 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.6.3",
 				},
 			},
-			Config:          tfConfig,
+			Config:          conf,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_aws_cnp_account_attachments.attachments",
@@ -296,7 +304,7 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: ">=6.0.0",
 				},
 			},
-			Config:          tfConfig,
+			Config:          conf,
 			ConfigVariables: vars,
 			PlanOnly:        true,
 		}},
@@ -309,6 +317,7 @@ func TestAccAwsCnpAccountAttachmentsResource_FrameworkMigration(t *testing.T) {
 // the moved {} block.
 func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -333,11 +342,18 @@ func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}
 				variable "aws_account_id" {
 					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
 				}
 
 				resource "polaris_aws_cnp_account" "account" {
@@ -386,6 +402,9 @@ func TestAccAwsCnpAccountAttachmentsResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}

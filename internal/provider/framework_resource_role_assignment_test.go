@@ -202,13 +202,22 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
 
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
 	}
 
 	// Test 1: Modern fields (user_id + role_ids).
 	conf := `
+		variable "credentials" {
+			type = string
+		}
+
 		variable "user_email" {
 			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
 		}
 
 		data "polaris_user" "user" {
@@ -264,8 +273,16 @@ func TestAccRoleAssignmentResource_FrameworkMigration(t *testing.T) {
 
 	// Test 2: Deprecated fields (user_email + role_id).
 	conf = `
+		variable "credentials" {
+			type = string
+		}
+
 		variable "user_email" {
 			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
 		}
 
 		resource "polaris_custom_role" "auditor" {
@@ -320,7 +337,8 @@ func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 	createTestUser(t, testUserEmail(t), createTestRoleWithUniqueName(t))
 
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -336,8 +354,16 @@ func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
 				variable "user_email" {
 					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
 				}
 
 				data "polaris_user" "user" {
@@ -379,6 +405,10 @@ func TestAccRoleAssignmentResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
 				variable "user_email" {
 					type = string
 				}

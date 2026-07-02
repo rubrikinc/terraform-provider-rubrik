@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -287,6 +288,14 @@ func TestAccAwsCnpPermissionsDataSource_FrameworkMigration(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
 				data "polaris_aws_cnp_permissions" "old" {
 					provider = polaris-sdkv2
 
@@ -333,6 +342,9 @@ func TestAccAwsCnpPermissionsDataSource_FrameworkMigration(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: config.Variables{
+				"credentials": config.StringVariable(testCredentials(t)),
+			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Default-cloud (cloud unset) pair.
 				statecheck.CompareValuePairs(

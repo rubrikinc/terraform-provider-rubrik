@@ -168,12 +168,20 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 			// Onboard an AWS account using the SDKv2 resource and verify that
 			// the SDKv2 and Framework data sources return identical values.
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "profile" {
 					type = string
 				}
 				variable "account_name" {
 					type = string
 				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
 				resource "polaris_aws_account" "account" {
 					name    = var.account_name
 					profile = var.profile
@@ -195,6 +203,7 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"credentials":  config.StringVariable(testCredentials(t)),
 				"profile":      config.StringVariable(testAWSProfile(t)),
 				"account_name": config.StringVariable(testAWSAccountName(t)),
 			},
