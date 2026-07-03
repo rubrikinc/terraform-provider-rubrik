@@ -40,10 +40,7 @@ data "rubrik_data_center_archival_location" "test" {
 `
 
 func TestAccCDMDataCenterArchivalLocation(t *testing.T) {
-	config, dc, err := loadDataCenterTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+	config, dc := loadDataCenterTestConfig(t)
 	if len(dc.ArchivalLocations) == 0 {
 		t.Fatal("TEST_DATACENTER_FILE has no archival locations")
 	}

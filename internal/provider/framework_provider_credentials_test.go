@@ -33,14 +33,12 @@ import (
 
 func TestAccProviderCredentialsInEnv(t *testing.T) {
 	credentials := testCredentials(t)
+	file := os.Getenv("RUBRIK_SERVICEACCOUNT_FILE")
 
-	// Clear the legacy RUBRIK_POLARIS_ prefixed service account variables so
-	// that the provider cannot fall back on these.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "")
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", "")
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_NAME", "")
+	clearRSCCredentialEnv(t)
 
 	// Valid service account in RUBRIK_SERVICEACCOUNT_FILE.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", file)
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
@@ -146,10 +144,7 @@ func TestAccProviderCredentialsInEnvFallback(t *testing.T) {
 	credentials := testCredentials(t)
 	file := os.Getenv("RUBRIK_SERVICEACCOUNT_FILE")
 
-	// Clear the RUBRIK_ prefixed service account variables, forcing the
-	// provider to fall back on the legacy RUBRIK_POLARIS_ prefixed variables.
-	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", "")
-	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", "")
+	clearRSCCredentialEnv(t)
 
 	// Valid service account via the RUBRIK_POLARIS_SERVICEACCOUNT_FILE fallback.
 	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", file)
@@ -190,4 +185,24 @@ func TestAccProviderCredentialsInEnvFallback(t *testing.T) {
 			},
 		}},
 	})
+}
+
+func clearRSCCredentialEnv(t *testing.T) {
+	t.Helper()
+
+	// Rubrik environment variables.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_NAME", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CLIENTID", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CLIENTSECRET", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_ACCESSTOKENURI", "")
+
+	// Rubrik Polaris environment variables.
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_NAME", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTID", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTSECRET", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_ACCESSTOKENURI", "")
 }

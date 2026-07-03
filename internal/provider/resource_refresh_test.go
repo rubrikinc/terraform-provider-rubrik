@@ -164,11 +164,7 @@ func discoveryOnboardingEnabled(t *testing.T) bool {
 }
 
 func TestAccPolarisAwsAccountRefresh(t *testing.T) {
-	config, account, err := loadAWSTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, account := loadAWSTestConfig(t)
 	config.DiscoveryOnboarding = discoveryOnboardingEnabled(t)
 
 	// Use the current time as the refresh timestamp to ensure the resource
@@ -202,11 +198,7 @@ func TestAccPolarisAwsAccountRefresh(t *testing.T) {
 }
 
 func TestAccPolarisAzureSubscriptionRefresh(t *testing.T) {
-	config, subscription, err := loadAzureTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, subscription := loadAzureTestConfig(t)
 	config.DiscoveryOnboarding = discoveryOnboardingEnabled(t)
 
 	// Use the current time as the refresh timestamp to ensure the resource

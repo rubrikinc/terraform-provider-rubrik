@@ -127,11 +127,7 @@ data "polaris_tag_rule" "default_by_name" {
 `
 
 func TestAccPolarisTagRule_singleTag(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	tagRule, err := makeTerraformConfig(config, tagRuleSingleTagTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -172,11 +168,7 @@ func TestAccPolarisTagRule_singleTag(t *testing.T) {
 func TestAccPolarisTagRule_multiTag(t *testing.T) {
 	skipUnlessFeatureEnabled(t, core.FeatureFlagMultipleKeyValuePairsInTagRules)
 
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	tagRule, err := makeTerraformConfig(config, tagRuleMultiTagTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -215,11 +207,7 @@ func TestAccPolarisTagRule_multiTag(t *testing.T) {
 }
 
 func TestAccPolarisTagRule_deprecatedStyle(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	tagRule, err := makeTerraformConfig(config, tagRuleDeprecatedStyleTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -255,11 +243,7 @@ func TestAccPolarisTagRule_deprecatedStyle(t *testing.T) {
 }
 
 func TestAccPolarisTagRule_deprecatedAllValues(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	tagRule, err := makeTerraformConfig(config, tagRuleDeprecatedAllValuesTmpl)
 	if err != nil {
 		t.Fatal(err)

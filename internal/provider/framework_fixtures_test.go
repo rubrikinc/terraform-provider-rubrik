@@ -39,11 +39,7 @@ func testAWSAccountID(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	_, conf := loadAWSTestConfig(t)
 	return conf.AccountID
 }
 
@@ -53,11 +49,7 @@ func testAWSAccountName(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	_, conf := loadAWSTestConfig(t)
 	return conf.AccountName
 }
 
@@ -66,11 +58,7 @@ func testAWSProfile(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadAWSTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	_, conf := loadAWSTestConfig(t)
 	return conf.Profile
 }
 
@@ -94,11 +82,14 @@ func testClient(t *testing.T) *polaris.Client {
 }
 
 // testCredentials returns the RSC credentials from the environment.
+//
+// Note, this function returns the actual credentials and not just the path to
+// the credentials file.
 func testCredentials(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	credentials, err := loadTestCredentials("RUBRIK_SERVICEACCOUNT_FILE")
+	credentials, err := loadTestCredentials(rscCredentialsEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,11 +102,7 @@ func testUserEmail(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadRSCTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	_, conf := loadRSCTestConfig(t)
 	return conf.NewUserEmail
 }
 
@@ -126,10 +113,7 @@ func testSSOGroupName(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadRSCTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, conf := loadRSCTestConfig(t)
 	if conf.NewSSOGroupName == "" {
 		t.Skip("SSO group fixture not available: newSsoGroupName not set")
 	}
@@ -143,10 +127,7 @@ func testAuthDomainID(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	conf, err := loadRSCTestConf()
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, conf := loadRSCTestConfig(t)
 	if conf.AuthDomainID == "" {
 		t.Skip("SSO group fixture not available: authDomainId not set")
 	}
