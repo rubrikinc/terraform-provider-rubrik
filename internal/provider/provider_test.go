@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 	"text/template"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -60,7 +61,7 @@ type testConfig struct {
 	Provider struct {
 		Credentials string
 	}
-	Resource            interface{}
+	Resource            any
 	Timestamp           string
 	DiscoveryOnboarding bool
 }
@@ -69,19 +70,22 @@ type testConfig struct {
 // to by the environmental variable in resourceFileEnv. Note that it must be
 // possible to unmarshal the file to the resource type and that resource must
 // be of pointer type.
-func loadTestConfig(credentialsEnv, resourceFileEnv string, resource interface{}) (testConfig, error) {
+func loadTestConfig(t *testing.T, credentialsEnv, resourceFileEnv string, resource any) testConfig {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
 	credentials := os.Getenv(credentialsEnv)
 	if credentials == "" {
-		return testConfig{}, fmt.Errorf("%s is empty", credentialsEnv)
+		t.Fatalf("%s is empty", credentialsEnv)
 	}
 
 	buf, err := os.ReadFile(os.Getenv(resourceFileEnv))
 	if err != nil {
-		return testConfig{}, fmt.Errorf("failed to read file pointed to by %s: %v", resourceFileEnv, err)
+		t.Fatalf("failed to read file %s: %s", resourceFileEnv, err)
 	}
 
 	if err := json.Unmarshal(buf, resource); err != nil {
-		return testConfig{}, err
+		t.Fatalf("failed to unmarshal JSON from %s: %s", resourceFileEnv, err)
 	}
 
 	config := testConfig{
@@ -91,7 +95,7 @@ func loadTestConfig(credentialsEnv, resourceFileEnv string, resource interface{}
 		Resource: resource,
 	}
 
-	return config, nil
+	return config
 }
 
 // makeTerraformConfig returns a Terraform configuration given a test
@@ -131,16 +135,19 @@ type testAWSAccount struct {
 
 // loadAWSTestConfig loads an AWS test configuration using the default
 // environment variables.
-func loadAWSTestConfig() (testConfig, testAWSAccount, error) {
+func loadAWSTestConfig(t *testing.T) (testConfig, testAWSAccount) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
 	account := testAWSAccount{}
-	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_AWSACCOUNT_FILE", &account)
+	config := loadTestConfig(t, rscCredentialsEnv, awsAccountFileEnv, &account)
 
 	// Note that this will update both project and config.
 	if account.Profile == "" {
 		account.Profile = "default"
 	}
 
-	return config, account, err
+	return config, account
 }
 
 // testAzureSubscription holds information about an Azure subscription used in
@@ -173,15 +180,18 @@ type testAzureSubscription struct {
 
 // loadAzureTestConfig loads an Azure test configuration using the default
 // environment variables.
-func loadAzureTestConfig() (testConfig, testAzureSubscription, error) {
+func loadAzureTestConfig(t *testing.T) (testConfig, testAzureSubscription) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
 	subscription := testAzureSubscription{}
-	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_AZURESUBSCRIPTION_FILE", &subscription)
+	config := loadTestConfig(t, rscCredentialsEnv, azureSubscriptionFileEnv, &subscription)
 
 	if subscription.Credentials == "" {
-		subscription.Credentials = os.Getenv("AZURE_SERVICEPRINCIPAL_LOCATION")
+		subscription.Credentials = os.Getenv(azureCredentialsEnv)
 	}
 
-	return config, subscription, err
+	return config, subscription
 }
 
 // testGCPProject holds information about a GCP project used in one or more
@@ -201,16 +211,19 @@ type testGCPProject struct {
 
 // loadGCPTestConfig loads a GCP test configuration using the default
 // environment variables.
-func loadGCPTestConfig() (testConfig, testGCPProject, error) {
+func loadGCPTestConfig(t *testing.T) (testConfig, testGCPProject) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
 	project := testGCPProject{}
-	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_GCPPROJECT_FILE", &project)
+	config := loadTestConfig(t, rscCredentialsEnv, gcpProjectFileEnv, &project)
 
 	// Note that this will update both project and config.
 	if project.Credentials == "" {
-		project.Credentials = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+		project.Credentials = os.Getenv(gcpCredentialsEnv)
 	}
 
-	return config, project, err
+	return config, project
 }
 
 // testRSCConfig holds RSC configuration information used in one or more
@@ -225,9 +238,12 @@ type testRSCConfig struct {
 
 // loadRSCTestConfig loads an RSC test configuration using the default
 // environment variables.
-func loadRSCTestConfig() (testConfig, testRSCConfig, error) {
-	rsc := testRSCConfig{}
-	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_RSCCONFIG_FILE", &rsc)
+func loadRSCTestConfig(t *testing.T) (testConfig, testRSCConfig) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
 
-	return config, rsc, err
+	rsc := testRSCConfig{}
+	conf := loadTestConfig(t, rscCredentialsEnv, rscConfigFileEnv, &rsc)
+
+	return conf, rsc
 }

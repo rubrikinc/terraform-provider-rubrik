@@ -70,11 +70,7 @@ resource "polaris_aws_exocompute" "default" {
 `
 
 func TestAccPolarisAWSExocompute_basic(t *testing.T) {
-	config, account, err := loadAWSTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, account := loadAWSTestConfig(t)
 	exocompute, err := makeTerraformConfig(config, awsExocomputeTmpl)
 	if err != nil {
 		t.Fatal(err)

@@ -109,11 +109,7 @@ resource "polaris_aws_account" "default" {
 `
 
 func TestAccPolarisAWSAccount_basic(t *testing.T) {
-	config, account, err := loadAWSTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, account := loadAWSTestConfig(t)
 	accountOneRegion, err := makeTerraformConfig(config, awsAccountOneRegionTmpl)
 	if err != nil {
 		t.Fatal(err)
