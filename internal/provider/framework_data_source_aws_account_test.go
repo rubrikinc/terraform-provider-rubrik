@@ -46,7 +46,7 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 				variable "aws_account_id" {
 					type = string
 				}
-				resource "polaris_aws_account" "account" {
+				resource "rubrik_aws_account" "account" {
 					name    = var.account_name
 					profile = var.profile
 
@@ -56,17 +56,17 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 					}
 				}
 
-				data "polaris_aws_account" "by_account_id" {
+				data "rubrik_aws_account" "by_account_id" {
 					account_id = var.aws_account_id
-					depends_on = [polaris_aws_account.account]
+					depends_on = [rubrik_aws_account.account]
 				}
 
-				data "polaris_aws_account" "by_cloud_account_id" {
-					cloud_account_id = polaris_aws_account.account.id
+				data "rubrik_aws_account" "by_cloud_account_id" {
+					cloud_account_id = rubrik_aws_account.account.id
 				}
 
-				data "polaris_aws_account" "by_name" {
-					name = polaris_aws_account.account.name
+				data "rubrik_aws_account" "by_name" {
+					name = rubrik_aws_account.account.name
 				}
 			`,
 			ConfigVariables: config.Variables{
@@ -76,22 +76,22 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Account.
-				statecheck.ExpectKnownValue("polaris_aws_account.account", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_aws_account.account", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				// By Account ID.
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_account_id", tfjsonpath.New(keyID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_account_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_account_id", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_account_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyName),
-					"data.polaris_aws_account.by_account_id", tfjsonpath.New(keyName),
+					"rubrik_aws_account.account", tfjsonpath.New(keyName),
+					"data.rubrik_aws_account.by_account_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_aws_account.by_account_id",
+				statecheck.ExpectKnownValue("data.rubrik_aws_account.by_account_id",
 					tfjsonpath.New(keyFeature),
 					knownvalue.SetPartial([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -103,18 +103,18 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 					})),
 				// By Cloud Account ID.
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_cloud_account_id", tfjsonpath.New(keyID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_cloud_account_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_cloud_account_id", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_cloud_account_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyName),
-					"data.polaris_aws_account.by_cloud_account_id", tfjsonpath.New(keyName),
+					"rubrik_aws_account.account", tfjsonpath.New(keyName),
+					"data.rubrik_aws_account.by_cloud_account_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_aws_account.by_cloud_account_id",
+				statecheck.ExpectKnownValue("data.rubrik_aws_account.by_cloud_account_id",
 					tfjsonpath.New(keyFeature),
 					knownvalue.SetPartial([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -126,18 +126,18 @@ func TestAccAwsAccountDataSource(t *testing.T) {
 					})),
 				// By Name.
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_name", tfjsonpath.New(keyID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyID),
-					"data.polaris_aws_account.by_name", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_aws_account.account", tfjsonpath.New(keyID),
+					"data.rubrik_aws_account.by_name", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"polaris_aws_account.account", tfjsonpath.New(keyName),
-					"data.polaris_aws_account.by_name", tfjsonpath.New(keyName),
+					"rubrik_aws_account.account", tfjsonpath.New(keyName),
+					"data.rubrik_aws_account.by_name", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.polaris_aws_account.by_name",
+				statecheck.ExpectKnownValue("data.rubrik_aws_account.by_name",
 					tfjsonpath.New(keyFeature),
 					knownvalue.SetPartial([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -168,12 +168,20 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 			// Onboard an AWS account using the SDKv2 resource and verify that
 			// the SDKv2 and Framework data sources return identical values.
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "profile" {
 					type = string
 				}
 				variable "account_name" {
 					type = string
 				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
 				resource "polaris_aws_account" "account" {
 					name    = var.account_name
 					profile = var.profile
@@ -195,6 +203,7 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
+				"credentials":  config.StringVariable(testCredentials(t)),
 				"profile":      config.StringVariable(testAWSProfile(t)),
 				"account_name": config.StringVariable(testAWSAccountName(t)),
 			},

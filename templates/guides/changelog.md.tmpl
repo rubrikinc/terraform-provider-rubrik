@@ -5,10 +5,6 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.9.0
-* **Breaking Change:** The `rubrik_custom_role` resource now requires the `VIEW_CLUSTER_REFERENCE` permission
-  operation to be granted alongside `VIEW_CLUSTER`. RSC automatically adds `VIEW_CLUSTER_REFERENCE` whenever
-  `VIEW_CLUSTER` is granted, so granting `VIEW_CLUSTER` alone resulted in perpetual drift. `VIEW_CLUSTER_REFERENCE`
-  may still be granted on its own.
 * **Breaking Change:** When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the account, Azure SQL Database and
   Managed Instance SLAs in the `rubrik_sla_domain` resource follow the new V1/V2 model: a V2 (Rubrik-managed) SLA
   specifies a `backup_location` block instead of the top-level `archival` block, and the previous requirement that an
@@ -24,6 +20,15 @@ page_title: "Changelog"
 * Add support for combining the Azure SQL Database and Azure SQL Managed Instance object types in a single
   `rubrik_sla_domain` (they may be combined with each other only, not with other object types), matching RSC.
   [[docs](../resources/sla_domain.md)]
+
+## v1.8.2
+* **Breaking Change:** The `rubrik_custom_role` resource now requires the `VIEW_CLUSTER_REFERENCE` permission
+  operation to be granted alongside `VIEW_CLUSTER`. RSC automatically adds `VIEW_CLUSTER_REFERENCE` whenever
+  `VIEW_CLUSTER` is granted, so granting `VIEW_CLUSTER` alone resulted in perpetual drift. `VIEW_CLUSTER_REFERENCE`
+  may still be granted on its own. See the [v1.8.2 upgrade guide](upgrade_guide_v1.8.2.md).
+* Fix a bug in the `rubrik_data_center_archival_location_amazon_s3` resource where the `cloud_compute_settings`
+  block was read from the `archival_proxy_settings` configuration. Specifying an `archival_proxy_settings` block
+  caused the provider to crash, and any `cloud_compute_settings` values were silently ignored.
 
 ## v1.8.1
 * Add support for the `SERVERS_AND_APPS` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project`

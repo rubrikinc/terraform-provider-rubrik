@@ -880,11 +880,7 @@ data "polaris_sla_domain" "default_by_name" {
 // Acceptance test functions
 
 func TestAccPolarisSLADomain_basic(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	slaDomainBasic, err := makeTerraformConfig(config, slaDomainBasicTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -963,11 +959,7 @@ func TestAccPolarisSLADomain_basic(t *testing.T) {
 }
 
 func TestAccPolarisSLADomain_multipleObjectTypes(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	slaDomainMultipleObjectTypes, err := makeTerraformConfig(config, slaDomainMultipleObjectTypesTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -1015,11 +1007,7 @@ func TestAccPolarisSLADomain_multipleObjectTypes(t *testing.T) {
 }
 
 func TestAccPolarisSLADomain_withArchival(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	slaDomainWithArchival, err := makeTerraformConfig(config, slaDomainWithArchivalTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -1046,11 +1034,7 @@ func TestAccPolarisSLADomain_withArchival(t *testing.T) {
 }
 
 func TestAccPolarisSLADomain_withSnapshotWindow(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	slaDomainWithSnapshotWindow, err := makeTerraformConfig(config, slaDomainWithSnapshotWindowTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -1079,11 +1063,7 @@ func TestAccPolarisSLADomain_withSnapshotWindow(t *testing.T) {
 }
 
 func TestAccPolarisSLADomain_withWeeklySnapshotWindow(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	slaDomainWithWeeklySnapshotWindow, err := makeTerraformConfig(config, slaDomainWithWeeklySnapshotWindowTmpl)
 	if err != nil {
 		t.Fatal(err)

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -36,7 +37,7 @@ func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_aws_cnp_artifacts" "all_features" {
+				data "rubrik_aws_cnp_artifacts" "all_features" {
 					feature {
 						name              = "CLOUD_DISCOVERY"
 						permission_groups = ["BASIC"]
@@ -73,14 +74,14 @@ func TestAccAwsCnpArtifactsDataSource(t *testing.T) {
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// All features.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.all_features",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.all_features",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.all_features",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.all_features",
 					tfjsonpath.New(keyInstanceProfileKeys),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("EXOCOMPUTE_EKS_WORKERNODE"),
 					})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.all_features",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.all_features",
 					tfjsonpath.New(keyRoleKeys),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("CROSSACCOUNT"),
@@ -100,7 +101,7 @@ func TestAccAwsCnpArtifactsDataSource_RoleChaining(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_aws_cnp_artifacts" "role_chaining" {
+				data "rubrik_aws_cnp_artifacts" "role_chaining" {
 					feature {
 						name              = "ROLE_CHAINING"
 						permission_groups = ["BASIC"]
@@ -109,12 +110,12 @@ func TestAccAwsCnpArtifactsDataSource_RoleChaining(t *testing.T) {
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Role chaining.
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.role_chaining",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.role_chaining",
 					tfjsonpath.New(keyInstanceProfileKeys),
 					knownvalue.SetExact([]knownvalue.Check{})),
-				statecheck.ExpectKnownValue("data.polaris_aws_cnp_artifacts.role_chaining",
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.role_chaining",
 					tfjsonpath.New(keyRoleKeys),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("ROLE_CHAINING"),
@@ -138,6 +139,14 @@ func TestAccAwsCnpArtifactsDataSource_FrameworkMigration(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
 				data "polaris_aws_cnp_artifacts" "old" {
 					provider = polaris-sdkv2
 
@@ -180,6 +189,9 @@ func TestAccAwsCnpArtifactsDataSource_FrameworkMigration(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: config.Variables{
+				"credentials": config.StringVariable(testCredentials(t)),
+			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				// Default-cloud (cloud unset) pair.
 				statecheck.CompareValuePairs(

@@ -57,11 +57,14 @@ type testDataCenterArchivalLocation struct {
 
 // loadDataCenterTestConfig loads a Data Center (CDM) test configuration
 // using the default environment variables.
-func loadDataCenterTestConfig() (testConfig, testDataCenter, error) {
-	dc := testDataCenter{}
-	config, err := loadTestConfig("RUBRIK_SERVICEACCOUNT_FILE", "TEST_DATACENTER_FILE", &dc)
+func loadDataCenterTestConfig(t *testing.T) (testConfig, testDataCenter) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
 
-	return config, dc, err
+	dc := testDataCenter{}
+	config := loadTestConfig(t, rscCredentialsEnv, "TEST_DATACENTER_FILE", &dc)
+
+	return config, dc
 }
 
 // testClusterID returns the CDM cluster UUID from the Data Center test
@@ -71,11 +74,7 @@ func testClusterID(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, dc, err := loadDataCenterTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	_, dc := loadDataCenterTestConfig(t)
 	return dc.ClusterUUID.String()
 }
 
@@ -87,10 +86,7 @@ func testClusterIdentity(t *testing.T) (id, name, version string) {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, dc, err := loadDataCenterTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, dc := loadDataCenterTestConfig(t)
 	if dc.ClusterName == "" {
 		t.Fatal("clusterName must be set in TEST_DATACENTER_FILE")
 	}

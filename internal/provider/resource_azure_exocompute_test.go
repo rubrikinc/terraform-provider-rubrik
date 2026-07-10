@@ -70,11 +70,7 @@ resource "polaris_azure_exocompute" "default" {
 `
 
 func TestAccPolarisAzureExocompute_basic(t *testing.T) {
-	config, subscription, err := loadAzureTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, subscription := loadAzureTestConfig(t)
 	exocompute, err := makeTerraformConfig(config, azureExocomputeTmpl)
 	if err != nil {
 		t.Fatal(err)

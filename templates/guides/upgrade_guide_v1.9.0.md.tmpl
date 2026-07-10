@@ -141,40 +141,6 @@ This will record the renames (Option 2) in state and migrate the local Terraform
 
 ## Significant Changes
 
-### Granting `VIEW_CLUSTER` now requires `VIEW_CLUSTER_REFERENCE`
-
-RSC automatically grants the `VIEW_CLUSTER_REFERENCE` permission to any role that is granted `VIEW_CLUSTER`. A
-`rubrik_custom_role` configuration that granted `VIEW_CLUSTER` without `VIEW_CLUSTER_REFERENCE` therefore could produce
-a perpetual diff.
-
-To make this explicit, the `rubrik_custom_role` resource now validates that a role granting `VIEW_CLUSTER` also grants
-`VIEW_CLUSTER_REFERENCE`, otherwise the plan fails with an error. `VIEW_CLUSTER_REFERENCE` is a narrower permission and
-may still be granted on its own.
-
-If your configuration granted `VIEW_CLUSTER` on its own, add `VIEW_CLUSTER_REFERENCE` with the same hierarchy:
-```terraform
-resource "rubrik_custom_role" "viewer" {
-  name = "Cluster Viewer"
-
-  permission {
-    operation = "VIEW_CLUSTER"
-    hierarchy {
-      snappable_type = "AllSubHierarchyType"
-      object_ids     = ["CLUSTER_ROOT"]
-    }
-  }
-
-  permission {
-    operation = "VIEW_CLUSTER_REFERENCE"
-    hierarchy {
-      snappable_type = "AllSubHierarchyType"
-      object_ids     = ["CLUSTER_ROOT"]
-    }
-  }
-}
-```
-Roles that did not grant `VIEW_CLUSTER` are unaffected.
-
 ### Azure SQL Database and Managed Instance SLAs (feature-gated)
 
 When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for your account, Azure SQL Database and Managed Instance SLAs
@@ -185,8 +151,9 @@ in the `rubrik_sla_domain` resource follow a new V1/V2 model:
 * A **V2** (Rubrik-managed) SLA omits `ltr_config` and specifies a Rubrik snapshot schedule together with a
   `backup_location` block.
 
-~> **Note:** These changes only take effect when `CNP_AZURE_SQL_SLA_REVAMP` is enabled for your account. If the feature
-is not enabled, Azure SQL SLAs behave exactly as they did in v1.8.x and **no configuration changes are required**.
+~> **Note:** This behavior is controlled by the `CNP_AZURE_SQL_SLA_REVAMP` account-level feature flag, not by the
+provider version — enabling it affects any provider version managing Azure SQL SLAs for that account. If the feature
+is not enabled for your account, Azure SQL SLAs are unaffected and **no configuration changes are required**.
 
 With the feature enabled, the way an Azure SQL SLA specifies its backup location changes:
 

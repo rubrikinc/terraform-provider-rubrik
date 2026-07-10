@@ -66,11 +66,7 @@ resource "polaris_gcp_project" "default" {
 `
 
 func TestAccPolarisGCPProject_basic(t *testing.T) {
-	config, project, err := loadGCPTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, project := loadGCPTestConfig(t)
 	projectCredentials, err := makeTerraformConfig(config, gcpProjectTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -149,11 +145,7 @@ resource "polaris_gcp_project" "default" {
 `
 
 func TestAccPolarisGCPProject_feature(t *testing.T) {
-	config, project, err := loadGCPTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, project := loadGCPTestConfig(t)
 	projectUsingFeature, err := makeTerraformConfig(config, gcpProjectUsingFeatureTmpl)
 	if err != nil {
 		t.Fatal(err)

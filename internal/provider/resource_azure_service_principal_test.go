@@ -52,11 +52,7 @@ resource "polaris_azure_service_principal" "default" {
 `
 
 func TestAccPolarisAzureServicePrincipal_basic(t *testing.T) {
-	config, subscription, err := loadAzureTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, subscription := loadAzureTestConfig(t)
 	servicePrincipal, err := makeTerraformConfig(config, azureServicePrincipalTmpl)
 	if err != nil {
 		t.Fatal(err)

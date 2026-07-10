@@ -1,8 +1,8 @@
 ---
-page_title: "Upgrade Guide: v1.9.0"
+page_title: "Upgrade Guide: v1.8.2"
 ---
 
-# Upgrade Guide v1.9.0
+# Upgrade Guide v1.8.2
 
 ## Before Upgrading
 
@@ -16,7 +16,7 @@ as well. Each guide documents breaking changes and migration steps specific to t
 
 ### If you are already using the `rubrikinc/rubrik` provider
 
-Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.9.0 release. One
+Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.8.2 release. One
 way of doing this is by using the pessimistic constraint operator `~>`, which allows Terraform to upgrade to the latest
 release within the same minor version:
 ```terraform
@@ -24,7 +24,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -38,7 +38,7 @@ Validate the configuration:
 % terraform plan
 ```
 If you get an error or an unwanted diff, please see the _Significant Changes_ section below for additional
-instructions. Otherwise, refresh the state to the v1.9.0 version:
+instructions. Otherwise, refresh the state to the v1.8.2 version:
 ```shell
 % terraform apply -refresh-only
 ```
@@ -63,7 +63,7 @@ terraform {
   required_providers {
     polaris = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -82,7 +82,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.0"
+      version = "~> 1.8.2"
     }
   }
 }
@@ -137,107 +137,40 @@ unwanted diff, see the _Significant Changes_ section below for additional contex
 ```shell
 % terraform apply
 ```
-This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.9.0 version.
+This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.8.2 version.
 
 ## Significant Changes
 
-### Azure SQL Database and Managed Instance SLAs (feature-gated)
+### Granting `VIEW_CLUSTER` now requires `VIEW_CLUSTER_REFERENCE`
 
-When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for your account, Azure SQL Database and Managed Instance SLAs
-in the `rubrik_sla_domain` resource follow a new V1/V2 model:
+RSC automatically grants the `VIEW_CLUSTER_REFERENCE` permission to any role that is granted `VIEW_CLUSTER`. A
+`rubrik_custom_role` configuration that granted `VIEW_CLUSTER` without `VIEW_CLUSTER_REFERENCE` therefore could produce
+a perpetual diff.
 
-* A **V1** (Azure-managed, long-term retention) SLA carries a new `ltr_config` block (weekly, monthly, and yearly
-  retention) and takes no Rubrik snapshot schedule or backup location.
-* A **V2** (Rubrik-managed) SLA omits `ltr_config` and specifies a Rubrik snapshot schedule together with a
-  `backup_location` block.
+To make this explicit, the `rubrik_custom_role` resource now validates that a role granting `VIEW_CLUSTER` also grants
+`VIEW_CLUSTER_REFERENCE`, otherwise the plan fails with an error. `VIEW_CLUSTER_REFERENCE` is a narrower permission and
+may still be granted on its own.
 
-~> **Note:** This behavior is controlled by the `CNP_AZURE_SQL_SLA_REVAMP` account-level feature flag, not by the
-provider version — enabling it affects any provider version managing Azure SQL SLAs for that account. If the feature
-is not enabled for your account, Azure SQL SLAs are unaffected and **no configuration changes are required**.
-
-With the feature enabled, the way an Azure SQL SLA specifies its backup location changes:
-
-* **Before:** an Azure SQL Database SLA required exactly one top-level `archival` block with instant archival enabled,
-  and an Azure SQL Managed Instance SLA could not specify an archival location.
-* **After:** a V2 Azure SQL SLA specifies its location with a top-level `backup_location` block (the same block used by
-  AWS S3 multiple backup locations) and must not use the `archival` block.
-
-If the feature is enabled and you have an existing Azure SQL Database SLA that uses the `archival` block, replace it
-with a `backup_location` block:
+If your configuration granted `VIEW_CLUSTER` on its own, add `VIEW_CLUSTER_REFERENCE` with the same hierarchy:
 ```terraform
-# Before
-resource "rubrik_sla_domain" "azure_sql" {
-  name         = "azure-sql"
-  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
+resource "rubrik_custom_role" "viewer" {
+  name = "Cluster Viewer"
 
-  hourly_schedule {
-    frequency      = 1
-    retention      = 1
-    retention_unit = "DAYS"
+  permission {
+    operation = "VIEW_CLUSTER"
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids     = ["CLUSTER_ROOT"]
+    }
   }
 
-  azure_sql_database_config {
-    log_retention = 7
-  }
-
-  archival {
-    archival_location_id = data.rubrik_azure_archival_location.example.id
-    threshold            = 0
-  }
-}
-
-# After
-resource "rubrik_sla_domain" "azure_sql" {
-  name         = "azure-sql"
-  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
-
-  hourly_schedule {
-    frequency      = 1
-    retention      = 1
-    retention_unit = "DAYS"
-  }
-
-  azure_sql_database_config {
-    log_retention = 7
-  }
-
-  backup_location {
-    archival_group_id = data.rubrik_azure_archival_location.example.id
-  }
-}
-```
-
-To manage Azure native long-term retention, configure a V1 SLA with `ltr_config` and no schedule or backup location:
-```terraform
-resource "rubrik_sla_domain" "azure_sql_v1" {
-  name         = "azure-sql-v1"
-  object_types = ["AZURE_SQL_DATABASE_OBJECT_TYPE"]
-
-  azure_sql_database_config {
-    log_retention = 7
-    ltr_config {
-      weekly_retention {
-        retention      = 4
-        retention_unit = "WEEKS"
-      }
-      monthly_retention {
-        retention      = 12
-        retention_unit = "MONTHS"
-      }
-      yearly_retention {
-        retention      = 7
-        retention_unit = "YEARS"
-        week_of_year   = 1
-      }
+  permission {
+    operation = "VIEW_CLUSTER_REFERENCE"
+    hierarchy {
+      snappable_type = "AllSubHierarchyType"
+      object_ids     = ["CLUSTER_ROOT"]
     }
   }
 }
 ```
-
-~> **Note:** An existing SLA cannot be switched between V1 (Azure-managed) and V2 (Rubrik-managed) in place — the
-provider rejects a change that adds or removes `ltr_config` on an existing `rubrik_sla_domain`. To change the backup
-type, create a new SLA Domain and reassign the affected databases to it. This matches the RSC UI, which disables the
-backup-service selector when editing an existing SLA.
-
-The release also adds a computed `backup_type` attribute (`NATIVE` for V1, `RUBRIK` for V2) and allows combining the
-Azure SQL Database and Managed Instance object types in a single SLA.
+Roles that did not grant `VIEW_CLUSTER` are unaffected.

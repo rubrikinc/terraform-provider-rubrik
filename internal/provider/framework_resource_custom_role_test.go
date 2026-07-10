@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
@@ -43,7 +44,7 @@ func TestAccCustomRoleResource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created.
 			Config: `
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Auditor"
 					description = "Test Role: Delete Me!"
 
@@ -57,13 +58,13 @@ func TestAccCustomRoleResource(t *testing.T) {
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Test Auditor")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Test Role: Delete Me!")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyPermission),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyPermission),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyOperation: knownvalue.StringExact("EXPORT_DATA_CLASS_GLOBAL"),
@@ -74,15 +75,15 @@ func TestAccCustomRoleResource(t *testing.T) {
 							})}),
 						}),
 					})),
-				statecheck.ExpectIdentity("polaris_custom_role.role", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_custom_role.role", map[string]knownvalue.Check{
 					keyID: NonNullUUID(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_custom_role.role", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_custom_role.role", tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that the resource can be updated.
 			Config: `
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Auditor Update"
 					description = "Test Role: Delete Me! Update"
 
@@ -110,13 +111,13 @@ func TestAccCustomRoleResource(t *testing.T) {
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Test Auditor Update")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Test Role: Delete Me! Update")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyPermission),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyPermission),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyOperation: knownvalue.StringExact("EXPORT_DATA_CLASS_GLOBAL"),
@@ -145,20 +146,20 @@ func TestAccCustomRoleResource(t *testing.T) {
 							})}),
 						}),
 					})),
-				statecheck.ExpectIdentity("polaris_custom_role.role", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_custom_role.role", map[string]knownvalue.Check{
 					keyID: NonNullUUID(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_custom_role.role", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_custom_role.role", tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import.
-			ResourceName:      "polaris_custom_role.role",
+			ResourceName:      "rubrik_custom_role.role",
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName:    "polaris_custom_role.role",
+			ResourceName:    "rubrik_custom_role.role",
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -168,7 +169,7 @@ func TestAccCustomRoleResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName:    "polaris_custom_role.role",
+			ResourceName:    "rubrik_custom_role.role",
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -187,16 +188,16 @@ func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the resource can be created from a role template.
 			Config: `
-				data "polaris_role_template" "auditor" {
+				data "rubrik_role_template" "auditor" {
 				  	name = "Compliance Auditor"
 				}
 				
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Auditor"
-					description = "Based on the ${data.polaris_role_template.auditor.name} template: Delete Me!"
+					description = "Based on the ${data.rubrik_role_template.auditor.name} template: Delete Me!"
 					
 					dynamic "permission" {
-						for_each = data.polaris_role_template.auditor.permission
+						for_each = data.rubrik_role_template.auditor.permission
 						content {
 							operation = permission.value["operation"]
 							
@@ -212,13 +213,13 @@ func TestAccCustomRoleResource_FromTemplate(t *testing.T) {
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Test Auditor")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Based on the Compliance Auditor template: Delete Me!")),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyPermission),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyPermission),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyOperation: knownvalue.StringExact("EXPORT_DATA_CLASS_GLOBAL"),
@@ -250,7 +251,7 @@ func TestAccCustomRoleResource_ViewClusterOnly(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Cluster Viewer"
 					description = "Test Role: Delete Me!"
 
@@ -279,7 +280,7 @@ func TestAccCustomRoleResource_ViewClusterReferenceOnly(t *testing.T) {
 		CheckDestroy:             customRoleCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: `
-				resource "polaris_custom_role" "role" {
+				resource "rubrik_custom_role" "role" {
 					name        = "Test Cluster Reference Viewer"
 					description = "Test Role: Delete Me!"
 
@@ -293,9 +294,9 @@ func TestAccCustomRoleResource_ViewClusterReferenceOnly(t *testing.T) {
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyPermission),
+				statecheck.ExpectKnownValue("rubrik_custom_role.role", tfjsonpath.New(keyPermission),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
 							keyOperation: knownvalue.StringExact(string(access.OperationViewClusterReference)),
@@ -318,7 +319,19 @@ func TestAccCustomRoleResource_ViewClusterReferenceOnly(t *testing.T) {
 // SDKv2 provider; step 2 refreshes state using the local Framework provider
 // and asserts the plan is empty.
 func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
+	vars := config.Variables{
+		"credentials": config.StringVariable(testCredentials(t)),
+	}
+
 	conf := `
+		variable "credentials" {
+			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
+		}
+
 		resource "polaris_custom_role" "role" {
 			name        = "Test Auditor"
 			description = "Test Role: Delete Me!"
@@ -356,7 +369,8 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 					VersionConstraint: "1.5.0",
 				},
 			},
-			Config: conf,
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -368,6 +382,7 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config:                   conf,
+			ConfigVariables:          vars,
 			PlanOnly:                 true,
 		}},
 	})
@@ -377,6 +392,10 @@ func TestAccCustomRoleResource_FrameworkMigration(t *testing.T) {
 // polaris_custom_role resource created by the rubrikinc/polaris provider can be
 // moved to a rubrik_custom_role resource using the moved {} block.
 func TestAccCustomRoleResource_MoveState(t *testing.T) {
+	vars := config.Variables{
+		"credentials": config.StringVariable(testCredentials(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_8_0),
@@ -390,6 +409,14 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
+				}
+
 				resource "polaris_custom_role" "role" {
 					name        = "Test Role Move State"
 					description = "Test Role: Delete Me!"
@@ -410,6 +437,7 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_custom_role.role", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -417,6 +445,10 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
+
 				moved {
 					from = polaris_custom_role.role
 					to   = rubrik_custom_role.role
@@ -442,6 +474,7 @@ func TestAccCustomRoleResource_MoveState(t *testing.T) {
 					}
 				}
 			`,
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state. Without the apply step, destroy can
 			// fail due to resource dependency issues.
@@ -503,7 +536,7 @@ func TestValidateCustomRoleConfig(t *testing.T) {
 		wantErr:    false,
 	}, {
 		name:       "null permission set",
-		permission: types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}),
+		permission: types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}),
 		wantErr:    false,
 	}}
 

@@ -83,11 +83,7 @@ resource "polaris_sla_domain_assignment" "default" {
 `
 
 func TestAccPolarisSLADomainAssignment_protectWithSla(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	protectWithSla, err := makeTerraformConfig(config, slaDomainAssignmentProtectWithSlaTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -152,11 +148,7 @@ resource "polaris_sla_domain_assignment" "default" {
 )
 
 func TestAccPolarisSLADomainAssignment_doNotProtect(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	doNotProtect, err := makeTerraformConfig(config, slaDomainAssignmentDoNotProtectTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -188,11 +180,7 @@ func TestAccPolarisSLADomainAssignment_doNotProtect(t *testing.T) {
 }
 
 func TestAccPolarisSLADomainAssignment_switchAssignmentType(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	protectWithSla, err := makeTerraformConfig(config, slaDomainAssignmentProtectWithSlaTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -301,11 +289,7 @@ resource "polaris_sla_domain" "test" {
 )
 
 func TestAccPolarisSLADomainAssignment_addRemoveObjects(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Step 1: Start with a single object assigned.
 	step1, err := makeTerraformConfig(config, tmplProvider+tmplTagRulesAddRemove+tmplSLADomainAddRemove+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -376,11 +360,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_multipleObjects(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Create multiple tag rules assigned to the same SLA.
 	multipleObjects, err := makeTerraformConfig(config, tmplProvider+tmplTagRulesMulti+tmplSLADomainMulti+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -505,11 +485,7 @@ resource "polaris_tag_rule" "test" {
 )
 
 func TestAccPolarisSLADomainAssignment_changeSLADomain(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Assign the first SLA domain.
 	step1, err := makeTerraformConfig(config, tmplProvider+tmplTagRuleChangeSLA+tmplTwoSLADomains+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -566,11 +542,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_keepForeverRetention(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	retainSnapshots, err := makeTerraformConfig(config, slaDomainAssignmentDoNotProtectTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -621,11 +593,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_doNotProtectNoRetention(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Test doNotProtect without retention policy.
 	noRetention, err := makeTerraformConfig(config, tmplProvider+tmplTagRuleDoNotProtect+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -663,11 +631,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_applyToExistingFalse(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Test apply_changes_to_existing_snapshots = false.
 	applyFalse, err := makeTerraformConfig(config, tmplProvider+tmplTagRuleTest+tmplSLADomainTest+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -708,11 +672,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_doNotProtectToDifferentSLA(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Start with doNotProtect.
 	doNotProtect, err := makeTerraformConfig(config, tmplProvider+tmplTagRuleChangeSLA+tmplTwoSLADomains+`
 resource "polaris_sla_domain_assignment" "default" {
@@ -760,11 +720,7 @@ resource "polaris_sla_domain_assignment" "default" {
 }
 
 func TestAccPolarisSLADomainAssignment_import(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Create resources for import testing.
 	importConfig, err := makeTerraformConfig(config, tmplProvider+`
 resource "polaris_tag_rule" "test" {
@@ -835,11 +791,7 @@ func testAccPolarisSLADomainAssignmentImportStateIdFunc(resourceName string) res
 }
 
 func TestAccPolarisSLADomainAssignment_importDoNotProtect(t *testing.T) {
-	config, _, err := loadRSCTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, _ := loadRSCTestConfig(t)
 	// Create a doNotProtect assignment for import testing.
 	doNotProtectConfig, err := makeTerraformConfig(config, tmplProvider+tmplTagRuleDoNotProtect+`
 resource "polaris_sla_domain_assignment" "default" {

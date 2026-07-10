@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"os"
 	"regexp"
 	"testing"
 
@@ -32,32 +33,36 @@ import (
 
 func TestAccProviderCredentialsInEnv(t *testing.T) {
 	credentials := testCredentials(t)
+	file := os.Getenv("RUBRIK_SERVICEACCOUNT_FILE")
 
-	// Valid service account in RUBRIK_POLARIS_SERVICEACCOUNT_FILE.
+	clearRSCCredentialEnv(t)
+
+	// Valid service account in RUBRIK_SERVICEACCOUNT_FILE.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", file)
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
 					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Administrator")),
 			},
 		}},
 	})
 
-	// Non-existing service account in RUBRIK_POLARIS_SERVICEACCOUNT_FILE.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "03147711-359c-40fd-b635-69619fcf374d")
+	// Non-existing service account in RUBRIK_SERVICEACCOUNT_FILE.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", "03147711-359c-40fd-b635-69619fcf374d")
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -65,33 +70,33 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 		}},
 	})
 
-	// Valid service account in RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "")
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", credentials)
+	// Valid service account in RUBRIK_SERVICEACCOUNT_CREDENTIALS.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", credentials)
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
 					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
-				statecheck.ExpectKnownValue("data.polaris_role.admin", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
 					knownvalue.StringExact("Administrator")),
 			},
 		}},
 	})
 
-	// Invalid service account in RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", "invalid")
+	// Invalid service account in RUBRIK_SERVICEACCOUNT_CREDENTIALS.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", "invalid")
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -101,13 +106,13 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 
 	// Partial service account in env. This could happen if the service account
 	// is given in parts and one of the parts is missing.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", "")
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_NAME", "name")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_NAME", "name")
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
@@ -118,16 +123,86 @@ func TestAccProviderCredentialsInEnv(t *testing.T) {
 	// No service account in env. This could happen if the provider is used to
 	// bootstrap a CDM cluster without RSC credentials, but an RSC resource is
 	// used.
-	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_NAME", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_NAME", "")
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: `
-				data "polaris_role" "admin" {
+				data "rubrik_role" "admin" {
 					name = "Administrator"
 				}
 			`,
 			ExpectError: regexp.MustCompile("(?s)^.*Error: RSC client error.*service account file and env.*$"),
 		}},
 	})
+}
+
+// TestAccProviderCredentialsInEnvFallback verifies that the provider falls back
+// to the legacy RUBRIK_POLARIS_ prefixed environment variables when the RUBRIK_
+// prefixed variables are not defined.
+func TestAccProviderCredentialsInEnvFallback(t *testing.T) {
+	credentials := testCredentials(t)
+	file := os.Getenv("RUBRIK_SERVICEACCOUNT_FILE")
+
+	clearRSCCredentialEnv(t)
+
+	// Valid service account via the RUBRIK_POLARIS_SERVICEACCOUNT_FILE fallback.
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", file)
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "rubrik_role" "admin" {
+					name = "Administrator"
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
+					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
+					knownvalue.StringExact("Administrator")),
+			},
+		}},
+	})
+
+	// Valid service account via the RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS
+	// fallback.
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", credentials)
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "rubrik_role" "admin" {
+					name = "Administrator"
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyID),
+					knownvalue.StringExact("00000000-0000-0000-0000-000000000000")),
+				statecheck.ExpectKnownValue("data.rubrik_role.admin", tfjsonpath.New(keyName),
+					knownvalue.StringExact("Administrator")),
+			},
+		}},
+	})
+}
+
+func clearRSCCredentialEnv(t *testing.T) {
+	t.Helper()
+
+	// Rubrik environment variables.
+	t.Setenv("RUBRIK_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CREDENTIALS", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_NAME", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CLIENTID", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_CLIENTSECRET", "")
+	t.Setenv("RUBRIK_SERVICEACCOUNT_ACCESSTOKENURI", "")
+
+	// Rubrik Polaris environment variables.
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CREDENTIALS", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_NAME", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTID", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_CLIENTSECRET", "")
+	t.Setenv("RUBRIK_POLARIS_SERVICEACCOUNT_ACCESSTOKENURI", "")
 }

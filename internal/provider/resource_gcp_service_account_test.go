@@ -64,11 +64,7 @@ resource "polaris_gcp_service_account" "default" {
 // which API-server instance you get connected to. Therefore, we cannot verify
 // that the correct name has been set.
 func TestAccPolarisGCPServiceAccount_basic(t *testing.T) {
-	config, project, err := loadGCPTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, project := loadGCPTestConfig(t)
 	serviceAccountWithDefaultName, err := makeTerraformConfig(config, gcpServiceAccountWithDefaultNameTmpl)
 	if err != nil {
 		t.Fatal(err)
