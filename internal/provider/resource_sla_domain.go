@@ -2964,10 +2964,10 @@ var errLTRConfigRequiresFeature = errors.New(
 // continue to work unchanged.
 func validateAzureSQLDatabaseObjectType(revamp bool, objectTypeList []any, config *gqlsla.AzureDBConfig, schedule gqlsla.SnapshotSchedule, backupLocations []gqlsla.BackupLocationSpec, archivalSpecs []gqlsla.ArchivalSpec, replicationSpecs []gqlsla.ReplicationSpec) error {
 	if config == nil {
-		return fmt.Errorf("Azure SQL Database object type requires Azure SQL Database configuration")
+		return fmt.Errorf("the Azure SQL Database object type requires Azure SQL Database configuration")
 	}
 	if len(replicationSpecs) > 0 {
-		return fmt.Errorf("Azure SQL Database object type does not support replication")
+		return fmt.Errorf("the Azure SQL Database object type does not support replication")
 	}
 
 	if !revamp {
@@ -2976,17 +2976,17 @@ func validateAzureSQLDatabaseObjectType(revamp bool, objectTypeList []any, confi
 			return errLTRConfigRequiresFeature
 		}
 		if len(objectTypeList) > 1 {
-			return fmt.Errorf("Azure SQL Database object type cannot be combined with other object types")
+			return fmt.Errorf("the Azure SQL Database object type cannot be combined with other object types")
 		}
 		if len(archivalSpecs) != 1 || archivalSpecs[0].Threshold != 0 {
-			return fmt.Errorf("Azure SQL Database object type requires an archival location with instant archival enabled")
+			return fmt.Errorf("the Azure SQL Database object type requires an archival location with instant archival enabled")
 		}
 		return nil
 	}
 
 	// Revamp behavior (feature enabled): V1/V2 model.
 	if !onlyAzureSQLObjectTypes(objectTypeList) {
-		return fmt.Errorf("Azure SQL Database object type can only be combined with Azure SQL Managed Instance")
+		return fmt.Errorf("the Azure SQL Database object type can only be combined with Azure SQL Managed Instance")
 	}
 	return validateAzureSQLSLA("Azure SQL Database", config, schedule, backupLocations, archivalSpecs)
 }
@@ -2996,10 +2996,10 @@ func validateAzureSQLDatabaseObjectType(revamp bool, objectTypeList []any, confi
 // validateAzureSQLDatabaseObjectType. Legacy MI SLAs do not support archival.
 func validateAzureSQLManagedInstanceObjectType(revamp bool, objectTypeList []any, miConfig, dbConfig *gqlsla.AzureDBConfig, schedule gqlsla.SnapshotSchedule, backupLocations []gqlsla.BackupLocationSpec, archivalSpecs []gqlsla.ArchivalSpec, replicationSpecs []gqlsla.ReplicationSpec) error {
 	if miConfig == nil {
-		return fmt.Errorf("Azure SQL Managed Instance object type requires Azure SQL Managed Instance configuration")
+		return fmt.Errorf("the Azure SQL Managed Instance object type requires Azure SQL Managed Instance configuration")
 	}
 	if len(replicationSpecs) > 0 {
-		return fmt.Errorf("Azure SQL Managed Instance object type does not support replication")
+		return fmt.Errorf("the Azure SQL Managed Instance object type does not support replication")
 	}
 
 	if !revamp {
@@ -3008,17 +3008,17 @@ func validateAzureSQLManagedInstanceObjectType(revamp bool, objectTypeList []any
 			return errLTRConfigRequiresFeature
 		}
 		if dbConfig != nil {
-			return fmt.Errorf("Azure SQL Managed Instance object type cannot be combined with Azure SQL Database configuration")
+			return fmt.Errorf("the Azure SQL Managed Instance object type cannot be combined with Azure SQL Database configuration")
 		}
 		if len(archivalSpecs) > 0 {
-			return fmt.Errorf("Azure SQL Managed Instance object type does not support archival locations")
+			return fmt.Errorf("the Azure SQL Managed Instance object type does not support archival locations")
 		}
 		return nil
 	}
 
 	// Revamp behavior (feature enabled): V1/V2 model.
 	if !onlyAzureSQLObjectTypes(objectTypeList) {
-		return fmt.Errorf("Azure SQL Managed Instance object type can only be combined with Azure SQL Database")
+		return fmt.Errorf("the Azure SQL Managed Instance object type can only be combined with Azure SQL Database")
 	}
 	return validateAzureSQLSLA("Azure SQL Managed Instance", miConfig, schedule, backupLocations, archivalSpecs)
 }
