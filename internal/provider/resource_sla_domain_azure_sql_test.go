@@ -21,38 +21,12 @@
 package provider
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
-
-const featureFlagAzureSQLSLARevamp = "CNP_AZURE_SQL_SLA_REVAMP"
-
-// requireAzureSQLSLARevamp skips the test unless the CNP_AZURE_SQL_SLA_REVAMP
-// feature flag is enabled for the account. The V1/V2 Azure SQL SLA model is
-// gated on this flag, so the tests below only apply when it is on.
-func requireAzureSQLSLARevamp(t *testing.T) {
-	t.Helper()
-
-	credentials := os.Getenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE")
-	if credentials == "" {
-		t.Skip("RUBRIK_POLARIS_SERVICEACCOUNT_FILE not set")
-	}
-
-	ctx := context.Background()
-	c, err := newClient(ctx, credentials, polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	if !c.flag(ctx, core.FeatureFlagName(featureFlagAzureSQLSLARevamp)) {
-		t.Skipf("feature flag %s is not enabled", featureFlagAzureSQLSLARevamp)
-	}
-}
 
 // azureSQLTestResource holds the per-test values injected into the templates
 // below via the testConfig.Resource field.
@@ -176,7 +150,7 @@ data "polaris_sla_domain" "azure_sql_v2" {
 // (Azure-managed) Azure SQL Database SLA, including that ltr_config round-trips,
 // backup_type reads back as NATIVE, and a retention value can be updated.
 func TestAccPolarisSLADomain_azureSqlV1(t *testing.T) {
-	requireAzureSQLSLARevamp(t)
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureSQLSLARevamp)
 
 	create, err := makeTerraformConfig(azureSQLTestConfig(azureSQLTestResource{WeeklyRetention: 4}), slaDomainAzureSQLV1Tmpl)
 	if err != nil {
@@ -223,7 +197,7 @@ func TestAccPolarisSLADomain_azureSqlV1(t *testing.T) {
 // TestAccPolarisSLADomain_azureSqlDbMi verifies that the Azure SQL Database and
 // Managed Instance object types can be combined in a single SLA.
 func TestAccPolarisSLADomain_azureSqlDbMi(t *testing.T) {
-	requireAzureSQLSLARevamp(t)
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureSQLSLARevamp)
 
 	config, err := makeTerraformConfig(azureSQLTestConfig(azureSQLTestResource{}), slaDomainAzureSQLDbMiTmpl)
 	if err != nil {
@@ -251,7 +225,7 @@ func TestAccPolarisSLADomain_azureSqlDbMi(t *testing.T) {
 // as the backup location, provided via the TEST_AZURE_SQL_BACKUP_LOCATION_GROUP_ID
 // environment variable; the test is skipped when it is not set.
 func TestAccPolarisSLADomain_azureSqlV2(t *testing.T) {
-	requireAzureSQLSLARevamp(t)
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureSQLSLARevamp)
 
 	groupID := os.Getenv("TEST_AZURE_SQL_BACKUP_LOCATION_GROUP_ID")
 	if groupID == "" {
