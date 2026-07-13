@@ -15,11 +15,13 @@ page_title: "Changelog"
   `ltr_config` block in the `azure_sql_database_config` and `azure_sql_managed_instance_config` blocks, with weekly,
   monthly, and yearly retention. A V1 SLA omits the Rubrik snapshot schedule and backup location. Requires the
   `CNP_AZURE_SQL_SLA_REVAMP` feature. [[docs](../resources/sla_domain.md)]
-* Add a computed `backup_type` attribute to the `rubrik_sla_domain` resource, reporting whether an Azure SQL SLA's
-  backups are Azure-managed (`NATIVE`, V1) or Rubrik-managed (`RUBRIK`, V2).
 * Add support for combining the Azure SQL Database and Azure SQL Managed Instance object types in a single
   `rubrik_sla_domain` (they may be combined with each other only, not with other object types), matching RSC.
   [[docs](../resources/sla_domain.md)]
+* Add support for `retain_archive_logs_indefinitely` in the `oracle_config` block of the `rubrik_sla_domain` resource. [[docs](../resources/sla_domain.md)]
+* Add a computed `backup_type` attribute to the `rubrik_sla_domain` resource, reporting whether an Azure SQL SLA's
+  backups are Azure-managed (`NATIVE`, V1) or Rubrik-managed (`RUBRIK`, V2).
+* Fix the description of `host_log_retention_unit` in the `oracle_config` block to document `MINUTES` and `HOURS` as valid values. [[docs](../resources/sla_domain.md)]
 
 ## v1.8.2
 * **Breaking Change:** The `rubrik_custom_role` resource now requires the `VIEW_CLUSTER_REFERENCE` permission
