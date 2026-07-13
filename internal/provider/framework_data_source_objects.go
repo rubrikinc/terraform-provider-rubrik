@@ -161,11 +161,6 @@ func (d *objectsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	objectType := config.ObjectType.ValueString()
 	subIDStr := config.SubscriptionID.ValueString()
 
-	if objectType != "AzureNativeResourceGroup" {
-		res.Diagnostics.AddError("Unsupported object_type", fmt.Sprintf("object_type %q is not supported", objectType))
-		return
-	}
-
 	var subIDs []uuid.UUID
 	if subIDStr != "" {
 		subID, err := uuid.Parse(subIDStr)

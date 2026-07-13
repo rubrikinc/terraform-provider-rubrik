@@ -9,12 +9,11 @@ output "resource_group_names" {
 }
 
 # Scope the search to a single subscription.
-resource "rubrik_azure_subscription" "subscription" {
+data "rubrik_azure_subscription" "subscription" {
   subscription_id = "31be1bb0-c76c-11eb-9217-afdffe83a002"
-  tenant_domain   = "my-domain.onmicrosoft.com"
 }
 
 data "rubrik_objects" "resource_groups_in_subscription" {
   object_type     = "AzureNativeResourceGroup"
-  subscription_id = rubrik_azure_subscription.subscription.id
+  subscription_id = data.rubrik_azure_subscription.subscription.id
 }
