@@ -93,6 +93,7 @@ The following resources support state migration via Terraform's `moved {}` block
 
 * `polaris_aws_cnp_account` → `rubrik_aws_cnp_account`
 * `polaris_aws_cnp_account_attachments` → `rubrik_aws_cnp_account_attachments`
+* `polaris_azure_devops_organization` → `rubrik_azure_devops_organization`
 * `polaris_custom_role` → `rubrik_custom_role`
 * `polaris_role_assignment` → `rubrik_role_assignment`
 * `polaris_sso_group` → `rubrik_sso_group`
@@ -241,3 +242,119 @@ backup-service selector when editing an existing SLA.
 
 The release also adds a computed `backup_type` attribute (`NATIVE` for V1, `RUBRIK` for V2) and allows combining the
 Azure SQL Database and Managed Instance object types in a single SLA.
+
+## New Features
+
+### Azure DevOps Onboarding
+
+A new `rubrik_azure_devops_organization` resource onboards an Azure DevOps organization to RSC using a customer-supplied
+application (non-OAuth). Onboarding has three steps that map to three Terraform objects:
+
+1. Register the customer application for the Azure DevOps use case with a `rubrik_azure_service_principal` resource,
+   setting the new `use_case = "AZURE_DEVOPS"` field.
+2. Generate the onboarding scripts with the `rubrik_azure_devops_script` data source and run them against the
+   organization out of band. The provider does not run the scripts — run each one with the Azure CLI signed in
+   (`az login`) as a Project Collection Administrator in the organization; the script mints a short-lived Azure DevOps
+   token from that session, so no personal access token is required.
+3. Onboard the organization with the `rubrik_azure_devops_organization` resource.
+
+```terraform
+resource "rubrik_azure_service_principal" "devops" {
+  app_id        = "25c2b42a-c76b-11eb-9767-6ff6b5b7e72b"
+  app_name      = "My DevOps App"
+  app_secret    = "<my-apps-secret>"
+  tenant_domain = "mydomain.onmicrosoft.com"
+  tenant_id     = "2bfdaef8-c76b-11eb-8d3d-4706c14a88f0"
+  use_case      = "AZURE_DEVOPS"
+}
+
+data "rubrik_azure_devops_script" "onboard" {
+  org_native_ids = ["my-org"]
+  tenant_domain  = rubrik_azure_service_principal.devops.tenant_domain
+
+  feature {
+    name = "AZURE_DEVOPS_PROTECTION"
+  }
+  feature {
+    name = "AZURE_DEVOPS_REPOSITORY_PROTECTION"
+  }
+}
+
+resource "rubrik_azure_devops_organization" "org" {
+  native_id            = "my-org"
+  tenant_domain        = rubrik_azure_service_principal.devops.tenant_domain
+  exocompute_host_type = "RUBRIK_HOST"
+  exocompute_region    = "eastus"
+  storage_type         = "RCV"
+
+  feature {
+    name = "AZURE_DEVOPS_PROTECTION"
+  }
+  feature {
+    name = "AZURE_DEVOPS_REPOSITORY_PROTECTION"
+  }
+
+  depends_on = [rubrik_azure_service_principal.devops]
+}
+```
+
+The `use_case` field on `rubrik_azure_service_principal` selects whether the application is registered for cloud native
+protection (the default) or Azure DevOps. Credentials are stored separately per use case, so a tenant that uses both
+declares one service principal per use case. Omitting the field preserves the existing cloud native protection behavior,
+so existing service principal configurations are unaffected.
+
+### Reading Azure DevOps Objects
+
+Three new data sources read onboarded Azure DevOps objects by RSC ID: `rubrik_azure_devops_organization`,
+`rubrik_azure_devops_project` and `rubrik_azure_devops_repository`.
+
+The `rubrik_object` data source also gains support for the `AzureDevOpsOrganization`, `AzureDevOpsProject` and
+`AzureDevOpsRepository` object types, resolving an object to its RSC ID by name for use with the
+`rubrik_sla_domain_assignment` resource. Because project and repository names are only unique within their parent, set
+the optional `org_id` (for a project) or `project_id` (for a repository) to disambiguate a name shared across parents:
+
+```terraform
+data "rubrik_object" "repo" {
+  object_type = "AzureDevOpsRepository"
+  name        = "my-repo"
+  project_id  = data.rubrik_object.project.id
+}
+```
+
+### Discovery and Bulk Import
+
+A new `rubrik_azure_devops_organization` list resource lists onboarded Azure DevOps organizations, so you can discover
+them with `terraform query` or bring existing organizations under management with an `import` block:
+
+```terraform
+variable "clouds" {
+  type        = map(string)
+  description = "Map of Azure DevOps organization native_id to cloud type (PUBLIC, CHINA or USGOV)."
+  default     = {}
+}
+
+list "rubrik_azure_devops_organization" "all" {
+  provider = rubrik
+}
+
+import {
+  for_each = list.rubrik_azure_devops_organization.all.results
+  to       = rubrik_azure_devops_organization.org[each.value.identity.id]
+  identity = {
+    id    = each.value.identity.id
+    cloud = lookup(var.clouds, each.value.resource.native_id, "PUBLIC")
+  }
+}
+```
+
+RSC does not return the enabled `feature` blocks or the `cloud` type for onboarded organizations, so neither is
+populated in list results. After generating configuration, set at least one `feature` block on each organization before
+applying. The `cloud` type defaults to `PUBLIC` on import; for any non-public organization supply it in the import
+`identity` block, e.g. with a `var.clouds` map keyed on the organization `native_id` as shown above. For details,
+see the [rubrik_azure_devops_organization list resource documentation](../list-resources/azure_devops_organization.md).
+
+### `moved {}` Block Support
+
+The `rubrik_azure_devops_organization` resource supports Terraform's `moved {}` block. This enables in-place migration
+from the deprecated `polaris_azure_devops_organization` resource type to the `rubrik_azure_devops_organization` resource
+type without offboarding the organization from RSC and re-onboarding it.

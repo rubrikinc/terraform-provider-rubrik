@@ -20,6 +20,28 @@ page_title: "Changelog"
 * Add support for combining the Azure SQL Database and Azure SQL Managed Instance object types in a single
   `rubrik_sla_domain` (they may be combined with each other only, not with other object types), matching RSC.
   [[docs](../resources/sla_domain.md)]
+* New resource added for `rubrik_azure_devops_organization` which onboards an Azure DevOps organization to RSC
+  using a customer-supplied application (non-OAuth). [[docs](../resources/azure_devops_organization.md)]
+* New data source added for `rubrik_azure_devops_script` which generates the Azure DevOps onboarding scripts to run
+  against an organization out of band. [[docs](../data-sources/azure_devops_script.md)]
+* New data source added for `rubrik_azure_devops_organization` which reads an onboarded Azure DevOps organization.
+  [[docs](../data-sources/azure_devops_organization.md)]
+* New data source added for `rubrik_azure_devops_project` which reads an Azure DevOps project.
+  [[docs](../data-sources/azure_devops_project.md)]
+* New data source added for `rubrik_azure_devops_repository` which reads an Azure DevOps repository.
+  [[docs](../data-sources/azure_devops_repository.md)]
+* New list resource added for `rubrik_azure_devops_organization` which lists onboarded Azure DevOps organizations
+  for discovery and bulk import. [[docs](../list-resources/azure_devops_organization.md)]
+* Add `moved {}` block support to the `rubrik_azure_devops_organization` resource. This enables in-place migration
+  from the deprecated `polaris` prefixed resource type to the `rubrik` prefixed resource type via a Terraform
+  `moved {}` block, without offboarding the organization from RSC and re-onboarding it. See the
+  [v1.9.0 upgrade guide](upgrade_guide_v1.9.0.md) for migration instructions.
+* Add support for `use_case` in the `rubrik_azure_service_principal` resource, selecting whether the service
+  principal is registered for cloud native protection (default) or Azure DevOps. The credentials are stored
+  separately per use case. [[docs](../resources/azure_service_principal.md)]
+* Add support for the `AzureDevOpsOrganization`, `AzureDevOpsProject` and `AzureDevOpsRepository` object types in
+  the `rubrik_object` data source, resolving an Azure DevOps object to its RSC ID by name for use with the
+  `rubrik_sla_domain_assignment` resource. [[docs](../data-sources/object.md)]
 
 ## v1.8.2
 * **Breaking Change:** The `rubrik_custom_role` resource now requires the `VIEW_CLUSTER_REFERENCE` permission
