@@ -303,10 +303,6 @@ protection (the default) or Azure DevOps. Credentials are stored separately per 
 declares one service principal per use case. Omitting the field preserves the existing cloud native protection behavior,
 so existing service principal configurations are unaffected.
 
-For the full onboarding example, including running the generated script with a `null_resource`, see the
-[rubrik_azure_devops_organization resource documentation](../resources/azure_devops_organization.md) and the
-[rubrik_azure_devops_script data source documentation](../data-sources/azure_devops_script.md).
-
 ### Reading Azure DevOps Objects
 
 Three new data sources read onboarded Azure DevOps objects by RSC ID: `rubrik_azure_devops_organization`,
@@ -331,6 +327,12 @@ A new `rubrik_azure_devops_organization` list resource lists onboarded Azure Dev
 them with `terraform query` or bring existing organizations under management with an `import` block:
 
 ```terraform
+variable "clouds" {
+  type        = map(string)
+  description = "Map of Azure DevOps organization native_id to cloud type (PUBLIC, CHINA or USGOV)."
+  default     = {}
+}
+
 list "rubrik_azure_devops_organization" "all" {
   provider = rubrik
 }
@@ -339,19 +341,20 @@ import {
   for_each = list.rubrik_azure_devops_organization.all.results
   to       = rubrik_azure_devops_organization.org[each.value.identity.id]
   identity = {
-    id = each.value.identity.id
+    id    = each.value.identity.id
+    cloud = lookup(var.clouds, each.value.resource.native_id, "PUBLIC")
   }
 }
 ```
 
-RSC does not return the enabled `feature` blocks for onboarded organizations, so they are not populated in list results.
-After generating configuration, set at least one `feature` block on each organization before applying. For details, see
-the [rubrik_azure_devops_organization list resource documentation](../list-resources/azure_devops_organization.md).
+RSC does not return the enabled `feature` blocks or the `cloud` type for onboarded organizations, so neither is
+populated in list results. After generating configuration, set at least one `feature` block on each organization before
+applying. The `cloud` type defaults to `PUBLIC` on import; for any non-public organization supply it in the import
+`identity` block, e.g. with a `var.clouds` map keyed on the organization `native_id` as shown above. For details,
+see the [rubrik_azure_devops_organization list resource documentation](../list-resources/azure_devops_organization.md).
 
 ### `moved {}` Block Support
 
 The `rubrik_azure_devops_organization` resource supports Terraform's `moved {}` block. This enables in-place migration
 from the deprecated `polaris_azure_devops_organization` resource type to the `rubrik_azure_devops_organization` resource
-type without offboarding the organization from RSC and re-onboarding it. See
-[Option 2 in How to Upgrade](#option-2-switch-source-to-rubrikincrubrik-and-change-the-local-name-to-rubrik) for the
-migration procedure.
+type without offboarding the organization from RSC and re-onboarding it.
