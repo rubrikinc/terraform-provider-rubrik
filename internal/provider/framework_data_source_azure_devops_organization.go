@@ -161,7 +161,8 @@ func (d *azureDevOpsOrganizationDataSource) Read(ctx context.Context, req dataso
 		}
 	case !config.NativeID.IsNull():
 		nativeID := config.NativeID.ValueString()
-		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsOrganization](ctx, hierarchy.Wrap(polarisClient.GQL), nativeID, hierarchy.WorkloadAllSubHierarchyType)
+		activeFilters := activeObjectFilters()
+		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsOrganization](ctx, hierarchy.Wrap(polarisClient.GQL), nativeID, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			res.Diagnostics.AddError("Failed to look up Azure DevOps organization", err.Error())
 			return

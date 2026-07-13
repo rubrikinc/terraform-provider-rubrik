@@ -175,7 +175,8 @@ func (d *azureDevOpsRepositoryDataSource) Read(ctx context.Context, req datasour
 		}
 	case !config.Name.IsNull():
 		name := config.Name.ValueString()
-		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsRepository](ctx, hierarchy.Wrap(polarisClient.GQL), name, hierarchy.WorkloadAllSubHierarchyType)
+		activeFilters := activeObjectFilters()
+		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsRepository](ctx, hierarchy.Wrap(polarisClient.GQL), name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			res.Diagnostics.AddError("Failed to look up Azure DevOps repository", err.Error())
 			return

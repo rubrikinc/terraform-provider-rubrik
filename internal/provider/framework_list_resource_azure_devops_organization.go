@@ -153,7 +153,8 @@ func (r *azureDevOpsOrganizationListResource) List(ctx context.Context, req list
 	// identities. This is a lightweight id/name walk; full organization detail is
 	// only fetched below when the caller requests the resource. For organizations
 	// the hierarchy name equals the native ID.
-	objects, err := hierarchy.ObjectsByType[hierarchy.AzureDevOpsOrganization](ctx, hierarchy.Wrap(polarisClient.GQL), hierarchy.WorkloadAllSubHierarchyType)
+	activeFilters := activeObjectFilters()
+	objects, err := hierarchy.ObjectsByType[hierarchy.AzureDevOpsOrganization](ctx, hierarchy.Wrap(polarisClient.GQL), hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 	if err != nil {
 		diags.AddError("Failed to list Azure DevOps organizations", err.Error())
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
