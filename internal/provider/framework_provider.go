@@ -159,6 +159,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisFeatureFlagDataSource,
 		newIdentityProviderDataSource,
 		newPolarisIdentityProviderDataSource,
+		newObjectsDataSource,
+		newPolarisObjectsDataSource,
 		newRoleDataSource,
 		newPolarisRoleDataSource,
 		newRoleTemplateDataSource,

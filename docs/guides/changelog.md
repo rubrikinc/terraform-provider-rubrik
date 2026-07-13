@@ -11,6 +11,9 @@ page_title: "Changelog"
   Azure SQL Database SLA include an instant-archival location no longer applies. Accounts without the feature enabled
   are unaffected and keep the existing behavior. See the [v1.9.0 upgrade guide](upgrade_guide_v1.9.0.md).
   [[docs](../resources/sla_domain.md)]
+* New data source added for `rubrik_objects` which returns every RSC hierarchy object matching a given
+  `object_type`, without filtering by name. Only the `AzureNativeResourceGroup` object type is supported so far,
+  optionally scoped to a single subscription via `subscription_id`. [[docs](../data-sources/objects.md)]
 * Add support for V1 (Azure-managed, long-term retention) Azure SQL SLAs in the `rubrik_sla_domain` resource via a new
   `ltr_config` block in the `azure_sql_database_config` and `azure_sql_managed_instance_config` blocks, with weekly,
   monthly, and yearly retention. A V1 SLA omits the Rubrik snapshot schedule and backup location. Requires the
