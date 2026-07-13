@@ -142,11 +142,7 @@ resource "polaris_azure_subscription" "default" {
 `
 
 func TestAccPolarisAzureSubscription_entraGroupID(t *testing.T) {
-	config, subscription, err := loadAzureTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, subscription := loadAzureTestConfig(t)
 	entraID1Config, err := makeTerraformConfig(config, azureSubscriptionEntraID1Tmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -178,11 +174,7 @@ func TestAccPolarisAzureSubscription_entraGroupID(t *testing.T) {
 }
 
 func TestAccPolarisAzureSubscription_basic(t *testing.T) {
-	config, subscription, err := loadAzureTestConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	config, subscription := loadAzureTestConfig(t)
 	subscriptionOneRegion, err := makeTerraformConfig(config, azureSubscriptionOneRegionTmpl)
 	if err != nil {
 		t.Fatal(err)

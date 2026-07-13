@@ -22,9 +22,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -33,8 +30,8 @@ import (
 )
 
 const (
-	// The AWS credentials defaults to the default profile.
 	rscConfigFileEnv         = "TEST_RSCCONFIG_FILE"
+	rscCredentialsEnv        = "RUBRIK_SERVICEACCOUNT_FILE"
 	awsAccountFileEnv        = "TEST_AWSACCOUNT_FILE"
 	azureSubscriptionFileEnv = "TEST_AZURESUBSCRIPTION_FILE"
 	azureCredentialsEnv      = "AZURE_SERVICEPRINCIPAL_LOCATION"
@@ -67,89 +64,4 @@ func newMuxedProviderServer() (tfprotov6.ProviderServer, error) {
 	}
 
 	return muxServer.ProviderServer(), nil
-}
-
-// loadRSCTestConf loads the RSC test configuration using the filename pointed
-// to by the TEST_RSCCONFIG_FILE environment variable.
-//
-// Prefer to use the fixtures defined in framework_fixtures_test.go
-func loadRSCTestConf() (testRSCConfig, error) {
-	buf, err := os.ReadFile(os.Getenv(rscConfigFileEnv))
-	if err != nil {
-		return testRSCConfig{}, fmt.Errorf("failed to read file pointed to by %s: %s", rscConfigFileEnv, err)
-	}
-
-	rsc := testRSCConfig{}
-	if err := json.Unmarshal(buf, &rsc); err != nil {
-		return testRSCConfig{}, fmt.Errorf("failed to unmarshal RSC config file: %s", err)
-	}
-
-	return rsc, nil
-}
-
-// loadAWSTestConf loads the AWS test configuration using the filename pointed
-// to by the TEST_AWSACCOUNT_FILE environment variables.
-//
-// Prefer to use the fixtures defined in framework_fixtures_test.go
-func loadAWSTestConf() (testAWSAccount, error) {
-	buf, err := os.ReadFile(os.Getenv(awsAccountFileEnv))
-	if err != nil {
-		return testAWSAccount{}, fmt.Errorf("failed to read file pointed to by %s: %s", awsAccountFileEnv, err)
-	}
-
-	account := testAWSAccount{}
-	if err := json.Unmarshal(buf, &account); err != nil {
-		return testAWSAccount{}, fmt.Errorf("failed to unmarshal AWS config file: %s", err)
-	}
-	if account.Profile == "" {
-		account.Profile = "default"
-	}
-
-	return account, nil
-}
-
-// loadAzureTestConf loads the Azure test configuration using the filename
-// pointed to by the AzureSubscriptionFileEnv environment variables.
-//
-// Prefer to use the fixtures defined in framework_fixtures_test.go
-//
-//lint:ignore U1000 Will be used by Azure Framework acceptance tests.
-func loadAzureTestConf() (testAzureSubscription, error) {
-	buf, err := os.ReadFile(os.Getenv(azureSubscriptionFileEnv))
-	if err != nil {
-		return testAzureSubscription{}, fmt.Errorf("failed to read file pointed to by %s: %s", azureSubscriptionFileEnv, err)
-	}
-
-	subscription := testAzureSubscription{}
-	if err := json.Unmarshal(buf, &subscription); err != nil {
-		return testAzureSubscription{}, fmt.Errorf("failed to unmarshal Azure config file: %s", err)
-	}
-	if subscription.Credentials == "" {
-		subscription.Credentials = os.Getenv(azureCredentialsEnv)
-	}
-
-	return subscription, nil
-}
-
-// loadGCPTestConf loads the GCP test configuration using the filename pointed
-// to by the GCPProjectFileEnv environment variables.
-//
-// Prefer to use the fixtures defined in framework_fixtures_test.go
-//
-//lint:ignore U1000 Will be used by GCP Framework acceptance tests.
-func loadGCPTestConf() (testGCPProject, error) {
-	buf, err := os.ReadFile(os.Getenv(gcpProjectFileEnv))
-	if err != nil {
-		return testGCPProject{}, fmt.Errorf("failed to read file pointed to by %s: %s", gcpProjectFileEnv, err)
-	}
-
-	project := testGCPProject{}
-	if err := json.Unmarshal(buf, &project); err != nil {
-		return testGCPProject{}, fmt.Errorf("failed to unmarshal GCP config file: %s", err)
-	}
-	if project.Credentials == "" {
-		project.Credentials = os.Getenv(gcpCredentialsEnv)
-	}
-
-	return project, nil
 }

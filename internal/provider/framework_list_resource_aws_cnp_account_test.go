@@ -53,7 +53,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 				variable "aws_account_id" {
 					type = string
 				}
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
@@ -74,13 +74,13 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_aws_cnp_account" "all" {
+				list "rubrik_aws_cnp_account" "all" {
 					provider = polaris
 				}
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_aws_cnp_account.all", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_aws_cnp_account.all", map[string]knownvalue.Check{
 					keyID:         knownvalue.NotNull(),
 					keyExternalID: knownvalue.Null(),
 				}),
@@ -90,7 +90,7 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_aws_cnp_account" "filtered" {
+				list "rubrik_aws_cnp_account" "filtered" {
 					provider = polaris
 
 					config {
@@ -100,11 +100,11 @@ func TestAccAwsCnpAccountListResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_aws_cnp_account.filtered", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_aws_cnp_account.filtered", map[string]knownvalue.Check{
 					keyID:         knownvalue.NotNull(),
 					keyExternalID: knownvalue.Null(),
 				}),
-				querycheck.ExpectLength("polaris_aws_cnp_account.filtered", 1),
+				querycheck.ExpectLength("rubrik_aws_cnp_account.filtered", 1),
 			},
 		}},
 	})

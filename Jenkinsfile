@@ -35,9 +35,9 @@ pipeline {
         choice(name: 'SERVICEACCOUNT_FILE', choices: ['tf-sdk-test-polaris-service-account', 'tf-sdk-test-polaris-service-account-dev-01'], description: '')
     }
     environment {
-        // Polaris
-        RUBRIK_POLARIS_SERVICEACCOUNT_FILE = credentials("${params.SERVICEACCOUNT_FILE}")
-        TEST_RSCCONFIG_FILE                = credentials('tf-sdk-test-rsc-config')
+        // RSC
+        RUBRIK_SERVICEACCOUNT_FILE = credentials("${params.SERVICEACCOUNT_FILE}")
+        TEST_RSCCONFIG_FILE        = credentials('tf-sdk-test-rsc-config')
 
         // AWS
         TEST_AWSACCOUNT_FILE        = credentials('tf-sdk-test-aws-account')
@@ -66,7 +66,7 @@ pipeline {
         TF_ACC_LOG_PATH='terraform_cli.log'
 
         // Enable verbose Go SDK logging
-        RUBRIK_POLARIS_LOGLEVEL='trace'
+        RUBRIK_LOGLEVEL='trace'
 
         // Recent versions of Go added support for post-quantum cryptography algorithms
         // x25519Kyber768Draft00 (Go 1.23) and X25519MLKEM768 (Go 1.24, where Kyber

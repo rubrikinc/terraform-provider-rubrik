@@ -49,7 +49,7 @@ func TestAccUserResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_custom_role" "auditor" {
+				resource "rubrik_custom_role" "auditor" {
 					name        = "Test Auditor"
 					description = "Test Role: Delete Me!"
 
@@ -69,36 +69,36 @@ func TestAccUserResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_user" "user" {
+				resource "rubrik_user" "user" {
 					email = var.user_email
 
 					role_ids = [
-						polaris_custom_role.auditor.id,
+						rubrik_custom_role.auditor.id,
 					]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyID),
 					knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyEmail),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyEmail),
 					knownvalue.StringExact(testUserEmail(t))),
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyDomain),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyDomain),
 					knownvalue.StringExact("LOCAL")),
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyStatus),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyStatus),
 					knownvalue.StringExact("ACTIVE")),
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyIsAccountOwner),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyIsAccountOwner),
 					knownvalue.Bool(false)),
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyRoleIDs),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyRoleIDs),
 					knownvalue.SetSizeExact(1)),
 				statecheck.CompareValueCollection(
-					"polaris_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.auditor", tfjsonpath.New(keyID),
+					"rubrik_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.auditor", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("polaris_user.user", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_user.user", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_user.user", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_user.user", tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that the resource can be updated with an additional role.
@@ -107,7 +107,7 @@ func TestAccUserResource(t *testing.T) {
 					type = string
 				}
 
-				resource "polaris_custom_role" "auditor" {
+				resource "rubrik_custom_role" "auditor" {
 					name        = "Test Auditor"
 					description = "Test Role: Delete Me!"
 
@@ -127,7 +127,7 @@ func TestAccUserResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_custom_role" "cluster_viewer" {
+				resource "rubrik_custom_role" "cluster_viewer" {
 					name        = "Test Cluster Viewer"
 					description = "Test Role: Delete Me!"
 
@@ -147,42 +147,42 @@ func TestAccUserResource(t *testing.T) {
 					}
 				}
 
-				resource "polaris_user" "user" {
+				resource "rubrik_user" "user" {
 					email = var.user_email
 
 					role_ids = [
-						polaris_custom_role.auditor.id,
-						polaris_custom_role.cluster_viewer.id,
+						rubrik_custom_role.auditor.id,
+						rubrik_custom_role.cluster_viewer.id,
 					]
 				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_user.user", tfjsonpath.New(keyRoleIDs),
+				statecheck.ExpectKnownValue("rubrik_user.user", tfjsonpath.New(keyRoleIDs),
 					knownvalue.SetSizeExact(2)),
 				statecheck.CompareValueCollection(
-					"polaris_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.auditor", tfjsonpath.New(keyID),
+					"rubrik_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.auditor", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValueCollection(
-					"polaris_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
-					"polaris_custom_role.cluster_viewer", tfjsonpath.New(keyID),
+					"rubrik_user.user", []tfjsonpath.Path{tfjsonpath.New(keyRoleIDs)},
+					"rubrik_custom_role.cluster_viewer", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("polaris_user.user", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_user.user", map[string]knownvalue.Check{
 					keyID: knownvalue.NotNull(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("polaris_user.user", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_user.user", tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import.
-			ResourceName:      "polaris_user.user",
+			ResourceName:      "rubrik_user.user",
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 			ConfigVariables:   vars,
 		}, {
 			// import {} block with id attribute.
-			ResourceName:    "polaris_user.user",
+			ResourceName:    "rubrik_user.user",
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ConfigVariables: vars,
@@ -193,7 +193,7 @@ func TestAccUserResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName:    "polaris_user.user",
+			ResourceName:    "rubrik_user.user",
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ConfigVariables: vars,
@@ -211,8 +211,16 @@ func TestAccUserResource(t *testing.T) {
 // without drift.
 func TestAccUserResource_FrameworkMigration(t *testing.T) {
 	conf := `
+		variable "credentials" {
+			type = string
+		}
+
 		variable "user_email" {
 			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.credentials
 		}
 
 		resource "polaris_custom_role" "auditor" {
@@ -245,7 +253,8 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 	`
 
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -273,8 +282,9 @@ func TestAccUserResource_FrameworkMigration(t *testing.T) {
 // rubrik_user resource using the moved {} block.
 func TestAccUserResource_MoveState(t *testing.T) {
 	vars := config.Variables{
-		"user_email": config.StringVariable(testUserEmail(t)),
-		"role_name":  config.StringVariable("Test MoveState Auditor " + uuid.New().String()),
+		"credentials": config.StringVariable(testCredentials(t)),
+		"user_email":  config.StringVariable(testUserEmail(t)),
+		"role_name":   config.StringVariable("Test MoveState Auditor " + uuid.New().String()),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -290,11 +300,18 @@ func TestAccUserResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "user_email" {
 					type = string
 				}
 				variable "role_name" {
 					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
 				}
 
 				resource "polaris_custom_role" "auditor" {
@@ -319,6 +336,9 @@ func TestAccUserResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "user_email" {
 					type = string
 				}

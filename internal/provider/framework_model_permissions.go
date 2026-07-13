@@ -29,14 +29,24 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
 )
 
-func permissionAttrTypes() map[string]attr.Type {
+type permissionModel struct {
+	Operation types.String `tfsdk:"operation"`
+	Hierarchy types.Set    `tfsdk:"hierarchy"`
+}
+
+type hierarchyModel struct {
+	SnappableType types.String `tfsdk:"snappable_type"`
+	ObjectIDs     types.Set    `tfsdk:"object_ids"`
+}
+
+func permissionModelAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keyOperation: types.StringType,
-		keyHierarchy: types.SetType{ElemType: types.ObjectType{AttrTypes: hierarchyAttrTypes()}},
+		keyHierarchy: types.SetType{ElemType: types.ObjectType{AttrTypes: hierarchyModelAttrTypes()}},
 	}
 }
 
-func hierarchyAttrTypes() map[string]attr.Type {
+func hierarchyModelAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keySnappableType: types.StringType,
 		keyObjectIDs:     types.SetType{ElemType: types.StringType},
@@ -55,44 +65,41 @@ func fromPermissions(ctx context.Context, permissions []access.Permission) (type
 
 			objectSet, diags := types.SetValue(types.StringType, objectValues)
 			if diags.HasError() {
-				return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+				return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
 			}
 
-			hierarchyValue, diags := types.ObjectValue(hierarchyAttrTypes(), map[string]attr.Value{
+			hierarchyValue, diags := types.ObjectValue(hierarchyModelAttrTypes(), map[string]attr.Value{
 				keySnappableType: types.StringValue(h.SnappableType),
 				keyObjectIDs:     objectSet,
 			})
 			if diags.HasError() {
-				return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+				return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
 			}
 
 			hierarchyValues = append(hierarchyValues, hierarchyValue)
 		}
 
-		hierarchySet, diags := types.SetValue(types.ObjectType{AttrTypes: hierarchyAttrTypes()}, hierarchyValues)
+		hierarchySet, diags := types.SetValue(types.ObjectType{AttrTypes: hierarchyModelAttrTypes()}, hierarchyValues)
 		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+			return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
 		}
 
-		permissionValue, diags := types.ObjectValue(permissionAttrTypes(), map[string]attr.Value{
+		permissionValue, diags := types.ObjectValue(permissionModelAttrTypes(), map[string]attr.Value{
 			keyOperation: types.StringValue(p.Operation),
 			keyHierarchy: hierarchySet,
 		})
 		if diags.HasError() {
-			return types.SetNull(types.ObjectType{AttrTypes: permissionAttrTypes()}), diags
+			return types.SetNull(types.ObjectType{AttrTypes: permissionModelAttrTypes()}), diags
 		}
 
 		permissionValues = append(permissionValues, permissionValue)
 	}
 
-	return types.SetValue(types.ObjectType{AttrTypes: permissionAttrTypes()}, permissionValues)
+	return types.SetValue(types.ObjectType{AttrTypes: permissionModelAttrTypes()}, permissionValues)
 }
 
 func toPermissions(ctx context.Context, permissionSet types.Set) ([]access.Permission, diag.Diagnostics) {
-	var permissionModels []struct {
-		Operation types.String `tfsdk:"operation"`
-		Hierarchy types.Set    `tfsdk:"hierarchy"`
-	}
+	var permissionModels []permissionModel
 	diags := permissionSet.ElementsAs(ctx, &permissionModels, false)
 	if diags.HasError() {
 		return nil, diags
@@ -100,10 +107,7 @@ func toPermissions(ctx context.Context, permissionSet types.Set) ([]access.Permi
 
 	permissions := make([]access.Permission, 0, len(permissionModels))
 	for _, pm := range permissionModels {
-		var hierarchyModels []struct {
-			SnappableType types.String `tfsdk:"snappable_type"`
-			ObjectIDs     types.Set    `tfsdk:"object_ids"`
-		}
+		var hierarchyModels []hierarchyModel
 		diags.Append(pm.Hierarchy.ElementsAs(ctx, &hierarchyModels, false)...)
 		if diags.HasError() {
 			return nil, diags

@@ -43,12 +43,12 @@ func TestAccUserListResource(t *testing.T) {
 			Config: `
 				provider "polaris" {}
 
-				list "polaris_user" "all" {
+				list "rubrik_user" "all" {
 					provider = polaris
 				}
 			`,
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_user.all", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_user.all", map[string]knownvalue.Check{
 					keyID: knownvalue.StringExact(userID),
 				}),
 			},
@@ -61,7 +61,7 @@ func TestAccUserListResource(t *testing.T) {
 
 				provider "polaris" {}
 
-				list "polaris_user" "filtered" {
+				list "rubrik_user" "filtered" {
 					provider = polaris
 
 					config {
@@ -73,10 +73,10 @@ func TestAccUserListResource(t *testing.T) {
 				"user_email": config.StringVariable(testUserEmail(t)),
 			},
 			QueryResultChecks: []querycheck.QueryResultCheck{
-				querycheck.ExpectIdentity("polaris_user.filtered", map[string]knownvalue.Check{
+				querycheck.ExpectIdentity("rubrik_user.filtered", map[string]knownvalue.Check{
 					keyID: knownvalue.StringExact(userID),
 				}),
-				querycheck.ExpectLength("polaris_user.filtered", 1),
+				querycheck.ExpectLength("rubrik_user.filtered", 1),
 			},
 		}},
 	})

@@ -40,6 +40,7 @@ import (
 
 func TestAccAwsCnpAccountResource(t *testing.T) {
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -55,7 +56,7 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 				variable "aws_account_id" {
 					type = string
 				}
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name      = var.account_name
 					native_id = var.aws_account_id
 					regions   = ["us-east-2"]
@@ -76,22 +77,22 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyCloud), knownvalue.StringExact("STANDARD")),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyDeleteSnapshotsOnDestroy), knownvalue.Bool(false)),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyRegions),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.StringExact("us-east-2"),
 					})),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyFeature),
 					knownvalue.SetExact([]knownvalue.Check{
 						knownvalue.ObjectExact(map[string]knownvalue.Check{
@@ -114,7 +115,7 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 							}),
 						}),
 					})),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyTrustPolicies),
 					knownvalue.SetPartial([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -133,14 +134,14 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 			},
 		}, {
 			// Terraform import.
-			ResourceName:      "polaris_aws_cnp_account.account",
+			ResourceName:      "rubrik_aws_cnp_account.account",
 			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName:    "polaris_aws_cnp_account.account",
+			ResourceName:    "rubrik_aws_cnp_account.account",
 			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
@@ -151,7 +152,7 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName:    "polaris_aws_cnp_account.account",
+			ResourceName:    "rubrik_aws_cnp_account.account",
 			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
@@ -168,14 +169,15 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 	// importIDFunc builds the legacy "<uuid>:<external-id>" composite import
 	// id from the post-create state. Used by the two string-id import kinds.
 	importIDFunc := func(s *terraform.State) (string, error) {
-		rs, ok := s.RootModule().Resources["polaris_aws_cnp_account.account"]
+		rs, ok := s.RootModule().Resources["rubrik_aws_cnp_account.account"]
 		if !ok {
-			return "", fmt.Errorf("resource polaris_aws_cnp_account.account not found in state")
+			return "", fmt.Errorf("resource rubrik_aws_cnp_account.account not found in state")
 		}
 		return fmt.Sprintf("%s:%s", rs.Primary.ID, rs.Primary.Attributes[keyExternalID]), nil
 	}
 
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -191,7 +193,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 				variable "aws_account_id" {
 					type = string
 				}
-				resource "polaris_aws_cnp_account" "account" {
+				resource "rubrik_aws_cnp_account" "account" {
 					name        = var.account_name
 					native_id   = var.aws_account_id
 					external_id = "test-external-id"
@@ -209,11 +211,11 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyID), NonNullUUID()),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyExternalID), knownvalue.StringExact("test-external-id")),
-				statecheck.ExpectKnownValue("polaris_aws_cnp_account.account",
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyTrustPolicies),
 					knownvalue.SetPartial([]knownvalue.Check{
 						knownvalue.ObjectPartial(map[string]knownvalue.Check{
@@ -223,7 +225,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			},
 		}, {
 			// Terraform import.
-			ResourceName:      "polaris_aws_cnp_account.account",
+			ResourceName:      "rubrik_aws_cnp_account.account",
 			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
@@ -231,7 +233,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName:      "polaris_aws_cnp_account.account",
+			ResourceName:      "rubrik_aws_cnp_account.account",
 			ConfigVariables:   vars,
 			ImportStateKind:   resource.ImportBlockWithID,
 			ImportState:       true,
@@ -243,7 +245,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName:    "polaris_aws_cnp_account.account",
+			ResourceName:    "rubrik_aws_cnp_account.account",
 			ConfigVariables: vars,
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
@@ -262,11 +264,17 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 // framework provider with the same config and asserts an empty plan.
 func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 	conf := `
+		variable "credentials" {
+			type = string
+		}
 		variable "account_name" {
 			type = string
 		}
 		variable "aws_account_id" {
 			type = string
+		}
+		provider "polaris" {
+			credentials = var.credentials
 		}
 		resource "polaris_aws_cnp_account" "account" {
 			name      = var.account_name
@@ -285,6 +293,7 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 	`
 
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -346,6 +355,7 @@ func TestAccAwsCnpAccountResource_FrameworkMigration(t *testing.T) {
 // can be moved to a rubrik_aws_cnp_account resource using the moved {} block.
 func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
@@ -363,11 +373,17 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 				},
 			},
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}
 				variable "aws_account_id" {
 					type = string
+				}
+				provider "polaris" {
+					credentials = var.credentials
 				}
 				resource "polaris_aws_cnp_account" "account" {
 					name      = var.account_name
@@ -396,6 +412,9 @@ func TestAccAwsCnpAccountResource_MoveState(t *testing.T) {
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config: `
+				variable "credentials" {
+					type = string
+				}
 				variable "account_name" {
 					type = string
 				}
