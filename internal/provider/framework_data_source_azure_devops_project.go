@@ -169,7 +169,8 @@ func (d *azureDevOpsProjectDataSource) Read(ctx context.Context, req datasource.
 		}
 	case !config.Name.IsNull():
 		name := config.Name.ValueString()
-		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsProject](ctx, hierarchy.Wrap(polarisClient.GQL), name, hierarchy.WorkloadAllSubHierarchyType)
+		activeFilters := activeObjectFilters()
+		objects, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsProject](ctx, hierarchy.Wrap(polarisClient.GQL), name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			res.Diagnostics.AddError("Failed to look up Azure DevOps project", err.Error())
 			return

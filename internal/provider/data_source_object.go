@@ -146,12 +146,7 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 	// (e.g. AwsNativeAccount, AzureNativeSubscription), workload objects do not
 	// carry RSC feature-status metadata, so activity is determined via these
 	// server-side filters rather than inspecting the returned feature list.
-	activeFilters := []hierarchy.Filter{
-		{Field: "IS_RELIC", Texts: []string{"false"}},
-		{Field: "IS_GHOST", Texts: []string{"false"}},
-		{Field: "IS_ACTIVE", Texts: []string{"true"}},
-		{Field: "IS_ARCHIVED", Texts: []string{"false"}},
-	}
+	activeFilters := activeObjectFilters()
 
 	var objects []hierarchy.Object
 	switch objectType {
@@ -234,7 +229,7 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			objects = append(objects, r.Object)
 		}
 	case hierarchy.ObjectType("AzureDevOpsOrganization"):
-		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsOrganization](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType)
+		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsOrganization](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -243,7 +238,7 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			objects = append(objects, r.Object)
 		}
 	case hierarchy.ObjectType("AzureDevOpsProject"):
-		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsProject](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType)
+		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsProject](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -266,7 +261,7 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			objects = append(objects, r.Object)
 		}
 	case hierarchy.ObjectType("AzureDevOpsRepository"):
-		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsRepository](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType)
+		results, err := hierarchy.ObjectsByName[hierarchy.AzureDevOpsRepository](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -369,4 +364,17 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 	d.SetId(objects[0].ID.String())
 
 	return nil
+}
+
+// activeObjectFilters returns the server-side hierarchy filters that exclude
+// inactive workload objects: relics, ghosts, and inactive or archived objects.
+// Workload objects do not carry RSC feature-status metadata, so activity is
+// determined via these filters rather than by inspecting a feature list.
+func activeObjectFilters() []hierarchy.Filter {
+	return []hierarchy.Filter{
+		{Field: "IS_RELIC", Texts: []string{"false"}},
+		{Field: "IS_GHOST", Texts: []string{"false"}},
+		{Field: "IS_ACTIVE", Texts: []string{"true"}},
+		{Field: "IS_ARCHIVED", Texts: []string{"false"}},
+	}
 }
