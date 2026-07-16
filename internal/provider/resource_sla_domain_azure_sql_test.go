@@ -38,7 +38,7 @@ type azureSQLTestResource struct {
 func azureSQLTestConfig(resource azureSQLTestResource) testConfig {
 	return testConfig{
 		Provider: struct{ Credentials string }{
-			Credentials: os.Getenv("RUBRIK_POLARIS_SERVICEACCOUNT_FILE"),
+			Credentials: os.Getenv(rscCredentialsEnv),
 		},
 		Resource: resource,
 	}
