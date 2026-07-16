@@ -22,6 +22,7 @@ package provider
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -29,7 +30,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-const objectsAzureResourceGroupTmpl = `
+// subscriptionOnlyTmpl onboards the Azure subscription alone, with no data
+// sources - used as step 1 so we can insert a real Go-level sleep (PreConfig)
+// before step 2 reads the objects data sources, decoupled from any
+// in-config wait mechanism.
+const subscriptionOnlyTmpl = `
 provider "rubrik" {
 	credentials = "{{ .Provider.Credentials }}"
 }
@@ -55,7 +60,9 @@ resource "rubrik_azure_subscription" "default" {
 
 	depends_on = [rubrik_azure_service_principal.default]
 }
+`
 
+const objectsAzureResourceGroupTmpl = subscriptionOnlyTmpl + `
 data "rubrik_objects" "resource_groups" {
 	object_type     = "AzureNativeResourceGroup"
 	subscription_id = rubrik_azure_subscription.default.id
@@ -72,6 +79,11 @@ data "rubrik_objects" "all_subscriptions" {
 
 func TestAccRubrikObjectsDataSource_azureResourceGroup(t *testing.T) {
 	config, subscription := loadAzureTestConfig(t)
+
+	subscriptionOnlyConfig, err := makeTerraformConfig(config, subscriptionOnlyTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
 	objectsConfig, err := makeTerraformConfig(config, objectsAzureResourceGroupTmpl)
 	if err != nil {
 		t.Fatal(err)
@@ -85,24 +97,35 @@ func TestAccRubrikObjectsDataSource_azureResourceGroup(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{{
-			Config: objectsConfig,
-			Check: resource.ComposeTestCheckFunc(
-				// Verify the Azure subscription resource was created.
-				resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "subscription_name", subscription.SubscriptionName),
-				resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "cloud_native_protection.0.status", "CONNECTED"),
-			),
-			ConfigStateChecks: []statecheck.StateCheck{
-				// Scoped to the fixture's subscription.
-				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyID),
-					knownvalue.StringRegexp(sha256Hex)),
-				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyObjects),
-					resourceGroupCheck),
-
-				// Searching across all subscriptions still finds it.
-				statecheck.ExpectKnownValue("data.rubrik_objects.all_subscriptions", tfjsonpath.New(keyObjects),
-					resourceGroupCheck),
+		Steps: []resource.TestStep{
+			{
+				// Onboard the subscription alone first.
+				Config: subscriptionOnlyConfig,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "subscription_name", subscription.SubscriptionName),
+					resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "cloud_native_protection.0.status", "CONNECTED"),
+				),
 			},
-		}},
+			{
+				// Sleep for real wall-clock time before adding the objects
+				// data sources. After a subscription connects, RSC needs to
+				// run native discovery before its resource groups become
+				// visible to azureNativeResourceGroups (~1 minute observed);
+				// wait with margin so the read is not racing discovery.
+				PreConfig: func() { time.Sleep(2 * time.Minute) },
+				Config:    objectsConfig,
+				ConfigStateChecks: []statecheck.StateCheck{
+					// Scoped to the fixture's subscription.
+					statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyID),
+						knownvalue.StringRegexp(sha256Hex)),
+					statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyObjects),
+						resourceGroupCheck),
+
+					// Searching across all subscriptions still finds it.
+					statecheck.ExpectKnownValue("data.rubrik_objects.all_subscriptions", tfjsonpath.New(keyObjects),
+						resourceGroupCheck),
+				},
+			},
+		},
 	})
 }
