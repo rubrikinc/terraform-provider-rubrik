@@ -64,6 +64,7 @@ this resource, deploy the CloudFormation stack (e.g. with the
 var (
 	_ resource.Resource                = &awsAccountManagedResource{}
 	_ resource.ResourceWithImportState = &awsAccountManagedResource{}
+	_ resource.ResourceWithModifyPlan  = &awsAccountManagedResource{}
 	_ resource.ResourceWithMoveState   = &awsAccountManagedResource{}
 )
 
@@ -124,9 +125,8 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 			keyName: schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Account name. Derived from the AWS account when not specified.",
+				Description: "Account name. Derived from the AWS account when not specified. Can be updated in place.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
@@ -149,11 +149,10 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 				Description: "RSC features to onboard. When omitted, all BaaS-supported features are used: " +
 					"`CLOUD_NATIVE_PROTECTION`, `RDS_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION` and `CLOUD_DISCOVERY`. " +
 					"`CLOUD_DISCOVERY` is a prerequisite for the protection features and must be included when " +
-					"`features` is set. Changing this forces a new resource to be created.",
-				PlanModifiers: []planmodifier.Set{
-					setplanmodifier.RequiresReplace(),
-					setplanmodifier.UseStateForUnknown(),
-				},
+					"`features` is set. When omitted, the account tracks the current default set and newly " +
+					"released features are added in place. Adding a feature is applied in place (the " +
+					"CloudFormation stack is redeployed via the `rubrik_aws_account_managed_stack` resource); " +
+					"removing a feature forces a new resource to be created.",
 				Validators: []validator.Set{
 					setvalidator.ValueStringsAre(stringvalidator.OneOf(
 						"CLOUD_NATIVE_PROTECTION", "RDS_PROTECTION", "CLOUD_NATIVE_S3_PROTECTION", "CLOUD_DISCOVERY",
@@ -166,9 +165,8 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 				Optional:    true,
 				Computed:    true,
 				Description: "AWS regions to protect. When omitted, all BaaS-supported regions are used. " +
-					"Changing this forces a new resource to be created.",
+					"Can be updated in place without redeploying the CloudFormation stack.",
 				PlanModifiers: []planmodifier.Set{
-					setplanmodifier.RequiresReplace(),
 					setplanmodifier.UseStateForUnknown(),
 				},
 			},
@@ -208,6 +206,105 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 
 	if r.prefix == keyPolaris {
 		res.Schema.DeprecationMessage = "use `rubrik_aws_account_managed` instead."
+	}
+}
+
+// ModifyPlan drives the feature-set behavior:
+//
+//   - When features is not set in config, the account tracks the current default
+//     set (aws.ManagedAccountDefaultFeatureNames), which grows as new BaaS
+//     features are released. The default is forced into the plan so a newly
+//     released feature shows up as a diff instead of being frozen to prior state
+//     (the Plugin Framework equivalent of an SDKv2 CustomizeDiff SetNew).
+//   - Adding a feature is applied in place. The CloudFormation template and the
+//     permission version change as a result, so those computed attributes are
+//     set to unknown (SetNewComputed) to keep the plan consistent with apply.
+//   - Removing a feature cannot be done in place (it needs the RSC feature
+//     disable flow), so it forces replacement.
+func (r *awsAccountManagedResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, res *resource.ModifyPlanResponse) {
+	tflog.Trace(ctx, "awsAccountManagedResource.ModifyPlan")
+
+	// Nothing to do on destroy.
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var config, plan awsAccountManagedModel
+	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	// When features is omitted, plan the current default set so the account
+	// tracks newly released features.
+	if config.Features.IsNull() {
+		featureSet, d := types.SetValueFrom(ctx, types.StringType, aws.ManagedAccountDefaultFeatureNames())
+		res.Diagnostics.Append(d...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		plan.Features = featureSet
+		res.Diagnostics.Append(res.Plan.SetAttribute(ctx, path.Root(keyFeatures), featureSet)...)
+	}
+
+	// On create there is no prior state to compare against.
+	if req.State.Raw.IsNull() {
+		return
+	}
+
+	var state awsAccountManagedModel
+	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	var planFeatures, stateFeatures []string
+	res.Diagnostics.Append(plan.Features.ElementsAs(ctx, &planFeatures, false)...)
+	res.Diagnostics.Append(state.Features.ElementsAs(ctx, &stateFeatures, false)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	planSet := make(map[string]struct{}, len(planFeatures))
+	for _, name := range planFeatures {
+		planSet[name] = struct{}{}
+	}
+	stateSet := make(map[string]struct{}, len(stateFeatures))
+	for _, name := range stateFeatures {
+		stateSet[name] = struct{}{}
+	}
+
+	removed := false
+	for name := range stateSet {
+		if _, ok := planSet[name]; !ok {
+			removed = true
+			break
+		}
+	}
+	added := false
+	for name := range planSet {
+		if _, ok := stateSet[name]; !ok {
+			added = true
+			break
+		}
+	}
+
+	// Removing a feature cannot be done in place - force replacement. On replace
+	// the computed attributes are recomputed on create, so nothing else to do.
+	if removed {
+		res.RequiresReplace = append(res.RequiresReplace, path.Root(keyFeatures))
+		return
+	}
+
+	// Adding a feature changes the CloudFormation template and permission
+	// version. Mark those computed attributes unknown so apply can write the new
+	// values without a "provider produced inconsistent result" error.
+	if added {
+		res.Diagnostics.Append(res.Plan.SetAttribute(ctx, path.Root(keyTemplateURL), types.StringUnknown())...)
+		res.Diagnostics.Append(res.Plan.SetAttribute(ctx, path.Root(keyStackName), types.StringUnknown())...)
+		res.Diagnostics.Append(res.Plan.SetAttribute(ctx, path.Root(keyCloudFormationURL), types.StringUnknown())...)
+		res.Diagnostics.Append(res.Plan.SetAttribute(ctx, path.Root(keyPermissionsVersion), types.StringUnknown())...)
 	}
 }
 
@@ -257,6 +354,41 @@ func (r *awsAccountManagedResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
+	// Refresh the fields that can drift out of band and are reconciled in place
+	// (name and regions). AccountByID also serves as the existence check.
+	account, err := aws.Wrap(polarisClient).AccountByID(ctx, accountID)
+	if errors.Is(err, graphql.ErrNotFound) {
+		res.State.RemoveResource(ctx)
+		return
+	}
+	if err != nil {
+		res.Diagnostics.AddError("Failed to read RSC-managed AWS account", err.Error())
+		return
+	}
+	state.Name = types.StringValue(account.Name)
+
+	// Regions are stored per feature in RSC; the account-level set is their
+	// union. Normalize to canonical AWS region names so a healthy account shows
+	// no diff against the configured values.
+	regionNameSet := make(map[string]struct{})
+	for _, feature := range account.Features {
+		for _, name := range feature.Regions {
+			if region := awsregions.RegionFromAny(name); region != awsregions.RegionUnknown {
+				regionNameSet[region.Name()] = struct{}{}
+			}
+		}
+	}
+	regionNames := make([]string, 0, len(regionNameSet))
+	for name := range regionNameSet {
+		regionNames = append(regionNames, name)
+	}
+	regionSet, d := types.SetValueFrom(ctx, types.StringType, regionNames)
+	res.Diagnostics.Append(d...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	state.Regions = regionSet
+
 	// Always refresh the permission-set version so it stays populated (never
 	// null) and reflects RSC's current permission versions. It is deterministic,
 	// so a healthy account shows no diff; a change means RSC raised a permission
@@ -291,17 +423,85 @@ func (r *awsAccountManagedResource) Read(ctx context.Context, req resource.ReadR
 func (r *awsAccountManagedResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
 	tflog.Trace(ctx, "awsAccountManagedResource.Update")
 
-	// All configurable inputs force replacement, so Update only re-runs the
-	// register step defensively.
 	var plan awsAccountManagedModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	var state awsAccountManagedModel
+	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	res.Diagnostics.Append(r.register(ctx, &plan)...)
-	if res.Diagnostics.HasError() {
+	polarisClient, err := r.client.polaris()
+	if err != nil {
+		res.Diagnostics.AddError("RSC client error", err.Error())
 		return
+	}
+
+	accountID, err := uuid.Parse(state.ID.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError("Invalid account ID", err.Error())
+		return
+	}
+
+	// native_id and cloud force replacement, and feature removal is turned into
+	// a replacement in ModifyPlan, so Update only ever reconciles name, regions
+	// and feature additions.
+
+	// Name is reconciled first (a cheap, RSC-side rename) so that the feature
+	// re-registration below sees the already-updated name.
+	if !plan.Name.Equal(state.Name) {
+		// The feature argument is unused by the name update path.
+		if err := aws.Wrap(polarisClient).UpdateAccount(ctx, accountID, core.Feature{}, aws.Name(plan.Name.ValueString())); err != nil {
+			res.Diagnostics.AddError("Failed to update RSC-managed AWS account name", err.Error())
+			return
+		}
+	}
+
+	// Feature additions are applied in place by re-registering the desired set
+	// (validate + finalize). This produces a new CloudFormation template and
+	// bumps the permission version, which drives the phase-2
+	// rubrik_aws_account_managed_stack resource to redeploy the stack and
+	// finalize. register also reconciles regions, so the regions-only branch is
+	// skipped when the feature set changes.
+	if !plan.Features.Equal(state.Features) {
+		res.Diagnostics.Append(r.register(ctx, &plan)...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
+		return
+	}
+
+	// Regions-only change: reconciled in place per feature, no stack redeploy
+	// (regions do not change the account's IAM permissions or the template).
+	if !plan.Regions.Equal(state.Regions) {
+		regionNames, regionDiags := resolveManagedRegions(ctx, plan.Regions)
+		res.Diagnostics.Append(regionDiags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+
+		var featureNames []string
+		res.Diagnostics.Append(state.Features.ElementsAs(ctx, &featureNames, false)...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+
+		// Regions are stored per feature in RSC, so update every onboarded
+		// feature to the new region set.
+		for _, name := range featureNames {
+			if err := aws.Wrap(polarisClient).UpdateAccount(ctx, accountID, core.Feature{Name: name}, aws.Regions(regionNames...)); err != nil {
+				res.Diagnostics.AddError("Failed to update RSC-managed AWS account regions", err.Error())
+				return
+			}
+		}
+
+		regionSet, d := types.SetValueFrom(ctx, types.StringType, regionNames)
+		res.Diagnostics.Append(d...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		plan.Regions = regionSet
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
