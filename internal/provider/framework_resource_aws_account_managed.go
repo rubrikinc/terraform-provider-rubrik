@@ -165,7 +165,8 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 				Optional:    true,
 				Computed:    true,
 				Description: "AWS regions to protect. When omitted, all BaaS-supported regions are used. " +
-					"Can be updated in place without redeploying the CloudFormation stack.",
+					"Changing regions on an existing resource is not supported yet; recreate the resource to " +
+					"change them.",
 				PlanModifiers: []planmodifier.Set{
 					setplanmodifier.UseStateForUnknown(),
 				},
@@ -256,6 +257,21 @@ func (r *awsAccountManagedResource) ModifyPlan(ctx context.Context, req resource
 	var state awsAccountManagedModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
+		return
+	}
+
+	// In-place region updates require RSC's BaaS edit flow
+	// (finalizeAwsCloudAccountProtection with action UPDATE_REGIONS, then
+	// completeBaasOnboarding), which is not yet available in the SDK. Block
+	// region changes until a future release adds it, rather than issuing an
+	// incorrect update.
+	if !plan.Regions.Equal(state.Regions) {
+		res.Diagnostics.AddError(
+			"Region updates not supported yet",
+			"Changing `regions` on an existing rubrik_aws_account_managed resource is not supported in this "+
+				"release; it will be added in a future release. To change regions now, recreate the resource "+
+				"(for example with `terraform apply -replace=<address>`).",
+		)
 		return
 	}
 
@@ -354,8 +370,12 @@ func (r *awsAccountManagedResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	// Refresh the fields that can drift out of band and are reconciled in place
-	// (name and regions). AccountByID also serves as the existence check.
+	// Refresh the name, which can change out of band and is reconciled in place.
+	// AccountByID also serves as the existence check.
+	//
+	// Regions are intentionally not refreshed: in-place region changes are
+	// blocked until the SDK supports the BaaS region-edit flow, so region drift
+	// cannot be reconciled and refreshing it would only risk a persistent diff.
 	account, err := aws.Wrap(polarisClient).AccountByID(ctx, accountID)
 	if errors.Is(err, graphql.ErrNotFound) {
 		res.State.RemoveResource(ctx)
@@ -366,28 +386,6 @@ func (r *awsAccountManagedResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 	state.Name = types.StringValue(account.Name)
-
-	// Regions are stored per feature in RSC; the account-level set is their
-	// union. Normalize to canonical AWS region names so a healthy account shows
-	// no diff against the configured values.
-	regionNameSet := make(map[string]struct{})
-	for _, feature := range account.Features {
-		for _, name := range feature.Regions {
-			if region := awsregions.RegionFromAny(name); region != awsregions.RegionUnknown {
-				regionNameSet[region.Name()] = struct{}{}
-			}
-		}
-	}
-	regionNames := make([]string, 0, len(regionNameSet))
-	for name := range regionNameSet {
-		regionNames = append(regionNames, name)
-	}
-	regionSet, d := types.SetValueFrom(ctx, types.StringType, regionNames)
-	res.Diagnostics.Append(d...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-	state.Regions = regionSet
 
 	// Always refresh the permission-set version so it stays populated (never
 	// null) and reflects RSC's current permission versions. It is deterministic,
@@ -443,9 +441,10 @@ func (r *awsAccountManagedResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	// native_id and cloud force replacement, and feature removal is turned into
-	// a replacement in ModifyPlan, so Update only ever reconciles name, regions
-	// and feature additions.
+	// native_id and cloud force replacement, feature removal is turned into a
+	// replacement in ModifyPlan, and region changes are blocked in ModifyPlan
+	// (in-place region updates need the RSC BaaS edit flow, which is not yet
+	// available in the SDK). So Update only reconciles name and feature additions.
 
 	// Name is reconciled first (a cheap, RSC-side rename) so that the feature
 	// re-registration below sees the already-updated name.
@@ -461,8 +460,7 @@ func (r *awsAccountManagedResource) Update(ctx context.Context, req resource.Upd
 	// (validate + finalize). This produces a new CloudFormation template and
 	// bumps the permission version, which drives the phase-2
 	// rubrik_aws_account_managed_stack resource to redeploy the stack and
-	// finalize. register also reconciles regions, so the regions-only branch is
-	// skipped when the feature set changes.
+	// finalize.
 	if !plan.Features.Equal(state.Features) {
 		res.Diagnostics.Append(r.register(ctx, &plan)...)
 		if res.Diagnostics.HasError() {
@@ -470,38 +468,6 @@ func (r *awsAccountManagedResource) Update(ctx context.Context, req resource.Upd
 		}
 		res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 		return
-	}
-
-	// Regions-only change: reconciled in place per feature, no stack redeploy
-	// (regions do not change the account's IAM permissions or the template).
-	if !plan.Regions.Equal(state.Regions) {
-		regionNames, regionDiags := resolveManagedRegions(ctx, plan.Regions)
-		res.Diagnostics.Append(regionDiags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-
-		var featureNames []string
-		res.Diagnostics.Append(state.Features.ElementsAs(ctx, &featureNames, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-
-		// Regions are stored per feature in RSC, so update every onboarded
-		// feature to the new region set.
-		for _, name := range featureNames {
-			if err := aws.Wrap(polarisClient).UpdateAccount(ctx, accountID, core.Feature{Name: name}, aws.Regions(regionNames...)); err != nil {
-				res.Diagnostics.AddError("Failed to update RSC-managed AWS account regions", err.Error())
-				return
-			}
-		}
-
-		regionSet, d := types.SetValueFrom(ctx, types.StringType, regionNames)
-		res.Diagnostics.Append(d...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		plan.Regions = regionSet
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
