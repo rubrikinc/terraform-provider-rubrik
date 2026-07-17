@@ -64,6 +64,7 @@ this resource, deploy the CloudFormation stack (e.g. with the
 var (
 	_ resource.Resource                = &awsAccountManagedResource{}
 	_ resource.ResourceWithImportState = &awsAccountManagedResource{}
+	_ resource.ResourceWithMoveState   = &awsAccountManagedResource{}
 )
 
 type awsAccountManagedResource struct {

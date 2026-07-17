@@ -61,6 +61,7 @@ only after the stack exists.
 var (
 	_ resource.Resource                = &awsAccountManagedStackResource{}
 	_ resource.ResourceWithImportState = &awsAccountManagedStackResource{}
+	_ resource.ResourceWithMoveState   = &awsAccountManagedStackResource{}
 )
 
 type awsAccountManagedStackResource struct {

@@ -91,6 +91,8 @@ If your configuration contains an explicit `provider "polaris" {}` block, rename
 
 The following resources support state migration via Terraform's `moved {}` block:
 
+* `polaris_aws_account_managed` → `rubrik_aws_account_managed`
+* `polaris_aws_account_managed_stack` → `rubrik_aws_account_managed_stack`
 * `polaris_aws_cnp_account` → `rubrik_aws_cnp_account`
 * `polaris_aws_cnp_account_attachments` → `rubrik_aws_cnp_account_attachments`
 * `polaris_custom_role` → `rubrik_custom_role`
