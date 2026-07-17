@@ -123,6 +123,10 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 	tflog.Trace(ctx, "FrameworkProvider.Resources")
 
 	return []func() resource.Resource{
+		newAwsAccountManagedResource,
+		newPolarisAwsAccountManagedResource,
+		newAwsAccountManagedStackResource,
+		newPolarisAwsAccountManagedStackResource,
 		newAwsCnpAccountResource,
 		newPolarisAwsCnpAccountResource,
 		newAwsCnpAccountAttachmentsResource,
