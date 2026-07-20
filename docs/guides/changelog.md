@@ -11,6 +11,15 @@ page_title: "Changelog"
   Azure SQL Database SLA include an instant-archival location no longer applies. Accounts without the feature enabled
   are unaffected and keep the existing behavior. See the [v1.9.0 upgrade guide](upgrade_guide_v1.9.0.md).
   [[docs](../resources/sla_domain.md)]
+* New resource added for `rubrik_aws_account_managed` which onboards an RSC-managed AWS account (Rubrik-hosted
+  BaaS) up to the point of deploying the CloudFormation stack. It validates and registers the account with RSC and
+  exports the CloudFormation `template_url` and `stack_name` needed to deploy the RSC cross-account stack with the
+  AWS provider. Features and regions are chosen here and default to the full BaaS-supported set when omitted.
+  [[docs](../resources/aws_account_managed.md)]
+* New resource added for `rubrik_aws_account_managed_stack` which completes onboarding of an RSC-managed AWS
+  account after its CloudFormation stack has been deployed. It waits for the account's features to connect and
+  finishes BaaS onboarding, re-completes onboarding when RSC raises a permission version, and disables the
+  account's features on destroy. [[docs](../resources/aws_account_managed_stack.md)]
 * New data source added for `rubrik_objects` which returns every RSC hierarchy object matching a given
   `object_type`, without filtering by name. Only the `AzureNativeResourceGroup` object type is supported so far,
   optionally scoped to a single subscription via `subscription_id`. [[docs](../data-sources/objects.md)]
