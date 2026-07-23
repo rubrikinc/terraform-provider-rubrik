@@ -30,6 +30,15 @@ page_title: "Changelog"
 * Add support for the `AzureDevOpsOrganization`, `AzureDevOpsProject` and `AzureDevOpsRepository` object types in
   the `rubrik_object` data source, resolving an Azure DevOps object to its RSC ID by name for use with the
   `rubrik_sla_domain_assignment` resource. [[docs](../data-sources/object.md)]
+* New resource added for `rubrik_gcp_cloud_cluster` which creates a Rubrik Cloud Data Management (CDM) cluster
+  with elastic storage (CCES) in GCP using RSC, including Multi-AZ resiliency via the `az_resilient` attribute and
+  `subnet_az_config` blocks. The target GCP project must be onboarded to RSC with the `SERVERS_AND_APPS` feature
+  enabled. The `admin_email` and `admin_password` fields are write-only, which requires Terraform v1.11.0 or later.
+  State can be moved from the `polaris_gcp_cloud_cluster` resource with a `moved` block.
+  [[docs](../resources/gcp_cloud_cluster.md)]
+* New data source added for `rubrik_gcp_service_accounts` which returns the GCP service accounts RSC has
+  discovered for a cloud account, for use with the `rubrik_gcp_cloud_cluster` resource.
+  [[docs](../data-sources/gcp_service_accounts.md)]
 
 ## v1.9.0
 * **Breaking Change:** When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the account, Azure SQL Database and
