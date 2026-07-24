@@ -127,6 +127,21 @@ func (r *azureDevOpsOrganizationResource) moveStateV0() resource.StateMover {
 				return
 			}
 
+			// The source feature block predates the per-feature permissions
+			// signal, so re-type the set to the target's feature block, which
+			// carries a permissions attribute (left null for migrated state).
+			features, diags := toFeatures(ctx, state.Feature)
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			featureSet, diags := fromFeaturesWithPermissions(attachPermissions(features, nil))
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			state.Feature = featureSet
+
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
 		},
 	}

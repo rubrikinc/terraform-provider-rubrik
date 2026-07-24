@@ -4,10 +4,8 @@ data "rubrik_azure_devops_script" "onboard" {
   org_native_ids = ["my-org", "my-other-org"]
 
   feature {
-    name = "AZURE_DEVOPS_PROTECTION"
-  }
-  feature {
-    name = "AZURE_DEVOPS_REPOSITORY_PROTECTION"
+    name              = "AZURE_DEVOPS_REPOSITORY_PROTECTION"
+    permission_groups = ["BASIC", "RECOVERY"]
   }
 }
 
