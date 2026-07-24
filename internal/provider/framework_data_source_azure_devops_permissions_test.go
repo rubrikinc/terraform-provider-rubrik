@@ -31,6 +31,8 @@ import (
 )
 
 func TestAccAzureDevOpsPermissionsDataSource(t *testing.T) {
+	skipUnlessFeatureEnabled(t, "AZURE_DEVOPS_PROTECTION_ENABLED")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
