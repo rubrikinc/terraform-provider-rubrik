@@ -12,30 +12,6 @@ description: |-
   manage trust policies for an account discovered through this list resource,
   import the account first and supply the external ID in the import block's
   identity, then manage it as a normal rubrik_aws_cnp_account resource.
-  Bulk Import
-  The list resource can be combined with an import block to bulk-import
-  existing AWS accounts. RSC does not return external IDs, so the user must
-  supply them via a variable keyed on the AWS account ID (native_id):
-  
-  variable "external_ids" {
-    type        = map(string)
-    description = "Map of AWS account ID (native_id) to external_id."
-    default     = {}
-  }
-  
-  import {
-    for_each = list.rubrik_aws_cnp_account.all.results
-    to       = rubrik_aws_cnp_account.account[each.value.identity.id]
-    identity = {
-      id          = each.value.identity.id
-      external_id = lookup(var.external_ids, each.value.resource.native_id, null)
-    }
-  }
-  
-  Entries omitted from var.external_ids resolve to null, which is only
-  correct for accounts onboarded without an external ID. For accounts that
-  have an external ID, the post-import refresh will fail unless the value
-  provided here exactly matches the one used at onboarding.
 ---
 
 # rubrik_aws_cnp_account (List Resource)
@@ -50,34 +26,6 @@ does not return the external ID required to compute trust policies. To
 manage trust policies for an account discovered through this list resource,
 import the account first and supply the external ID in the import block's
 identity, then manage it as a normal `rubrik_aws_cnp_account` resource.
-
-## Bulk Import
-
-The list resource can be combined with an `import` block to bulk-import
-existing AWS accounts. RSC does not return external IDs, so the user must
-supply them via a variable keyed on the AWS account ID (`native_id`):
-
-```hcl
-variable "external_ids" {
-  type        = map(string)
-  description = "Map of AWS account ID (native_id) to external_id."
-  default     = {}
-}
-
-import {
-  for_each = list.rubrik_aws_cnp_account.all.results
-  to       = rubrik_aws_cnp_account.account[each.value.identity.id]
-  identity = {
-    id          = each.value.identity.id
-    external_id = lookup(var.external_ids, each.value.resource.native_id, null)
-  }
-}
-```
-
-Entries omitted from `var.external_ids` resolve to `null`, which is only
-correct for accounts onboarded without an external ID. For accounts that
-have an external ID, the post-import refresh will fail unless the value
-provided here exactly matches the one used at onboarding.
 
 ## Example Usage
 

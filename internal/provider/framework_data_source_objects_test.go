@@ -77,7 +77,7 @@ data "rubrik_objects" "all_subscriptions" {
 }
 `
 
-func TestAccRubrikObjectsDataSource_azureResourceGroup(t *testing.T) {
+func TestAccAzureResourceGroupObjectsDataSource(t *testing.T) {
 	config, subscription := loadAzureTestConfig(t)
 
 	subscriptionOnlyConfig, err := makeTerraformConfig(config, subscriptionOnlyTmpl)

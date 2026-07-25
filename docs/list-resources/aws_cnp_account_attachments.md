@@ -15,17 +15,6 @@ description: |-
   through this list resource, configure the field as usual on the imported
   rubrik_aws_cnp_account_attachments resource if you want to track
   permission updates.
-  Bulk Import
-  The list resource can be combined with an import block to bulk-import
-  existing attachments:
-  
-  import {
-    for_each = list.rubrik_aws_cnp_account_attachments.all.results
-    to       = rubrik_aws_cnp_account_attachments.attachments[each.value.identity.id]
-    identity = {
-      id = each.value.identity.id
-    }
-  }
 ---
 
 # rubrik_aws_cnp_account_attachments (List Resource)
@@ -44,21 +33,6 @@ results because RSC does not return the sentinel value. After importing
 through this list resource, configure the field as usual on the imported
 `rubrik_aws_cnp_account_attachments` resource if you want to track
 permission updates.
-
-## Bulk Import
-
-The list resource can be combined with an `import` block to bulk-import
-existing attachments:
-
-```hcl
-import {
-  for_each = list.rubrik_aws_cnp_account_attachments.all.results
-  to       = rubrik_aws_cnp_account_attachments.attachments[each.value.identity.id]
-  identity = {
-    id = each.value.identity.id
-  }
-}
-```
 
 ## Example Usage
 
