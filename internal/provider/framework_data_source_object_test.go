@@ -24,6 +24,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 const objectAWSAccountTmpl = `
@@ -61,19 +64,23 @@ func TestAccPolarisAwsAccountObject(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: objectAWSAccount,
+			// Verify the AWS account resource was created.
 			Check: resource.ComposeTestCheckFunc(
-				// Verify the AWS account resource was created
 				resource.TestCheckResourceAttr("polaris_aws_account.default", "name", account.AccountName),
 				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_protection.0.status", "connected"),
-
-				// Verify the object data source returns the correct values
-				resource.TestCheckResourceAttrSet("data.polaris_object.aws_account", "id"),
-				resource.TestCheckResourceAttr("data.polaris_object.aws_account", "name", account.AccountName),
-				resource.TestCheckResourceAttr("data.polaris_object.aws_account", "object_type", "AwsNativeAccount"),
 			),
+			// Verify the object data source returns the correct values.
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyID),
+					knownvalue.NotNull()),
+				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyName),
+					knownvalue.StringExact(account.AccountName)),
+				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyObjectType),
+					knownvalue.StringExact("AwsNativeAccount")),
+			},
 		}},
 	})
 }
@@ -121,19 +128,23 @@ func TestAccPolarisAzureSubscriptionObject(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: objectAzureSubscription,
+			// Verify the Azure subscription resource was created.
 			Check: resource.ComposeTestCheckFunc(
-				// Verify the Azure subscription resource was created
 				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "subscription_name", subscription.SubscriptionName),
 				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "cloud_native_protection.0.status", "CONNECTED"),
-
-				// Verify the object data source returns the correct values
-				resource.TestCheckResourceAttrSet("data.polaris_object.azure_subscription", "id"),
-				resource.TestCheckResourceAttr("data.polaris_object.azure_subscription", "name", subscription.SubscriptionName),
-				resource.TestCheckResourceAttr("data.polaris_object.azure_subscription", "object_type", "AzureNativeSubscription"),
 			),
+			// Verify the object data source returns the correct values.
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyID),
+					knownvalue.NotNull()),
+				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyName),
+					knownvalue.StringExact(subscription.SubscriptionName)),
+				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyObjectType),
+					knownvalue.StringExact("AzureNativeSubscription")),
+			},
 		}},
 	})
 }

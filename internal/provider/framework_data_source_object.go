@@ -26,10 +26,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/datasource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/devops"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
@@ -61,92 +64,171 @@ parents, set ´org_id´ (for ´AzureDevOpsProject´ or ´GitHubRepository´) or
 otherwise the lookup returns a "multiple objects found" error.
 `
 
-func dataSourceObject() *schema.Resource {
-	objectTypes := []string{
-		"AwsNativeAccount",
-		"AwsNativeEbsVolume",
-		"AwsNativeEc2Instance",
-		"AwsNativeRdsInstance",
-		"AzureDevOpsOrganization",
-		"AzureDevOpsProject",
-		"AzureDevOpsRepository",
-		"AzureNativeResourceGroup",
-		"AzureNativeSubscription",
-		"AzureNativeVirtualMachine",
-		"GitHubOrganization",
-		"GitHubRepository",
-	}
+// objectTypes is the set of object types the rubrik_object data source can look
+// up. Used both for input validation and in the object_type description.
+var objectTypes = []string{
+	"AwsNativeAccount",
+	"AwsNativeEbsVolume",
+	"AwsNativeEc2Instance",
+	"AwsNativeRdsInstance",
+	"AzureDevOpsOrganization",
+	"AzureDevOpsProject",
+	"AzureDevOpsRepository",
+	"AzureNativeResourceGroup",
+	"AzureNativeSubscription",
+	"AzureNativeVirtualMachine",
+	"GitHubOrganization",
+	"GitHubRepository",
+}
 
-	return &schema.Resource{
-		ReadContext: objectRead,
+var _ datasource.DataSource = &objectDataSource{}
 
-		// The read timeout is used by the AwsNativeAccount retry loop which
-		// polls the hierarchy until an active account appears. Other object
-		// types return immediately and are unaffected by this timeout.
-		Timeouts: &schema.ResourceTimeout{
-			Read: schema.DefaultTimeout(5 * time.Minute),
-		},
+type objectDataSource struct {
+	client *client
+	prefix string
+}
 
+type objectModel struct {
+	ID             types.String   `tfsdk:"id"`
+	Name           types.String   `tfsdk:"name"`
+	ObjectType     types.String   `tfsdk:"object_type"`
+	SubscriptionID types.String   `tfsdk:"subscription_id"`
+	OrgID          types.String   `tfsdk:"org_id"`
+	ProjectID      types.String   `tfsdk:"project_id"`
+	Timeouts       timeouts.Value `tfsdk:"timeouts"`
+}
+
+func newObjectDataSource() datasource.DataSource {
+	return &objectDataSource{prefix: keyRubrik}
+}
+
+func newPolarisObjectDataSource() datasource.DataSource {
+	return &objectDataSource{prefix: keyPolaris}
+}
+
+func (d *objectDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
+	tflog.Trace(ctx, "objectDataSource.Metadata")
+
+	res.TypeName = d.prefix + "_object"
+}
+
+func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
+	tflog.Trace(ctx, "objectDataSource.Schema")
+
+	res.Schema = schema.Schema{
 		Description: description(dataSourceObjectDescription),
-		Schema: map[string]*schema.Schema{
-			keyID: {
-				Type:        schema.TypeString,
+		Attributes: map[string]schema.Attribute{
+			keyID: schema.StringAttribute{
 				Computed:    true,
 				Description: "Object ID (UUID).",
 			},
-			keyName: {
-				Type:         schema.TypeString,
-				Required:     true,
-				Description:  "Exact object name to search for.",
-				ValidateFunc: validation.StringIsNotWhiteSpace,
+			keyName: schema.StringAttribute{
+				Required:    true,
+				Description: "Exact object name to search for.",
+				Validators: []validator.String{
+					isNotWhiteSpace(),
+				},
 			},
-			keyObjectType: {
-				Type:         schema.TypeString,
-				Required:     true,
-				Description:  fmt.Sprintf("Object type. %s.", possibleValues(objectTypes)),
-				ValidateFunc: validation.StringInSlice(objectTypes, false),
+			keyObjectType: schema.StringAttribute{
+				Required:    true,
+				Description: fmt.Sprintf("Object type. %s.", possibleValues(objectTypes)),
+				Validators: []validator.String{
+					stringvalidator.OneOf(objectTypes...),
+				},
 			},
-			keySubscriptionID: {
-				Type:     schema.TypeString,
+			keySubscriptionID: schema.StringAttribute{
 				Optional: true,
 				Description: "RSC cloud account ID of the parent Azure subscription (UUID). Required when " +
 					"`object_type` is `AzureNativeResourceGroup`; ignored for other object types.",
-				ValidateFunc: validation.IsUUID,
+				Validators: []validator.String{
+					isUUID(),
+				},
 			},
-			keyOrgID: {
-				Type:     schema.TypeString,
+			keyOrgID: schema.StringAttribute{
 				Optional: true,
 				Description: "RSC ID of the parent organization (UUID). May be set when `object_type` is " +
 					"`AzureDevOpsProject` to disambiguate a project name shared across organizations, when " +
 					"`object_type` is `AzureDevOpsRepository` to disambiguate a repository name shared across " +
 					"projects, or when `object_type` is `GitHubRepository` to disambiguate a repository name " +
 					"shared across organizations; ignored for other object types.",
-				ValidateFunc: validation.IsUUID,
+				Validators: []validator.String{
+					isUUID(),
+				},
 			},
-			keyProjectID: {
-				Type:     schema.TypeString,
+			keyProjectID: schema.StringAttribute{
 				Optional: true,
 				Description: "RSC ID of the parent Azure DevOps project (UUID). May be set when `object_type` is " +
 					"`AzureDevOpsRepository` to disambiguate a repository name shared across projects; ignored for " +
 					"other object types.",
-				ValidateFunc: validation.IsUUID,
+				Validators: []validator.String{
+					isUUID(),
+				},
 			},
+			// The read timeout is used by the AwsNativeAccount retry loop which
+			// polls the hierarchy until an active account appears. Other object
+			// types return immediately and are unaffected by this timeout.
+			keyTimeouts: timeouts.AttributesWithOpts(ctx, timeouts.Opts{
+				ReadDescription: "How long to wait for the object to appear in the hierarchy. Default is `5m`.",
+			}),
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_object` data source instead."
 	}
 }
 
-func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	tflog.Trace(ctx, "objectRead")
+func (d *objectDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, res *datasource.ConfigureResponse) {
+	tflog.Trace(ctx, "objectDataSource.Configure")
 
-	client, err := m.(*client).polaris()
-	if err != nil {
-		return diag.FromErr(err)
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*client)
+}
+
+func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest, res *datasource.ReadResponse) {
+	tflog.Trace(ctx, "objectDataSource.Read")
+
+	var config objectModel
+	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if res.Diagnostics.HasError() {
+		return
 	}
 
-	name := d.Get(keyName).(string)
-	objectType := hierarchy.ObjectType(d.Get(keyObjectType).(string))
+	readTimeout, diags := config.Timeouts.Read(ctx, 5*time.Minute)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
 
-	api := hierarchy.Wrap(client.GQL)
+	polarisClient, err := d.client.polaris()
+	if err != nil {
+		res.Diagnostics.AddError("RSC client error", err.Error())
+		return
+	}
+
+	name := config.Name.ValueString()
+	objectType := hierarchy.ObjectType(config.ObjectType.ValueString())
+
+	// setState writes the resolved object ID together with the configured inputs
+	// back to state.
+	setState := func(id string) {
+		state := objectModel{
+			ID:             types.StringValue(id),
+			Name:           config.Name,
+			ObjectType:     config.ObjectType,
+			SubscriptionID: config.SubscriptionID,
+			OrgID:          config.OrgID,
+			ProjectID:      config.ProjectID,
+			Timeouts:       config.Timeouts,
+		}
+		res.Diagnostics.Append(res.State.Set(ctx, &state)...)
+	}
+
+	api := hierarchy.Wrap(polarisClient.GQL)
 
 	// Filters for workload-level object types. Unlike container-level types
 	// (e.g. AwsNativeAccount, AzureNativeSubscription), workload objects do not
@@ -172,7 +254,8 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 		for {
 			results, err := hierarchy.ObjectsByName[hierarchy.AWSNativeAccount](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType)
 			if err != nil {
-				return diag.FromErr(err)
+				res.Diagnostics.AddError("Failed to look up objects", err.Error())
+				return
 			}
 
 			for _, r := range results {
@@ -203,14 +286,18 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 
 			select {
 			case <-ctx.Done():
-				return diag.Errorf("timed out waiting for active object with name %q and type %q: %d result(s) returned, none active", name, objectType, len(results))
+				res.Diagnostics.AddError("Timed out waiting for object", fmt.Sprintf(
+					"timed out waiting for active object with name %q and type %q: %d result(s) returned, none active",
+					name, objectType, len(results)))
+				return
 			case <-time.After(10 * time.Second):
 			}
 		}
 	case hierarchy.ObjectType("AwsNativeEbsVolume"):
 		results, err := hierarchy.ObjectsByName[hierarchy.AWSNativeEBSVolume](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up objects", err.Error())
+			return
 		}
 
 		for _, r := range results {
@@ -219,7 +306,8 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 	case hierarchy.ObjectType("AwsNativeEc2Instance"):
 		results, err := hierarchy.ObjectsByName[hierarchy.AWSNativeEC2Instance](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up objects", err.Error())
+			return
 		}
 
 		for _, r := range results {
@@ -228,17 +316,19 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 	case hierarchy.ObjectType("AwsNativeRdsInstance"):
 		results, err := hierarchy.ObjectsByName[hierarchy.AWSNativeRDSInstance](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up objects", err.Error())
+			return
 		}
 
 		for _, r := range results {
 			objects = append(objects, r.Object)
 		}
 	case hierarchy.ObjectType("AzureDevOpsOrganization"):
-		orgs, err := devops.Wrap(client).AzureOrganizationsByName(ctx, name,
+		orgs, err := devops.Wrap(polarisClient).AzureOrganizationsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up Azure DevOps organizations", err.Error())
+			return
 		}
 
 		for _, org := range orgs {
@@ -249,15 +339,16 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			})
 		}
 	case hierarchy.ObjectType("AzureDevOpsProject"):
-		projects, err := devops.Wrap(client).AzureProjectsByName(ctx, name,
+		projects, err := devops.Wrap(polarisClient).AzureProjectsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up Azure DevOps projects", err.Error())
+			return
 		}
 
 		// Project names are only unique within an organization, so when org_id
 		// is set, narrow to that organization.
-		orgID := d.Get(keyOrgID).(string)
+		orgID := config.OrgID.ValueString()
 		for _, project := range projects {
 			if orgID != "" && project.OrgID.String() != orgID {
 				continue
@@ -269,16 +360,17 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			})
 		}
 	case hierarchy.ObjectType("AzureDevOpsRepository"):
-		repos, err := devops.Wrap(client).AzureRepositoriesByName(ctx, name,
+		repos, err := devops.Wrap(polarisClient).AzureRepositoriesByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up Azure DevOps repositories", err.Error())
+			return
 		}
 
 		// Repository names are only unique within a project, so when org_id
 		// and/or project_id are set, narrow to that organization and project.
-		orgID := d.Get(keyOrgID).(string)
-		projectID := d.Get(keyProjectID).(string)
+		orgID := config.OrgID.ValueString()
+		projectID := config.ProjectID.ValueString()
 		for _, repo := range repos {
 			if orgID != "" && repo.OrgID.String() != orgID {
 				continue
@@ -293,10 +385,11 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			})
 		}
 	case hierarchy.ObjectType("GitHubOrganization"):
-		orgs, err := devops.Wrap(client).GitHubOrganizationsByName(ctx, name,
+		orgs, err := devops.Wrap(polarisClient).GitHubOrganizationsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up GitHub organizations", err.Error())
+			return
 		}
 
 		for _, org := range orgs {
@@ -307,15 +400,16 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 			})
 		}
 	case hierarchy.ObjectType("GitHubRepository"):
-		repos, err := devops.Wrap(client).GitHubRepositoriesByName(ctx, name,
+		repos, err := devops.Wrap(polarisClient).GitHubRepositoriesByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up GitHub repositories", err.Error())
+			return
 		}
 
 		// Repository names are only unique within an organization, so when
 		// org_id is set, narrow to that organization.
-		orgID := d.Get(keyOrgID).(string)
+		orgID := config.OrgID.ValueString()
 		for _, repo := range repos {
 			if orgID != "" && repo.OrgID.String() != orgID {
 				continue
@@ -330,7 +424,8 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 		// Container-level type: same feature-status strategy as AwsNativeAccount.
 		results, err := hierarchy.ObjectsByName[hierarchy.AzureNativeSubscription](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up objects", err.Error())
+			return
 		}
 
 		for _, r := range results {
@@ -354,7 +449,8 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 	case hierarchy.ObjectType("AzureNativeVirtualMachine"):
 		results, err := hierarchy.ObjectsByName[hierarchy.AzureNativeVirtualMachine](ctx, api, name, hierarchy.WorkloadAzureVM, activeFilters...)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to look up objects", err.Error())
+			return
 		}
 
 		for _, r := range results {
@@ -366,40 +462,48 @@ func objectRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnos
 		// dedicated NativeResourceGroups SDK wrapper. Resource group names are
 		// unique within a subscription, so a (subscription, name) tuple
 		// resolves to at most one resource group.
-		subIDStr := d.Get(keySubscriptionID).(string)
+		subIDStr := config.SubscriptionID.ValueString()
 		if subIDStr == "" {
-			return diag.Errorf("subscription_id is required when object_type is %q", objectType)
+			res.Diagnostics.AddError("Missing subscription_id",
+				fmt.Sprintf("subscription_id is required when object_type is %q", objectType))
+			return
 		}
 		subID, err := uuid.Parse(subIDStr)
 		if err != nil {
-			return diag.Errorf("invalid subscription_id %q: %s", subIDStr, err)
+			res.Diagnostics.AddError("Invalid subscription_id", fmt.Sprintf("invalid subscription_id %q: %s", subIDStr, err))
+			return
 		}
 
 		// nameSubstring is a substring filter server-side, so a query for
 		// "foo" can return "foo" and "foobar". Pick the exact-name match.
-		rgs, err := azure.Wrap(client).NativeResourceGroups(ctx, []uuid.UUID{subID}, name)
+		rgs, err := azure.Wrap(polarisClient).NativeResourceGroups(ctx, []uuid.UUID{subID}, name)
 		if err != nil {
-			return diag.FromErr(err)
+			res.Diagnostics.AddError("Failed to read Azure native resource groups", err.Error())
+			return
 		}
 		for _, rg := range rgs {
 			if rg.Name == name {
-				d.SetId(rg.ID)
-				return nil
+				setState(rg.ID)
+				return
 			}
 		}
-		return diag.Errorf("no object found with name %q and type %q in subscription %q", name, objectType, subIDStr)
+		res.Diagnostics.AddError("Object not found",
+			fmt.Sprintf("no object found with name %q and type %q in subscription %q", name, objectType, subIDStr))
+		return
 	}
 
 	if len(objects) == 0 {
-		return diag.Errorf("no object found with name %q and type %q", name, objectType)
+		res.Diagnostics.AddError("Object not found",
+			fmt.Sprintf("no object found with name %q and type %q", name, objectType))
+		return
 	}
 	if len(objects) > 1 {
-		return diag.Errorf("multiple objects found with name %q and type %q", name, objectType)
+		res.Diagnostics.AddError("Multiple objects found",
+			fmt.Sprintf("multiple objects found with name %q and type %q", name, objectType))
+		return
 	}
 
-	d.SetId(objects[0].ID.String())
-
-	return nil
+	setState(objects[0].ID.String())
 }
 
 // activeObjectFilters returns the server-side hierarchy filters that exclude
