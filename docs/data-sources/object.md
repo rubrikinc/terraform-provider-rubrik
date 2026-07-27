@@ -6,12 +6,12 @@ description: |-
   name and type. This is useful for finding the ID of an object when only its
   name and type are known.
   Supported object types:
-  AwsNativeAccount - AWS Native AccountAwsNativeEbsVolume - AWS Native EBS VolumeAwsNativeEc2Instance - AWS Native EC2 InstanceAwsNativeRdsInstance - AWS Native RDS InstanceAzureDevOpsOrganization - Azure DevOps OrganizationAzureDevOpsProject - Azure DevOps ProjectAzureDevOpsRepository - Azure DevOps RepositoryAzureNativeResourceGroup - Azure Native Resource Group (requires subscription_id)AzureNativeSubscription - Azure Native SubscriptionAzureNativeVirtualMachine - Azure Native Virtual Machine
-  ~> Note: Azure DevOps project and repository names are only unique within
-  their parent (an organization and a project, respectively). When a name is
-  shared across parents, set org_id (for AzureDevOpsProject) or org_id
-  and/or project_id (for AzureDevOpsRepository) to disambiguate; otherwise the
-  lookup returns a "multiple objects found" error.
+  AwsNativeAccount - AWS Native AccountAwsNativeEbsVolume - AWS Native EBS VolumeAwsNativeEc2Instance - AWS Native EC2 InstanceAwsNativeRdsInstance - AWS Native RDS InstanceAzureDevOpsOrganization - Azure DevOps OrganizationAzureDevOpsProject - Azure DevOps ProjectAzureDevOpsRepository - Azure DevOps RepositoryAzureNativeResourceGroup - Azure Native Resource Group (requires subscription_id)AzureNativeSubscription - Azure Native SubscriptionAzureNativeVirtualMachine - Azure Native Virtual MachineGitHubOrganization - GitHub OrganizationGitHubRepository - GitHub Repository
+  ~> Note: Azure DevOps project and repository names, and GitHub repository
+  names, are only unique within their parent. When a name is shared across
+  parents, set org_id (for AzureDevOpsProject or GitHubRepository) or
+  org_id and/or project_id (for AzureDevOpsRepository) to disambiguate;
+  otherwise the lookup returns a "multiple objects found" error.
 ---
 
 # rubrik_object (Data Source)
@@ -31,12 +31,14 @@ Supported object types:
   * `AzureNativeResourceGroup` - Azure Native Resource Group (requires `subscription_id`)
   * `AzureNativeSubscription` - Azure Native Subscription
   * `AzureNativeVirtualMachine` - Azure Native Virtual Machine
+  * `GitHubOrganization` - GitHub Organization
+  * `GitHubRepository` - GitHub Repository
 
-~> **Note:** Azure DevOps project and repository names are only unique within
-their parent (an organization and a project, respectively). When a name is
-shared across parents, set `org_id` (for `AzureDevOpsProject`) or `org_id`
-and/or `project_id` (for `AzureDevOpsRepository`) to disambiguate; otherwise the
-lookup returns a "multiple objects found" error.
+~> **Note:** Azure DevOps project and repository names, and GitHub repository
+names, are only unique within their parent. When a name is shared across
+parents, set `org_id` (for `AzureDevOpsProject` or `GitHubRepository`) or
+`org_id` and/or `project_id` (for `AzureDevOpsRepository`) to disambiguate;
+otherwise the lookup returns a "multiple objects found" error.
 
 
 ## Example Usage
