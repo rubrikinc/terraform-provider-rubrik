@@ -177,6 +177,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newClusterVersionsDataSource,
 		newFeatureFlagDataSource,
 		newPolarisFeatureFlagDataSource,
+		newGcpRegionsDataSource,
+		newPolarisGcpRegionsDataSource,
 		newGcpServiceAccountsDataSource,
 		newPolarisGcpServiceAccountsDataSource,
 		newIdentityProviderDataSource,
