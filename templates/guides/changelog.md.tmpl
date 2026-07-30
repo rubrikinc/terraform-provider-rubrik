@@ -36,9 +36,6 @@ page_title: "Changelog"
   enabled. The `admin_email` and `admin_password` fields are write-only, which requires Terraform v1.11.0 or later.
   State can be moved from the `polaris_gcp_cloud_cluster` resource with a `moved` block.
   [[docs](../resources/gcp_cloud_cluster.md)]
-* New data source added for `rubrik_gcp_service_accounts` which returns the GCP service accounts RSC has
-  discovered for a cloud account, for use with the `rubrik_gcp_cloud_cluster` resource.
-  [[docs](../data-sources/gcp_service_accounts.md)]
 * New data source added for `rubrik_gcp_regions` which returns the GCP regions and their availability zones
   RSC supports for a cloud account, for use with the `rubrik_gcp_cloud_cluster` resource.
   [[docs](../data-sources/gcp_regions.md)]
