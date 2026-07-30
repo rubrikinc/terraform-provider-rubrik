@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/devops"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqldevops "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/devops"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
@@ -43,8 +45,10 @@ const dataSourceGitHubOrganizationDescription = `
 The ´rubrik_github_organization´ data source reads an onboarded GitHub
 organization from RSC. Look it up by ´id´, ´name´, or ´native_id´. The ´name´
 is the GitHub organization login shown in the organization's URL (e.g. ´my-org´
-in https://github.com/my-org). For a GitHub organization, ´name´ and
-´native_id´ are the same value, so either can be used for the lookup.
+in https://github.com/my-org). The ´native_id´ is GitHub's numeric organization
+ID (e.g. ´54376070´), which is stable across organization renames. Unlike some
+other providers, a GitHub organization's ´name´ and ´native_id´ are different
+values.
 
 GitHub organizations cannot be onboarded through the provider; use the RSC UI
 to onboard them. This data source is read-only.
@@ -114,8 +118,9 @@ func (d *gitHubOrganizationDataSource) Schema(ctx context.Context, _ datasource.
 			keyNativeID: schema.StringAttribute{
 				Optional: true,
 				Computed: true,
-				Description: "GitHub organization native identifier. Exactly one of `id`, `name`, or " +
-					"`native_id` must be set.",
+				Description: "GitHub organization native identifier. This is GitHub's numeric organization " +
+					"ID (e.g., `54376070`), which is stable across organization renames. Exactly one of " +
+					"`id`, `name`, or `native_id` must be set.",
 			},
 			keyOrgURL: schema.StringAttribute{
 				Computed:    true,
@@ -204,7 +209,8 @@ func (d *gitHubOrganizationDataSource) Read(ctx context.Context, req datasource.
 	}
 
 	var org gqldevops.GitHubOrganization
-	if !config.ID.IsNull() {
+	switch {
+	case !config.ID.IsNull():
 		id, err := uuid.Parse(config.ID.ValueString())
 		if err != nil {
 			res.Diagnostics.AddError("Invalid organization ID", err.Error())
@@ -215,15 +221,22 @@ func (d *gitHubOrganizationDataSource) Read(ctx context.Context, req datasource.
 			res.Diagnostics.AddError("Failed to read GitHub organization", err.Error())
 			return
 		}
-	} else {
-		// A GitHub organization's name and native ID are the same value, so
-		// accept whichever the user set and resolve it with an exact-match
-		// name filter.
-		lookup := config.Name
-		if lookup.IsNull() {
-			lookup = config.NativeID
+	case !config.NativeID.IsNull():
+		// The native ID is GitHub's numeric organization ID, distinct from the
+		// name, so it is matched client-side rather than through a name filter.
+		nativeID := config.NativeID.ValueString()
+		org, err = devops.Wrap(polarisClient).GitHubOrganizationByNativeID(ctx, nativeID)
+		if err != nil {
+			if errors.Is(err, graphql.ErrNotFound) {
+				res.Diagnostics.AddError("GitHub organization not found",
+					fmt.Sprintf("no organization with native ID %q", nativeID))
+				return
+			}
+			res.Diagnostics.AddError("Failed to look up GitHub organization", err.Error())
+			return
 		}
-		name := lookup.ValueString()
+	default:
+		name := config.Name.ValueString()
 
 		candidates, err := devops.Wrap(polarisClient).GitHubOrganizationsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)

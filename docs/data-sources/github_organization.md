@@ -6,8 +6,10 @@ description: |-
   The rubrik_github_organization data source reads an onboarded GitHub
   organization from RSC. Look it up by id, name, or native_id. The name
   is the GitHub organization login shown in the organization's URL (e.g. my-org
-  in https://github.com/my-org). For a GitHub organization, name and
-  native_id are the same value, so either can be used for the lookup.
+  in https://github.com/my-org). The native_id is GitHub's numeric organization
+  ID (e.g. 54376070), which is stable across organization renames. Unlike some
+  other providers, a GitHub organization's name and native_id are different
+  values.
   GitHub organizations cannot be onboarded through the provider; use the RSC UI
   to onboard them. This data source is read-only.
 ---
@@ -17,8 +19,10 @@ description: |-
 The `rubrik_github_organization` data source reads an onboarded GitHub
 organization from RSC. Look it up by `id`, `name`, or `native_id`. The `name`
 is the GitHub organization login shown in the organization's URL (e.g. `my-org`
-in https://github.com/my-org). For a GitHub organization, `name` and
-`native_id` are the same value, so either can be used for the lookup.
+in https://github.com/my-org). The `native_id` is GitHub's numeric organization
+ID (e.g. `54376070`), which is stable across organization renames. Unlike some
+other providers, a GitHub organization's `name` and `native_id` are different
+values.
 
 GitHub organizations cannot be onboarded through the provider; use the RSC UI
 to onboard them. This data source is read-only.
@@ -31,9 +35,9 @@ data "rubrik_github_organization" "org" {
   name = "my-org"
 }
 
-# Look up by native ID.
+# Look up by native ID, GitHub's numeric organization ID.
 data "rubrik_github_organization" "by_native_id" {
-  native_id = "my-org"
+  native_id = "54376070"
 }
 
 # Look up by RSC organization ID.
@@ -49,7 +53,7 @@ data "rubrik_github_organization" "by_id" {
 
 - `id` (String) RSC organization ID (UUID). Exactly one of `id`, `name`, or `native_id` must be set.
 - `name` (String) GitHub organization name. This is the organization login visible in the GitHub URL (e.g., `my-org` from https://github.com/my-org). Exactly one of `id`, `name`, or `native_id` must be set.
-- `native_id` (String) GitHub organization native identifier. Exactly one of `id`, `name`, or `native_id` must be set.
+- `native_id` (String) GitHub organization native identifier. This is GitHub's numeric organization ID (e.g., `54376070`), which is stable across organization renames. Exactly one of `id`, `name`, or `native_id` must be set.
 
 ### Read-Only
 

@@ -3,9 +3,9 @@ data "rubrik_github_organization" "org" {
   name = "my-org"
 }
 
-# Look up by native ID.
+# Look up by native ID, GitHub's numeric organization ID.
 data "rubrik_github_organization" "by_native_id" {
-  native_id = "my-org"
+  native_id = "54376070"
 }
 
 # Look up by RSC organization ID.
