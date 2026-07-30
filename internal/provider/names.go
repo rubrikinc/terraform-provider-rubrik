@@ -287,6 +287,7 @@ const (
 	keyObjectIDs                                    = "object_ids"
 	keyObjectType                                   = "object_type"
 	keyObjectTypes                                  = "object_types"
+	keyObject                                       = "object"
 	keyObjects                                      = "objects"
 	keyOperation                                    = "operation"
 	keyOperations                                   = "operations"

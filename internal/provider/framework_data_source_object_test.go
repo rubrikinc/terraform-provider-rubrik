@@ -23,127 +23,411 @@ package provider
 import (
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-const objectAWSAccountTmpl = `
-provider "polaris" {
-	credentials = "{{ .Provider.Credentials }}"
-}
-
-resource "polaris_aws_account" "default" {
-	name    = "{{ .Resource.AccountName }}"
-	profile = "{{ .Resource.Profile }}"
-
-	cloud_native_protection {
-		permission_groups = [
-			"BASIC",
-		]
-		regions = [
-			"us-east-2",
-		]
-	}
-}
-
-data "polaris_object" "aws_account" {
-	name        = "{{ .Resource.AccountName }}"
-	object_type = "AwsNativeAccount"
-
-	depends_on = [polaris_aws_account.default]
-}
-`
-
-func TestAccPolarisAwsAccountObject(t *testing.T) {
-	config, account := loadAWSTestConfig(t)
-	objectAWSAccount, err := makeTerraformConfig(config, objectAWSAccountTmpl)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func TestAccAwsAccountObject(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
-			Config: objectAWSAccount,
-			// Verify the AWS account resource was created.
-			Check: resource.ComposeTestCheckFunc(
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "name", account.AccountName),
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_protection.0.status", "connected"),
-			),
-			// Verify the object data source returns the correct values.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "profile" {
+					type = string
+				}
+
+				resource "rubrik_aws_account" "account" {
+					name    = var.account_name
+					profile = var.profile
+
+					cloud_native_protection {
+						permission_groups = ["BASIC"]
+						regions           = ["us-east-2"]
+					}
+				}
+
+				data "rubrik_object" "aws_account" {
+					name        = rubrik_aws_account.account.name
+					object_type = "AwsNativeAccount"
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"account_name": config.StringVariable(testAWSAccountName(t)),
+				"profile":      config.StringVariable(testAWSProfile(t)),
+			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyID),
-					knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyName),
-					knownvalue.StringExact(account.AccountName)),
-				statecheck.ExpectKnownValue("data.polaris_object.aws_account", tfjsonpath.New(keyObjectType),
-					knownvalue.StringExact("AwsNativeAccount")),
+				statecheck.ExpectKnownValue("data.rubrik_object.aws_account",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("data.rubrik_object.aws_account",
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAWSAccountName(t))),
+				statecheck.ExpectKnownValue("data.rubrik_object.aws_account",
+					tfjsonpath.New(keyObjectType), knownvalue.StringExact("AwsNativeAccount")),
 			},
 		}},
 	})
 }
 
-const objectAzureSubscriptionTmpl = `
-provider "polaris" {
-	credentials = "{{ .Provider.Credentials }}"
+func TestAccAzureSubscriptionObject(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"time": {
+				Source:            "hashicorp/time",
+				VersionConstraint: ">=0.14.0",
+			},
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             azureSubscriptionCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			Config: `
+				variable "azure_credentials" {
+					type = string
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+
+				resource "time_static" "timestamp" {}
+
+				resource "rubrik_azure_service_principal" "principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_discovery {
+						permission_groups = ["BASIC"]
+						regions           = ["eastus2"]
+					}
+
+					cloud_native_protection {
+						permission_groups     = ["BASIC"]
+						regions               = ["eastus2"]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.principal]
+				}
+
+				data "rubrik_object" "subscription" {
+					name        = rubrik_azure_subscription.subscription.subscription_name
+					object_type = "AzureNativeSubscription"
+				}
+
+				# Wait for the refresh to make sure the resource groups are
+				# available.
+				resource "rubrik_refresh" "subscription" {
+					object_id   = data.rubrik_object.subscription.id
+					object_type = "AzureNativeSubscription"
+					timestamp   = time_static.timestamp.rfc3339
+				}
+
+				data "rubrik_object" "resource_group" {
+					name            = var.resource_group_name
+					object_type     = "AzureNativeResourceGroup"
+
+					depends_on = [rubrik_refresh.subscription]
+				}
+
+				data "rubrik_object" "resource_group_by_subscription" {
+					name            = var.resource_group_name
+					object_type     = "AzureNativeResourceGroup"
+					subscription_id = rubrik_azure_subscription.subscription.id
+
+					depends_on = [rubrik_refresh.subscription]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				// Subscription.
+				statecheck.ExpectKnownValue("data.rubrik_object.subscription",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("data.rubrik_object.subscription",
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAzureSubscriptionName(t))),
+				statecheck.ExpectKnownValue("data.rubrik_object.subscription",
+					tfjsonpath.New(keyObjectType), knownvalue.StringExact("AzureNativeSubscription")),
+
+				// Resource group.
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group",
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAzureResourceGroupName(t))),
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group",
+					tfjsonpath.New(keyObjectType), knownvalue.StringExact("AzureNativeResourceGroup")),
+
+				// Resource group scoped to subscription.
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group_by_subscription",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group_by_subscription",
+					tfjsonpath.New(keyName), knownvalue.StringExact(testAzureResourceGroupName(t))),
+				statecheck.ExpectKnownValue("data.rubrik_object.resource_group_by_subscription",
+					tfjsonpath.New(keyObjectType), knownvalue.StringExact("AzureNativeResourceGroup")),
+			},
+		}},
+	})
 }
 
-resource "polaris_azure_service_principal" "default" {
-	credentials   = "{{ .Resource.Credentials }}"
-	tenant_domain = "{{ .Resource.TenantDomain }}"
-}
-
-resource "polaris_azure_subscription" "default" {
-	subscription_id   = "{{ .Resource.SubscriptionID }}"
-	subscription_name = "{{ .Resource.SubscriptionName }}"
-	tenant_domain     = "{{ .Resource.TenantDomain }}"
-
-	cloud_native_protection {
-		resource_group_name   = "{{ .Resource.CloudNativeProtection.ResourceGroupName }}"
-		resource_group_region = "{{ .Resource.CloudNativeProtection.ResourceGroupRegion }}"
-
-		regions = [
-			"eastus2",
-		]
-	}
-  
-	depends_on = [polaris_azure_service_principal.default]
-}
-
-data "polaris_object" "azure_subscription" {
-	name        = "{{ .Resource.SubscriptionName }}"
-	object_type = "AzureNativeSubscription"
-
-	depends_on = [polaris_azure_subscription.default]
-}
-`
-
-func TestAccPolarisAzureSubscriptionObject(t *testing.T) {
-	config, subscription := loadAzureTestConfig(t)
-	objectAzureSubscription, err := makeTerraformConfig(config, objectAzureSubscriptionTmpl)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestAccTagRuleObject(t *testing.T) {
+	tagRuleName := testUniqueName(t)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             tagRuleCheckDestroy(t),
 		Steps: []resource.TestStep{{
-			Config: objectAzureSubscription,
-			// Verify the Azure subscription resource was created.
-			Check: resource.ComposeTestCheckFunc(
-				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "subscription_name", subscription.SubscriptionName),
-				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "cloud_native_protection.0.status", "CONNECTED"),
-			),
-			// Verify the object data source returns the correct values.
+			// A tag rule surfaces in the inventory hierarchy immediately after
+			// creation and passes the active-object filters, so a depends_on is
+			// enough to look it up as a CloudNativeTagRule object.
+			Config: `
+				variable "tag_rule_name" {
+					type = string
+				}
+
+				resource "rubrik_tag_rule" "rule" {
+					name        = var.tag_rule_name
+					object_type = "AWS_EC2_INSTANCE"
+
+					tag {
+						key    = "Test"
+						values = ["true"]
+					}
+				}
+
+				data "rubrik_object" "tag_rule" {
+					name        = rubrik_tag_rule.rule.name
+					object_type = "CloudNativeTagRule"
+
+					depends_on = [rubrik_tag_rule.rule]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"tag_rule_name": config.StringVariable(tagRuleName),
+			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyID),
-					knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyName),
-					knownvalue.StringExact(subscription.SubscriptionName)),
-				statecheck.ExpectKnownValue("data.polaris_object.azure_subscription", tfjsonpath.New(keyObjectType),
-					knownvalue.StringExact("AzureNativeSubscription")),
+				statecheck.ExpectKnownValue("data.rubrik_object.tag_rule",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("data.rubrik_object.tag_rule",
+					tfjsonpath.New(keyName), knownvalue.StringExact(tagRuleName)),
+				statecheck.ExpectKnownValue("data.rubrik_object.tag_rule",
+					tfjsonpath.New(keyObjectType), knownvalue.StringExact("CloudNativeTagRule")),
+				statecheck.CompareValuePairs(
+					"data.rubrik_object.tag_rule", tfjsonpath.New(keyID),
+					"rubrik_tag_rule.rule", tfjsonpath.New(keyID),
+					compare.ValuesSame()),
+			},
+		}},
+	})
+}
+
+// TestAccAwsAccountObject_FrameworkMigration verifies that the migrated
+// object data source is backwards compatible with the SDKv2 provider when
+// looking up an AWS native account.
+func TestAccAwsAccountObject_FrameworkMigration(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"polaris-sdkv2": {
+				Source:            "rubrikinc/polaris",
+				VersionConstraint: "1.9.0",
+			},
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsAccountCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			// Onboard an AWS account and verify the SDKv2 and Framework object
+			// data sources resolve it to identical values.
+			Config: `
+				variable "credentials" {
+					type = string
+				}
+				variable "account_name" {
+					type = string
+				}
+				variable "profile" {
+					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
+				resource "polaris_aws_account" "account" {
+					name    = var.account_name
+					profile = var.profile
+
+					cloud_native_protection {
+						permission_groups = ["BASIC"]
+						regions           = ["us-east-2"]
+					}
+				}
+
+				data "polaris_object" "old" {
+					provider = polaris-sdkv2
+
+					name        = polaris_aws_account.account.name
+					object_type = "AwsNativeAccount"
+				}
+
+				data "polaris_object" "new" {
+					name        = polaris_aws_account.account.name
+					object_type = "AwsNativeAccount"
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"credentials":  config.StringVariable(testCredentials(t)),
+				"account_name": config.StringVariable(testAWSAccountName(t)),
+				"profile":      config.StringVariable(testAWSProfile(t)),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.CompareValuePairs(
+					"data.polaris_object.old", tfjsonpath.New(keyID),
+					"data.polaris_object.new", tfjsonpath.New(keyID),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"data.polaris_object.old", tfjsonpath.New(keyName),
+					"data.polaris_object.new", tfjsonpath.New(keyName),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"data.polaris_object.old", tfjsonpath.New(keyObjectType),
+					"data.polaris_object.new", tfjsonpath.New(keyObjectType),
+					compare.ValuesSame()),
+			},
+		}},
+	})
+}
+
+// TestAccAzureSubscriptionObject_FrameworkMigration verifies that the
+// migrated object data source is backwards compatible with the SDKv2 provider
+// when looking up an Azure native subscription.
+func TestAccAzureSubscriptionObject_FrameworkMigration(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"polaris-sdkv2": {
+				Source:            "rubrikinc/polaris",
+				VersionConstraint: "1.9.0",
+			},
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             azureSubscriptionCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			// Onboard an Azure subscription and verify the SDKv2 and Framework
+			// object data sources resolve it to identical values.
+			Config: `
+				variable "credentials" {
+					type = string
+				}
+				variable "azure_credentials" {
+					type = string
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+
+				provider "polaris-sdkv2" {
+					credentials = var.credentials
+				}
+
+				resource "polaris_azure_service_principal" "principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "polaris_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_discovery {
+						permission_groups = ["BASIC"]
+						regions           = ["eastus2"]
+					}
+
+					cloud_native_protection {
+						permission_groups     = ["BASIC"]
+						regions               = ["eastus2"]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [polaris_azure_service_principal.principal]
+				}
+
+				data "polaris_object" "subscription_old" {
+					provider = polaris-sdkv2
+
+					name        = polaris_azure_subscription.subscription.subscription_name
+					object_type = "AzureNativeSubscription"
+				}
+
+				data "polaris_object" "subscription_new" {
+					name        = polaris_azure_subscription.subscription.subscription_name
+					object_type = "AzureNativeSubscription"
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"credentials":           config.StringVariable(testCredentials(t)),
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				// Subscription.
+				statecheck.CompareValuePairs(
+					"data.polaris_object.subscription_old", tfjsonpath.New(keyID),
+					"data.polaris_object.subscription_new", tfjsonpath.New(keyID),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"data.polaris_object.subscription_old", tfjsonpath.New(keyName),
+					"data.polaris_object.subscription_new", tfjsonpath.New(keyName),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"data.polaris_object.subscription_old", tfjsonpath.New(keyObjectType),
+					"data.polaris_object.subscription_new", tfjsonpath.New(keyObjectType),
+					compare.ValuesSame()),
 			},
 		}},
 	})
