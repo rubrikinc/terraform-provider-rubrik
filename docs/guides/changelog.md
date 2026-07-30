@@ -4,17 +4,6 @@ page_title: "Changelog"
 
 # Changelog
 
-## v1.10.0
-* New data source added for `rubrik_github_organization` which reads an onboarded GitHub organization.
-  [[docs](../data-sources/github_organization.md)]
-* New data source added for `rubrik_github_repository` which reads a GitHub repository.
-  [[docs](../data-sources/github_repository.md)]
-* Add support for the `GitHubOrganization` and `GitHubRepository` object types in the `rubrik_object` data source,
-  resolving a GitHub object to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
-  [[docs](../data-sources/object.md)]
-* Add support for looking up the `rubrik_azure_devops_organization` data source by `name`, in addition to `id` and
-  `native_id`. [[docs](../data-sources/azure_devops_organization.md)]
-
 ## v1.9.1
 * New resource added for `rubrik_azure_devops_organization` which onboards an Azure DevOps organization to RSC
   using a customer-supplied application (non-OAuth). [[docs](../resources/azure_devops_organization.md)]
@@ -41,6 +30,15 @@ page_title: "Changelog"
 * Add support for the `AzureDevOpsOrganization`, `AzureDevOpsProject` and `AzureDevOpsRepository` object types in
   the `rubrik_object` data source, resolving an Azure DevOps object to its RSC ID by name for use with the
   `rubrik_sla_domain_assignment` resource. [[docs](../data-sources/object.md)]
+* New data source added for `rubrik_github_organization` which reads an onboarded GitHub organization.
+  [[docs](../data-sources/github_organization.md)]
+* New data source added for `rubrik_github_repository` which reads a GitHub repository.
+  [[docs](../data-sources/github_repository.md)]
+* Add support for the `GitHubOrganization` and `GitHubRepository` object types in the `rubrik_object` data source,
+  resolving a GitHub object to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
+  [[docs](../data-sources/object.md)]
+* Add support for looking up the `rubrik_azure_devops_organization` data source by `name`, in addition to `id` and
+  `native_id`. [[docs](../data-sources/azure_devops_organization.md)]
 
 ## v1.9.0
 * **Breaking Change:** When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the account, Azure SQL Database and
