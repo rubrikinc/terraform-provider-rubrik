@@ -294,7 +294,6 @@ func readSLADomainAssignment(ctx context.Context, d *schema.ResourceData, m any)
 			return diag.FromErr(err)
 		}
 
-		//obj, err := sla.Wrap(client).HierarchyObjectByIDAndWorkload(ctx, objectID, workload)
 		obj, err := workaroundBrokenHierarchy(ctx, client, objectID, workload)
 		if err != nil {
 			if errors.Is(err, graphql.ErrNotFound) {
@@ -489,7 +488,6 @@ func deleteSLADomainAssignment(ctx context.Context, d *schema.ResourceData, m an
 			return diag.FromErr(err)
 		}
 
-		//obj, err := sla.Wrap(client).HierarchyObjectByIDAndWorkload(ctx, objectID, workload)
 		obj, err := workaroundBrokenHierarchy(ctx, client, objectID, workload)
 		if err != nil {
 			if errors.Is(err, graphql.ErrNotFound) {
@@ -641,7 +639,6 @@ func importDoNotProtectAssignment(ctx context.Context, d *schema.ResourceData, c
 	// For import, we use AllSubHierarchyType as we don't know the workload type.
 	objectIDsSet := &schema.Set{F: schema.HashString}
 	for _, objectID := range objectIDs {
-		//obj, err := sla.Wrap(client).HierarchyObjectByIDAndWorkload(ctx, objectID, hierarchy.WorkloadAllSubHierarchyType)
 		obj, err := workaroundBrokenHierarchy(ctx, client, objectID, hierarchy.WorkloadAllSubHierarchyType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get object %s: %w", objectID, err)
@@ -682,7 +679,6 @@ func waitForAssignment(ctx context.Context, client *polaris.Client, expectedDoma
 		pending := make([]uuid.UUID, 0, len(objectIDs))
 
 		for _, objectID := range objectIDs {
-			//obj, err := sla.Wrap(client).HierarchyObjectByIDAndWorkload(ctx, objectID, workload)
 			obj, err := workaroundBrokenHierarchy(ctx, client, objectID, workload)
 			if err != nil {
 				return err
@@ -762,7 +758,6 @@ func waitForAssignmentRemoval(ctx context.Context, client *polaris.Client, curre
 		pending := make([]uuid.UUID, 0, len(objectIDs))
 
 		for _, objectID := range objectIDs {
-			//obj, err := sla.Wrap(client).HierarchyObjectByIDAndWorkload(ctx, objectID, workload)
 			obj, err := workaroundBrokenHierarchy(ctx, client, objectID, workload)
 			if err != nil {
 				return err
