@@ -41,10 +41,11 @@ func (r *gcpCloudClusterResource) MoveState(ctx context.Context) []resource.Stat
 // source and target schemas are identical, so the resource's own schema is
 // reused as the source schema and the state is copied verbatim.
 func (r *gcpCloudClusterResource) moveStateV0(ctx context.Context) resource.StateMover {
-	schema := gcpCloudClusterSchemaV0(ctx)
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
 
 	return resource.StateMover{
-		SourceSchema: &schema,
+		SourceSchema: &schemaResp.Schema,
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "gcpCloudClusterResource.moveStateV0")
 

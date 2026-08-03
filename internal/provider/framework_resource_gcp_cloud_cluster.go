@@ -168,19 +168,6 @@ func (r *gcpCloudClusterResource) Metadata(ctx context.Context, req resource.Met
 func (r *gcpCloudClusterResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
 	tflog.Trace(ctx, "gcpCloudClusterResource.Schema")
 
-	res.Schema = gcpCloudClusterSchemaV0(ctx)
-	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use `rubrik_gcp_cloud_cluster` instead."
-	}
-}
-
-// gcpCloudClusterSchemaV0 returns the frozen schema for version 0 of the
-// rubrik_gcp_cloud_cluster resource. It must not be changed once released —
-// any additions or removals belong in a new versioned function and a matching
-// StateUpgrader. moveStateV0 references this directly so it decodes source
-// state with the schema that was current when that state was written, not the
-// latest schema.
-func gcpCloudClusterSchemaV0(ctx context.Context) schema.Schema {
 	requiresReplaceStr := []planmodifier.String{stringplanmodifier.RequiresReplace()}
 	useStateStr := []planmodifier.String{stringplanmodifier.UseStateForUnknown()}
 
@@ -189,7 +176,7 @@ func gcpCloudClusterSchemaV0(ctx context.Context) schema.Schema {
 		instanceTypeValues[i] = string(t)
 	}
 
-	return schema.Schema{
+	res.Schema = schema.Schema{
 		Description: description(resourceGCPCloudClusterDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
@@ -391,6 +378,10 @@ func gcpCloudClusterSchemaV0(ctx context.Context) schema.Schema {
 				Create: true,
 			}),
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_gcp_cloud_cluster` instead."
 	}
 }
 
