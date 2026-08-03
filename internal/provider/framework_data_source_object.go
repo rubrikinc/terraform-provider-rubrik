@@ -52,19 +52,24 @@ Supported object types:
   * ´AzureDevOpsOrganization´ - Azure DevOps Organization
   * ´AzureDevOpsProject´ - Azure DevOps Project
   * ´AzureDevOpsRepository´ - Azure DevOps Repository
-  * ´AzureNativeResourceGroup´ - Azure Native Resource Group (requires ´subscription_id´)
+  * ´AzureNativeResourceGroup´ - Azure Native Resource Group
   * ´AzureNativeSubscription´ - Azure Native Subscription
   * ´AzureNativeVirtualMachine´ - Azure Native Virtual Machine
   * ´CloudNativeTagRule´ - Cloud Native Tag Rule
   * ´GitHubOrganization´ - GitHub Organization
   * ´GitHubRepository´ - GitHub Repository
 
-~> **Note:** Azure DevOps project and repository names, and GitHub repository
+-> **Note:** Azure resource group names are only unique within a
+subscription. When a name is shared across subscriptions, set
+´subscription_id´ to the parent subscription's RSC cloud account ID to
+disambiguate; otherwise the lookup returns a "multiple objects found"
+error.
+
+-> **Note:** Azure DevOps project and repository names, and GitHub repository
 names, are only unique within their parent. When a name is shared across
 parents, set ´org_id´ (for ´AzureDevOpsProject´ or ´GitHubRepository´)
 or ´org_id´ and/or ´project_id´ (for ´AzureDevOpsRepository´) to
-disambiguate;
-otherwise the lookup returns a "multiple objects found" error.
+disambiguate; otherwise the lookup returns a "multiple objects found" error.
 `
 
 var (
@@ -332,9 +337,9 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			})
 		}
 	case "AzureDevOpsProject":
-		// The inventory query returns a 500 error for Azure DevOps project
-		// types, so route all Azure DevOps hierarchy lookups through the
-		// dedicated DevOps queries instead.
+		// The inventory query returns a 500 error for the Azure DevOps project
+		// type, so route all Azure DevOps hierarchy lookups through the
+		// dedicated queries instead.
 		projects, err := devops.Wrap(polarisClient).AzureProjectsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
@@ -382,6 +387,11 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			})
 		}
 	case "AzureNativeResourceGroup":
+		// Azure resource groups are exposed in the inventory by two different
+		// types, AzureNativeResourceGroupBase and AzureNativeResourceGroup.
+		// The first is returned by generic inventory queries, the second
+		// contains the data we needs so route the resource group lookup through
+		// the dedicated query instead.
 		filters := gqlazure.ResourceGroupFilters{
 			NameSubstring: name,
 		}
@@ -467,6 +477,9 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			objects = append(objects, r.Object)
 		}
 	case "GitHubOrganization":
+		// The inventory query returns a 500 error for the GitHub organization
+		// type, so route all GitHub hierarchy lookups through the dedicated
+		// queries instead.
 		orgs, err := devops.Wrap(polarisClient).GitHubOrganizationsByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
@@ -482,6 +495,9 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			})
 		}
 	case "GitHubRepository":
+		// The inventory query returns a 500 error for the GitHub repository
+		// type, so route all GitHub hierarchy lookups through the dedicated
+		// queries instead.
 		repos, err := devops.Wrap(polarisClient).GitHubRepositoriesByName(ctx, name,
 			activeObjectFilters(hierarchy.Filter{Field: "NAME_EXACT_MATCH", Texts: []string{name}})...)
 		if err != nil {
