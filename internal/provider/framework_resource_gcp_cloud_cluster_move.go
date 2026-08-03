@@ -24,7 +24,10 @@ import (
 	"context"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -38,14 +41,64 @@ func (r *gcpCloudClusterResource) MoveState(ctx context.Context) []resource.Stat
 
 // moveStateV0 moves v0 state from the polaris_gcp_cloud_cluster resource in the
 // rubrikinc/polaris provider to the rubrik_gcp_cloud_cluster resource. The
-// source and target schemas are identical, so the resource's own schema is
-// reused as the source schema and the state is copied verbatim.
+// SourceSchema is an inline literal frozen at the polaris V0 schema so it
+// remains correct regardless of future changes to the rubrik resource schema.
 func (r *gcpCloudClusterResource) moveStateV0(ctx context.Context) resource.StateMover {
-	var schemaResp resource.SchemaResponse
-	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
-
 	return resource.StateMover{
-		SourceSchema: &schemaResp.Schema,
+		SourceSchema: &schema.Schema{
+			Attributes: map[string]schema.Attribute{
+				keyID:             schema.StringAttribute{Computed: true},
+				keyCloudAccountID: schema.StringAttribute{Required: true},
+				keyRegion:         schema.StringAttribute{Required: true},
+				keyZone:           schema.StringAttribute{Optional: true, Computed: true},
+				keyAzResilient:    schema.BoolAttribute{Optional: true, Computed: true},
+			},
+			Blocks: map[string]schema.Block{
+				keyClusterConfig: schema.ListNestedBlock{
+					NestedObject: schema.NestedBlockObject{
+						Attributes: map[string]schema.Attribute{
+							keyClusterName:                 schema.StringAttribute{Required: true},
+							keyAdminEmail:                  schema.StringAttribute{Optional: true},
+							keyAdminPassword:               schema.StringAttribute{Optional: true},
+							keyNumNodes:                    schema.Int64Attribute{Required: true},
+							keyDNSNameServers:              schema.SetAttribute{ElementType: types.StringType, Required: true},
+							keyDNSSearchDomains:            schema.SetAttribute{ElementType: types.StringType, Optional: true, Computed: true},
+							keyNTPServers:                  schema.SetAttribute{ElementType: types.StringType, Required: true},
+							keyBucketName:                  schema.StringAttribute{Required: true},
+							keyKeepClusterOnFailure:        schema.BoolAttribute{Required: true},
+							keyForceClusterDeleteOnDestroy: schema.BoolAttribute{Optional: true, Computed: true},
+							keyTimezone:                    schema.StringAttribute{Optional: true, Computed: true},
+							keyLocation:                    schema.StringAttribute{Optional: true, Computed: true},
+						},
+					},
+				},
+				keyVMConfig: schema.ListNestedBlock{
+					NestedObject: schema.NestedBlockObject{
+						Attributes: map[string]schema.Attribute{
+							keyCDMVersion:       schema.StringAttribute{Required: true},
+							keyCDMProduct:       schema.StringAttribute{Computed: true},
+							keyInstanceType:     schema.StringAttribute{Required: true},
+							keyNetwork:          schema.StringAttribute{Required: true},
+							keySubnet:           schema.StringAttribute{Optional: true},
+							keyHostProject:      schema.StringAttribute{Optional: true},
+							keyServiceAccounts:  schema.SetAttribute{ElementType: types.StringType, Required: true},
+							keyDeleteProtection: schema.BoolAttribute{Optional: true, Computed: true},
+						},
+						Blocks: map[string]schema.Block{
+							keySubnetAzConfigs: schema.ListNestedBlock{
+								NestedObject: schema.NestedBlockObject{
+									Attributes: map[string]schema.Attribute{
+										keyAvailabilityZone: schema.StringAttribute{Required: true},
+										keySubnet:           schema.StringAttribute{Required: true},
+									},
+								},
+							},
+						},
+					},
+				},
+				keyTimeouts: timeouts.Block(ctx, timeouts.Opts{Create: true}),
+			},
+		},
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "gcpCloudClusterResource.moveStateV0")
 
