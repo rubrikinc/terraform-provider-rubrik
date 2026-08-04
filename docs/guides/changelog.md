@@ -20,6 +20,11 @@ page_title: "Changelog"
   [[docs](../resources/data_security_policy.md)]
 * New data source added for `rubrik_data_security_policy` which looks up a data security policy in RSC by name or by
   policy ID. [[docs](../data-sources/data_security_policy.md)]
+* New resource added for `rubrik_azure_sql_managed_instance_credentials` which configures the SQL Server credentials
+  RSC uses to back up an Azure SQL Managed Instance server. RSC connects to the managed instance using those
+  credentials and creates the user it uses to perform backups. The credentials are write-only, so they never reach
+  Terraform state, change `sql_credential_version` to send them again.
+  [[docs](../resources/azure_sql_managed_instance_credentials.md)]
 * Add support for the `CloudNativeTagRule` object type in the `rubrik_object` data source, resolving a cloud native
   tag rule to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   [[docs](../data-sources/object.md)]
