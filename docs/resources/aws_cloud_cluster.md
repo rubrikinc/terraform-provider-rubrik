@@ -141,8 +141,9 @@ resource "rubrik_aws_cloud_cluster" "multi_az" {
 
 ### Optional
 
+- `az_resilient` (Boolean) Whether to deploy the cluster across multiple availability zones for AZ resiliency. When enabled, `subnet_az_config` blocks must be specified in `vm_config` and `use_placement_groups` must be false. Changing this forces a new resource to be created.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-- `use_placement_groups` (Boolean) Whether to use placement groups for the cluster. Changing this forces a new resource to be created.
+- `use_placement_groups` (Boolean) Whether to use placement groups for the cluster. Cannot be used with `az_resilient`. Changing this forces a new resource to be created.
 
 ### Read-Only
 
@@ -153,8 +154,8 @@ resource "rubrik_aws_cloud_cluster" "multi_az" {
 
 Required:
 
-- `admin_email` (String) Email address for the cluster admin user. Changing this value will have no effect on the cluster.
-- `admin_password` (String, Sensitive) Password for the cluster admin user. Changing this value will have no effect on the cluster.
+- `admin_email` (String, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Email address for the cluster admin user. Changing this value will have no effect on the cluster.
+- `admin_password` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Password for the cluster admin user. Changing this value will have no effect on the cluster.
 - `bucket_name` (String) Name of the S3 bucket to use for the cluster. Changing this forces a new resource to be created.
 - `cluster_name` (String) Unique name to assign to the cloud cluster.
 - `dns_name_servers` (Set of String) DNS name servers for the cluster.
@@ -167,6 +168,7 @@ Optional:
 
 - `dns_search_domains` (Set of String) DNS search domains for the cluster.
 - `dynamic_scaling_enabled` (Boolean) Whether to enable dynamic scaling for the cluster. Requires CDM Version 9.5+. Changing this forces a new resource to be created.
+- `force_cluster_delete_on_destroy` (Boolean) Whether to force delete the cluster on destroy.
 - `location` (String) Location for the cluster. This is free text, RSC will map it to the closest possible location e.g. Palo Alto, CA.
 - `timezone` (String) Timezone for the cluster using IANA standard format e.g. America/Los_Angeles, Europe/Paris, etc.
 
@@ -180,7 +182,8 @@ Required:
 - `instance_profile_name` (String) AWS instance profile name for the cluster nodes. Changing this forces a new resource to be created.
 - `instance_type` (String) AWS instance type for the cluster nodes. Changing this forces a new resource to be created. Supported values are `M5_4XLARGE`, `M6I_2XLARGE`, `M6I_4XLARGE`, `M6I_8XLARGE`, `R6I_4XLARGE`, `M6A_2XLARGE`, `M6A_4XLARGE`, `M6A_8XLARGE` and `R6A_4XLARGE`.
 - `security_group_ids` (Set of String) AWS security group IDs for the cluster nodes. Changing this forces a new resource to be created.
-- `subnet_id` (String) AWS subnet ID where the cluster nodes will be deployed. Changing this forces a new resource to be created.
+- `subnet_az_config` (Block List) Subnet and availability zone pairs for Multi-AZ deployments. Required when `az_resilient` is true. Each block specifies a subnet and its availability zone. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--vm_config--subnet_az_config))
+- `subnet_id` (String) AWS subnet ID where the cluster nodes will be deployed. Required when `az_resilient` is false. Changing this forces a new resource to be created.
 - `vpc_id` (String) AWS VPC ID where the cluster will be deployed. Changing this forces a new resource to be created.
 
 Optional:
@@ -190,6 +193,15 @@ Optional:
 Read-Only:
 
 - `cdm_product` (String) CDM Product Code. This is a read-only field and computed based on the CDM version.
+
+
+<a id="nestedblock--vm_config--subnet_az_config"></a>
+### Nested Schema for `vm_config.subnet_az_config`
+
+Required:
+
+- `availability_zone` (String) Availability zone name.
+- `subnet` (String) Subnet ID for this availability zone.
 
 
 <a id="nestedblock--timeouts"></a>

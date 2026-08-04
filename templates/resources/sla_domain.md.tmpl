@@ -63,6 +63,7 @@ description: |-
 
 ### Read-Only
 
+- `backup_type` (String) Identifies which system manages the SLA's Azure SQL backups: `NATIVE` for a V1 (Azure-managed / long-term retention) SLA, or the Rubrik-managed value for a V2 SLA. Read-only.
 - `id` (String) SLA Domain ID (UUID).
 
 <a id="nestedblock--archival"></a>
@@ -141,6 +142,10 @@ Required:
 
 - `log_retention` (Number) Log retention specifies for how long, in days, the continuous backups are kept.
 
+Optional:
+
+- `ltr_config` (Block List, Max: 1) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config))
+
 
 <a id="nestedblock--azure_sql_managed_instance_config"></a>
 ### Nested Schema for `azure_sql_managed_instance_config`
@@ -148,6 +153,10 @@ Required:
 Required:
 
 - `log_retention` (Number) Log retention specifies for how long, in days, the log backups are kept.
+
+Optional:
+
+- `ltr_config` (Block List, Max: 1) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config))
 
 
 <a id="nestedblock--backup_location"></a>
@@ -348,9 +357,10 @@ Required:
 
 Optional:
 
+- `retain_archive_logs_indefinitely` (Boolean) When true, Oracle archive logs are retained indefinitely on the host and never deleted. Mutually exclusive with `host_log_retention`.
 - `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 - `host_log_retention` (Number) Host log retention duration for archived redo logs.
-- `host_log_retention_unit` (String) Host log retention unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `host_log_retention_unit` (String) Host log retention unit. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 - `log_retention_unit` (String) Log retention unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 
 
@@ -489,6 +499,82 @@ Required:
 
 - `duration` (Number) Duration of the snapshot window in hours.
 - `start_at` (String) Start of the snapshot window. Should be given as `HH:MM`, e.g: `15:30`.
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config`
+
+Optional:
+
+- `monthly_retention` (Block List, Max: 1) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--monthly_retention))
+- `weekly_retention` (Block List, Max: 1) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--weekly_retention))
+- `yearly_retention` (Block List, Max: 1) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--yearly_retention))
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--weekly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.weekly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--monthly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.monthly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--yearly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.yearly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config`
+
+Optional:
+
+- `monthly_retention` (Block List, Max: 1) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention))
+- `weekly_retention` (Block List, Max: 1) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention))
+- `yearly_retention` (Block List, Max: 1) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention))
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.weekly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.monthly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.yearly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
 
 
 <a id="nestedblock--timeouts"></a>
