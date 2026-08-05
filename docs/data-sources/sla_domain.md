@@ -36,14 +36,7 @@ data "rubrik_sla_domain" "sla_domain" {
 
 ### Optional
 
-- `db2_config` (List of Object) Db2 database configuration. (see [below for nested schema](#nestedatt--db2_config))
-- `gcp_cloud_sql_config` (List of Object) GCP Cloud SQL configuration. (see [below for nested schema](#nestedatt--gcp_cloud_sql_config))
 - `id` (String) SLA domain ID (UUID).
-- `informix_config` (List of Object) Informix database configuration. (see [below for nested schema](#nestedatt--informix_config))
-- `managed_volume_config` (List of Object) Managed Volume configuration. (see [below for nested schema](#nestedatt--managed_volume_config))
-- `mongo_config` (List of Object) MongoDB database configuration. (see [below for nested schema](#nestedatt--mongo_config))
-- `mssql_config` (List of Object) SQL Server database configuration. (see [below for nested schema](#nestedatt--mssql_config))
-- `mysqldb_config` (List of Object) MySQL database configuration. (see [below for nested schema](#nestedatt--mysqldb_config))
 - `name` (String) SLA domain name.
 
 ### Read-Only
@@ -57,12 +50,19 @@ data "rubrik_sla_domain" "sla_domain" {
 - `backup_location` (List of Object) Backup locations for AWS S3 object type. (see [below for nested schema](#nestedatt--backup_location))
 - `backup_type` (String) Identifies which system manages the SLA's Azure SQL backups: `NATIVE` (V1, Azure-managed) or `RUBRIK` (V2, Rubrik-managed).
 - `daily_schedule` (List of Object) Daily schedule of the SLA Domain. (see [below for nested schema](#nestedatt--daily_schedule))
+- `db2_config` (List of Object) Db2 database configuration. (see [below for nested schema](#nestedatt--db2_config))
 - `description` (String) SLA domain description.
 - `first_full_snapshot` (List of Object) First full snapshot window. (see [below for nested schema](#nestedatt--first_full_snapshot))
+- `gcp_cloud_sql_config` (List of Object) GCP Cloud SQL configuration. (see [below for nested schema](#nestedatt--gcp_cloud_sql_config))
 - `hourly_schedule` (List of Object) Hourly schedule. (see [below for nested schema](#nestedatt--hourly_schedule))
+- `informix_config` (List of Object) Informix database configuration. (see [below for nested schema](#nestedatt--informix_config))
 - `local_retention` (List of Object) Local retention. (see [below for nested schema](#nestedatt--local_retention))
+- `managed_volume_config` (List of Object) Managed Volume configuration. (see [below for nested schema](#nestedatt--managed_volume_config))
 - `minute_schedule` (List of Object) Minute schedule. (see [below for nested schema](#nestedatt--minute_schedule))
+- `mongo_config` (List of Object) MongoDB database configuration. (see [below for nested schema](#nestedatt--mongo_config))
 - `monthly_schedule` (List of Object) Monthly schedule. (see [below for nested schema](#nestedatt--monthly_schedule))
+- `mssql_config` (List of Object) SQL Server database configuration. (see [below for nested schema](#nestedatt--mssql_config))
+- `mysqldb_config` (List of Object) MySQL database configuration. (see [below for nested schema](#nestedatt--mysqldb_config))
 - `ncd_config` (List of Object) NAS Cloud Direct configuration. (see [below for nested schema](#nestedatt--ncd_config))
 - `object_types` (Set of String) Object types which can be protected by the SLA domain.
 - `oracle_config` (List of Object) Oracle database configuration. (see [below for nested schema](#nestedatt--oracle_config))
@@ -104,7 +104,7 @@ Read-Only:
 
 Read-Only:
 
-- `cold_storage_class` (String) Cold storage class for tiering. Possible values are `AZURE_ARCHIVE`, `AWS_GLACIER`, `AWS_GLACIER_DEEP_ARCHIVE`.
+- `cold_storage_class` (String) Cold storage class for tiering.
 - `instant_tiering` (Boolean) Enable instant tiering to cold storage.
 - `min_accessible_duration_in_seconds` (Number) Minimum duration in seconds that data must remain accessible before tiering.
 - `tier_existing_snapshots` (Boolean) Whether to tier existing snapshots to cold storage.
@@ -246,12 +246,12 @@ Read-Only:
 Read-Only:
 
 - `differential_frequency` (Number) Differential backup frequency.
-- `differential_frequency_unit` (String) Differential frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `differential_frequency_unit` (String) Differential frequency unit.
 - `incremental_frequency` (Number) Incremental backup frequency.
-- `incremental_frequency_unit` (String) Incremental frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `log_archival_method` (String) Log archival method. Possible values are `LOGARCHMETH1`, `LOGARCHMETH2`. Default is `LOGARCHMETH1`.
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `incremental_frequency_unit` (String) Incremental frequency unit.
+- `log_archival_method` (String) Log archival method.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--first_full_snapshot"></a>
@@ -268,8 +268,8 @@ Read-Only:
 
 Read-Only:
 
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--hourly_schedule"></a>
@@ -287,14 +287,14 @@ Read-Only:
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `frequency` (Number) Log backup frequency.
+- `frequency_unit` (String) Frequency unit.
 - `incremental_frequency` (Number) Incremental backup frequency.
-- `incremental_frequency_unit` (String) Incremental frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `incremental_frequency_unit` (String) Incremental frequency unit.
 - `incremental_retention` (Number) Incremental backup retention duration.
-- `incremental_retention_unit` (String) Incremental retention unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `retention` (Number) Retention specifies for how long the snapshots are kept.
-- `retention_unit` (String) Retention unit specifies the unit of the `retention` field. Possible values are `DAYS`, `WEEKS` and `MONTHS`. Default is `DAYS`.
+- `incremental_retention_unit` (String) Incremental retention unit.
+- `retention` (Number) Log retention duration.
+- `retention_unit` (String) Retention unit.
 
 
 <a id="nestedatt--local_retention"></a>
@@ -311,8 +311,8 @@ Read-Only:
 
 Read-Only:
 
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--minute_schedule"></a>
@@ -330,10 +330,10 @@ Read-Only:
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `retention` (Number) Retention specifies for how long the snapshots are kept.
-- `retention_unit` (String) Retention unit specifies the unit of the `retention` field. Possible values are `DAYS`, `WEEKS` and `MONTHS`. Default is `DAYS`.
+- `frequency` (Number) Log backup frequency.
+- `frequency_unit` (String) Frequency unit.
+- `retention` (Number) Log retention duration.
+- `retention_unit` (String) Retention unit.
 
 
 <a id="nestedatt--monthly_schedule"></a>
@@ -352,10 +352,10 @@ Read-Only:
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `frequency` (Number) Log backup frequency.
+- `frequency_unit` (String) Frequency unit.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--mysqldb_config"></a>
@@ -363,10 +363,10 @@ Read-Only:
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `retention` (Number) Retention specifies for how long the snapshots are kept.
-- `retention_unit` (String) Retention unit specifies the unit of the `retention` field. Possible values are `DAYS`, `WEEKS` and `MONTHS`. Default is `DAYS`.
+- `frequency` (Number) Log backup frequency.
+- `frequency_unit` (String) Frequency unit.
+- `retention` (Number) Log retention duration.
+- `retention_unit` (String) Retention unit.
 
 
 <a id="nestedatt--ncd_config"></a>
@@ -388,12 +388,12 @@ Read-Only:
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `frequency` (Number) Log backup frequency.
+- `frequency_unit` (String) Frequency unit.
 - `host_log_retention` (Number) Host log retention duration for archived redo logs.
-- `host_log_retention_unit` (String) Host log retention unit. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `host_log_retention_unit` (String) Host log retention unit.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--postgres_db_cluster_config"></a>
@@ -401,8 +401,8 @@ Read-Only:
 
 Read-Only:
 
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
+- `log_retention` (Number) Log retention duration for Write-Ahead Logging (WAL) logs.
+- `log_retention_unit` (String) Log retention unit.
 
 
 <a id="nestedatt--quarterly_schedule"></a>
@@ -484,22 +484,22 @@ Read-Only:
 Read-Only:
 
 - `differential_frequency` (Number) Differential backup frequency.
-- `differential_frequency_unit` (String) Differential frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `differential_frequency_unit` (String) Differential frequency unit.
 - `incremental_frequency` (Number) Incremental backup frequency.
-- `incremental_frequency_unit` (String) Incremental frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
-- `log_retention_unit` (String) Log retention unit specifies the unit of the `log_retention` field. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default is `DAYS`.
-- `storage_snapshot_config` (List of Object) (see [below for nested schema](#nestedobjatt--sap_hana_config--storage_snapshot_config))
+- `incremental_frequency_unit` (String) Incremental frequency unit.
+- `log_retention` (Number) Log retention duration.
+- `log_retention_unit` (String) Log retention unit.
+- `storage_snapshot_config` (List of Object) SAP HANA storage snapshot configuration. (see [below for nested schema](#nestedobjatt--sap_hana_config--storage_snapshot_config))
 
 <a id="nestedobjatt--sap_hana_config--storage_snapshot_config"></a>
 ### Nested Schema for `sap_hana_config.storage_snapshot_config`
 
 Read-Only:
 
-- `frequency` (Number) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
-- `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `retention` (Number) Retention specifies for how long the snapshots are kept.
-- `retention_unit` (String) Retention unit specifies the unit of the `retention` field. Possible values are `DAYS`, `WEEKS` and `MONTHS`. Default is `DAYS`.
+- `frequency` (Number) Storage snapshot frequency.
+- `frequency_unit` (String) Frequency unit.
+- `retention` (Number) Storage snapshot retention.
+- `retention_unit` (String) Retention unit.
 
 
 
@@ -517,7 +517,7 @@ Read-Only:
 
 Read-Only:
 
-- `log_retention` (Number) Log retention specifies for how long the backups are kept.
+- `log_retention` (Number) Log retention specifies for how long, in seconds, the log backups are kept.
 
 
 <a id="nestedatt--weekly_schedule"></a>
