@@ -46,8 +46,17 @@ page_title: "Changelog"
 * Add support for the `GitHubOrganization` and `GitHubRepository` object types in the `rubrik_object` data source,
   resolving a GitHub object to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   [[docs](../data-sources/object.md)]
+* Add support for the `GITHUB_OBJECT_TYPE` object type in the `rubrik_sla_domain` resource, allowing GitHub objects
+  to be protected by an SLA Domain. [[docs](../resources/sla_domain.md)]
 * Add support for looking up the `rubrik_azure_devops_organization` data source by `name`, in addition to `id` and
   `native_id`. [[docs](../data-sources/azure_devops_organization.md)]
+* Refresh the documentation templates for the `rubrik_aws_cloud_cluster`, `rubrik_azure_cloud_cluster`,
+  `rubrik_gcp_cloud_cluster`, `rubrik_aws_exocompute`, `rubrik_cdm_bootstrap`,
+  `rubrik_cdm_bootstrap_cces_aws`, `rubrik_aws_cnp_account_trust_policy` and `rubrik_sla_domain` resources,
+  and the `rubrik_azure_archival_location` and `rubrik_sla_domain` data sources, so that the published
+  documentation matches the current schema. These templates hold their schema documentation inline, so it
+  does not update automatically. Notably, `admin_email` and `admin_password` on the cloud cluster resources
+  are now shown as write-only.
 
 ## v1.9.0
 * **Breaking Change:** When the `CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the account, Azure SQL Database and

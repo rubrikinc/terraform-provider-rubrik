@@ -147,6 +147,7 @@ resource "rubrik_azure_cloud_cluster" "multi_az" {
 
 ### Optional
 
+- `az_resilient` (Boolean) Whether to deploy the cluster across multiple availability zones for AZ resiliency. When enabled, `subnet_az_config` blocks must be specified in `vm_config` instead of a single `subnet` and `availability_zone`. Changing this forces a new resource to be created.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
@@ -158,8 +159,8 @@ resource "rubrik_azure_cloud_cluster" "multi_az" {
 
 Required:
 
-- `admin_email` (String) Email address for the cluster admin user. Changing this value will have no effect on the cluster.
-- `admin_password` (String, Sensitive) Password for the cluster admin user. Changing this value will have no effect on the cluster.
+- `admin_email` (String, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Email address for the cluster admin user. Changing this value will have no effect on the cluster.
+- `admin_password` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Password for the cluster admin user. Changing this value will have no effect on the cluster.
 - `cluster_name` (String) Unique name to assign to the cloud cluster.
 - `dns_name_servers` (Set of String) DNS name servers for the cluster.
 - `keep_cluster_on_failure` (Boolean) Whether to keep the cluster on failure (can be useful for troubleshooting). Changing this forces a new resource to be created.
@@ -169,6 +170,7 @@ Required:
 Optional:
 
 - `dns_search_domains` (Set of String) DNS search domains for the cluster.
+- `force_cluster_delete_on_destroy` (Boolean) Whether to force delete the cluster on destroy.
 - `location` (String) Location for the cluster. This is free text, RSC will map it to the closest possible location e.g. Palo Alto, CA.
 - `timezone` (String) Timezone for the cluster using IANA standard format e.g. America/Los_Angeles, Europe/Paris, etc.
 
@@ -188,19 +190,29 @@ Required:
 - `region` (String) Azure region to deploy the cluster in. The format should be the native Azure format, e.g. `eastus`, `westus`, etc. Changing this forces a new resource to be created.
 - `resource_group_name` (String) Azure resource group name where the cluster will be deployed. Changing this forces a new resource to be created.
 - `storage_account_name` (String) Azure storage account name for the cluster. Changing this forces a new resource to be created.
-- `subnet` (String) Azure subnet name for the cluster nodes. Changing this forces a new resource to be created.
+- `subnet_az_config` (Block List) Subnet and availability zone pairs for Multi-AZ deployments. Required when `az_resilient` is true. Each block specifies a subnet and its availability zone. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--vm_config--subnet_az_config))
+- `subnet` (String) Azure subnet name for the cluster nodes. Required when `az_resilient` is false. Changing this forces a new resource to be created.
 - `user_assigned_managed_identity_name` (String) Name of the user-assigned managed identity. Changing this forces a new resource to be created.
 - `vnet` (String) Azure virtual network name. Changing this forces a new resource to be created.
 - `vnet_resource_group` (String) Azure resource group name for the virtual network. Changing this forces a new resource to be created.
 
 Optional:
 
-- `availability_zone` (String) Availability zone for the cluster. If not specified, the cluster will be deployed in availability zone 1. Changing this forces a new resource to be created.
+- `availability_zone` (String) Availability zone for the cluster, if this is not specified, the cluster will be deployed in availability zone 1. Used for single-AZ deployments. Changing this forces a new resource to be created.
 - `vm_type` (String) VM type for the cluster. Changing this forces a new resource to be created. Possible values are `STANDARD`, `DENSE` and `EXTRA_DENSE`. `DENSE` is recommended for CCES.
 
 Read-Only:
 
 - `cdm_product` (String) CDM Product Code. This is a read-only field and computed based on the CDM version.
+
+
+<a id="nestedblock--vm_config--subnet_az_config"></a>
+### Nested Schema for `vm_config.subnet_az_config`
+
+Required:
+
+- `availability_zone` (String) Availability zone identifier.
+- `subnet` (String) Subnet name for this availability zone.
 
 
 <a id="nestedblock--timeouts"></a>

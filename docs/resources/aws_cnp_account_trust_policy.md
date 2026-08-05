@@ -94,7 +94,7 @@ resource "rubrik_aws_cnp_account_trust_policy" "trust_policy" {
 ### Required
 
 - `account_id` (String) RSC cloud account ID (UUID). Changing this forces a new resource to be created.
-- `role_key` (String) RSC artifact key for the AWS role. Possible values are `CROSSACCOUNT`, `EXOCOMPUTE_EKS_MASTERNODE` and `EXOCOMPUTE_EKS_WORKERNODE`. Changing this forces a new resource to be created.
+- `role_key` (String) RSC artifact key for the AWS role. Possible values are `CROSSACCOUNT`, `EXOCOMPUTE_EKS_MASTERNODE`, `EXOCOMPUTE_EKS_WORKERNODE` and `EXOCOMPUTE_EKS_LAMBDA`. Changing this forces a new resource to be created.
 
 ### Optional
 
