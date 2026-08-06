@@ -23,6 +23,8 @@ package provider
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +32,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -73,8 +77,9 @@ disambiguate; otherwise the lookup returns a "multiple objects found" error.
 `
 
 var (
-	_ datasource.DataSource              = &objectDataSource{}
-	_ datasource.DataSourceWithConfigure = &objectDataSource{}
+	_ datasource.DataSource                   = &objectDataSource{}
+	_ datasource.DataSourceWithConfigure      = &objectDataSource{}
+	_ datasource.DataSourceWithValidateConfig = &objectDataSource{}
 )
 
 type objectDataSource struct {
@@ -152,7 +157,7 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 			keySubscriptionID: schema.StringAttribute{
 				Optional: true,
 				Description: "RSC cloud account ID of the parent Azure subscription (UUID). May be set when " +
-					"`object_type` is `AzureNativeResourceGroup`; ignored for other object types.",
+					"`object_type` is `AzureNativeResourceGroup`; must not be set for other object types.",
 				Validators: []validator.String{
 					isUUID(),
 				},
@@ -163,7 +168,7 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 					"`AzureDevOpsProject` to disambiguate a project name shared across organizations, when " +
 					"`object_type` is `AzureDevOpsRepository` to disambiguate a repository name shared across " +
 					"projects, or when `object_type` is `GitHubRepository` to disambiguate a repository name " +
-					"shared across organizations; ignored for other object types.",
+					"shared across organizations; must not be set for other object types.",
 				Validators: []validator.String{
 					isUUID(),
 				},
@@ -171,8 +176,8 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 			keyProjectID: schema.StringAttribute{
 				Optional: true,
 				Description: "RSC object ID of the parent Azure DevOps project (UUID). May be set when `object_type` " +
-					"is `AzureDevOpsRepository` to disambiguate a repository name shared across projects; ignored " +
-					"for other object types.",
+					"is `AzureDevOpsRepository` to disambiguate a repository name shared across projects; must not " +
+					"be set for other object types.",
 				Validators: []validator.String{
 					isUUID(),
 				},
@@ -198,6 +203,66 @@ func (d *objectDataSource) Configure(ctx context.Context, req datasource.Configu
 		return
 	}
 	d.client = req.ProviderData.(*client)
+}
+
+func (d *objectDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, res *datasource.ValidateConfigResponse) {
+	tflog.Trace(ctx, "objectDataSource.ValidateConfig")
+
+	var config objectModel
+	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	res.Diagnostics.Append(validateObjectConfig(config)...)
+}
+
+// validateObjectConfig holds the plan-time, client-free validation rules for
+// the data source so they can be unit-tested in isolation. It enforces that the
+// optional parent-ID fields are only set for the object types they apply to.
+func validateObjectConfig(config objectModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// object_type drives which parent-ID fields are allowed. When it is not
+	// known yet, for example because it references another resource, there is
+	// nothing to check.
+	if config.ObjectType.IsNull() || config.ObjectType.IsUnknown() {
+		return diags
+	}
+
+	// Each parent-ID field may only be set for the listed object types.
+	constraints := []struct {
+		key     string
+		value   types.String
+		allowed []string
+	}{{
+		key:     keySubscriptionID,
+		value:   config.SubscriptionID,
+		allowed: []string{"AzureNativeResourceGroup"},
+	}, {
+		key:     keyOrgID,
+		value:   config.OrgID,
+		allowed: []string{"AzureDevOpsProject", "AzureDevOpsRepository", "GitHubRepository"},
+	}, {
+		key:     keyProjectID,
+		value:   config.ProjectID,
+		allowed: []string{"AzureDevOpsRepository"},
+	}}
+
+	objectType := config.ObjectType.ValueString()
+	for _, c := range constraints {
+		if c.value.IsNull() || c.value.IsUnknown() {
+			continue
+		}
+		if slices.Contains(c.allowed, objectType) {
+			continue
+		}
+
+		diags.AddAttributeError(path.Root(c.key), fmt.Sprintf("Invalid %s", c.key),
+			fmt.Sprintf("%s may only be set when %s is one of: %s.", c.key, keyObjectType, strings.Join(c.allowed, ", ")))
+	}
+
+	return diags
 }
 
 func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest, res *datasource.ReadResponse) {
