@@ -30,7 +30,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
 )
 
 // awsAccountCheckDestroy verifies that all aws_account resources have been
@@ -115,6 +117,36 @@ func awsCnpAccountAttachmentsCheckDestroy(t *testing.T) func(*terraform.State) e
 			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account_attachments %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// azureSubscriptionCheckDestroy verifies that all azure_subscription resources
+// have been deleted.
+func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_subscription" && rs.Type != "rubrik_azure_subscription" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = azure.Wrap(polarisClient).SubscriptionByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure subscription %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
@@ -215,6 +247,35 @@ func roleAssignmentCheckDestroy(t *testing.T) func(*terraform.State) error {
 					}
 				}
 				continue
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// tagRuleCheckDestroy verifies that all tag_rule resources have been deleted.
+func tagRuleCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_tag_rule" && rs.Type != "rubrik_tag_rule" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = sla.Wrap(polarisClient).TagRuleByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("tag rule %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err

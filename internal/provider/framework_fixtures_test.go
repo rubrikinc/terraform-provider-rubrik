@@ -62,6 +62,79 @@ func testAWSProfile(t *testing.T) string {
 	return conf.Profile
 }
 
+// testAzureCredentials returns the Azure service principal credentials from the
+// Azure test configuration.
+func testAzureCredentials(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.Credentials
+}
+
+// testAzureTenantDomain returns the Azure tenant domain from the Azure test
+// configuration.
+func testAzureTenantDomain(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.TenantDomain
+}
+
+// testAzureSubscriptionID returns the Azure subscription ID from the Azure test
+// configuration.
+func testAzureSubscriptionID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.SubscriptionID
+}
+
+// testAzureSubscriptionName returns the Azure subscription name from the Azure
+// test configuration.
+func testAzureSubscriptionName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.SubscriptionName
+}
+
+// testAzureResourceGroupName returns the cloud native protection resource group
+// name from the Azure test configuration.
+func testAzureResourceGroupName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.CloudNativeProtection.ResourceGroupName
+}
+
+// testAzureResourceGroupRegion returns the cloud native protection resource
+// group region from the Azure test configuration.
+func testAzureResourceGroupRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.CloudNativeProtection.ResourceGroupRegion
+}
+
+// testUniqueName returns a unique name for a test resource, suffixed with a
+// random UUID so repeated or concurrent runs do not collide.
+func testUniqueName(t *testing.T) string {
+	t.Helper()
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return fmt.Sprintf("Test Name %s", id)
+}
+
 // testClient returns an RSC client for testing outside the Terraform provider.
 // E.g. checking if resources have been destroyed in a check destroy function.
 func testClient(t *testing.T) *polaris.Client {
