@@ -22,110 +22,128 @@ package provider
 
 import (
 	"testing"
-	"time"
 
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// subscriptionOnlyTmpl onboards the Azure subscription alone, with no data
-// sources - used as step 1 so we can insert a real Go-level sleep (PreConfig)
-// before step 2 reads the objects data sources, decoupled from any
-// in-config wait mechanism.
-const subscriptionOnlyTmpl = `
-provider "rubrik" {
-	credentials = "{{ .Provider.Credentials }}"
-}
-
-resource "rubrik_azure_service_principal" "default" {
-	credentials   = "{{ .Resource.Credentials }}"
-	tenant_domain = "{{ .Resource.TenantDomain }}"
-}
-
-resource "rubrik_azure_subscription" "default" {
-	subscription_id   = "{{ .Resource.SubscriptionID }}"
-	subscription_name = "{{ .Resource.SubscriptionName }}"
-	tenant_domain     = "{{ .Resource.TenantDomain }}"
-
-	cloud_native_protection {
-		resource_group_name   = "{{ .Resource.CloudNativeProtection.ResourceGroupName }}"
-		resource_group_region = "{{ .Resource.CloudNativeProtection.ResourceGroupRegion }}"
-
-		regions = [
-			"eastus2",
-		]
-	}
-
-	depends_on = [rubrik_azure_service_principal.default]
-}
-`
-
-const objectsAzureResourceGroupTmpl = subscriptionOnlyTmpl + `
-data "rubrik_objects" "resource_groups" {
-	object_type     = "AzureNativeResourceGroup"
-	subscription_id = rubrik_azure_subscription.default.id
-
-	depends_on = [rubrik_azure_subscription.default]
-}
-
-data "rubrik_objects" "all_subscriptions" {
-	object_type = "AzureNativeResourceGroup"
-
-	depends_on = [rubrik_azure_subscription.default]
-}
-`
-
 func TestAccAzureResourceGroupObjectsDataSource(t *testing.T) {
-	config, subscription := loadAzureTestConfig(t)
-
-	subscriptionOnlyConfig, err := makeTerraformConfig(config, subscriptionOnlyTmpl)
-	if err != nil {
-		t.Fatal(err)
-	}
-	objectsConfig, err := makeTerraformConfig(config, objectsAzureResourceGroupTmpl)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	// The resource group must appear in both the subscription-scoped read and
+	// the search across all subscriptions.
 	resourceGroupCheck := knownvalue.SetPartial([]knownvalue.Check{
 		knownvalue.ObjectPartial(map[string]knownvalue.Check{
-			keyName: knownvalue.StringExact(subscription.CloudNativeProtection.ResourceGroupName),
+			keyName: knownvalue.StringExact(testAzureResourceGroupName(t)),
 		}),
 	})
 
 	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				// Onboard the subscription alone first.
-				Config: subscriptionOnlyConfig,
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "subscription_name", subscription.SubscriptionName),
-					resource.TestCheckResourceAttr("rubrik_azure_subscription.default", "cloud_native_protection.0.status", "CONNECTED"),
-				),
-			},
-			{
-				// Sleep for real wall-clock time before adding the objects
-				// data sources. After a subscription connects, RSC needs to
-				// run native discovery before its resource groups become
-				// visible to azureNativeResourceGroups (~1 minute observed);
-				// wait with margin so the read is not racing discovery.
-				PreConfig: func() { time.Sleep(2 * time.Minute) },
-				Config:    objectsConfig,
-				ConfigStateChecks: []statecheck.StateCheck{
-					// Scoped to the fixture's subscription.
-					statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyID),
-						knownvalue.StringRegexp(sha256Hex)),
-					statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyObjects),
-						resourceGroupCheck),
-
-					// Searching across all subscriptions still finds it.
-					statecheck.ExpectKnownValue("data.rubrik_objects.all_subscriptions", tfjsonpath.New(keyObjects),
-						resourceGroupCheck),
-				},
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"time": {
+				Source:            "hashicorp/time",
+				VersionConstraint: ">=0.14.0",
 			},
 		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             azureSubscriptionCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			// Onboard the subscription, force native discovery with a refresh
+			// so its resource groups become visible, then read the objects data
+			// sources gated on that refresh.
+			Config: `
+				variable "azure_credentials" {
+					type = string
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+
+				resource "time_static" "timestamp" {}
+
+				resource "rubrik_azure_service_principal" "principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_discovery {
+						permission_groups = ["BASIC"]
+						regions           = ["eastus2"]
+					}
+
+					cloud_native_protection {
+						permission_groups     = ["BASIC"]
+						regions               = ["eastus2"]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.principal]
+				}
+
+				data "rubrik_object" "subscription" {
+					name        = rubrik_azure_subscription.subscription.subscription_name
+					object_type = "AzureNativeSubscription"
+				}
+
+				resource "rubrik_refresh" "subscription" {
+					object_id   = data.rubrik_object.subscription.id
+					object_type = "AzureNativeSubscription"
+					timestamp   = time_static.timestamp.rfc3339
+				}
+
+				data "rubrik_objects" "resource_groups" {
+					object_type = "AzureNativeResourceGroup"
+
+					depends_on = [rubrik_refresh.subscription]
+				}
+
+				data "rubrik_objects" "resource_groups_by_subscription" {
+					object_type     = "AzureNativeResourceGroup"
+					subscription_id = rubrik_azure_subscription.subscription.id
+
+					depends_on = [rubrik_refresh.subscription]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				// Scoped to the fixture's subscription.
+				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyID),
+					knownvalue.StringRegexp(sha256Hex)),
+				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups", tfjsonpath.New(keyObjects),
+					resourceGroupCheck),
+
+				// Searching across all subscriptions still finds it.
+				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups_by_subscription", tfjsonpath.New(keyID),
+					knownvalue.StringRegexp(sha256Hex)),
+				statecheck.ExpectKnownValue("data.rubrik_objects.resource_groups_by_subscription", tfjsonpath.New(keyObjects),
+					resourceGroupCheck),
+			},
+		}},
 	})
 }
