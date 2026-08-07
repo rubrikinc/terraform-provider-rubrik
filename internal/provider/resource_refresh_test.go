@@ -177,7 +177,7 @@ func TestAccPolarisAwsAccountRefresh(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: refreshAWSAccount,
 			Check: resource.ComposeTestCheckFunc(
@@ -211,7 +211,7 @@ func TestAccPolarisAzureSubscriptionRefresh(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: refreshAzureSubscription,
 			Check: resource.ComposeTestCheckFunc(
