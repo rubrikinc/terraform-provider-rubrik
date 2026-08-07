@@ -59,8 +59,10 @@ pipeline {
         // avoid intermittent download failures from hc-install.
         TF_ACC_TERRAFORM_PATH = "${WORKSPACE}/terraform"
 
-        // Use a cache for external providers.
-        TF_PLUGIN_CACHE_DIR="${WORKSPACE}/.terraform-cache"
+        // Note that TF_PLUGIN_CACHE_DIR is deliberately not set here. The
+        // Terraform plugin cache is not safe for concurrent use, and the Test
+        // stages below run in parallel. Each stage sets its own cache
+        // directory instead.
 
         // Enable logging from the terraform cli binary used by acceptance tests
         TF_ACC_LOG_PATH='terraform_cli.log'
@@ -175,27 +177,44 @@ pipeline {
         }
         stage('Test') {
             failFast false
+            // Each stage below uses its own TF_PLUGIN_CACHE_DIR because the
+            // Terraform plugin cache is not safe for concurrent use: it
+            // symlinks the cached provider binary into .terraform/providers,
+            // so one stage executing that binary while another rewrites the
+            // same path fails with "text file busy".
             parallel {
                 stage('Test AWS') {
-                    environment { TF_ACC_LOG_PATH = 'terraform_cli_aws.log' }
+                    environment {
+                        TF_ACC_LOG_PATH     = 'terraform_cli_aws.log'
+                        TF_PLUGIN_CACHE_DIR = "${WORKSPACE}/.terraform-cache-aws"
+                    }
                     steps {
                         sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=(?i)^TestAcc(Aws|PolarisAWS)" -count=1 -timeout=180m -v ./...'
                     }
                 }
                 stage('Test Azure') {
-                    environment { TF_ACC_LOG_PATH = 'terraform_cli_azure.log' }
+                    environment {
+                        TF_ACC_LOG_PATH     = 'terraform_cli_azure.log'
+                        TF_PLUGIN_CACHE_DIR = "${WORKSPACE}/.terraform-cache-azure"
+                    }
                     steps {
                         sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=(?i)^TestAcc(Azure|PolarisAzure)" -count=1 -timeout=180m -v ./...'
                     }
                 }
                 stage('Test GCP') {
-                    environment { TF_ACC_LOG_PATH = 'terraform_cli_gcp.log' }
+                    environment {
+                        TF_ACC_LOG_PATH     = 'terraform_cli_gcp.log'
+                        TF_PLUGIN_CACHE_DIR = "${WORKSPACE}/.terraform-cache-gcp"
+                    }
                     steps {
                         sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=(?i)^TestAcc(GCP|PolarisGCP)" -count=1 -timeout=180m -v ./...'
                     }
                 }
                 stage('Test Other') {
-                    environment { TF_ACC_LOG_PATH = 'terraform_cli_other.log' }
+                    environment {
+                        TF_ACC_LOG_PATH     = 'terraform_cli_other.log'
+                        TF_PLUGIN_CACHE_DIR = "${WORKSPACE}/.terraform-cache-other"
+                    }
                     steps {
                         sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-skip=(?i)^TestAccCDM|(?i)^TestAcc(Aws|PolarisAWS|Azure|PolarisAzure|GCP|PolarisGCP)" -count=1 -timeout=180m -v ./...'
                     }
