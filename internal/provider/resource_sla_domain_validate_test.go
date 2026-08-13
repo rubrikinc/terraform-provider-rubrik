@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
 
@@ -261,6 +262,60 @@ func TestValidateAzurePostgresFlexibleServerObjectType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateAzurePostgresFlexibleServerObjectType(
 				tt.objectTypes, tt.backupLocations, tt.archivalSpecs, tt.replicationSpecs)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Fatalf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateAzurePostgresFlexibleServerConfig(t *testing.T) {
+	objectTypeSet := func(objectTypes ...gqlsla.ObjectType) *schema.Set {
+		set := &schema.Set{F: schema.HashString}
+		for _, objectType := range objectTypes {
+			set.Add(string(objectType))
+		}
+		return set
+	}
+
+	tests := []struct {
+		name          string
+		configPresent bool
+		objectTypes   *schema.Set
+		wantErr       string
+	}{{
+		name:          "ConfigWithOwnObjectType",
+		configPresent: true,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzurePostgresFlexibleServer),
+	}, {
+		name:          "NoConfigOtherObjectType",
+		configPresent: false,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzureSQLDatabase),
+	}, {
+		name:          "ConfigWithDifferentObjectType",
+		configPresent: true,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzureSQLDatabase),
+		wantErr:       "is only valid when object_types is",
+	}, {
+		name:          "ConfigWithNoObjectTypes",
+		configPresent: true,
+		objectTypes:   objectTypeSet(),
+		wantErr:       "is only valid when object_types is",
+	}, {
+		name:          "ConfigWithNilObjectTypes",
+		configPresent: true,
+		objectTypes:   nil,
+		wantErr:       "is only valid when object_types is",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAzurePostgresFlexibleServerConfig(tt.configPresent, tt.objectTypes)
 			switch {
 			case tt.wantErr == "" && err != nil:
 				t.Fatalf("unexpected error: %v", err)
