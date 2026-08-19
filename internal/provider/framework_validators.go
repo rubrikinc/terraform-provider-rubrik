@@ -82,6 +82,61 @@ func (v isNotWhiteSpaceValidator) ValidateString(_ context.Context, req validato
 	}
 }
 
+// isFilterTypeFor returns a validator that checks a data security policy filter
+// type belongs to one of the given resource types. RSC requires every condition
+// in a group to cover the same resource type, so this keeps a misplaced
+// condition from reaching the API as an opaque format error. A filter type that
+// does not belong to any known resource type passes, leaving RSC to reject it.
+func isFilterTypeFor(resourceTypes ...filterResourceType) validator.String {
+	return isFilterTypeForValidator{resourceTypes: resourceTypes}
+}
+
+type isFilterTypeForValidator struct {
+	resourceTypes []filterResourceType
+}
+
+func (v isFilterTypeForValidator) Description(_ context.Context) string {
+	names := make([]string, 0, len(v.resourceTypes))
+	for _, resourceType := range v.resourceTypes {
+		names = append(names, string(resourceType))
+	}
+
+	return fmt.Sprintf("value must be a %s condition type", strings.Join(names, " or "))
+}
+
+func (v isFilterTypeForValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isFilterTypeForValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	// An unrecognized filter type is left to RSC to reject, rather than being
+	// rejected here against a prefix list that can fall behind the filter types
+	// RSC registers.
+	filterType := req.ConfigValue.ValueString()
+	resourceType, ok := resourceTypeOf(filterType)
+	if !ok {
+		return
+	}
+
+	for _, allowed := range v.resourceTypes {
+		if resourceType == allowed {
+			return
+		}
+	}
+
+	blockName := keyObjectFilter
+	if resourceType == filterResourceTypeIdentity {
+		blockName = keyIdentityFilter
+	}
+	res.Diagnostics.AddAttributeError(req.Path, "Filter type in the wrong block", fmt.Sprintf(
+		"%q is an %s condition and cannot be used here. Move it to a %s block.",
+		filterType, resourceType, blockName))
+}
+
 // setMustContain returns a validator that checks a set of strings contains the
 // given value. A null or unknown set passes (nothing to validate yet).
 func setMustContain(value string) validator.Set {

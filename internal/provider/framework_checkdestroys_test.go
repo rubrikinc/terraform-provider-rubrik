@@ -31,6 +31,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
 )
@@ -247,6 +248,36 @@ func roleAssignmentCheckDestroy(t *testing.T) func(*terraform.State) error {
 					}
 				}
 				continue
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// dataSecurityPolicyCheckDestroy verifies that all data_security_policy
+// resources have been deleted.
+func dataSecurityPolicyCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "rubrik_data_security_policy" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = dspm.Wrap(polarisClient).PolicyByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("data security policy %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
