@@ -361,6 +361,7 @@ const (
 	keyPolarisSLASourceCluster                      = "polaris_sla_source_cluster"
 	keyPolarisTagRule                               = "polaris_tag_rule"
 	keyPolicy                                       = "policy"
+	keyPolicyID                                     = "policy_id"
 	keyPredefined                                   = "predefined"
 	keyPortNumber                                   = "port_number"
 	keyPrivateExocomputeDNSZoneID                   = "private_exocompute_dns_zone_id"
