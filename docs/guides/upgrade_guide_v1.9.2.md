@@ -95,9 +95,12 @@ The following resources support state migration via Terraform's `moved {}` block
 * `polaris_aws_account_managed_stack` → `rubrik_aws_account_managed_stack`
 * `polaris_aws_cnp_account` → `rubrik_aws_cnp_account`
 * `polaris_aws_cnp_account_attachments` → `rubrik_aws_cnp_account_attachments`
+* `polaris_aws_custom_tags` → `rubrik_aws_custom_tags`
+* `polaris_azure_custom_tags` → `rubrik_azure_custom_tags`
 * `polaris_azure_devops_organization` → `rubrik_azure_devops_organization`
 * `polaris_custom_role` → `rubrik_custom_role`
 * `polaris_gcp_cloud_cluster` → `rubrik_gcp_cloud_cluster`
+* `polaris_gcp_custom_labels` → `rubrik_gcp_custom_labels`
 * `polaris_role_assignment` → `rubrik_role_assignment`
 * `polaris_sso_group` → `rubrik_sso_group`
 * `polaris_user` → `rubrik_user`

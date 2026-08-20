@@ -57,6 +57,14 @@ page_title: "Changelog"
 * The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
   one. Previously the block was sent as an AWS S3 configuration for any object type, where RSC ignored it.
   [[docs](../resources/sla_domain.md)]
+* Migrate the `rubrik_aws_custom_tags` resource to the Terraform Plugin Framework.
+* Migrate the `rubrik_azure_custom_tags` resource to the Terraform Plugin Framework.
+* Migrate the `rubrik_gcp_custom_labels` resource to the Terraform Plugin Framework.
+* Add `moved {}` block support to the `rubrik_aws_custom_tags`, `rubrik_azure_custom_tags` and
+  `rubrik_gcp_custom_labels` resources. This enables in-place migration from the deprecated `polaris` prefixed
+  resource types to the `rubrik` prefixed resource types via a Terraform `moved {}` block, without removing the
+  resources from state and re-importing them. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md) for migration
+  instructions.
 
 ## v1.9.1
 * New resource added for `rubrik_azure_devops_organization` which onboards an Azure DevOps organization to RSC
