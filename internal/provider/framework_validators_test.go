@@ -141,3 +141,93 @@ func TestIsNotWhiteSpaceValidator(t *testing.T) {
 		})
 	}
 }
+
+func TestIsFilterTypeForValidator(t *testing.T) {
+	tests := []struct {
+		name          string
+		resourceTypes []filterResourceType
+		value         basetypes.StringValue
+		expectErr     bool
+	}{
+		{
+			name:          "ObjectTypeInObjectBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringValue("SECURITY_DOCUMENT_SENSITIVITY"),
+			expectErr:     false,
+		},
+		{
+			name:          "SnappableTypeInObjectBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringValue("SECURITY_SNAPPABLE_BACKUP"),
+			expectErr:     false,
+		},
+		{
+			name:          "IdentityTypeInObjectBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringValue("SECURITY_IDENTITY_NAME"),
+			expectErr:     true,
+		},
+		{
+			name:          "ObjectTypeInIdentityBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeIdentity},
+			value:         basetypes.NewStringValue("SECURITY_DOCUMENT_SENSITIVITY"),
+			expectErr:     true,
+		},
+		{
+			name:          "GpoTypeInIdentityBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeIdentity},
+			value:         basetypes.NewStringValue("SECURITY_GPO_LDAP_SIGNING"),
+			expectErr:     false,
+		},
+		{
+			name:          "IdentityTypeInThresholdBlock",
+			resourceTypes: []filterResourceType{filterResourceTypeObject, filterResourceTypeIdentity},
+			value:         basetypes.NewStringValue("SECURITY_IDENTITY_NAME"),
+			expectErr:     false,
+		},
+		// A filter type belonging to no known resource type cannot be placed in
+		// the wrong block, so it passes and is left to RSC to reject.
+		{
+			name:          "IdpTypeIsLeftToRSC",
+			resourceTypes: []filterResourceType{filterResourceTypeObject, filterResourceTypeIdentity},
+			value:         basetypes.NewStringValue("SECURITY_IDP_TYPE"),
+			expectErr:     false,
+		},
+		{
+			name:          "UnknownTypeIsLeftToRSC",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringValue("SECURITY_FUTURE_FAMILY_NAME"),
+			expectErr:     false,
+		},
+		{
+			name:          "NullValue",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringNull(),
+			expectErr:     false,
+		},
+		{
+			name:          "UnknownValue",
+			resourceTypes: []filterResourceType{filterResourceTypeObject},
+			value:         basetypes.NewStringUnknown(),
+			expectErr:     false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validator.StringRequest{
+				ConfigValue: tc.value,
+			}
+			var res validator.StringResponse
+
+			isFilterTypeForValidator{resourceTypes: tc.resourceTypes}.ValidateString(context.Background(), req, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %q, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}

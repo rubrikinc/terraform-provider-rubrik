@@ -13,6 +13,11 @@ page_title: "Changelog"
   fields at plan time when they are set for an `object_type` they do not apply to. Previously these fields were
   silently ignored for other object types. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
   [[docs](../data-sources/object.md)]
+* New `rubrik_data_security_policy` resource added which creates and manages data security policies in RSC. A
+  policy matches on object conditions, in the `object_filter` block, and identity conditions, in the
+  `identity_filter` block, with an optional `threshold_filter` block deciding how many matches raise a violation.
+  The blocks mirror the RSC data security policy editor, which is the only filter shape RSC accepts.
+  [[docs](../resources/data_security_policy.md)]
 * Add support for the `CloudNativeTagRule` object type in the `rubrik_object` data source, resolving a cloud native
   tag rule to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   [[docs](../data-sources/object.md)]
