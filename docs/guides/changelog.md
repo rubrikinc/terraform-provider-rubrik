@@ -18,6 +18,8 @@ page_title: "Changelog"
   `identity_filter` block, with an optional `threshold_filter` block deciding how many matches raise a violation.
   The blocks mirror the RSC data security policy editor, which is the only filter shape RSC accepts.
   [[docs](../resources/data_security_policy.md)]
+* New data source added for `rubrik_data_security_policy` which looks up a data security policy in RSC by name or by
+  policy ID. [[docs](../data-sources/data_security_policy.md)]
 * Add support for the `CloudNativeTagRule` object type in the `rubrik_object` data source, resolving a cloud native
   tag rule to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   [[docs](../data-sources/object.md)]
