@@ -2307,9 +2307,19 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 			return diag.FromErr(err)
 		}
 
+		// Azure Postgres Flexible Server always stores its backup location in the
+		// specs. Its RSC-side multiple backup locations support is gated on the
+		// same feature flag as the object type itself, so it needs no flag here.
+		// AWS S3 is deliberately absent: it uses the specs only when the multiple
+		// backup locations feature is enabled and the legacy object specific
+		// config otherwise.
+		objectTypeSet := d.Get(keyObjectTypes).(*schema.Set)
+		usesBackupLocation := azureSQLUsesBackupLocation(azureSQLRevamp.Enabled, azureSQLConfig, azureSQLMIConfig) ||
+			objectTypeSet.Contains(string(gqlsla.ObjectAzurePostgresFlexibleServer))
+
 		var backupLocations []gqlsla.BackupLocationSpec
 		var awsS3Config *gqlsla.AWSS3Config
-		if mbl.Enabled {
+		if mbl.Enabled || usesBackupLocation {
 			backupLocations = fromBackupLocation(d)
 		} else {
 			if awsS3Config, err = fromAWSS3Config(d); err != nil {
@@ -2317,19 +2327,8 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 			}
 		}
 
-		// Azure SQL V2 (Rubrik-managed) SLAs store their backup location in the
-		// SLA-level backup location specs, the same mechanism used by AWS S3
-		// multiple backup locations. V1 (Azure-managed) SLAs carry an LTR config
-		// and no backup location. Only wired when the revamp feature is enabled.
-		if azureSQLRevamp.Enabled && len(backupLocations) == 0 {
-			if (azureSQLConfig != nil && azureSQLConfig.LTRConfig == nil) ||
-				(azureSQLMIConfig != nil && azureSQLMIConfig.LTRConfig == nil) {
-				backupLocations = fromBackupLocation(d)
-			}
-		}
-
 		var objectTypes []gqlsla.ObjectType
-		objectTypeList := d.Get(keyObjectTypes).(*schema.Set).List()
+		objectTypeList := objectTypeSet.List()
 		for _, objectType := range objectTypeList {
 			objectType := gqlsla.ObjectType(objectType.(string))
 
@@ -3190,6 +3189,22 @@ func validateAzurePostgresFlexibleServerObjectType(objectTypeList []any, backupL
 	}
 
 	return nil
+}
+
+// azureSQLUsesBackupLocation reports whether an Azure SQL Database or Managed
+// Instance SLA Domain stores its backup location in the SLA-level backup
+// location specs. Only V2 (Rubrik-managed) SLAs do. The SLA engine tells V1 and
+// V2 apart by the presence of the LTR config rather than by the object type, so
+// the object type alone is not enough to make the decision.
+//
+// Returns false when the Azure SQL revamp feature is disabled for the account,
+// where the legacy Azure SQL model applies and there is no backup location.
+func azureSQLUsesBackupLocation(revamp bool, azureSQLConfig, azureSQLMIConfig *gqlsla.AzureDBConfig) bool {
+	if !revamp {
+		return false
+	}
+	return (azureSQLConfig != nil && azureSQLConfig.LTRConfig == nil) ||
+		(azureSQLMIConfig != nil && azureSQLMIConfig.LTRConfig == nil)
 }
 
 // onlyAzureSQLObjectTypes reports whether every object type in the list is an
