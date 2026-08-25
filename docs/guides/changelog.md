@@ -33,7 +33,7 @@ page_title: "Changelog"
 * Add support for the `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION` feature in the `rubrik_azure_permissions` data
   source, which backs up Azure Database for PostgreSQL flexible servers. The feature has the `BASIC` and `RECOVERY`
   permission groups. [[docs](../data-sources/azure_permissions.md)]
-* Add support for the `postgres_flexible_server_protection` feature in the `polaris_azure_subscription` resource,
+* Add support for the `postgres_flexible_server_protection` feature in the `rubrik_azure_subscription` resource,
   which enables backup and recovery of Azure Database for PostgreSQL flexible servers. Unlike the other features,
   RSC requires both an Azure resource group and a user-assigned managed identity, and the identity must be in the
   feature's resource group, so those fields are mandatory.
