@@ -30,6 +30,9 @@ page_title: "Changelog"
 * No longer require `subscription_id` when `object_type` is `AzureNativeResourceGroup` in the `rubrik_object` data
   source. Set it only to disambiguate a resource group name shared across subscriptions.
   [[docs](../data-sources/object.md)]
+* Add support for the `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION` feature in the `rubrik_azure_permissions` data
+  source, which backs up Azure Database for PostgreSQL flexible servers. The feature has the `BASIC` and `RECOVERY`
+  permission groups. [[docs](../data-sources/azure_permissions.md)]
 
 ## v1.9.1
 * New resource added for `rubrik_azure_devops_organization` which onboards an Azure DevOps organization to RSC
