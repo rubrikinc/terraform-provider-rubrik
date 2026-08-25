@@ -43,18 +43,18 @@ page_title: "Changelog"
   Set `subscription_id` to disambiguate a server name shared across subscriptions.
   [[docs](../data-sources/object.md)]
 * Add support for the `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE` object type and the
-  `azure_postgres_flexible_server_config` block in the `polaris_sla_domain` resource, allowing an SLA Domain to
+  `azure_postgres_flexible_server_config` block in the `rubrik_sla_domain` resource, allowing an SLA Domain to
   protect Azure Postgres flexible servers and to set the point-in-time restore retention RSC enforces on the source
   server. The object type cannot be combined with other object types and requires a `backup_location`.
   [[docs](../resources/sla_domain.md#nested-schema-for-azure_postgres_flexible_server_config)]
-* Fix a bug in the `polaris_sla_domain` resource where an SLA Domain using the
+* Fix a bug in the `rubrik_sla_domain` resource where an SLA Domain using the
   `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE` object type could not be created or updated unless the AWS S3 multiple
   backup locations feature was enabled for the RSC account. The `backup_location` was not passed on, failing with an
   error stating that a `backup_location` is required. [[docs](../resources/sla_domain.md)]
-* Fix a bug in the `polaris_sla_domain` resource where a V2 (Rubrik-managed) Azure SQL Database or Azure SQL Managed
+* Fix a bug in the `rubrik_sla_domain` resource where a V2 (Rubrik-managed) Azure SQL Database or Azure SQL Managed
   Instance SLA Domain would additionally send its `backup_location` as an AWS S3 configuration when the AWS S3
   multiple backup locations feature was not enabled for the RSC account. [[docs](../resources/sla_domain.md)]
-* The `polaris_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
+* The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
   one. Previously the block was sent as an AWS S3 configuration for any object type, where RSC ignored it.
   [[docs](../resources/sla_domain.md)]
 
