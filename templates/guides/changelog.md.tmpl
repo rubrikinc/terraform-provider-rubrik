@@ -39,7 +39,7 @@ page_title: "Changelog"
   feature's resource group, so those fields are mandatory.
   [[docs](../resources/azure_subscription.md#nested-schema-for-postgres_flexible_server_protection)]
 * Add support for the `AzurePostgresFlexibleServer` object type in the `rubrik_object` data source, resolving an
-  Azure Postgres flexible server to its RSC ID by name for use with the `polaris_sla_domain_assignment` resource.
+  Azure Postgres flexible server to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   Set `subscription_id` to disambiguate a server name shared across subscriptions.
   [[docs](../data-sources/object.md)]
 
