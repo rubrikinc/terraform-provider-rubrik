@@ -113,7 +113,7 @@ func (r *gcpCustomLabelsResource) Schema(ctx context.Context, _ resource.SchemaR
 	}
 
 	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use `rubrik_aws_custom_tags` instead."
+		res.Schema.DeprecationMessage = "use `rubrik_gcp_custom_labels` instead."
 	}
 }
 

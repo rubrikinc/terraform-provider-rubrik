@@ -50,8 +50,8 @@ func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 	}
 
 	var planTags map[string]string
-	diags := planTagsMap.ElementsAs(ctx, &planTags, false)
-	if diags.HasError() {
+	res.Diagnostics.Append(planTagsMap.ElementsAs(ctx, &planTags, false)...)
+	if res.Diagnostics.HasError() {
 		return
 	}
 
@@ -71,7 +71,7 @@ func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 		Tags:                 customerTags,
 		OverrideResourceTags: planOverride.ValueBool(),
 	}); err != nil {
-		diags.AddError("Failed to create custom tags", err.Error())
+		res.Diagnostics.AddError("Failed to create custom tags", err.Error())
 		return
 	}
 

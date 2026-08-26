@@ -86,7 +86,7 @@ func (r *azureCustomTagsResource) Metadata(ctx context.Context, _ resource.Metad
 }
 
 func (r *azureCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "awsCustomTagsResource.Schema")
+	tflog.Trace(ctx, "azureCustomTagsResource.Schema")
 
 	res.Schema = schema.Schema{
 		Description: description(resourceAzureCustomTagsDescription),

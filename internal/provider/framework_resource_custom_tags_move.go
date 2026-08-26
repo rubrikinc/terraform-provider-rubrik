@@ -33,7 +33,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
-// moveStateV0 moves v0 state from the polaris_aws_custom_tags,
+// moveCustomTagsResourceV0 moves v0 state from the polaris_aws_custom_tags,
 // polaris_azure_custom_tags and polaris_gcp_custom_labels resources in the
 // rubrikinc/polaris provider to the rubrik_aws_custom_tags,
 // rubrik_azure_custom_tags and rubrik_gcp_custom_labels resources.
@@ -42,7 +42,6 @@ func moveCustomTagsResourceV0(vendor core.CloudVendor) resource.StateMover {
 		customTagsKey   string
 		overrideTagsKey string
 		typeName        string
-		err             string
 	}
 
 	var conf resourceConfig
@@ -66,7 +65,12 @@ func moveCustomTagsResourceV0(vendor core.CloudVendor) resource.StateMover {
 			typeName:        keyGCPCustomLabels,
 		}
 	default:
-		conf = resourceConfig{err: fmt.Sprintf("unknown vendor: %q", vendor)}
+		// The vendor is a constant passed in by an implementation, never user
+		// input, so reaching this means a vendor was added without updating
+		// this function. We cannot handle this as an error since we don't know
+		// which resource the mover is for, it's determined by the vendor
+		// constant.
+		panic(fmt.Sprintf("unknown vendor: %q", vendor))
 	}
 
 	return resource.StateMover{
@@ -86,11 +90,6 @@ func moveCustomTagsResourceV0(vendor core.CloudVendor) resource.StateMover {
 		},
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "moveCustomTagsResourceV0")
-
-			if conf.err != "" {
-				res.Diagnostics.AddError("Failed to move custom tags resource", conf.err)
-				return
-			}
 
 			if !strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/polaris") &&
 				!strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/rubrik") {
