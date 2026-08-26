@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
 
@@ -213,6 +214,120 @@ func TestConfigHasLTRConfig(t *testing.T) {
 
 // TestOnlyAzureSQLObjectTypes verifies that Azure SQL DB and MI may be combined
 // with each other but not with any other object type.
+// TestValidateAzurePostgresFlexibleServerObjectType covers the rules for an
+// Azure Postgres flexible server SLA. Two of them are not expressed in the RSC
+// schema: the object type cannot be combined with any other, matching the RSC
+// UI, and a backup location is mandatory because these SLAs use
+// backupLocationSpecs rather than the legacy archivalSpecs.
+func TestValidateAzurePostgresFlexibleServerObjectType(t *testing.T) {
+	pg := string(gqlsla.ObjectAzurePostgresFlexibleServer)
+	backupLocation := []gqlsla.BackupLocationSpec{{ArchivalGroupID: uuid.MustParse("f6b1f4e8-5d1e-4f4e-9b6f-3a1c2d5e7f90")}}
+
+	tests := []struct {
+		name             string
+		objectTypes      []any
+		backupLocations  []gqlsla.BackupLocationSpec
+		archivalSpecs    []gqlsla.ArchivalSpec
+		replicationSpecs []gqlsla.ReplicationSpec
+		wantErr          string
+	}{{
+		name:            "ValidWithBackupLocation",
+		objectTypes:     []any{pg},
+		backupLocations: backupLocation,
+	}, {
+		name:            "CombinedWithOtherObjectType",
+		objectTypes:     []any{pg, string(gqlsla.ObjectAzureSQLDatabase)},
+		backupLocations: backupLocation,
+		wantErr:         "cannot be combined with other object types",
+	}, {
+		name:            "MissingBackupLocation",
+		objectTypes:     []any{pg},
+		backupLocations: nil,
+		wantErr:         "requires a backup_location",
+	}, {
+		name:            "UsesLegacyArchivalBlock",
+		objectTypes:     []any{pg},
+		backupLocations: backupLocation,
+		archivalSpecs:   []gqlsla.ArchivalSpec{{Threshold: 0}},
+		wantErr:         "remove the archival block",
+	}, {
+		name:             "Replication",
+		objectTypes:      []any{pg},
+		backupLocations:  backupLocation,
+		replicationSpecs: []gqlsla.ReplicationSpec{{}},
+		wantErr:          "does not support replication",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAzurePostgresFlexibleServerObjectType(
+				tt.objectTypes, tt.backupLocations, tt.archivalSpecs, tt.replicationSpecs)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Fatalf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateAzurePostgresFlexibleServerConfig(t *testing.T) {
+	objectTypeSet := func(objectTypes ...gqlsla.ObjectType) *schema.Set {
+		set := &schema.Set{F: schema.HashString}
+		for _, objectType := range objectTypes {
+			set.Add(string(objectType))
+		}
+		return set
+	}
+
+	tests := []struct {
+		name          string
+		configPresent bool
+		objectTypes   *schema.Set
+		wantErr       string
+	}{{
+		name:          "ConfigWithOwnObjectType",
+		configPresent: true,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzurePostgresFlexibleServer),
+	}, {
+		name:          "NoConfigOtherObjectType",
+		configPresent: false,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzureSQLDatabase),
+	}, {
+		name:          "ConfigWithDifferentObjectType",
+		configPresent: true,
+		objectTypes:   objectTypeSet(gqlsla.ObjectAzureSQLDatabase),
+		wantErr:       "is only valid when object_types is",
+	}, {
+		name:          "ConfigWithNoObjectTypes",
+		configPresent: true,
+		objectTypes:   objectTypeSet(),
+		wantErr:       "is only valid when object_types is",
+	}, {
+		name:          "ConfigWithNilObjectTypes",
+		configPresent: true,
+		objectTypes:   nil,
+		wantErr:       "is only valid when object_types is",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAzurePostgresFlexibleServerConfig(tt.configPresent, tt.objectTypes)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Fatalf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestOnlyAzureSQLObjectTypes(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -254,4 +369,95 @@ func TestScheduleEmpty(t *testing.T) {
 			t.Fatalf("expected non-empty schedule to report non-empty: %+v", s)
 		}
 	}
+}
+
+// TestFromBackupLocation verifies the conversion of backup_location blocks into
+// SLA-level backup location specs, preserving order.
+func TestFromBackupLocation(t *testing.T) {
+	first, second := uuid.New(), uuid.New()
+	block := func(ids ...uuid.UUID) []any {
+		locations := make([]any, 0, len(ids))
+		for _, id := range ids {
+			locations = append(locations, map[string]any{keyArchivalGroupID: id.String()})
+		}
+		return locations
+	}
+
+	tests := []struct {
+		name      string
+		locations []any
+		want      []uuid.UUID
+	}{{
+		name:      "None",
+		locations: nil,
+	}, {
+		name:      "Empty",
+		locations: []any{},
+	}, {
+		name:      "Single",
+		locations: block(first),
+		want:      []uuid.UUID{first},
+	}, {
+		name:      "MultiplePreservesOrder",
+		locations: block(second, first),
+		want:      []uuid.UUID{second, first},
+	}, {
+		// The archival_group_id schema validates the UUID, so this is not
+		// reachable from a configuration. Documented to pin the behavior.
+		name:      "InvalidUUIDDropsAll",
+		locations: []any{map[string]any{keyArchivalGroupID: "not-a-uuid"}},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			specs := fromBackupLocation(tt.locations)
+			if len(specs) != len(tt.want) {
+				t.Fatalf("got %d specs, want %d", len(specs), len(tt.want))
+			}
+			for i, want := range tt.want {
+				if specs[i].ArchivalGroupID != want {
+					t.Fatalf("spec %d = %v, want %v", i, specs[i].ArchivalGroupID, want)
+				}
+			}
+		})
+	}
+}
+
+// TestFromAWSS3Config verifies the conversion of a backup_location block into
+// the legacy AWS S3 object specific config, which holds a single location.
+func TestFromAWSS3Config(t *testing.T) {
+	id := uuid.New()
+
+	t.Run("NoneYieldsNoConfig", func(t *testing.T) {
+		config, err := fromAWSS3Config(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if config != nil {
+			t.Fatalf("expected nil config, got %v", config)
+		}
+	})
+	t.Run("Single", func(t *testing.T) {
+		config, err := fromAWSS3Config([]any{map[string]any{keyArchivalGroupID: id.String()}})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if config == nil || config.ArchivalLocationID != id {
+			t.Fatalf("got %v, want archival location %v", config, id)
+		}
+	})
+	t.Run("MultipleRejected", func(t *testing.T) {
+		_, err := fromAWSS3Config([]any{
+			map[string]any{keyArchivalGroupID: id.String()},
+			map[string]any{keyArchivalGroupID: uuid.New().String()},
+		})
+		if err == nil || !strings.Contains(err.Error(), "multiple backup locations not supported") {
+			t.Fatalf("expected multiple backup locations error, got %v", err)
+		}
+	})
+	t.Run("InvalidUUIDRejected", func(t *testing.T) {
+		if _, err := fromAWSS3Config([]any{map[string]any{keyArchivalGroupID: "not-a-uuid"}}); err == nil {
+			t.Fatal("expected an error, got nil")
+		}
+	})
 }
