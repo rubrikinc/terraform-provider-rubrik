@@ -22,6 +22,9 @@ package provider
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,9 +39,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core/secret"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
 
 // defaultSQLManagedInstanceCredentialsTimeout is how long to wait for the
@@ -67,6 +73,11 @@ Terraform send the credentials again.
 ~> **Note:** The credentials are validated by the managed instance only once the
 setup job runs, so invalid credentials surface as a failed job rather than as an
 immediate error.
+
+~> **Note:** Destroying the resource clears the credentials from RSC. If the
+managed instance server itself no longer exists in RSC, there is nothing left to
+clear, so the destroy succeeds and the resource is simply removed from the
+Terraform state.
 `
 
 var (
@@ -275,10 +286,65 @@ func (r *azureSQLManagedInstanceCredentialsResource) Delete(ctx context.Context,
 		return
 	}
 
-	if err := azure.Wrap(polarisClient).ClearSQLManagedInstanceBackupCredentials(ctx, []uuid.UUID{serverID}); err != nil {
-		res.Diagnostics.AddError("Failed to clear SQL Managed Instance backup credentials", err.Error())
+	clearErr := azure.Wrap(polarisClient).ClearSQLManagedInstanceBackupCredentials(ctx, []uuid.UUID{serverID})
+	if clearErr == nil {
 		return
 	}
+
+	// The clear failed. If the managed instance server itself is gone from RSC
+	// — deleted in Azure, or its subscription offboarded — then the backup
+	// credentials went with it, so there is nothing left to clear and the
+	// destroy should still succeed. Failing here would strand the resource in
+	// state, with no way to remove it other than `terraform state rm`, and
+	// these are only credentials: they can be set up again if the server ever
+	// comes back.
+	//
+	// The clear error cannot be classified on its own. RSC answers a clear for
+	// an object it cannot find with a MANAGE_PROTECTION permission error rather
+	// than anything indicating the object is missing, so the error looks
+	// identical whether the server is gone or the service account genuinely
+	// lacks the permission. Look the server up in the hierarchy instead, and
+	// only ignore the failure once the server is confirmed gone.
+	exists, existsErr := sqlManagedInstanceServerExists(ctx, polarisClient, serverID)
+	switch {
+	case existsErr != nil:
+		// Whether the server still exists could not be established, so assume
+		// the clear failure is real. Both errors are reported: the lookup
+		// failure is the reason the clear failure could not be dismissed.
+		res.Diagnostics.AddError("Failed to clear SQL Managed Instance backup credentials", fmt.Sprintf(
+			"%s\n\nLooking up SQL Managed Instance server %s to determine whether it still exists also "+
+				"failed: %s", clearErr, serverID, existsErr))
+	case exists:
+		res.Diagnostics.AddError("Failed to clear SQL Managed Instance backup credentials", clearErr.Error())
+	default:
+		tflog.Warn(ctx, "SQL Managed Instance server no longer exists in RSC, ignoring the failure to clear "+
+			"its backup credentials", map[string]any{
+			"server_id": serverID.String(),
+			"err":       clearErr.Error(),
+		})
+	}
+}
+
+// sqlManagedInstanceServerExists reports whether the SQL Managed Instance
+// server still exists in the RSC hierarchy.
+//
+// RSC answers a hierarchy lookup of an object which does not exist with a 404,
+// which is reported as the server not existing. Note that RSC returns the same
+// 404 for an object the service account is not authorized to see, so a server
+// which exists but has become invisible to the service account is reported as
+// not existing.
+func sqlManagedInstanceServerExists(ctx context.Context, client *polaris.Client, serverID uuid.UUID) (bool, error) {
+	_, err := hierarchy.ObjectByIDAndWorkload[hierarchy.Object](ctx, client.GQL, serverID,
+		hierarchy.WorkloadAllSubHierarchyType)
+	if err != nil {
+		var gqlErr graphql.GQLError
+		if errors.As(err, &gqlErr) && gqlErr.Code() == http.StatusNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }
 
 // setupBackup reads the write-only credentials from the configuration and runs

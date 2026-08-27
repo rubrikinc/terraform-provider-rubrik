@@ -20,6 +20,10 @@ description: |-
   ~> Note: The credentials are validated by the managed instance only once the
   setup job runs, so invalid credentials surface as a failed job rather than as an
   immediate error.
+  ~> Note: Destroying the resource clears the credentials from RSC. If the
+  managed instance server itself no longer exists in RSC, there is nothing left to
+  clear, so the destroy succeeds and the resource is simply removed from the
+  Terraform state.
 ---
 
 # rubrik_azure_sql_managed_instance_credentials (Resource)
@@ -45,6 +49,11 @@ Terraform send the credentials again.
 ~> **Note:** The credentials are validated by the managed instance only once the
 setup job runs, so invalid credentials surface as a failed job rather than as an
 immediate error.
+
+~> **Note:** Destroying the resource clears the credentials from RSC. If the
+managed instance server itself no longer exists in RSC, there is nothing left to
+clear, so the destroy succeeds and the resource is simply removed from the
+Terraform state.
 
 ## Example Usage
 
