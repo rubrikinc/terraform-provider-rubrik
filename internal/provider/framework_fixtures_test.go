@@ -135,6 +135,19 @@ func testUniqueName(t *testing.T) string {
 	return fmt.Sprintf("Test Name %s", id)
 }
 
+// testUniqueTagKey returns a unique custom tag or custom label key, suffixed
+// with a random UUID so repeated or concurrent runs do not collide.
+func testUniqueTagKey(t *testing.T) string {
+	t.Helper()
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return fmt.Sprintf("terraform-acc-%s", id)
+}
+
 // testClient returns an RSC client for testing outside the Terraform provider.
 // E.g. checking if resources have been destroyed in a check destroy function.
 func testClient(t *testing.T) *polaris.Client {

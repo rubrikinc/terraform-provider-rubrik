@@ -15,19 +15,7 @@ description: |-
 {{tffile .ExampleFile}}
 {{end}}
 
-## Schema
-
-### Required
-
-- `custom_tags` (Map of String) Custom tags to add to cloud resources.
-
-### Optional
-
-- `override_resource_tags` (Boolean) Should custom tags overwrite existing tags with the same keys. Default value is `true`.
-
-### Read-Only
-
-- `id` (String) SHA-256 hash of the string "Azure".
+{{ .SchemaMarkdown | trimspace }}
 
 ## Import
 
