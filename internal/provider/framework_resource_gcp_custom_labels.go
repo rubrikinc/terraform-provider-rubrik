@@ -109,6 +109,11 @@ func (r *gcpCustomLabelsResource) Schema(ctx context.Context, _ resource.SchemaR
 				Default:     booldefault.StaticBool(true),
 				Description: "Should custom labels overwrite existing labels with the same keys. Default value is `true`.",
 			},
+			keyExcludedLabels: schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "Label key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`).",
+			},
 		},
 	}
 

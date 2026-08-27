@@ -109,6 +109,11 @@ func (r *azureCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaR
 				Default:     booldefault.StaticBool(true),
 				Description: "Should custom tags overwrite existing tags with the same keys. Default value is `true`.",
 			},
+			keyExcludedTags: schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "Tag key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`).",
+			},
 		},
 	}
 
