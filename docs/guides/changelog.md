@@ -92,6 +92,10 @@ page_title: "Changelog"
   `rubrik_azure_custom_tags` and `rubrik_gcp_custom_labels` resources, through the new `cloud_account_id` field. When
   omitted, the tags and labels apply to all cloud accounts of the cloud vendor, as before. RSC keeps the two scopes as
   independent configurations. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
+* The `rubrik_azure_subscription` resource now reads back the name and the principal ID of the user-assigned managed
+  identity of the `postgres_flexible_server_protection` feature. Previously the identity was not read back at all,
+  leaving both fields empty in state after an import. Note, RSC does not return the region or the resource group name
+  of an identity, so those two fields are still not read back. [[docs](../resources/azure_subscription.md)]
 * Migrate the `rubrik_aws_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_azure_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_gcp_custom_labels` resource to the Terraform Plugin Framework.
