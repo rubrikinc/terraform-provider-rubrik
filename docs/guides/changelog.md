@@ -64,6 +64,15 @@ page_title: "Changelog"
 * The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
   one. Previously the block was sent as an AWS S3 configuration for any object type, where RSC ignored it.
   [[docs](../resources/sla_domain.md)]
+* Add support for excluding tags from snapshots in the `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags`
+  resources, and labels in the `rubrik_gcp_custom_labels` resource, through the new `excluded_tags` and
+  `excluded_labels` fields. A pattern is either an exact key or a prefix wildcard, such as `temp-*`. As with custom
+  tags, a resource only manages the patterns listed in its own configuration and leaves any other patterns in RSC
+  untouched. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
+* The `custom_tags` field in the `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags` resources, and the
+  `custom_labels` field in the `rubrik_gcp_custom_labels` resource, are now optional, allowing a resource to manage
+  only excluded tags. When specified, the fields must contain at least one tag or label, as must the `excluded_tags`
+  and `excluded_labels` fields. At least one of the two fields must be specified.
 * Migrate the `rubrik_aws_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_azure_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_gcp_custom_labels` resource to the Terraform Plugin Framework.

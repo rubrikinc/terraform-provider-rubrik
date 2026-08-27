@@ -23,12 +23,16 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -39,6 +43,10 @@ The ´rubrik_gcp_custom_labels´ resource manages RSC custom GCP labels.
 Simplify your cloud resource management by assigning custom labels for easy
 identification. These custom labels will be used on all existing and future GCP
 projects in your RSC account.
+
+Label keys matching a pattern in ´excluded_labels´ are excluded from snapshots.
+At least one of ´custom_labels´ and ´excluded_labels´ must be specified, and
+neither can be empty when specified.
 
 -> **Note:** The newly updated custom labels will be applied to all existing and
    new resources, while the previously applied labels will remain unchanged.
@@ -60,10 +68,11 @@ projects in your RSC account.
 const gcpCustomLabelsID = "31e3cbd5c7bd25c4de00fdd6635f2d0bf237930e0d6a4e6b1bbf8a4fcccc6c4c"
 
 var (
-	_ resource.Resource                = &gcpCustomLabelsResource{}
-	_ resource.ResourceWithConfigure   = &gcpCustomLabelsResource{}
-	_ resource.ResourceWithImportState = &gcpCustomLabelsResource{}
-	_ resource.ResourceWithMoveState   = &gcpCustomLabelsResource{}
+	_ resource.Resource                     = &gcpCustomLabelsResource{}
+	_ resource.ResourceWithConfigValidators = &gcpCustomLabelsResource{}
+	_ resource.ResourceWithConfigure        = &gcpCustomLabelsResource{}
+	_ resource.ResourceWithImportState      = &gcpCustomLabelsResource{}
+	_ resource.ResourceWithMoveState        = &gcpCustomLabelsResource{}
 )
 
 type gcpCustomLabelsResource struct {
@@ -100,8 +109,11 @@ func (r *gcpCustomLabelsResource) Schema(ctx context.Context, _ resource.SchemaR
 			},
 			keyCustomLabels: schema.MapAttribute{
 				ElementType: types.StringType,
-				Required:    true,
-				Description: "Custom labels to add to cloud resources.",
+				Optional:    true,
+				Description: "Custom labels to add to cloud resources. Must contain at least one label when specified.",
+				Validators: []validator.Map{
+					mapvalidator.SizeAtLeast(1),
+				},
 			},
 			keyOverrideResourceLabels: schema.BoolAttribute{
 				Optional:    true,
@@ -112,13 +124,27 @@ func (r *gcpCustomLabelsResource) Schema(ctx context.Context, _ resource.SchemaR
 			keyExcludedLabels: schema.SetAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				Description: "Label key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`).",
+				Description: "Label key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`). Must contain at least one pattern when specified.",
+				Validators: []validator.Set{
+					setvalidator.SizeAtLeast(1),
+				},
 			},
 		},
 	}
 
 	if r.prefix == keyPolaris {
 		res.Schema.DeprecationMessage = "use `rubrik_gcp_custom_labels` instead."
+	}
+}
+
+func (r *gcpCustomLabelsResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	tflog.Trace(ctx, "gcpCustomLabelsResource.ConfigValidators")
+
+	return []resource.ConfigValidator{
+		resourcevalidator.AtLeastOneOf(
+			path.MatchRoot(keyCustomLabels),
+			path.MatchRoot(keyExcludedLabels),
+		),
 	}
 }
 

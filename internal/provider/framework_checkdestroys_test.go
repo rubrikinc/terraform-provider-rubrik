@@ -192,29 +192,34 @@ func customRoleCheckDestroy(t *testing.T) func(*terraform.State) error {
 	}
 }
 
-// customTagsCheckDestroy verifies that the custom tags managed by all custom
-// tags resources of the specified cloud vendor have been removed from RSC.
+// customTagsCheckDestroy verifies that the custom tags and the excluded tags
+// managed by all custom tags resources of the specified cloud vendor have been
+// removed from RSC.
 //
-// Note, only the custom tags managed by the resources are checked. The custom
-// tags for a cloud vendor is global RSC state shared with other resources and
-// other users, so the vendor's set of custom tags is not expected to be empty.
+// Note, only the custom tags and excluded tags managed by the resources are
+// checked. The custom tags for a cloud vendor is global RSC state shared with
+// other resources and other users, so the vendor's set of custom tags is not
+// expected to be empty.
 func customTagsCheckDestroy(t *testing.T, vendor core.CloudVendor) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
 	return func(s *terraform.State) error {
-		var customTagsKey string
+		var customTagsKey, excludedTagsKey string
 		var resourceTypes []string
 		switch vendor {
 		case core.CloudVendorAWS:
 			customTagsKey = keyCustomTags
+			excludedTagsKey = keyExcludedTags
 			resourceTypes = []string{"rubrik_aws_custom_tags", "polaris_aws_custom_tags"}
 		case core.CloudVendorAzure:
 			customTagsKey = keyCustomTags
+			excludedTagsKey = keyExcludedTags
 			resourceTypes = []string{"rubrik_azure_custom_tags", "polaris_azure_custom_tags"}
 
 		case core.CloudVendorGCP:
 			customTagsKey = keyCustomLabels
+			excludedTagsKey = keyExcludedLabels
 			resourceTypes = []string{"rubrik_gcp_custom_labels", "polaris_gcp_custom_labels"}
 		default:
 			return fmt.Errorf("unknown vendor: %s", vendor)
@@ -230,15 +235,21 @@ func customTagsCheckDestroy(t *testing.T, vendor core.CloudVendor) func(*terrafo
 				continue
 			}
 
-			for attr := range rs.Primary.Attributes {
-				tagKey, ok := strings.CutPrefix(attr, customTagsKey+".")
-				if !ok || tagKey == "%" {
-					continue
+			for attr, value := range rs.Primary.Attributes {
+				if tagKey, ok := strings.CutPrefix(attr, customTagsKey+"."); ok && tagKey != "%" {
+					if slices.ContainsFunc(customerTags.Tags, func(tag core.Tag) bool {
+						return tag.Key == tagKey
+					}) {
+						return fmt.Errorf("custom tag %q still exists", tagKey)
+					}
 				}
-				if slices.ContainsFunc(customerTags.Tags, func(tag core.Tag) bool {
-					return tag.Key == tagKey
-				}) {
-					return fmt.Errorf("custom tag %q still exists", tagKey)
+
+				// Excluded tags are stored as a set, where the attribute name
+				// is an index and the attribute value is the excluded tag.
+				if index, ok := strings.CutPrefix(attr, excludedTagsKey+"."); ok && index != "#" {
+					if slices.Contains(customerTags.ExcludedTags, value) {
+						return fmt.Errorf("excluded tag %q still exists", value)
+					}
 				}
 			}
 		}

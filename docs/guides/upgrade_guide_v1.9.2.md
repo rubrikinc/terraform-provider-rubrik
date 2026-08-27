@@ -193,3 +193,39 @@ resolved object.
 In addition, `subscription_id` is no longer required when `object_type` is `AzureNativeResourceGroup`. A resource group
 is now looked up by name alone; set `subscription_id` only to disambiguate a resource group name that is shared across
 subscriptions. Existing configurations that set `subscription_id` continue to work unchanged.
+
+### Custom tags resources can exclude tags from snapshots
+
+The `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags` resources have a new optional `excluded_tags` field, and the
+`rubrik_gcp_custom_labels` resource a new optional `excluded_labels` field. Tags and labels whose key matches one of the
+patterns are excluded from snapshots. A pattern is either an exact key or a prefix wildcard, such as `temp-*`.
+```terraform
+resource "rubrik_aws_custom_tags" "tags" {
+  custom_tags = {
+    "owner" = "backup-team"
+  }
+
+  excluded_tags = [
+    "internal-cost-center",
+    "temp-*",
+  ]
+}
+```
+The new fields follow the same ownership model as `custom_tags`: a resource manages only the patterns listed in its own
+configuration and leaves any other patterns in RSC untouched. Patterns already configured in RSC, whether through the
+UI or another resource, are not adopted, so existing configurations are unaffected and continue to plan clean.
+
+To support managing exclusions on their own, `custom_tags` and `custom_labels` are now optional. When specified, they
+must contain at least one tag or label, as must `excluded_tags` and `excluded_labels` — an empty collection is
+rejected at plan time. Omit a field entirely rather than setting it to `{}` or `[]`. At least one of the two fields
+must be specified, so a resource with neither is rejected.
+```terraform
+resource "rubrik_aws_custom_tags" "exclusions_only" {
+  excluded_tags = [
+    "internal-cost-center",
+  ]
+}
+```
+
+Import is the exception. As with custom tags, importing one of these resources takes ownership of every excluded tag
+pattern configured for that cloud vendor, not only the ones you intend to manage.

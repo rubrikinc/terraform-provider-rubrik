@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/config"
@@ -38,11 +39,15 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 	tagKey2 := testUniqueTagKey(t)
 	tagKey3 := testUniqueTagKey(t)
 
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorGCP),
 		Steps: []resource.TestStep{{
-			// Verify that the resource can be created.
+			// Verify that the resource can be created without excluded labels.
 			Config: `
 				variable "key1" {
 					type = string
@@ -50,7 +55,6 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
-
 				resource "rubrik_gcp_custom_labels" "tags" {
 					custom_labels = {
 						(var.key1) = "value1"
@@ -70,14 +74,15 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 						tagKey1: knownvalue.StringExact("value1"),
 						tagKey2: knownvalue.StringExact("value2"),
 					})),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.Null()),
 				// The override_resource_tags field defaults to true.
 				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyOverrideResourceLabels),
 					knownvalue.Bool(true)),
 			},
 		}, {
-			// Verify that the resource can be updated. One tag is added, one is
-			// removed, one has its value changed and the override field is
-			// explicitly turned off.
+			// Verify that the resource can be created to include excluded
+			// labels.
 			Config: `
 				variable "key1" {
 					type = string
@@ -85,25 +90,92 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_gcp_custom_labels" "tags" {
+					custom_labels = {
+						(var.key1) = "value1"
+						(var.key2) = "value2"
+					}
 
+					excluded_labels = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(gcpCustomLabelsID)),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyCustomLabels),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey1: knownvalue.StringExact("value1"),
+						tagKey2: knownvalue.StringExact("value2"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				// The override_resource_tags field defaults to true.
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyOverrideResourceLabels),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated by changing its values.
+			Config: `
+				variable "key1" {
+					type = string
+				}
+				variable "key2" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 				resource "rubrik_gcp_custom_labels" "tags" {
 					custom_labels = {
 						(var.key1) = "updated1"
 						(var.key2) = "value3"
 					}
 
+					excluded_labels = [
+						var.exKey1,
+						var.exKey2,
+					]
+
 					override_resource_labels = false
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyCustomLabels),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("updated1"),
 						tagKey3: knownvalue.StringExact("value3"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
 					})),
 				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyOverrideResourceLabels),
 					knownvalue.Bool(false)),
@@ -119,19 +191,36 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
-
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 				resource "rubrik_gcp_custom_labels" "tags" {
 					custom_labels = {
 						(var.key1) = "updated1"
 						(var.key2) = "value3"
 					}
+
+					excluded_labels = [
+						var.exKey1,
+						var.exKey2,
+					]
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
 				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyOverrideResourceLabels),
 					knownvalue.Bool(true)),
 			},
@@ -145,8 +234,10 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 		}, {
 			// import {} block with id attribute. Note, the import will take
@@ -158,9 +249,133 @@ func TestAccGcpCustomLabelsResource(t *testing.T) {
 			ImportStateId:   "dummy",
 			ImportState:     true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
+		}},
+	})
+}
+
+// TestAccGcpCustomLabelsResource_ExcludedLabelsOnly verifies that a resource
+// can manage excluded labels without any custom labels.
+func TestAccGcpCustomLabelsResource_ExcludedLabelsOnly(t *testing.T) {
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorGCP),
+		Steps: []resource.TestStep{{
+			// Verify that the resource can be created with only excluded
+			// labels.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_gcp_custom_labels" "tags" {
+					excluded_labels = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(gcpCustomLabelsID)),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyCustomLabels),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyOverrideResourceLabels),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated. One excluded label is
+			// added and one is removed, still without any custom labels.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_gcp_custom_labels" "tags" {
+					excluded_labels = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyCustomLabels),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_gcp_custom_labels.tags", tfjsonpath.New(keyExcludedLabels),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
+			},
+		}},
+	})
+}
+
+// TestAccGcpCustomLabelsResource_InvalidConfigs verifies that the custom_labels
+// and excluded_labels fields reject an explicitly empty collection, and that at
+// least one of them must be specified. Terraform distinguishes an unset field
+// from an empty one, and only the unset form is meaningful for these fields.
+func TestAccGcpCustomLabelsResource_InvalidConfigs(t *testing.T) {
+	tagKey := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				resource "rubrik_gcp_custom_labels" "tags" {
+					custom_labels = {}
+				}
+			`,
+			ExpectError: regexp.MustCompile(`custom_labels map must contain at least 1 elements`),
+		}, {
+			Config: `
+				variable "key" {
+					type = string
+				}
+
+				resource "rubrik_gcp_custom_labels" "tags" {
+					custom_labels = {
+						(var.key) = "value"
+					}
+
+					excluded_labels = []
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key": config.StringVariable(tagKey),
+			},
+			ExpectError: regexp.MustCompile(`excluded_labels set must contain at least 1 elements`),
+		}, {
+			Config: `
+				resource "rubrik_gcp_custom_labels" "tags" {
+				}
+			`,
+			ExpectError: regexp.MustCompile(`At least one of these attributes must be configured:\s+\[custom_labels,excluded_labels\]`),
 		}},
 	})
 }
