@@ -42,7 +42,9 @@ var resourceAWSCustomTagsDescription = `
 The ´rubrik_aws_custom_tags´ resource manages RSC custom AWS tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future AWS accounts in your
-RSC account.
+RSC account, unless ´cloud_account_id´ is specified, in which case they are
+scoped to that single cloud account. RSC keeps the two scopes as independent
+configurations, changing one does not affect the other.
 
 Tag keys matching a pattern in ´excluded_tags´ are excluded from
 snapshots. At least one of ´custom_tags´ and ´excluded_tags´ must be specified,
@@ -51,18 +53,18 @@ and neither can be empty when specified.
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple ´rubrik_aws_custom_tags´ resources in the
-   same RSC account, there is a risk of a race condition when the resources are
+~> **Warning:** When using multiple ´rubrik_aws_custom_tags´ resources managing
+   the same scope, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
    ´rubrik_aws_custom_tags´ resources have been destroyed. The race condition
-   can be avoided by either managing all custom tags using a single
+   can be avoided by either managing all custom tags of a scope using a single
    ´rubrik_aws_custom_tags´ resource or by using the ´depends_on´ field to
    ensure that the resources are destroyed in a serial fashion.
 
-~> **Warning:** The ´override_resource_tags´ field refers to a single global
-   value in RSC. So multiple ´rubrik_aws_custom_tags´ resources with different
-   values for the ´override_resource_tags´ field will result in a perpetual
-   diff.
+~> **Warning:** The ´override_resource_tags´ field refers to a single value
+   per scope in RSC. So multiple ´rubrik_aws_custom_tags´ resources managing
+   the same scope with different values for the ´override_resource_tags´ field
+   will result in a perpetual diff.
 `
 
 const awsCustomTagsID = "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0"
@@ -101,10 +103,23 @@ func (r *awsCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaReq
 		Description: description(resourceAWSCustomTagsDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
-				Computed:    true,
-				Description: "SHA-256 hash of the string \"AWS\".",
+				Computed: true,
+				Description: "RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the " +
+					"SHA-256 hash of the string \"AWS\".",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			keyCloudAccountID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC cloud account ID (UUID) to scope the custom tags to. When omitted, the " +
+					"custom tags are scoped to all cloud accounts of the cloud vendor. Changing this forces " +
+					"a new resource to be created.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			keyCustomTags: schema.MapAttribute{
@@ -167,11 +182,6 @@ func (r *awsCustomTagsResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	createCustomTagsResource(ctx, polarisClient, core.CloudVendorAWS, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(awsCustomTagsID))...)
 }
 
 func (r *awsCustomTagsResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -220,11 +230,6 @@ func (r *awsCustomTagsResource) ImportState(ctx context.Context, req resource.Im
 	}
 
 	importCustomTagsResource(ctx, polarisClient, core.CloudVendorAWS, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(awsCustomTagsID))...)
 }
 
 func (r *awsCustomTagsResource) MoveState(ctx context.Context) []resource.StateMover {

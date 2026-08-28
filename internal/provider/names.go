@@ -231,6 +231,7 @@ const (
 	keyGcp                                          = "gcp"
 	keyGcpCloudCluster                              = "gcp_cloud_cluster"
 	keyGCPCustomLabels                              = "gcp_custom_labels"
+	keyGlobal                                       = "global"
 	keyGroupName                                    = "group_name"
 	keyHash                                         = "hash"
 	keyHierarchy                                    = "hierarchy"

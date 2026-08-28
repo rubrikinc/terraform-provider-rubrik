@@ -34,8 +34,10 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/gcp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
+	gqltags "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/tags"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/tags"
 )
@@ -132,6 +134,36 @@ func awsCnpAccountAttachmentsCheckDestroy(t *testing.T) func(*terraform.State) e
 	}
 }
 
+// gcpProjectCheckDestroy verifies that the GCP projects managed by each
+// gcp_project resource have been removed from RSC.
+func gcpProjectCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_project" && rs.Type != "rubrik_gcp_project" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = gcp.Wrap(polarisClient).ProjectByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("gcp_project %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // azureSubscriptionCheckDestroy verifies that all azure_subscription resources
 // have been deleted.
 func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {
@@ -197,46 +229,41 @@ func customRoleCheckDestroy(t *testing.T) func(*terraform.State) error {
 // removed from RSC.
 //
 // Note, only the custom tags and excluded tags managed by the resources are
-// checked. The custom tags for a cloud vendor is global RSC state shared with
-// other resources and other users, so the vendor's set of custom tags is not
-// expected to be empty.
+// checked. The custom tags of a scope is RSC state shared with other resources
+// and other users, so the scope's set of custom tags is not expected to be
+// empty.
+//
+// Each resource is checked against the scope it is managing, read from the
+// cloud account ID in the resource state.
 func customTagsCheckDestroy(t *testing.T, vendor core.CloudVendor) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
+	conf := newCustomTagsConfig(vendor)
 	return func(s *terraform.State) error {
-		var customTagsKey, excludedTagsKey string
-		var resourceTypes []string
-		switch vendor {
-		case core.CloudVendorAWS:
-			customTagsKey = keyCustomTags
-			excludedTagsKey = keyExcludedTags
-			resourceTypes = []string{"rubrik_aws_custom_tags", "polaris_aws_custom_tags"}
-		case core.CloudVendorAzure:
-			customTagsKey = keyCustomTags
-			excludedTagsKey = keyExcludedTags
-			resourceTypes = []string{"rubrik_azure_custom_tags", "polaris_azure_custom_tags"}
-
-		case core.CloudVendorGCP:
-			customTagsKey = keyCustomLabels
-			excludedTagsKey = keyExcludedLabels
-			resourceTypes = []string{"rubrik_gcp_custom_labels", "polaris_gcp_custom_labels"}
-		default:
-			return fmt.Errorf("unknown vendor: %s", vendor)
-		}
-
-		customerTags, err := tags.Wrap(polarisClient).CustomerTags(t.Context(), vendor)
-		if err != nil {
-			return err
-		}
+		cache := make(map[string]gqltags.CustomerTags)
 
 		for _, rs := range s.RootModule().Resources {
-			if !slices.Contains(resourceTypes, rs.Type) {
+			if !slices.Contains([]string{keyRubrik + "_" + conf.typeName, keyPolaris + "_" + conf.typeName}, rs.Type) {
 				continue
 			}
 
+			cloudAccountID := rs.Primary.Attributes[keyCloudAccountID]
+			customerTags, ok := cache[cloudAccountID]
+			if !ok {
+				var err error
+				customerTags, err = tags.Wrap(polarisClient).CustomerTagsByFilter(t.Context(), gqltags.CustomerTagsFilter{
+					CloudVendor:    vendor,
+					CloudAccountID: cloudAccountID,
+				})
+				if err != nil {
+					return err
+				}
+				cache[cloudAccountID] = customerTags
+			}
+
 			for attr, value := range rs.Primary.Attributes {
-				if tagKey, ok := strings.CutPrefix(attr, customTagsKey+"."); ok && tagKey != "%" {
+				if tagKey, ok := strings.CutPrefix(attr, conf.customTagsKey+"."); ok && tagKey != "%" {
 					if slices.ContainsFunc(customerTags.Tags, func(tag core.Tag) bool {
 						return tag.Key == tagKey
 					}) {
@@ -246,7 +273,7 @@ func customTagsCheckDestroy(t *testing.T, vendor core.CloudVendor) func(*terrafo
 
 				// Excluded tags are stored as a set, where the attribute name
 				// is an index and the attribute value is the excluded tag.
-				if index, ok := strings.CutPrefix(attr, excludedTagsKey+"."); ok && index != "#" {
+				if index, ok := strings.CutPrefix(attr, conf.excludedTagsKey+"."); ok && index != "#" {
 					if slices.Contains(customerTags.ExcludedTags, value) {
 						return fmt.Errorf("excluded tag %q still exists", value)
 					}
