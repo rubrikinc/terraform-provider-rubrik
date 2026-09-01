@@ -137,7 +137,6 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newAzureDevOpsOrganizationResource,
 		newPolarisAzureDevOpsOrganizationResource,
 		newAzureSQLManagedInstanceCredentialsResource,
-		newPolarisAzureSQLManagedInstanceCredentialsResource,
 		newClusterSettingsResource,
 		newCustomRoleResource,
 		newPolarisCustomRoleResource,

@@ -7,11 +7,11 @@ description: |-
   SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
   server.
   RSC connects to the managed instance using the SQL Server credentials in the
-  sql_credentials block and creates the user it uses to perform backups. The
-  credentials are only used for this setup and are not stored by RSC, which is why
-  they are write-only arguments: they are sent to RSC but never written to
-  Terraform state, so they can be sourced from a secret store such as Vault
-  without leaking into state.
+  sql_credentials block and creates the user it uses to perform backups. These
+  administrator credentials are only used for that setup and are not stored by
+  RSC, which is why they are write-only arguments: they are sent to RSC but never
+  written to Terraform state, so they can be sourced from a secret store such as
+  Vault without leaking into state.
   Use the rubrik_object data source with an object type of
   AzureSqlManagedInstanceServer to look up the server_id by name.
   ~> Note: Because the sql_credentials arguments are write-only, changing
@@ -20,10 +20,11 @@ description: |-
   ~> Note: The credentials are validated by the managed instance only once the
   setup job runs, so invalid credentials surface as a failed job rather than as an
   immediate error.
-  ~> Note: Destroying the resource clears the credentials from RSC. If the
-  managed instance server itself no longer exists in RSC, there is nothing left to
-  clear, so the destroy succeeds and the resource is simply removed from the
-  Terraform state.
+  ~> Note: Destroying the resource clears the backup credentials RSC holds for
+  the managed instance, which are the credentials of the user RSC created, not the
+  sql_credentials administrator login. If the managed instance server itself no
+  longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
+  the resource is simply removed from the Terraform state.
 ---
 
 # rubrik_azure_sql_managed_instance_credentials (Resource)
@@ -33,11 +34,11 @@ SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
 server.
 
 RSC connects to the managed instance using the SQL Server credentials in the
-`sql_credentials` block and creates the user it uses to perform backups. The
-credentials are only used for this setup and are not stored by RSC, which is why
-they are write-only arguments: they are sent to RSC but never written to
-Terraform state, so they can be sourced from a secret store such as Vault
-without leaking into state.
+`sql_credentials` block and creates the user it uses to perform backups. These
+administrator credentials are only used for that setup and are not stored by
+RSC, which is why they are write-only arguments: they are sent to RSC but never
+written to Terraform state, so they can be sourced from a secret store such as
+Vault without leaking into state.
 
 Use the `rubrik_object` data source with an object type of
 `AzureSqlManagedInstanceServer` to look up the `server_id` by name.
@@ -50,10 +51,11 @@ Terraform send the credentials again.
 setup job runs, so invalid credentials surface as a failed job rather than as an
 immediate error.
 
-~> **Note:** Destroying the resource clears the credentials from RSC. If the
-managed instance server itself no longer exists in RSC, there is nothing left to
-clear, so the destroy succeeds and the resource is simply removed from the
-Terraform state.
+~> **Note:** Destroying the resource clears the backup credentials RSC holds for
+the managed instance, which are the credentials of the user RSC created, not the
+`sql_credentials` administrator login. If the managed instance server itself no
+longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
+the resource is simply removed from the Terraform state.
 
 ## Example Usage
 
@@ -114,7 +116,7 @@ resource "rubrik_azure_sql_managed_instance_credentials" "example" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `sql_credentials` (Block, Optional) Credentials of a SQL Server user with permission to create the user RSC uses to perform backups. Write-only, change `sql_credential_version` to send them again. (see [below for nested schema](#nestedblock--sql_credentials))
+- `sql_credentials` (Block, Optional) Required. Credentials of a SQL Server user with permission to create the user RSC uses to perform backups. Write-only, change `sql_credential_version` to send them again. Note that Terraform lists the block as optional because the validator enforcing it is not visible to the documentation generator. (see [below for nested schema](#nestedblock--sql_credentials))
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only

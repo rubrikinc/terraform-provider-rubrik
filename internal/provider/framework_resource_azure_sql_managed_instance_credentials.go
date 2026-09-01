@@ -57,11 +57,11 @@ SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
 server.
 
 RSC connects to the managed instance using the SQL Server credentials in the
-´sql_credentials´ block and creates the user it uses to perform backups. The
-credentials are only used for this setup and are not stored by RSC, which is why
-they are write-only arguments: they are sent to RSC but never written to
-Terraform state, so they can be sourced from a secret store such as Vault
-without leaking into state.
+´sql_credentials´ block and creates the user it uses to perform backups. These
+administrator credentials are only used for that setup and are not stored by
+RSC, which is why they are write-only arguments: they are sent to RSC but never
+written to Terraform state, so they can be sourced from a secret store such as
+Vault without leaking into state.
 
 Use the ´rubrik_object´ data source with an object type of
 ´AzureSqlManagedInstanceServer´ to look up the ´server_id´ by name.
@@ -74,10 +74,11 @@ Terraform send the credentials again.
 setup job runs, so invalid credentials surface as a failed job rather than as an
 immediate error.
 
-~> **Note:** Destroying the resource clears the credentials from RSC. If the
-managed instance server itself no longer exists in RSC, there is nothing left to
-clear, so the destroy succeeds and the resource is simply removed from the
-Terraform state.
+~> **Note:** Destroying the resource clears the backup credentials RSC holds for
+the managed instance, which are the credentials of the user RSC created, not the
+´sql_credentials´ administrator login. If the managed instance server itself no
+longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
+the resource is simply removed from the Terraform state.
 `
 
 var (
@@ -87,7 +88,6 @@ var (
 
 type azureSQLManagedInstanceCredentialsResource struct {
 	client *client
-	prefix string
 }
 
 type azureSQLManagedInstanceCredentialsResourceModel struct {
@@ -104,17 +104,13 @@ type sqlCredentialsModel struct {
 }
 
 func newAzureSQLManagedInstanceCredentialsResource() resource.Resource {
-	return &azureSQLManagedInstanceCredentialsResource{prefix: keyRubrik}
-}
-
-func newPolarisAzureSQLManagedInstanceCredentialsResource() resource.Resource {
-	return &azureSQLManagedInstanceCredentialsResource{prefix: keyPolaris}
+	return &azureSQLManagedInstanceCredentialsResource{}
 }
 
 func (r *azureSQLManagedInstanceCredentialsResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "azureSQLManagedInstanceCredentialsResource.Metadata")
 
-	res.TypeName = r.prefix + "_" + keyAzureSQLManagedInstanceCredentials
+	res.TypeName = keyRubrik + "_" + keyAzureSQLManagedInstanceCredentials
 }
 
 func (r *azureSQLManagedInstanceCredentialsResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -153,8 +149,10 @@ func (r *azureSQLManagedInstanceCredentialsResource) Schema(ctx context.Context,
 		},
 		Blocks: map[string]schema.Block{
 			keySQLCredentials: schema.SingleNestedBlock{
-				Description: "Credentials of a SQL Server user with permission to create the user RSC uses to " +
-					"perform backups. Write-only, change `sql_credential_version` to send them again.",
+				Description: "Required. Credentials of a SQL Server user with permission to create the user " +
+					"RSC uses to perform backups. Write-only, change `sql_credential_version` to send them " +
+					"again. Note that Terraform lists the block as optional because the validator enforcing " +
+					"it is not visible to the documentation generator.",
 				Validators: []validator.Object{
 					objectvalidator.IsRequired(),
 				},
@@ -184,10 +182,6 @@ func (r *azureSQLManagedInstanceCredentialsResource) Schema(ctx context.Context,
 			}),
 		},
 	}
-
-	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use the `rubrik_azure_sql_managed_instance_credentials` resource instead."
-	}
 }
 
 func (r *azureSQLManagedInstanceCredentialsResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
@@ -214,8 +208,18 @@ func (r *azureSQLManagedInstanceCredentialsResource) Create(ctx context.Context,
 		return
 	}
 
-	res.Diagnostics.Append(r.setupBackup(ctx, req.Config, plan, timeout)...)
+	diags, credentialsMayExist := r.setupBackup(ctx, req.Config, plan, timeout)
+	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
+		// RSC keeps running the setup job after the provider stops waiting for
+		// it, so a timeout can still end with credentials on the server. Record
+		// the resource anyway, alongside the error, so a later destroy clears
+		// them. Without this the credentials would be left in RSC with nothing
+		// in Terraform tracking them.
+		if credentialsMayExist {
+			plan.ID = plan.ServerID
+			res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
+		}
 		return
 	}
 
@@ -256,7 +260,11 @@ func (r *azureSQLManagedInstanceCredentialsResource) Update(ctx context.Context,
 		return
 	}
 
-	res.Diagnostics.Append(r.setupBackup(ctx, req.Config, plan, timeout)...)
+	// Unlike Create, a failure here cannot leave credentials untracked: the
+	// resource is already in state, so Terraform keeps the previous state and a
+	// destroy still clears the server.
+	diags, _ = r.setupBackup(ctx, req.Config, plan, timeout)
+	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -351,30 +359,37 @@ func sqlManagedInstanceServerExists(ctx context.Context, client *polaris.Client,
 // the backup setup, blocking until the setup job finishes. Write-only arguments
 // are null in the plan and never stored in state, so they must be read from the
 // configuration.
-func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Context, cfg tfsdk.Config, plan azureSQLManagedInstanceCredentialsResourceModel, timeout time.Duration) diag.Diagnostics {
+//
+// The second return value reports whether the setup may have left credentials on
+// the server even though it failed. It is true when the wait was interrupted, by
+// the configured timeout or by cancellation, because RSC keeps running the setup
+// job after the provider stops waiting for it. Every other failure happens
+// before RSC accepts the work, or after it has already reported the job failed,
+// and leaves nothing behind.
+func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Context, cfg tfsdk.Config, plan azureSQLManagedInstanceCredentialsResourceModel, timeout time.Duration) (diag.Diagnostics, bool) {
 	var diags diag.Diagnostics
 
 	var config azureSQLManagedInstanceCredentialsResourceModel
 	diags.Append(cfg.Get(ctx, &config)...)
 	if diags.HasError() {
-		return diags
+		return diags, false
 	}
 
 	if config.SQLCredentials == nil {
 		diags.AddError("Missing SQL credentials", "the sql_credentials block is required")
-		return diags
+		return diags, false
 	}
 
 	serverID, err := uuid.Parse(plan.ServerID.ValueString())
 	if err != nil {
 		diags.AddError("Invalid server ID", err.Error())
-		return diags
+		return diags, false
 	}
 
 	polarisClient, err := r.client.polaris()
 	if err != nil {
 		diags.AddError("RSC client error", err.Error())
-		return diags
+		return diags, false
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -387,8 +402,8 @@ func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Con
 		}, 0)
 	if err != nil {
 		diags.AddError("Failed to set up SQL Managed Instance backup", err.Error())
-		return diags
+		return diags, errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 	}
 
-	return diags
+	return diags, false
 }
