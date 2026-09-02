@@ -23,7 +23,9 @@ package provider
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -33,7 +35,9 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/tags"
 )
 
 // awsAccountCheckDestroy verifies that all aws_account resources have been
@@ -181,6 +185,61 @@ func customRoleCheckDestroy(t *testing.T) func(*terraform.State) error {
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// customTagsCheckDestroy verifies that the custom tags managed by all custom
+// tags resources of the specified cloud vendor have been removed from RSC.
+//
+// Note, only the custom tags managed by the resources are checked. The custom
+// tags for a cloud vendor is global RSC state shared with other resources and
+// other users, so the vendor's set of custom tags is not expected to be empty.
+func customTagsCheckDestroy(t *testing.T, vendor core.CloudVendor) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		var customTagsKey string
+		var resourceTypes []string
+		switch vendor {
+		case core.CloudVendorAWS:
+			customTagsKey = keyCustomTags
+			resourceTypes = []string{"rubrik_aws_custom_tags", "polaris_aws_custom_tags"}
+		case core.CloudVendorAzure:
+			customTagsKey = keyCustomTags
+			resourceTypes = []string{"rubrik_azure_custom_tags", "polaris_azure_custom_tags"}
+
+		case core.CloudVendorGCP:
+			customTagsKey = keyCustomLabels
+			resourceTypes = []string{"rubrik_gcp_custom_labels", "polaris_gcp_custom_labels"}
+		default:
+			return fmt.Errorf("unknown vendor: %s", vendor)
+		}
+
+		customerTags, err := tags.Wrap(polarisClient).CustomerTags(t.Context(), vendor)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range s.RootModule().Resources {
+			if !slices.Contains(resourceTypes, rs.Type) {
+				continue
+			}
+
+			for attr := range rs.Primary.Attributes {
+				tagKey, ok := strings.CutPrefix(attr, customTagsKey+".")
+				if !ok || tagKey == "%" {
+					continue
+				}
+				if slices.ContainsFunc(customerTags.Tags, func(tag core.Tag) bool {
+					return tag.Key == tagKey
+				}) {
+					return fmt.Errorf("custom tag %q still exists", tagKey)
+				}
 			}
 		}
 

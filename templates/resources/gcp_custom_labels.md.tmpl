@@ -15,19 +15,7 @@ description: |-
 {{tffile .ExampleFile}}
 {{end}}
 
-## Schema
-
-### Required
-
-- `custom_labels` (Map of String) Custom labels to add to cloud resources.
-
-### Optional
-
-- `override_resource_labels` (Boolean) Should custom labels overwrite existing labels with the same keys. Default value is `true`.
-
-### Read-Only
-
-- `id` (String) SHA-256 hash of the string "GCP".
+{{ .SchemaMarkdown | trimspace }}
 
 ## Import
 
