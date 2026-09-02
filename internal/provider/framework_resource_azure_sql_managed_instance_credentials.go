@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -336,17 +335,16 @@ func (r *azureSQLManagedInstanceCredentialsResource) Delete(ctx context.Context,
 // sqlManagedInstanceServerExists reports whether the SQL Managed Instance
 // server still exists in the RSC hierarchy.
 //
-// RSC answers a hierarchy lookup of an object which does not exist with a 404,
-// which is reported as the server not existing. Note that RSC returns the same
-// 404 for an object the service account is not authorized to see, so a server
-// which exists but has become invisible to the service account is reported as
-// not existing.
+// A hierarchy lookup of an object which does not exist returns
+// graphql.ErrNotFound, which is reported as the server not existing. Note that
+// RSC does not distinguish an object which is missing from one the service
+// account is not authorized to see, so a server which exists but has become
+// invisible to the service account is reported as not existing.
 func sqlManagedInstanceServerExists(ctx context.Context, client *polaris.Client, serverID uuid.UUID) (bool, error) {
 	_, err := hierarchy.ObjectByIDAndWorkload[hierarchy.Object](ctx, client.GQL, serverID,
 		hierarchy.WorkloadAllSubHierarchyType)
 	if err != nil {
-		var gqlErr graphql.GQLError
-		if errors.As(err, &gqlErr) && gqlErr.Code() == http.StatusNotFound {
+		if errors.Is(err, graphql.ErrNotFound) {
 			return false, nil
 		}
 		return false, err
