@@ -20,6 +20,8 @@ page_title: "Changelog"
   [[docs](../resources/data_security_policy.md)]
 * New data source added for `rubrik_data_security_policy` which looks up a data security policy in RSC by name or by
   policy ID. [[docs](../data-sources/data_security_policy.md)]
+* New resource added for `rubrik_self_serve_rolling_upgrade` which manages the account-wide self-serve rolling upgrade
+  setting in RSC. [[docs](../resources/self_serve_rolling_upgrade.md)]
 * Add support for the `CloudNativeTagRule` object type in the `rubrik_object` data source, resolving a cloud native
   tag rule to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   [[docs](../data-sources/object.md)]
