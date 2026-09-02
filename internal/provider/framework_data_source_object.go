@@ -76,6 +76,10 @@ names, are only unique within their parent. When a name is shared across
 parents, set ´org_id´ (for ´AzureDevOpsProject´ or ´GitHubRepository´)
 or ´org_id´ and/or ´project_id´ (for ´AzureDevOpsRepository´) to
 disambiguate; otherwise the lookup returns a "multiple objects found" error.
+
+-> **Note:** ´auth_type´ is only returned for ´AzureSqlManagedInstanceServer´,
+which is the only object type that has one. It is null for every other object
+type.
 `
 
 var (
@@ -91,6 +95,7 @@ type objectDataSource struct {
 
 type objectModel struct {
 	ID             types.String   `tfsdk:"id"`
+	AuthType       types.String   `tfsdk:"auth_type"`
 	Name           types.String   `tfsdk:"name"`
 	ObjectType     types.String   `tfsdk:"object_type"`
 	SubscriptionID types.String   `tfsdk:"subscription_id"`
@@ -143,6 +148,13 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 			keyID: schema.StringAttribute{
 				Computed:    true,
 				Description: "Object ID (UUID).",
+			},
+			keyAuthType: schema.StringAttribute{
+				Computed: true,
+				Description: "The authentication mechanisms the object supports. Only returned when " +
+					"`object_type` is `AzureSqlManagedInstanceServer`, null for all other object types. " +
+					"One of `SQL_AUTH_ONLY`, `SQL_AUTH_AND_AAD`, `AAD_ONLY` or `AUTH_TYPE_UNSPECIFIED`. " +
+					"RSC spells Microsoft Entra ID by its former name, AAD.",
 			},
 			keyName: schema.StringAttribute{
 				Required:    true,
@@ -306,6 +318,13 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	activeFilters := activeObjectFilters()
 
 	var objects []hierarchy.Object
+
+	// Type-specific detail, only set by the branches of object types which have
+	// one. Safe to keep as a single value rather than pairing it with each
+	// object, because a lookup matching more than one object is rejected below,
+	// so at most one match ever reaches the state.
+	var authType string
+
 	switch objectType {
 	case "AwsNativeAccount":
 		// Container-level type: the API can return multiple entries for the
@@ -582,6 +601,7 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 				continue
 			}
 			objects = append(objects, r.Object)
+			authType = r.AuthType
 		}
 	case "CloudNativeTagRule":
 		results, err := hierarchy.ObjectsByName[hierarchy.CloudNativeTagRule](ctx, api, name, hierarchy.WorkloadAllSubHierarchyType, activeFilters...)
@@ -649,6 +669,15 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	config.ID = types.StringValue(objects[0].ID.String())
+
+	// Left null for the object types which have no authentication type, rather
+	// than written as an empty string, so that a practitioner can tell "not
+	// applicable to this type" apart from "RSC returned nothing".
+	config.AuthType = types.StringNull()
+	if authType != "" {
+		config.AuthType = types.StringValue(authType)
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, config)...)
 }
 

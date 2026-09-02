@@ -28,10 +28,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework-validators/objectvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -52,37 +55,61 @@ const defaultSQLManagedInstanceCredentialsTimeout = 30 * time.Minute
 
 const resourceAzureSQLManagedInstanceCredentialsDescription = `
 The ´rubrik_azure_sql_managed_instance_credentials´ resource configures the
-SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
-server.
+credentials RSC uses to back up an Azure SQL Managed Instance server.
 
-RSC connects to the managed instance using the SQL Server credentials in the
-´sql_credentials´ block and creates the user it uses to perform backups. These
-administrator credentials are only used for that setup and are not stored by
-RSC, which is why they are write-only arguments: they are sent to RSC but never
-written to Terraform state, so they can be sourced from a secret store such as
-Vault without leaking into state.
+There are two ways to create the user RSC backs up as, selected with
+´setup_script_installed´:
+
+* By default, RSC connects to the managed instance using the credentials in the
+  ´sql_credentials´ block and creates the backup user itself. Those credentials
+  are an administrator login, used only for that setup and not stored by RSC.
+* When ´setup_script_installed´ is ´true´, the setup script has already been run
+  against the managed instance and has created the backup user, so RSC only
+  records which credentials to use. The ´sql_credentials´ block is then the
+  backup user's own login, which must match the login and password the setup
+  script was run with.
+
+Whether ´sql_credentials´ is required depends on the authentication mechanisms
+the managed instance supports. The ´rubrik_object´ data source reports them as
+´auth_type´ for an object type of ´AzureSqlManagedInstanceServer´.
+
+| ´auth_type´ | Default | ´setup_script_installed = true´ |
+| --- | --- | --- |
+| ´SQL_AUTH_ONLY´ | Required | Required |
+| ´SQL_AUTH_AND_AAD´ | Required | Must not be set |
+| ´AAD_ONLY´ | Not supported | Must not be set |
+
+Where the table says the block must not be set, RSC authenticates using
+Microsoft Entra ID instead and no credentials are sent at all.
 
 Use the ´rubrik_object´ data source with an object type of
 ´AzureSqlManagedInstanceServer´ to look up the ´server_id´ by name.
+
+~> **Note:** ´auth_type´ is only known once RSC has been queried, so a
+combination which does not match the table above is reported when the resource
+is applied, not when it is planned.
 
 ~> **Note:** Because the ´sql_credentials´ arguments are write-only, changing
 them produces no difference in the plan. Change ´sql_credential_version´ to make
 Terraform send the credentials again.
 
-~> **Note:** The credentials are validated by the managed instance only once the
-setup job runs, so invalid credentials surface as a failed job rather than as an
-immediate error.
+~> **Note:** When RSC creates the backup user, the credentials are validated by
+the managed instance only once the setup job runs, so invalid credentials
+surface as a failed job rather than as an immediate error. Registering
+credentials for an already installed setup script is not a job and returns
+immediately.
 
 ~> **Note:** Destroying the resource clears the backup credentials RSC holds for
-the managed instance, which are the credentials of the user RSC created, not the
-´sql_credentials´ administrator login. If the managed instance server itself no
-longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
-the resource is simply removed from the Terraform state.
+the managed instance, which are the credentials of the backup user, not the
+administrator login RSC may have created it with. If the managed instance server
+itself no longer exists in RSC, there is nothing left to clear, so the destroy
+succeeds and the resource is simply removed from the Terraform state.
 `
 
 var (
-	_ resource.Resource              = &azureSQLManagedInstanceCredentialsResource{}
-	_ resource.ResourceWithConfigure = &azureSQLManagedInstanceCredentialsResource{}
+	_ resource.Resource                     = &azureSQLManagedInstanceCredentialsResource{}
+	_ resource.ResourceWithConfigure        = &azureSQLManagedInstanceCredentialsResource{}
+	_ resource.ResourceWithConfigValidators = &azureSQLManagedInstanceCredentialsResource{}
 )
 
 type azureSQLManagedInstanceCredentialsResource struct {
@@ -90,11 +117,17 @@ type azureSQLManagedInstanceCredentialsResource struct {
 }
 
 type azureSQLManagedInstanceCredentialsResourceModel struct {
-	ID                   types.String         `tfsdk:"id"`
-	ServerID             types.String         `tfsdk:"server_id"`
-	SQLCredentials       *sqlCredentialsModel `tfsdk:"sql_credentials"`
-	SQLCredentialVersion types.String         `tfsdk:"sql_credential_version"`
-	Timeouts             timeouts.Value       `tfsdk:"timeouts"`
+	ID       types.String `tfsdk:"id"`
+	ServerID types.String `tfsdk:"server_id"`
+	// SetupScriptInstalled selects which of the two ways of creating the backup
+	// user RSC should assume has been used.
+	SetupScriptInstalled types.Bool `tfsdk:"setup_script_installed"`
+	// SQLCredentials holds at most one element, enforced by the schema. It is a
+	// slice rather than a pointer because the block is a single-element list
+	// block, see the schema for why.
+	SQLCredentials       []sqlCredentialsModel `tfsdk:"sql_credentials"`
+	SQLCredentialVersion types.String          `tfsdk:"sql_credential_version"`
+	Timeouts             timeouts.Value        `tfsdk:"timeouts"`
 }
 
 type sqlCredentialsModel struct {
@@ -136,41 +169,61 @@ func (r *azureSQLManagedInstanceCredentialsResource) Schema(ctx context.Context,
 					isUUID(),
 				},
 			},
+			keySetupScriptInstalled: schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Whether the setup script has already been run against the managed instance. When " +
+					"`false`, the default, RSC connects to the managed instance using `sql_credentials` and " +
+					"creates the backup user itself. When `true`, the script has already created the backup " +
+					"user and RSC only records which credentials to use.",
+			},
 			keySQLCredentialVersion: schema.StringAttribute{
-				Required: true,
+				Optional: true,
 				Description: "Arbitrary value identifying the version of the credentials. Change it to make " +
 					"Terraform send the `sql_credentials` block again, e.g. after rotating the password. " +
-					"Write-only arguments produce no difference in the plan on their own.",
+					"Write-only arguments produce no difference in the plan on their own. Required when " +
+					"`sql_credentials` is set and must not be set otherwise.",
 				Validators: []validator.String{
 					isNotWhiteSpace(),
 				},
 			},
 		},
 		Blocks: map[string]schema.Block{
-			keySQLCredentials: schema.SingleNestedBlock{
-				Description: "Required. Credentials of a SQL Server user with permission to create the user " +
-					"RSC uses to perform backups. Write-only, change `sql_credential_version` to send them " +
-					"again. Note that Terraform lists the block as optional because the validator enforcing " +
-					"it is not visible to the documentation generator.",
-				Validators: []validator.Object{
-					objectvalidator.IsRequired(),
+			// A single-element list block rather than a SingleNestedBlock. The
+			// two are written identically in a configuration, but a
+			// SingleNestedBlock cannot be left out when its attributes are
+			// required: the framework still demands a value for each of them
+			// and rejects the configuration, which would make the cases where
+			// no credentials are sent impossible to express.
+			keySQLCredentials: schema.ListNestedBlock{
+				Description: "SQL Server credentials. When `setup_script_installed` is `false`, these are the " +
+					"credentials of a user with permission to create the user RSC uses to perform backups. " +
+					"When it is `true`, these are the credentials of the backup user the setup script created. " +
+					"Whether the block is required depends on the authentication mechanisms the managed " +
+					"instance supports, see the resource description. May be specified at most once. " +
+					"Write-only, change `sql_credential_version` to send them again.",
+				Validators: []validator.List{
+					listvalidator.SizeAtMost(1),
 				},
-				Attributes: map[string]schema.Attribute{
-					keySQLUsername: schema.StringAttribute{
-						Required:    true,
-						WriteOnly:   true,
-						Description: "SQL Server login.",
-						Validators: []validator.String{
-							isNotWhiteSpace(),
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						keySQLUsername: schema.StringAttribute{
+							Required:    true,
+							WriteOnly:   true,
+							Description: "SQL Server login.",
+							Validators: []validator.String{
+								isNotWhiteSpace(),
+							},
 						},
-					},
-					keySQLPassword: schema.StringAttribute{
-						Required:    true,
-						Sensitive:   true,
-						WriteOnly:   true,
-						Description: "Password for `sql_username`.",
-						Validators: []validator.String{
-							isNotWhiteSpace(),
+						keySQLPassword: schema.StringAttribute{
+							Required:    true,
+							Sensitive:   true,
+							WriteOnly:   true,
+							Description: "Password for `sql_username`.",
+							Validators: []validator.String{
+								isNotWhiteSpace(),
+							},
 						},
 					},
 				},
@@ -181,6 +234,67 @@ func (r *azureSQLManagedInstanceCredentialsResource) Schema(ctx context.Context,
 			}),
 		},
 	}
+}
+
+func (r *azureSQLManagedInstanceCredentialsResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	tflog.Trace(ctx, "azureSQLManagedInstanceCredentialsResource.ConfigValidators")
+
+	return []resource.ConfigValidator{
+		// The version is a nonce which exists only to make Terraform send the
+		// write-only credentials again, so neither is meaningful alone.
+		resourcevalidator.RequiredTogether(
+			path.MatchRoot(keySQLCredentials),
+			path.MatchRoot(keySQLCredentialVersion),
+		),
+		sqlCredentialsRequiredValidator{},
+	}
+}
+
+// sqlCredentialsRequiredValidator enforces that the sql_credentials block is set
+// when RSC is the one creating the backup user, which it cannot do without an
+// administrator login to connect as.
+//
+// The remaining combinations depend on the authentication mechanisms the managed
+// instance supports, which is only known once RSC has been queried, so they are
+// checked when the resource is applied instead.
+type sqlCredentialsRequiredValidator struct{}
+
+func (v sqlCredentialsRequiredValidator) Description(_ context.Context) string {
+	return "the sql_credentials block is required unless setup_script_installed is true"
+}
+
+func (v sqlCredentialsRequiredValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v sqlCredentialsRequiredValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, res *resource.ValidateConfigResponse) {
+	var config azureSQLManagedInstanceCredentialsResourceModel
+	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	res.Diagnostics.Append(validateSQLCredentialsRequired(config)...)
+}
+
+// validateSQLCredentialsRequired holds the plan-time, client-free validation
+// rule for the resource so it can be unit-tested in isolation.
+func validateSQLCredentialsRequired(config azureSQLManagedInstanceCredentialsResourceModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// An unknown value comes from another resource and is not resolved until
+	// the configuration is applied, so there is nothing to check yet. The apply
+	// still rejects the combination.
+	if config.SetupScriptInstalled.IsUnknown() || config.SetupScriptInstalled.ValueBool() {
+		return diags
+	}
+	if len(config.SQLCredentials) == 0 {
+		diags.AddError("Missing SQL credentials", "the sql_credentials block is required unless "+
+			"setup_script_installed is true, because RSC needs an administrator login to connect to the "+
+			"managed instance and create the backup user")
+	}
+
+	return diags
 }
 
 func (r *azureSQLManagedInstanceCredentialsResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
@@ -242,8 +356,8 @@ func (r *azureSQLManagedInstanceCredentialsResource) Read(ctx context.Context, r
 }
 
 // Update re-runs the backup setup. Since server_id requires replacement, the
-// only change which can reach this point is a new credentials_version, with or
-// without new credentials.
+// changes which can reach this point are a new sql_credential_version, with or
+// without new credentials, and a change of setup_script_installed.
 func (r *azureSQLManagedInstanceCredentialsResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
 	tflog.Trace(ctx, "azureSQLManagedInstanceCredentialsResource.Update")
 
@@ -312,7 +426,7 @@ func (r *azureSQLManagedInstanceCredentialsResource) Delete(ctx context.Context,
 	// identical whether the server is gone or the service account genuinely
 	// lacks the permission. Look the server up in the hierarchy instead, and
 	// only ignore the failure once the server is confirmed gone.
-	exists, existsErr := sqlManagedInstanceServerExists(ctx, polarisClient, serverID)
+	_, exists, existsErr := sqlManagedInstanceServer(ctx, polarisClient, serverID)
 	switch {
 	case existsErr != nil:
 		// Whether the server still exists could not be established, so assume
@@ -332,31 +446,32 @@ func (r *azureSQLManagedInstanceCredentialsResource) Delete(ctx context.Context,
 	}
 }
 
-// sqlManagedInstanceServerExists reports whether the SQL Managed Instance
-// server still exists in the RSC hierarchy.
+// sqlManagedInstanceServer looks up a SQL Managed Instance server in the RSC
+// hierarchy. The second return value reports whether the server exists, and the
+// server is only valid when it does.
 //
 // A hierarchy lookup of an object which does not exist returns
 // graphql.ErrNotFound, which is reported as the server not existing. Note that
 // RSC does not distinguish an object which is missing from one the service
 // account is not authorized to see, so a server which exists but has become
 // invisible to the service account is reported as not existing.
-func sqlManagedInstanceServerExists(ctx context.Context, client *polaris.Client, serverID uuid.UUID) (bool, error) {
-	_, err := hierarchy.ObjectByIDAndWorkload[hierarchy.Object](ctx, client.GQL, serverID,
-		hierarchy.WorkloadAllSubHierarchyType)
+func sqlManagedInstanceServer(ctx context.Context, client *polaris.Client, serverID uuid.UUID) (hierarchy.AzureSQLManagedInstanceServer, bool, error) {
+	server, err := hierarchy.ObjectByIDAndWorkload[hierarchy.AzureSQLManagedInstanceServer](ctx, client.GQL,
+		serverID, hierarchy.WorkloadAllSubHierarchyType)
 	if err != nil {
 		if errors.Is(err, graphql.ErrNotFound) {
-			return false, nil
+			return hierarchy.AzureSQLManagedInstanceServer{}, false, nil
 		}
-		return false, err
+		return hierarchy.AzureSQLManagedInstanceServer{}, false, err
 	}
 
-	return true, nil
+	return server, true, nil
 }
 
-// setupBackup reads the write-only credentials from the configuration and runs
-// the backup setup, blocking until the setup job finishes. Write-only arguments
-// are null in the plan and never stored in state, so they must be read from the
-// configuration.
+// setupBackup reads the write-only credentials from the configuration and
+// configures the backup credentials RSC uses for the managed instance.
+// Write-only arguments are null in the plan and never stored in state, so they
+// must be read from the configuration.
 //
 // The second return value reports whether the setup may have left credentials on
 // the server even though it failed. It is true when the wait was interrupted, by
@@ -370,11 +485,6 @@ func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Con
 	var config azureSQLManagedInstanceCredentialsResourceModel
 	diags.Append(cfg.Get(ctx, &config)...)
 	if diags.HasError() {
-		return diags, false
-	}
-
-	if config.SQLCredentials == nil {
-		diags.AddError("Missing SQL credentials", "the sql_credentials block is required")
 		return diags, false
 	}
 
@@ -393,15 +503,114 @@ func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Con
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	err = azure.Wrap(polarisClient).SetupSQLManagedInstanceBackup(ctx, []uuid.UUID{serverID},
-		gqlazure.LoginCredentials{
-			Login:    config.SQLCredentials.SQLUsername.ValueString(),
-			Password: secret.String(config.SQLCredentials.SQLPassword.ValueString()),
-		}, 0)
-	if err != nil {
+	// The authentication mechanisms the managed instance supports decide which
+	// credentials RSC accepts for it, and are only known once the server has
+	// been looked up. The lookup doubles as a check that the server exists,
+	// turning a stale server_id into a clear error rather than a failed job.
+	server, exists, err := sqlManagedInstanceServer(ctx, polarisClient, serverID)
+	switch {
+	case err != nil:
+		diags.AddError("Failed to look up SQL Managed Instance server", err.Error())
+		return diags, false
+	case !exists:
+		diags.AddError("SQL Managed Instance server not found", fmt.Sprintf("no SQL Managed Instance server "+
+			"with ID %s exists in RSC, or the service account is not authorized to see it", serverID))
+		return diags, false
+	}
+	authType := gqlazure.AzureSQLAuthenticationType(server.AuthType)
+
+	var credentials *gqlazure.LoginCredentials
+	if len(config.SQLCredentials) > 0 {
+		credentials = &gqlazure.LoginCredentials{
+			Login:    config.SQLCredentials[0].SQLUsername.ValueString(),
+			Password: secret.String(config.SQLCredentials[0].SQLPassword.ValueString()),
+		}
+	}
+
+	if !plan.SetupScriptInstalled.ValueBool() {
+		return r.createBackupUser(ctx, polarisClient, serverID, authType, credentials)
+	}
+
+	return r.registerBackupCredentials(ctx, polarisClient, serverID, authType, credentials), false
+}
+
+// createBackupUser has RSC connect to the managed instance as the given
+// administrator login and create the user it backs up as. The task chain
+// started for the server is waited for, so this blocks until the setup either
+// finishes or the context deadline passes.
+func (r *azureSQLManagedInstanceCredentialsResource) createBackupUser(ctx context.Context, client *polaris.Client, serverID uuid.UUID, authType gqlazure.AzureSQLAuthenticationType, credentials *gqlazure.LoginCredentials) (diag.Diagnostics, bool) {
+	var diags diag.Diagnostics
+
+	switch authType {
+	case gqlazure.AzureSQLAuthTypeSQLOnly, gqlazure.AzureSQLAuthTypeSQLAndEntraID:
+	case gqlazure.AzureSQLAuthTypeEntraIDOnly:
+		diags.AddError("SQL Server authentication not supported", fmt.Sprintf("SQL Managed Instance server "+
+			"%s only supports Microsoft Entra ID authentication, so RSC cannot connect to it with a SQL "+
+			"Server login to create the backup user. Run the setup script against the managed instance "+
+			"and set setup_script_installed to true instead", serverID))
+		return diags, false
+	default:
+		diags.AddError("Unknown authentication type", fmt.Sprintf("RSC reports the authentication type of "+
+			"SQL Managed Instance server %s as %q, which this provider does not recognize", serverID,
+			authType))
+		return diags, false
+	}
+
+	// Guarded by sqlCredentialsRequiredValidator, except when
+	// setup_script_installed is only known at apply time.
+	if credentials == nil {
+		diags.AddError("Missing SQL credentials", "the sql_credentials block is required unless "+
+			"setup_script_installed is true")
+		return diags, false
+	}
+
+	if err := azure.Wrap(client).SetupSQLManagedInstanceBackup(ctx, []uuid.UUID{serverID}, *credentials, 0); err != nil {
 		diags.AddError("Failed to set up SQL Managed Instance backup", err.Error())
 		return diags, errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 	}
 
 	return diags, false
+}
+
+// registerBackupCredentials records which credentials RSC should use for a
+// managed instance whose backup user the setup script has already created.
+//
+// Whether credentials are needed is decided by the managed instance rather than
+// by the practitioner: a server which only supports SQL Server authentication
+// needs the backup user's login, and one which supports Microsoft Entra ID uses
+// that instead and takes no credentials at all. Unlike the setup this is
+// synchronous, so there is no task chain to wait for.
+func (r *azureSQLManagedInstanceCredentialsResource) registerBackupCredentials(ctx context.Context, client *polaris.Client, serverID uuid.UUID, authType gqlazure.AzureSQLAuthenticationType, credentials *gqlazure.LoginCredentials) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	var err error
+	switch authType {
+	case gqlazure.AzureSQLAuthTypeSQLOnly:
+		if credentials == nil {
+			diags.AddError("Missing SQL credentials", fmt.Sprintf("SQL Managed Instance server %s only "+
+				"supports SQL Server authentication, so the sql_credentials block is required. It must "+
+				"hold the login and password the setup script was run with", serverID))
+			return diags
+		}
+		err = azure.Wrap(client).AddSQLManagedInstanceBackupCredentials(ctx, []uuid.UUID{serverID}, *credentials)
+	case gqlazure.AzureSQLAuthTypeSQLAndEntraID, gqlazure.AzureSQLAuthTypeEntraIDOnly:
+		if credentials != nil {
+			diags.AddError("Unexpected SQL credentials", fmt.Sprintf("SQL Managed Instance server %s "+
+				"supports Microsoft Entra ID authentication, so RSC returns an Entra ID setup script "+
+				"for it and that script creates no SQL Server login to authenticate as. Remove the "+
+				"sql_credentials block along with sql_credential_version", serverID))
+			return diags
+		}
+		err = azure.Wrap(client).AddSQLManagedInstanceBackupCredentialsUsingEntraID(ctx, []uuid.UUID{serverID})
+	default:
+		diags.AddError("Unknown authentication type", fmt.Sprintf("RSC reports the authentication type of "+
+			"SQL Managed Instance server %s as %q, which this provider does not recognize", serverID,
+			authType))
+		return diags
+	}
+	if err != nil {
+		diags.AddError("Failed to add SQL Managed Instance backup credentials", err.Error())
+	}
+
+	return diags
 }

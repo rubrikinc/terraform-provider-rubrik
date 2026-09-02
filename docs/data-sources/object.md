@@ -18,6 +18,9 @@ description: |-
   parents, set org_id (for AzureDevOpsProject or GitHubRepository)
   or org_id and/or project_id (for AzureDevOpsRepository) to
   disambiguate; otherwise the lookup returns a "multiple objects found" error.
+  -> Note: auth_type is only returned for AzureSqlManagedInstanceServer,
+  which is the only object type that has one. It is null for every other object
+  type.
 ---
 
 # rubrik_object (Data Source)
@@ -54,6 +57,10 @@ names, are only unique within their parent. When a name is shared across
 parents, set `org_id` (for `AzureDevOpsProject` or `GitHubRepository`)
 or `org_id` and/or `project_id` (for `AzureDevOpsRepository`) to
 disambiguate; otherwise the lookup returns a "multiple objects found" error.
+
+-> **Note:** `auth_type` is only returned for `AzureSqlManagedInstanceServer`,
+which is the only object type that has one. It is null for every other object
+type.
 
 ## Example Usage
 
@@ -98,6 +105,7 @@ data "rubrik_object" "project" {
 
 ### Read-Only
 
+- `auth_type` (String) The authentication mechanisms the object supports. Only returned when `object_type` is `AzureSqlManagedInstanceServer`, null for all other object types. One of `SQL_AUTH_ONLY`, `SQL_AUTH_AND_AAD`, `AAD_ONLY` or `AUTH_TYPE_UNSPECIFIED`. RSC spells Microsoft Entra ID by its former name, AAD.
 - `id` (String) Object ID (UUID).
 
 <a id="nestedatt--timeouts"></a>

@@ -1,10 +1,16 @@
-# Configures the SQL Server credentials RSC uses to back up an Azure SQL
-# Managed Instance server.
+# Configures the credentials RSC uses to back up an Azure SQL Managed Instance
+# server.
 #
-# RSC connects to the managed instance using the credentials in the
-# sql_credentials block and creates the user it uses to perform backups. The
-# credentials are write-only: they are sent to RSC but never written to
-# Terraform state, so they can come straight from a secret store.
+# There are two ways to create the user RSC backs up as, selected with
+# setup_script_installed. By default RSC connects to the managed instance using
+# the credentials in the sql_credentials block and creates the backup user
+# itself. With setup_script_installed set to true, the setup script has already
+# been run against the managed instance and created that user, so RSC only
+# records which credentials to use.
+#
+# Whether sql_credentials is required depends on the authentication mechanisms
+# the managed instance supports, reported as auth_type by the rubrik_object
+# data source. The three examples below cover each case.
 
 # Look up the managed instance server by name to get its RSC object ID.
 data "rubrik_object" "sql_mi" {
@@ -25,7 +31,10 @@ variable "sql_password" {
   sensitive = true
 }
 
-resource "rubrik_azure_sql_managed_instance_credentials" "example" {
+# RSC creates the backup user. The credentials are an administrator login with
+# permission to do so, used only for the setup and not stored by RSC. Works for
+# a managed instance whose auth_type is SQL_AUTH_ONLY or SQL_AUTH_AND_AAD.
+resource "rubrik_azure_sql_managed_instance_credentials" "rsc_creates_user" {
   server_id = data.rubrik_object.sql_mi.id
 
   # Write-only, so these never reach Terraform state and can be sourced from a
@@ -39,4 +48,28 @@ resource "rubrik_azure_sql_managed_instance_credentials" "example" {
   # produces no difference in the plan. Change sql_credential_version to send
   # them again, for example after rotating the password.
   sql_credential_version = "1"
+}
+
+# The setup script has already been run against a managed instance whose
+# auth_type is SQL_AUTH_ONLY. The credentials are the backup user's own login
+# and must match the login and password the script was run with.
+resource "rubrik_azure_sql_managed_instance_credentials" "script_sql_auth" {
+  server_id              = data.rubrik_object.sql_mi.id
+  setup_script_installed = true
+
+  sql_credentials {
+    sql_username = var.sql_username
+    sql_password = var.sql_password
+  }
+
+  sql_credential_version = "1"
+}
+
+# The setup script has already been run against a managed instance which
+# supports Microsoft Entra ID, so auth_type is SQL_AUTH_AND_AAD or AAD_ONLY.
+# RSC authenticates using Entra ID, so no credentials are sent at all and the
+# sql_credentials block must be left out.
+resource "rubrik_azure_sql_managed_instance_credentials" "script_entra_id" {
+  server_id              = data.rubrik_object.sql_mi.id
+  setup_script_installed = true
 }
