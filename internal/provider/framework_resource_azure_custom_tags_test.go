@@ -21,8 +21,10 @@
 package provider
 
 import (
+	"regexp"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -38,11 +40,15 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 	tagKey2 := testUniqueTagKey(t)
 	tagKey3 := testUniqueTagKey(t)
 
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorAzure),
 		Steps: []resource.TestStep{{
-			// Verify that the resource can be created.
+			// Verify that the resource can be created without excluded tags.
 			Config: `
 				variable "key1" {
 					type = string
@@ -50,7 +56,6 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
-
 				resource "rubrik_azure_custom_tags" "tags" {
 					custom_tags = {
 						(var.key1) = "value1"
@@ -65,19 +70,21 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyID),
 					knownvalue.StringExact(azureCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCloudAccountID),
+					knownvalue.Null()),
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("value1"),
 						tagKey2: knownvalue.StringExact("value2"),
 					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.Null()),
 				// The override_resource_tags field defaults to true.
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(true)),
 			},
 		}, {
-			// Verify that the resource can be updated. One tag is added, one
-			// is removed, one has its value changed and the override field is
-			// explicitly turned off.
+			// Verify that the resource can be created to include excluded tags.
 			Config: `
 				variable "key1" {
 					type = string
@@ -85,25 +92,94 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_azure_custom_tags" "tags" {
+					custom_tags = {
+						(var.key1) = "value1"
+						(var.key2) = "value2"
+					}
 
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(azureCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCloudAccountID),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey1: knownvalue.StringExact("value1"),
+						tagKey2: knownvalue.StringExact("value2"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				// The override_resource_tags field defaults to true.
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated by changing its values.
+			Config: `
+				variable "key1" {
+					type = string
+				}
+				variable "key2" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 				resource "rubrik_azure_custom_tags" "tags" {
 					custom_tags = {
 						(var.key1) = "updated1"
 						(var.key2) = "value3"
 					}
 
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+
 					override_resource_tags = false
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("updated1"),
 						tagKey3: knownvalue.StringExact("value3"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
 					})),
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(false)),
@@ -119,19 +195,36 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
-
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 				resource "rubrik_azure_custom_tags" "tags" {
 					custom_tags = {
 						(var.key1) = "updated1"
 						(var.key2) = "value3"
 					}
+
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
 				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(true)),
 			},
@@ -141,12 +234,14 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 			// so the test will fail if there are existing tags.
 			ResourceName:      "rubrik_azure_custom_tags.tags",
 			ImportStateKind:   resource.ImportCommandWithID,
-			ImportStateId:     "dummy",
+			ImportStateId:     keyGlobal,
 			ImportState:       true,
 			ImportStateVerify: true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 		}, {
 			// import {} block with id attribute. Note, the import will take
@@ -155,12 +250,382 @@ func TestAccAzureCustomTagsResource(t *testing.T) {
 			// existing tags.
 			ResourceName:    "rubrik_azure_custom_tags.tags",
 			ImportStateKind: resource.ImportBlockWithID,
-			ImportStateId:   "dummy",
+			ImportStateId:   keyGlobal,
 			ImportState:     true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
+		}, {
+			// An import ID which is neither a cloud account ID nor global is
+			// rejected, so that a malformed cloud account ID does not silently
+			// import the global scope.
+			ResourceName:    "rubrik_azure_custom_tags.tags",
+			ImportStateKind: resource.ImportCommandWithID,
+			ImportStateId:   "not-a-cloud-account-id",
+			ImportState:     true,
+			ConfigVariables: config.Variables{
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
+			},
+			ExpectError: regexp.MustCompile(`is not a valid import ID`),
+		}},
+	})
+}
+
+// TestAccAzureCustomTagsResource_ExcludedTagsOnly verifies that a resource can
+// manage excluded tags without any custom tags.
+func TestAccAzureCustomTagsResource_ExcludedTagsOnly(t *testing.T) {
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorAzure),
+		Steps: []resource.TestStep{{
+			// Verify that the resource can be created with only excluded tags.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_azure_custom_tags" "tags" {
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(azureCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCloudAccountID),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated. One excluded tag is
+			// added and one is removed, still without any custom tags.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_azure_custom_tags" "tags" {
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
+			},
+		}},
+	})
+}
+
+// TestAccAzureCustomTagsResource_CloudAccountScoped verifies that custom tags
+// and excluded tags can be scoped to a single cloud account, and that the
+// scoped and the global configurations are independent of each other.
+func TestAccAzureCustomTagsResource_CloudAccountScoped(t *testing.T) {
+	tagKey := testUniqueTagKey(t)
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			azureSubscriptionCheckDestroy(t),
+			customTagsCheckDestroy(t, core.CloudVendorAzure),
+		),
+		Steps: []resource.TestStep{{
+			// Verify that a scoped resource can be created alongside a global
+			// resource sharing the same tag key.
+			Config: `
+				variable "azure_credentials" {
+					type = string
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "key" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+
+				resource "rubrik_azure_service_principal" "principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_protection {
+						permission_groups     = ["BASIC"]
+						regions               = ["eastus2"]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.principal]
+				}
+
+				resource "rubrik_azure_custom_tags" "global" {
+					custom_tags = {
+						(var.key) = "global"
+					}
+
+					excluded_tags = [var.exKey1]
+				}
+
+				resource "rubrik_azure_custom_tags" "account" {
+					cloud_account_id = rubrik_azure_subscription.subscription.id
+
+					custom_tags = {
+						(var.key) = "account"
+					}
+
+					excluded_tags = [var.exKey2]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+				"key":                   config.StringVariable(tagKey),
+				"exKey1":                config.StringVariable(exKey1),
+				"exKey2":                config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				// The global resource.
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.global", tfjsonpath.New(keyID),
+					knownvalue.StringExact(azureCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.global", tfjsonpath.New(keyCustomTags),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey: knownvalue.StringExact("global"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.global", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+					})),
+
+				// The scoped resource.
+				statecheck.CompareValuePairs(
+					"rubrik_azure_custom_tags.account", tfjsonpath.New(keyID),
+					"rubrik_azure_custom_tags.account", tfjsonpath.New(keyCloudAccountID),
+					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.account", tfjsonpath.New(keyCloudAccountID),
+					NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.account", tfjsonpath.New(keyCustomTags),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey: knownvalue.StringExact("account"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.account", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey2),
+					})),
+			},
+		}, {
+			// Destroying the global resource must leave the scoped
+			// configuration untouched.
+			Config: `
+				variable "azure_credentials" {
+					type = string
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "key" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+
+				resource "rubrik_azure_service_principal" "principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_protection {
+						permission_groups     = ["BASIC"]
+						regions               = ["eastus2"]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.principal]
+				}
+
+				resource "rubrik_azure_custom_tags" "account" {
+					cloud_account_id = rubrik_azure_subscription.subscription.id
+
+					custom_tags = {
+						(var.key) = "account"
+					}
+
+					excluded_tags = [var.exKey2]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+				"key":                   config.StringVariable(tagKey),
+				"exKey1":                config.StringVariable(exKey1),
+				"exKey2":                config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.account", tfjsonpath.New(keyCustomTags),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey: knownvalue.StringExact("account"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_azure_custom_tags.account", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey2),
+					})),
+			},
+		}, {
+			// Terraform import of the scoped resource, using the cloud account
+			// ID as the import ID.
+			ResourceName:      "rubrik_azure_custom_tags.account",
+			ImportStateKind:   resource.ImportCommandWithID,
+			ImportStateIdFunc: customTagsImportID("rubrik_azure_custom_tags.account"),
+			ImportState:       true,
+			ImportStateVerify: true,
+			ConfigVariables: config.Variables{
+				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":     config.StringVariable(testAzureSubscriptionName(t)),
+				"resource_group_name":   config.StringVariable(testAzureResourceGroupName(t)),
+				"resource_group_region": config.StringVariable(testAzureResourceGroupRegion(t)),
+				"key":                   config.StringVariable(tagKey),
+				"exKey1":                config.StringVariable(exKey1),
+				"exKey2":                config.StringVariable(exKey2),
+			},
+		}},
+	})
+}
+
+// TestAccAzureCustomTagsResource_InvalidConfigs verifies that the custom_tags and
+// excluded_tags fields reject an explicitly empty collection, and that at least
+// one of them must be specified. Terraform distinguishes an unset field from an
+// empty one, and only the unset form is meaningful for these fields.
+func TestAccAzureCustomTagsResource_InvalidConfigs(t *testing.T) {
+	tagKey := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				resource "rubrik_azure_custom_tags" "tags" {
+					custom_tags = {}
+				}
+			`,
+			ExpectError: regexp.MustCompile(`custom_tags map must contain at least 1 elements`),
+		}, {
+			Config: `
+				variable "key" {
+					type = string
+				}
+
+				resource "rubrik_azure_custom_tags" "tags" {
+					custom_tags = {
+						(var.key) = "value"
+					}
+
+					excluded_tags = []
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key": config.StringVariable(tagKey),
+			},
+			ExpectError: regexp.MustCompile(`excluded_tags set must contain at least 1 elements`),
+		}, {
+			Config: `
+				resource "rubrik_azure_custom_tags" "tags" {
+				}
+			`,
+			ExpectError: regexp.MustCompile(`At least one of these attributes must be configured:\s+\[custom_tags,excluded_tags\]`),
 		}},
 	})
 }

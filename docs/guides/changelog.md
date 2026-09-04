@@ -4,15 +4,24 @@ page_title: "Changelog"
 
 # Changelog
 
-## v1.9.2
+## v1.10.0
 * **Breaking Change:** The `timeouts` block in the `rubrik_object` data source is now a nested attribute, so a custom
   read timeout is written as `timeouts = { read = "10m" }` instead of `timeouts { read = "10m" }`. This is a result of
-  migrating the data source to the Terraform Plugin Framework. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
+  migrating the data source to the Terraform Plugin Framework. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
   [[docs](../data-sources/object.md)]
 * **Breaking Change:** The `rubrik_object` data source now rejects the `subscription_id`, `org_id` and `project_id`
   fields at plan time when they are set for an `object_type` they do not apply to. Previously these fields were
-  silently ignored for other object types. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
+  silently ignored for other object types. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
   [[docs](../data-sources/object.md)]
+* **Breaking Change:** The import ID of the `rubrik_aws_custom_tags`, `rubrik_azure_custom_tags` and
+  `rubrik_gcp_custom_labels` resources now identifies the scope to import, instead of being ignored. Pass the cloud
+  account ID to import a resource scoped to a single cloud account, or `global` for the scope covering all cloud
+  accounts of the cloud vendor. Any other import ID, including the dummy ID previously documented, is rejected. See
+  the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
+* **Deprecated:** `cluster_security_group_id` and `node_security_group_id` in the `rubrik_aws_exocompute`
+  resource. RSC now always creates and manages the Exocompute security groups for RSC managed configurations.
+  Existing configurations continue to work, but the fields will be removed in a future release. See the
+  [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md). [[docs](../resources/aws_exocompute.md)]
 * New `rubrik_data_security_policy` resource added which creates and manages data security policies in RSC. A
   policy matches on object conditions, in the `object_filter` block, and identity conditions, in the
   `identity_filter` block, with an optional `threshold_filter` block deciding how many matches raise a violation.
@@ -70,13 +79,26 @@ page_title: "Changelog"
 * The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
   one. Previously the block was sent as an AWS S3 configuration for any object type, where RSC ignored it.
   [[docs](../resources/sla_domain.md)]
+* Add support for excluding tags from snapshots in the `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags`
+  resources, and labels in the `rubrik_gcp_custom_labels` resource, through the new `excluded_tags` and
+  `excluded_labels` fields. A pattern is either an exact key or a prefix wildcard, such as `temp-*`. As with custom
+  tags, a resource only manages the patterns listed in its own configuration and leaves any other patterns in RSC
+  untouched. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
+* The `custom_tags` field in the `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags` resources, and the
+  `custom_labels` field in the `rubrik_gcp_custom_labels` resource, are now optional, allowing a resource to manage
+  only excluded tags. When specified, the fields must contain at least one tag or label, as must the `excluded_tags`
+  and `excluded_labels` fields. At least one of the two fields must be specified.
+* Add support for scoping custom tags and excluded tags to a single cloud account in the `rubrik_aws_custom_tags`,
+  `rubrik_azure_custom_tags` and `rubrik_gcp_custom_labels` resources, through the new `cloud_account_id` field. When
+  omitted, the tags and labels apply to all cloud accounts of the cloud vendor, as before. RSC keeps the two scopes as
+  independent configurations. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
 * Migrate the `rubrik_aws_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_azure_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_gcp_custom_labels` resource to the Terraform Plugin Framework.
 * Add `moved {}` block support to the `rubrik_aws_custom_tags`, `rubrik_azure_custom_tags` and
   `rubrik_gcp_custom_labels` resources. This enables in-place migration from the deprecated `polaris` prefixed
   resource types to the `rubrik` prefixed resource types via a Terraform `moved {}` block, without removing the
-  resources from state and re-importing them. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md) for migration
+  resources from state and re-importing them. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md) for migration
   instructions.
 
 ## v1.9.1

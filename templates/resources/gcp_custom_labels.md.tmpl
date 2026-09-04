@@ -19,8 +19,10 @@ description: |-
 
 ## Import
 
-To import the resource, you need to provide a dummy ID to the import command. This is because the resource manages an
-RSC account-level configuration that don't have a unique identifier.
+To import a resource scoped to a single cloud account, provide the cloud account ID to the import command. To import
+a resource scoped to all cloud accounts of the cloud vendor, provide `global`. The latter scope manages an RSC
+account-level configuration that don't have a unique identifier. Any other import ID is rejected, so that a malformed
+cloud account ID fails the import instead of silently taking ownership of the wrong scope.
 
 Import is supported using the following syntax:
 

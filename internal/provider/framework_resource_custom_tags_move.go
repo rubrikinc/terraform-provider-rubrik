@@ -22,7 +22,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -38,40 +37,7 @@ import (
 // rubrikinc/polaris provider to the rubrik_aws_custom_tags,
 // rubrik_azure_custom_tags and rubrik_gcp_custom_labels resources.
 func moveCustomTagsResourceV0(vendor core.CloudVendor) resource.StateMover {
-	type resourceConfig struct {
-		customTagsKey   string
-		overrideTagsKey string
-		typeName        string
-	}
-
-	var conf resourceConfig
-	switch vendor {
-	case core.CloudVendorAWS:
-		conf = resourceConfig{
-			customTagsKey:   keyCustomTags,
-			overrideTagsKey: keyOverrideResourceTags,
-			typeName:        keyAWSCustomTags,
-		}
-	case core.CloudVendorAzure:
-		conf = resourceConfig{
-			customTagsKey:   keyCustomTags,
-			overrideTagsKey: keyOverrideResourceTags,
-			typeName:        keyAzureCustomTags,
-		}
-	case core.CloudVendorGCP:
-		conf = resourceConfig{
-			customTagsKey:   keyCustomLabels,
-			overrideTagsKey: keyOverrideResourceLabels,
-			typeName:        keyGCPCustomLabels,
-		}
-	default:
-		// The vendor is a constant passed in by an implementation, never user
-		// input, so reaching this means a vendor was added without updating
-		// this function. We cannot handle this as an error since we don't know
-		// which resource the mover is for, it's determined by the vendor
-		// constant.
-		panic(fmt.Sprintf("unknown vendor: %q", vendor))
-	}
+	conf := newCustomTagsConfig(vendor)
 
 	return resource.StateMover{
 		SourceSchema: &schema.Schema{

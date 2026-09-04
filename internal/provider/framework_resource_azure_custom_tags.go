@@ -23,12 +23,16 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -38,32 +42,39 @@ var resourceAzureCustomTagsDescription = `
 The ´rubrik_azure_custom_tags´ resource manages RSC custom Azure tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future Azure subscriptions in
-your RSC account.
+your RSC account, unless ´cloud_account_id´ is specified, in which case they are
+scoped to that single cloud account. RSC keeps the two scopes as independent
+configurations, changing one does not affect the other.
+
+Tag keys matching a pattern in ´excluded_tags´ are excluded from snapshots. At
+least one of ´custom_tags´ and ´excluded_tags´ must be specified, and neither
+can be empty when specified.
 
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple ´rubrik_azure_custom_tags´ resources in the
-   same RSC account, there is a risk of a race condition when the resources are
+~> **Warning:** When using multiple ´rubrik_azure_custom_tags´ resources managing
+   the same scope, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
    ´rubrik_azure_custom_tags´ resources have been destroyed. The race condition
-   can be avoided by either managing all custom tags using a single
+   can be avoided by either managing all custom tags of a scope using a single
    ´rubrik_azure_custom_tags´ resource or by using the ´depends_on´ field to
    ensure that the resources are destroyed in a serial fashion.
 
-~> **Warning:** The ´override_resource_tags´ field refers to a single global
-   value in RSC. So multiple ´rubrik_azure_custom_tags´ resources with
-   different values for the ´override_resource_tags´ field will result in a
-   perpetual diff.
+~> **Warning:** The ´override_resource_tags´ field refers to a single value per
+   scope in RSC. So multiple ´rubrik_azure_custom_tags´ resources managing the
+   same scope with different values for the ´override_resource_tags´ field will
+   result in a perpetual diff.
 `
 
 const azureCustomTagsID = "3140d22d8cb307e2e7ffbae4a07225e09537ce90c32033582f01d979c0ad8f26"
 
 var (
-	_ resource.Resource                = &azureCustomTagsResource{}
-	_ resource.ResourceWithConfigure   = &azureCustomTagsResource{}
-	_ resource.ResourceWithImportState = &azureCustomTagsResource{}
-	_ resource.ResourceWithMoveState   = &azureCustomTagsResource{}
+	_ resource.Resource                     = &azureCustomTagsResource{}
+	_ resource.ResourceWithConfigValidators = &azureCustomTagsResource{}
+	_ resource.ResourceWithConfigure        = &azureCustomTagsResource{}
+	_ resource.ResourceWithImportState      = &azureCustomTagsResource{}
+	_ resource.ResourceWithMoveState        = &azureCustomTagsResource{}
 )
 
 type azureCustomTagsResource struct {
@@ -92,16 +103,32 @@ func (r *azureCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaR
 		Description: description(resourceAzureCustomTagsDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
-				Computed:    true,
-				Description: "SHA-256 hash of the string \"Azure\".",
+				Computed: true,
+				Description: "RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the " +
+					"SHA-256 hash of the string \"Azure\".",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			keyCloudAccountID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC cloud account ID (UUID) to scope the custom tags to. When omitted, the " +
+					"custom tags are scoped to all cloud accounts of the cloud vendor. Changing this forces " +
+					"a new resource to be created.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			keyCustomTags: schema.MapAttribute{
 				ElementType: types.StringType,
-				Required:    true,
-				Description: "Custom tags to add to cloud resources.",
+				Optional:    true,
+				Description: "Custom tags to add to cloud resources. Must contain at least one tag when specified.",
+				Validators: []validator.Map{
+					mapvalidator.SizeAtLeast(1),
+				},
 			},
 			keyOverrideResourceTags: schema.BoolAttribute{
 				Optional:    true,
@@ -109,11 +136,30 @@ func (r *azureCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaR
 				Default:     booldefault.StaticBool(true),
 				Description: "Should custom tags overwrite existing tags with the same keys. Default value is `true`.",
 			},
+			keyExcludedTags: schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "Tag key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`). Must contain at least one pattern when specified.",
+				Validators: []validator.Set{
+					setvalidator.SizeAtLeast(1),
+				},
+			},
 		},
 	}
 
 	if r.prefix == keyPolaris {
 		res.Schema.DeprecationMessage = "use `rubrik_azure_custom_tags` instead."
+	}
+}
+
+func (r *azureCustomTagsResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	tflog.Trace(ctx, "azureCustomTagsResource.ConfigValidators")
+
+	return []resource.ConfigValidator{
+		resourcevalidator.AtLeastOneOf(
+			path.MatchRoot(keyCustomTags),
+			path.MatchRoot(keyExcludedTags),
+		),
 	}
 }
 
@@ -136,11 +182,6 @@ func (r *azureCustomTagsResource) Create(ctx context.Context, req resource.Creat
 	}
 
 	createCustomTagsResource(ctx, polarisClient, core.CloudVendorAzure, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(azureCustomTagsID))...)
 }
 
 func (r *azureCustomTagsResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -189,11 +230,6 @@ func (r *azureCustomTagsResource) ImportState(ctx context.Context, req resource.
 	}
 
 	importCustomTagsResource(ctx, polarisClient, core.CloudVendorAzure, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(azureCustomTagsID))...)
 }
 
 func (r *azureCustomTagsResource) MoveState(ctx context.Context) []resource.StateMover {
