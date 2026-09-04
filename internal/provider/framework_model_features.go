@@ -30,6 +30,18 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
+// awsCnpFeatureNames are the RSC features which can be declared in the AWS IAM
+// roles workflow, i.e. by the rubrik_aws_cnp_account and
+// rubrik_aws_cnp_account_attachments resources. RSC enables additional features
+// on its own, e.g. CLOUD_COST_REPORT, which are not tracked by those resources.
+// See the comment in the Read function of the rubrik_aws_cnp_account resource.
+var awsCnpFeatureNames = []string{
+	core.FeatureCloudDiscovery.Name, core.FeatureCloudNativeArchival.Name, core.FeatureCloudNativeProtection.Name,
+	core.FeatureCloudNativeDynamoDBProtection.Name, core.FeatureCloudNativeS3Protection.Name,
+	core.FeatureKubernetesProtection.Name, core.FeatureExocompute.Name, core.FeatureRoleChaining.Name,
+	core.FeatureRDSProtection.Name, core.FeatureServerAndApps.Name,
+}
+
 func awsFeatureAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
 		keyName:             types.StringType,

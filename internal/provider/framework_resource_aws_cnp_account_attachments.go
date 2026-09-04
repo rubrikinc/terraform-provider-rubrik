@@ -23,6 +23,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -169,11 +170,7 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 					setplanmodifier.UseStateForUnknown(),
 				},
 				Validators: []validator.Set{
-					setvalidator.ValueStringsAre(stringvalidator.OneOf(
-						"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION",
-						"CLOUD_NATIVE_S3_PROTECTION", "CLOUD_NATIVE_DYNAMODB_PROTECTION", "EXOCOMPUTE",
-						"RDS_PROTECTION", "KUBERNETES_PROTECTION", "SERVERS_AND_APPS", "ROLE_CHAINING",
-					)),
+					setvalidator.ValueStringsAre(stringvalidator.OneOf(awsCnpFeatureNames...)),
 				},
 			},
 			keyRoleChainingAccountID: schema.StringAttribute{
@@ -346,10 +343,16 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 
 	// The features field is optional and computed. When omitted from the
 	// configuration it's populated from the cloud account's features so the
-	// computed value is known after apply.
+	// computed value is known after apply. The features RSC enabled on its own,
+	// e.g. CLOUD_COST_REPORT, are skipped since they cannot be declared in the
+	// features field. See the comment in the Read function of the
+	// rubrik_aws_cnp_account resource.
 	if plan.Features.IsUnknown() {
 		featureValues := make([]attr.Value, 0, len(features))
 		for _, feature := range features {
+			if !slices.Contains(awsCnpFeatureNames, feature.Name) {
+				continue
+			}
 			featureValues = append(featureValues, types.StringValue(feature.Name))
 		}
 		featureSet, diags := types.SetValue(types.StringType, featureValues)
@@ -406,8 +409,12 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		return
 	}
 
+	// Skip the features RSC enabled on its own, see the comment in Create.
 	featureValues := make([]attr.Value, 0, len(account.Features))
 	for _, feature := range account.Features {
+		if !slices.Contains(awsCnpFeatureNames, feature.Feature.Name) {
+			continue
+		}
 		featureValues = append(featureValues, types.StringValue(feature.Feature.Name))
 	}
 	featureSet, diags := types.SetValue(types.StringType, featureValues)
