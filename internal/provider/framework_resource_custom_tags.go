@@ -22,7 +22,9 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -37,21 +39,27 @@ import (
 func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendor core.CloudVendor, req resource.CreateRequest, res *resource.CreateResponse) {
 	tflog.Trace(ctx, "createCustomTagsResource")
 
-	paths := newCustomTagsPaths(vendor)
+	conf := newCustomTagsConfig(vendor)
 
-	planTags, diags := getCustomTags(ctx, paths, req.Plan)
+	cloudAccountID, diags := getCloudAccountID(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	planOverride, diags := getOverrideTags(ctx, paths, req.Plan)
+	planTags, diags := getCustomTags(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	planExclude, diags := getExcludeTags(ctx, paths, req.Plan)
+	planOverride, diags := getOverrideTags(ctx, conf, req.Plan)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	planExclude, diags := getExcludeTags(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -69,6 +77,7 @@ func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 
 	if err := tags.Wrap(client).AddCustomerTags(ctx, gqltags.CustomerTags{
 		CloudVendor:          vendor,
+		CloudAccountID:       cloudAccountID,
 		Tags:                 customerTags,
 		ExcludedTags:         excludeTags,
 		OverrideResourceTags: planOverride,
@@ -77,7 +86,13 @@ func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 		return
 	}
 
+	id := conf.globalID
+	if cloudAccountID != "" {
+		id = cloudAccountID
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, req.Plan.Raw)...)
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(id))...)
 }
 
 // The resource only manages the custom tags and the excluded tags in its state.
@@ -87,21 +102,30 @@ func createCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 func readCustomTagsResource(ctx context.Context, client *polaris.Client, vendor core.CloudVendor, req resource.ReadRequest, res *resource.ReadResponse) {
 	tflog.Trace(ctx, "readCustomTagsResource")
 
-	paths := newCustomTagsPaths(vendor)
+	conf := newCustomTagsConfig(vendor)
 
-	stateTags, diags := getCustomTags(ctx, paths, req.State)
+	cloudAccountID, diags := getCloudAccountID(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	stateExclude, diags := getExcludeTags(ctx, paths, req.State)
+	stateTags, diags := getCustomTags(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	customerTags, err := tags.Wrap(client).CustomerTags(ctx, vendor)
+	stateExclude, diags := getExcludeTags(ctx, conf, req.State)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	customerTags, err := tags.Wrap(client).CustomerTagsByFilter(ctx, gqltags.CustomerTagsFilter{
+		CloudVendor:    vendor,
+		CloudAccountID: cloudAccountID,
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read custom tags", err.Error())
 		return
@@ -121,48 +145,57 @@ func readCustomTagsResource(ctx context.Context, client *polaris.Client, vendor 
 		}
 	}
 
-	res.Diagnostics.Append(setCustomTags(ctx, paths, &res.State, newStateTags)...)
-	res.Diagnostics.Append(setExcludeTags(ctx, paths, &res.State, newStateExclude)...)
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, paths.overrideTags,
+	res.Diagnostics.Append(setCustomTags(ctx, conf, &res.State, newStateTags)...)
+	res.Diagnostics.Append(setExcludeTags(ctx, conf, &res.State, newStateExclude)...)
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, conf.overrideTagsPath,
 		types.BoolValue(customerTags.OverrideResourceTags))...)
 }
 
 func updateCustomTagsResource(ctx context.Context, client *polaris.Client, vendor core.CloudVendor, req resource.UpdateRequest, res *resource.UpdateResponse) {
 	tflog.Trace(ctx, "updateCustomTagsResource")
 
-	paths := newCustomTagsPaths(vendor)
+	conf := newCustomTagsConfig(vendor)
 
-	stateTags, diags := getCustomTags(ctx, paths, req.State)
+	cloudAccountID, diags := getCloudAccountID(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	planTags, diags := getCustomTags(ctx, paths, req.Plan)
+	stateTags, diags := getCustomTags(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	planOverride, diags := getOverrideTags(ctx, paths, req.Plan)
+	planTags, diags := getCustomTags(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	stateExclude, diags := getExcludeTags(ctx, paths, req.State)
+	planOverride, diags := getOverrideTags(ctx, conf, req.Plan)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	planExclude, diags := getExcludeTags(ctx, paths, req.Plan)
+	stateExclude, diags := getExcludeTags(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	customerTags, err := tags.Wrap(client).CustomerTags(ctx, vendor)
+	planExclude, diags := getExcludeTags(ctx, conf, req.Plan)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	customerTags, err := tags.Wrap(client).CustomerTagsByFilter(ctx, gqltags.CustomerTagsFilter{
+		CloudVendor:    vendor,
+		CloudAccountID: cloudAccountID,
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read custom tags", err.Error())
 		return
@@ -219,22 +252,31 @@ func updateCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 func deleteCustomTagsResource(ctx context.Context, client *polaris.Client, vendor core.CloudVendor, req resource.DeleteRequest, res *resource.DeleteResponse) {
 	tflog.Trace(ctx, "deleteCustomTagsResource")
 
-	paths := newCustomTagsPaths(vendor)
+	conf := newCustomTagsConfig(vendor)
 
-	stateTags, diags := getCustomTags(ctx, paths, req.State)
+	cloudAccountID, diags := getCloudAccountID(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	stateExclude, diags := getExcludeTags(ctx, paths, req.State)
+	stateTags, diags := getCustomTags(ctx, conf, req.State)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	stateExclude, diags := getExcludeTags(ctx, conf, req.State)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
 	// Read customer tags and remove tags and excluded tags existing in state.
-	customerTags, err := tags.Wrap(client).CustomerTags(ctx, vendor)
+	customerTags, err := tags.Wrap(client).CustomerTagsByFilter(ctx, gqltags.CustomerTagsFilter{
+		CloudVendor:    vendor,
+		CloudAccountID: cloudAccountID,
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read custom tags", err.Error())
 		return
@@ -264,17 +306,43 @@ func deleteCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 
 // Note, the custom tags resource is designed to only manage the custom tags
 // owned by the resource. An import on the other hand will take ownership of
-// all custom tags for a cloud vendor. The import ID is ignored, the resource
-// manages an RSC account level configuration without a unique identifier.
+// all custom tags of the scope imported.
+//
+// The import ID is the cloud account ID of the cloud account to scope the
+// import to, or keyGlobal to scope the import to all cloud accounts of the
+// cloud vendor. The latter scope is an RSC account level configuration without
+// a unique identifier. Any other import ID is rejected, so that a malformed
+// cloud account ID fails the import instead of silently taking ownership of
+// the wrong scope.
 func importCustomTagsResource(ctx context.Context, client *polaris.Client, vendor core.CloudVendor, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
 	tflog.Trace(ctx, "importCustomTagsResource")
 
-	paths := newCustomTagsPaths(vendor)
+	conf := newCustomTagsConfig(vendor)
 
-	customerTags, err := tags.Wrap(client).CustomerTags(ctx, vendor)
+	var cloudAccountID string
+	if req.ID != keyGlobal {
+		id, err := uuid.Parse(req.ID)
+		if err != nil {
+			res.Diagnostics.AddError("Invalid import ID", fmt.Sprintf(
+				"%q is not a valid import ID, expected a cloud account ID (UUID) or %q: %s",
+				req.ID, keyGlobal, err))
+			return
+		}
+		cloudAccountID = id.String()
+	}
+
+	customerTags, err := tags.Wrap(client).CustomerTagsByFilter(ctx, gqltags.CustomerTagsFilter{
+		CloudVendor:    vendor,
+		CloudAccountID: cloudAccountID,
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read custom tags", err.Error())
 		return
+	}
+
+	stateCloudAccountID := types.StringNull()
+	if cloudAccountID != "" {
+		stateCloudAccountID = types.StringValue(cloudAccountID)
 	}
 
 	stateTags := make(map[string]string, len(customerTags.Tags))
@@ -287,45 +355,99 @@ func importCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 		stateExclude[tag] = struct{}{}
 	}
 
-	res.Diagnostics.Append(setCustomTags(ctx, paths, &res.State, stateTags)...)
-	res.Diagnostics.Append(setExcludeTags(ctx, paths, &res.State, stateExclude)...)
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, paths.overrideTags,
+	id := conf.globalID
+	if cloudAccountID != "" {
+		id = cloudAccountID
+	}
+
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(id))...)
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, conf.cloudAccountIDPath, stateCloudAccountID)...)
+	res.Diagnostics.Append(setCustomTags(ctx, conf, &res.State, stateTags)...)
+	res.Diagnostics.Append(setExcludeTags(ctx, conf, &res.State, stateExclude)...)
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, conf.overrideTagsPath,
 		types.BoolValue(customerTags.OverrideResourceTags))...)
 }
 
-// customTagsPaths holds the attribute paths of a custom tags resource. GCP
-// names its attributes after labels rather than tags.
-type customTagsPaths struct {
-	customTags   path.Path
-	overrideTags path.Path
-	excludedTags path.Path
+// customTagsConfig holds the global ID and attribute paths of a custom tags
+// resource. GCP names its attributes after labels rather than tags.
+type customTagsConfig struct {
+	globalID           string
+	cloudAccountIDPath path.Path
+	customTagsKey      string
+	customTagsPath     path.Path
+	excludedTagsKey    string
+	excludedTagsPath   path.Path
+	overrideTagsKey    string
+	overrideTagsPath   path.Path
+	typeName           string
 }
 
-func newCustomTagsPaths(vendor core.CloudVendor) customTagsPaths {
-	if vendor == core.CloudVendorGCP {
-		return customTagsPaths{
-			customTags:   path.Root(keyCustomLabels),
-			overrideTags: path.Root(keyOverrideResourceLabels),
-			excludedTags: path.Root(keyExcludedLabels),
+func newCustomTagsConfig(vendor core.CloudVendor) customTagsConfig {
+	var conf customTagsConfig
+	switch vendor {
+	case core.CloudVendorAWS:
+		conf = customTagsConfig{
+			globalID:           awsCustomTagsID,
+			cloudAccountIDPath: path.Root(keyCloudAccountID),
+			customTagsKey:      keyCustomTags,
+			overrideTagsKey:    keyOverrideResourceTags,
+			excludedTagsKey:    keyExcludedTags,
+			typeName:           keyAWSCustomTags,
 		}
+	case core.CloudVendorAzure:
+		conf = customTagsConfig{
+			globalID:           azureCustomTagsID,
+			cloudAccountIDPath: path.Root(keyCloudAccountID),
+			customTagsKey:      keyCustomTags,
+			overrideTagsKey:    keyOverrideResourceTags,
+			excludedTagsKey:    keyExcludedTags,
+			typeName:           keyAzureCustomTags,
+		}
+	case core.CloudVendorGCP:
+		conf = customTagsConfig{
+			globalID:           gcpCustomLabelsID,
+			cloudAccountIDPath: path.Root(keyCloudAccountID),
+			customTagsKey:      keyCustomLabels,
+			overrideTagsKey:    keyOverrideResourceLabels,
+			excludedTagsKey:    keyExcludedLabels,
+			typeName:           keyGCPCustomLabels,
+		}
+	default:
+		// The vendor is a constant passed in by an implementation, never user
+		// input, so reaching this means a vendor was added without updating
+		// this function.
+		panic(fmt.Sprintf("unknown vendor: %q", vendor))
 	}
 
-	return customTagsPaths{
-		customTags:   path.Root(keyCustomTags),
-		overrideTags: path.Root(keyOverrideResourceTags),
-		excludedTags: path.Root(keyExcludedTags),
-	}
+	// Derive the paths from the keys.
+	conf.customTagsPath = path.Root(conf.customTagsKey)
+	conf.overrideTagsPath = path.Root(conf.overrideTagsKey)
+	conf.excludedTagsPath = path.Root(conf.excludedTagsKey)
+
+	return conf
 }
 
 type configGet interface {
 	GetAttribute(ctx context.Context, path path.Path, target any) diag.Diagnostics
 }
 
-func getCustomTags(ctx context.Context, paths customTagsPaths, conf configGet) (map[string]string, diag.Diagnostics) {
+func getCloudAccountID(ctx context.Context, resConf customTagsConfig, conf configGet) (string, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+
+	var cloudAccountID types.String
+	diags.Append(conf.GetAttribute(ctx, resConf.cloudAccountIDPath, &cloudAccountID)...)
+	if diags.HasError() {
+		return "", diags
+	}
+
+	return cloudAccountID.ValueString(), diags
+}
+
+func getCustomTags(ctx context.Context, resConf customTagsConfig, conf configGet) (map[string]string, diag.Diagnostics) {
 	diags := diag.Diagnostics{}
 
 	var customTagsMap types.Map
-	diags.Append(conf.GetAttribute(ctx, paths.customTags, &customTagsMap)...)
+	diags.Append(conf.GetAttribute(ctx, resConf.customTagsPath, &customTagsMap)...)
 	if diags.HasError() {
 		return nil, diags
 	}
@@ -339,11 +461,11 @@ func getCustomTags(ctx context.Context, paths customTagsPaths, conf configGet) (
 	return tagsMap, diags
 }
 
-func getExcludeTags(ctx context.Context, paths customTagsPaths, conf configGet) (map[string]struct{}, diag.Diagnostics) {
+func getExcludeTags(ctx context.Context, resConf customTagsConfig, conf configGet) (map[string]struct{}, diag.Diagnostics) {
 	diags := diag.Diagnostics{}
 
 	var excludedTagsSet types.Set
-	diags.Append(conf.GetAttribute(ctx, paths.excludedTags, &excludedTagsSet)...)
+	diags.Append(conf.GetAttribute(ctx, resConf.excludedTagsPath, &excludedTagsSet)...)
 	if diags.HasError() {
 		return nil, diags
 	}
@@ -362,11 +484,11 @@ func getExcludeTags(ctx context.Context, paths customTagsPaths, conf configGet) 
 	return tagsSet, diags
 }
 
-func getOverrideTags(ctx context.Context, paths customTagsPaths, conf configGet) (bool, diag.Diagnostics) {
+func getOverrideTags(ctx context.Context, resConf customTagsConfig, conf configGet) (bool, diag.Diagnostics) {
 	diags := diag.Diagnostics{}
 
 	var override types.Bool
-	diags.Append(conf.GetAttribute(ctx, paths.overrideTags, &override)...)
+	diags.Append(conf.GetAttribute(ctx, resConf.overrideTagsPath, &override)...)
 	if diags.HasError() {
 		return false, diags
 	}
@@ -378,7 +500,7 @@ type configSet interface {
 	SetAttribute(ctx context.Context, path path.Path, value any) diag.Diagnostics
 }
 
-func setCustomTags(ctx context.Context, paths customTagsPaths, conf configSet, customTags map[string]string) diag.Diagnostics {
+func setCustomTags(ctx context.Context, resConf customTagsConfig, conf configSet, customTags map[string]string) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
 	stateTagsMap := types.MapNull(types.StringType)
@@ -389,11 +511,11 @@ func setCustomTags(ctx context.Context, paths customTagsPaths, conf configSet, c
 		}
 	}
 
-	diags.Append(conf.SetAttribute(ctx, paths.customTags, stateTagsMap)...)
+	diags.Append(conf.SetAttribute(ctx, resConf.customTagsPath, stateTagsMap)...)
 	return diags
 }
 
-func setExcludeTags(ctx context.Context, paths customTagsPaths, conf configSet, excludeTags map[string]struct{}) diag.Diagnostics {
+func setExcludeTags(ctx context.Context, resConf customTagsConfig, conf configSet, excludeTags map[string]struct{}) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 
 	stateExcludeSet := types.SetNull(types.StringType)
@@ -409,6 +531,6 @@ func setExcludeTags(ctx context.Context, paths customTagsPaths, conf configSet, 
 		}
 	}
 
-	diags.Append(conf.SetAttribute(ctx, paths.excludedTags, stateExcludeSet)...)
+	diags.Append(conf.SetAttribute(ctx, resConf.excludedTagsPath, stateExcludeSet)...)
 	return diags
 }

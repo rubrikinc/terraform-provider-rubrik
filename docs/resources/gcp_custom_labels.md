@@ -6,7 +6,9 @@ description: |-
 The `rubrik_gcp_custom_labels` resource manages RSC custom GCP labels.
 Simplify your cloud resource management by assigning custom labels for easy
 identification. These custom labels will be used on all existing and future GCP
-projects in your RSC account.
+projects in your RSC account, unless `cloud_account_id` is specified, in which
+case they are scoped to that single cloud account. RSC keeps the two scopes as
+independent configurations, changing one does not affect the other.
 
 Label keys matching a pattern in `excluded_labels` are excluded from snapshots.
 At least one of `custom_labels` and `excluded_labels` must be specified, and
@@ -15,18 +17,19 @@ neither can be empty when specified.
 -> **Note:** The newly updated custom labels will be applied to all existing and
    new resources, while the previously applied labels will remain unchanged.
 
-~> **Warning:** When using multiple `rubrik_gcp_custom_labels` resources in the
-   same RSC account, there is a risk of a race condition when the resources are
-   destroyed. This can result in custom labels remaining in RSC even after all
-   `rubrik_gcp_custom_labels` resources have been destroyed. The race condition
-   can be avoided by either managing all custom labels using a single
-   `rubrik_gcp_custom_labels` resource or by using `depends_on` to ensure that
-   the resources are destroyed in a serial fashion.
+~> **Warning:** When using multiple `rubrik_gcp_custom_labels` resources
+   managing the same scope, there is a risk of a race condition when the
+   resources are destroyed. This can result in custom labels remaining in RSC
+   even after all `rubrik_gcp_custom_labels` resources have been destroyed. The
+   race condition can be avoided by either managing all custom labels of a
+   scope using a single `rubrik_gcp_custom_labels` resource or by using
+   `depends_on` to ensure that the resources are destroyed in a serial
+   fashion.
 
-~> **Warning:** The `override_resource_labels` field refers to a single global
-   value in RSC. So multiple `rubrik_gcp_custom_labels` resources with
-   different values for the `override_resource_labels` field will result in a
-   perpetual diff.
+~> **Warning:** The `override_resource_labels` field refers to a single value
+   per scope in RSC. So multiple `rubrik_gcp_custom_labels` resources managing
+   the same scope with different values for the `override_resource_labels`
+   field will result in a perpetual diff.
 
 ---
 
@@ -36,7 +39,9 @@ neither can be empty when specified.
 The `rubrik_gcp_custom_labels` resource manages RSC custom GCP labels.
 Simplify your cloud resource management by assigning custom labels for easy
 identification. These custom labels will be used on all existing and future GCP
-projects in your RSC account.
+projects in your RSC account, unless `cloud_account_id` is specified, in which
+case they are scoped to that single cloud account. RSC keeps the two scopes as
+independent configurations, changing one does not affect the other.
 
 Label keys matching a pattern in `excluded_labels` are excluded from snapshots.
 At least one of `custom_labels` and `excluded_labels` must be specified, and
@@ -45,18 +50,19 @@ neither can be empty when specified.
 -> **Note:** The newly updated custom labels will be applied to all existing and
    new resources, while the previously applied labels will remain unchanged.
 
-~> **Warning:** When using multiple `rubrik_gcp_custom_labels` resources in the
-   same RSC account, there is a risk of a race condition when the resources are
-   destroyed. This can result in custom labels remaining in RSC even after all
-   `rubrik_gcp_custom_labels` resources have been destroyed. The race condition
-   can be avoided by either managing all custom labels using a single
-   `rubrik_gcp_custom_labels` resource or by using `depends_on` to ensure that
-   the resources are destroyed in a serial fashion.
+~> **Warning:** When using multiple `rubrik_gcp_custom_labels` resources
+   managing the same scope, there is a risk of a race condition when the
+   resources are destroyed. This can result in custom labels remaining in RSC
+   even after all `rubrik_gcp_custom_labels` resources have been destroyed. The
+   race condition can be avoided by either managing all custom labels of a
+   scope using a single `rubrik_gcp_custom_labels` resource or by using
+   `depends_on` to ensure that the resources are destroyed in a serial
+   fashion.
 
-~> **Warning:** The `override_resource_labels` field refers to a single global
-   value in RSC. So multiple `rubrik_gcp_custom_labels` resources with
-   different values for the `override_resource_labels` field will result in a
-   perpetual diff.
+~> **Warning:** The `override_resource_labels` field refers to a single value
+   per scope in RSC. So multiple `rubrik_gcp_custom_labels` resources managing
+   the same scope with different values for the `override_resource_labels`
+   field will result in a perpetual diff.
 
 
 
@@ -74,6 +80,15 @@ resource "rubrik_gcp_custom_labels" "labels" {
     "temp-*",
   ]
 }
+
+# Scoped to a single cloud account.
+resource "rubrik_gcp_custom_labels" "account_labels" {
+  cloud_account_id = "b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c"
+
+  custom_labels = {
+    "env" = "test"
+  }
+}
 ```
 
 
@@ -82,18 +97,21 @@ resource "rubrik_gcp_custom_labels" "labels" {
 
 ### Optional
 
+- `cloud_account_id` (String) RSC cloud account ID (UUID) to scope the custom labels to. When omitted, the custom labels are scoped to all cloud accounts of the cloud vendor. Changing this forces a new resource to be created.
 - `custom_labels` (Map of String) Custom labels to add to cloud resources. Must contain at least one label when specified.
 - `excluded_labels` (Set of String) Label key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`). Must contain at least one pattern when specified.
 - `override_resource_labels` (Boolean) Should custom labels overwrite existing labels with the same keys. Default value is `true`.
 
 ### Read-Only
 
-- `id` (String) SHA-256 hash of the string "GCP".
+- `id` (String) RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the SHA-256 hash of the string "GCP".
 
 ## Import
 
-To import the resource, you need to provide a dummy ID to the import command. This is because the resource manages an
-RSC account-level configuration that don't have a unique identifier.
+To import a resource scoped to a single cloud account, provide the cloud account ID to the import command. To import
+a resource scoped to all cloud accounts of the cloud vendor, provide `global`. The latter scope manages an RSC
+account-level configuration that don't have a unique identifier. Any other import ID is rejected, so that a malformed
+cloud account ID fails the import instead of silently taking ownership of the wrong scope.
 
 Import is supported using the following syntax:
 
@@ -103,7 +121,13 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 ```terraform
 import {
   to = rubrik_gcp_custom_labels.labels
-  id = "dummy"
+  id = "global"
+}
+
+# Scoped to a single cloud account, using the cloud account ID.
+import {
+  to = rubrik_gcp_custom_labels.account_labels
+  id = "b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c"
 }
 ```
 
@@ -112,6 +136,9 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import rubrik_gcp_custom_labels.labels dummy
+% terraform import rubrik_gcp_custom_labels.labels global
+
+# Scoped to a single cloud account, using the cloud account ID.
+% terraform import rubrik_gcp_custom_labels.account_labels b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c
 ```
 

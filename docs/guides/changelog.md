@@ -13,6 +13,11 @@ page_title: "Changelog"
   fields at plan time when they are set for an `object_type` they do not apply to. Previously these fields were
   silently ignored for other object types. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
   [[docs](../data-sources/object.md)]
+* **Breaking Change:** The import ID of the `rubrik_aws_custom_tags`, `rubrik_azure_custom_tags` and
+  `rubrik_gcp_custom_labels` resources now identifies the scope to import, instead of being ignored. Pass the cloud
+  account ID to import a resource scoped to a single cloud account, or `global` for the scope covering all cloud
+  accounts of the cloud vendor. Any other import ID, including the dummy ID previously documented, is rejected. See
+  the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
 * New `rubrik_data_security_policy` resource added which creates and manages data security policies in RSC. A
   policy matches on object conditions, in the `object_filter` block, and identity conditions, in the
   `identity_filter` block, with an optional `threshold_filter` block deciding how many matches raise a violation.
@@ -73,6 +78,10 @@ page_title: "Changelog"
   `custom_labels` field in the `rubrik_gcp_custom_labels` resource, are now optional, allowing a resource to manage
   only excluded tags. When specified, the fields must contain at least one tag or label, as must the `excluded_tags`
   and `excluded_labels` fields. At least one of the two fields must be specified.
+* Add support for scoping custom tags and excluded tags to a single cloud account in the `rubrik_aws_custom_tags`,
+  `rubrik_azure_custom_tags` and `rubrik_gcp_custom_labels` resources, through the new `cloud_account_id` field. When
+  omitted, the tags and labels apply to all cloud accounts of the cloud vendor, as before. RSC keeps the two scopes as
+  independent configurations. See the [v1.9.2 upgrade guide](upgrade_guide_v1.9.2.md).
 * Migrate the `rubrik_aws_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_azure_custom_tags` resource to the Terraform Plugin Framework.
 * Migrate the `rubrik_gcp_custom_labels` resource to the Terraform Plugin Framework.

@@ -228,4 +228,39 @@ resource "rubrik_aws_custom_tags" "exclusions_only" {
 ```
 
 Import is the exception. As with custom tags, importing one of these resources takes ownership of every excluded tag
-pattern configured for that cloud vendor, not only the ones you intend to manage.
+pattern configured for that scope, not only the ones you intend to manage.
+
+### Custom tags resources can be scoped to a single cloud account
+
+The three resources have a new optional `cloud_account_id` field holding an RSC cloud account ID. When omitted, the
+custom tags and excluded tags apply to all cloud accounts of the cloud vendor, which is how the resources have always
+behaved, so existing configurations are unaffected. When specified, they apply only to that cloud account. RSC calls
+the two scopes global and granular, and keeps them as independent configurations — changing one does not affect the
+other, and the same tag key can exist in both with different values.
+```terraform
+resource "rubrik_aws_custom_tags" "test_account" {
+  cloud_account_id = rubrik_aws_account.test_account.id
+
+  custom_tags = {
+    "env" = "test"
+  }
+}
+```
+Changing `cloud_account_id` on an existing resource replaces it, removing the tags from the old scope before adding
+them to the new one.
+
+#### The import ID now identifies the scope
+
+The import ID used to be ignored, and earlier releases told you to pass a dummy ID. It now selects which scope to
+import. Pass the cloud account ID to import an account-scoped resource, or `global` to import the scope covering all
+cloud accounts of the cloud vendor:
+```shell
+% terraform import rubrik_aws_custom_tags.account b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c
+% terraform import rubrik_aws_custom_tags.global global
+```
+Any other import ID is now rejected. This is deliberate: were a malformed cloud account ID accepted, the import would
+silently fall back to the global scope and take ownership of every custom tag and excluded tag in it.
+
+If you have an `import {}` block still in your configuration with `id = "dummy"`, change it to `id = "global"`.
+Nothing else needs to change — the import ID is not recorded in state, so a `terraform import` completed against an
+earlier release is unaffected.

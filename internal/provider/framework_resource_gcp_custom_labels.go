@@ -42,7 +42,9 @@ var resourceGCPCustomLabelsDescription = `
 The ´rubrik_gcp_custom_labels´ resource manages RSC custom GCP labels.
 Simplify your cloud resource management by assigning custom labels for easy
 identification. These custom labels will be used on all existing and future GCP
-projects in your RSC account.
+projects in your RSC account, unless ´cloud_account_id´ is specified, in which
+case they are scoped to that single cloud account. RSC keeps the two scopes as
+independent configurations, changing one does not affect the other.
 
 Label keys matching a pattern in ´excluded_labels´ are excluded from snapshots.
 At least one of ´custom_labels´ and ´excluded_labels´ must be specified, and
@@ -51,18 +53,19 @@ neither can be empty when specified.
 -> **Note:** The newly updated custom labels will be applied to all existing and
    new resources, while the previously applied labels will remain unchanged.
 
-~> **Warning:** When using multiple ´rubrik_gcp_custom_labels´ resources in the
-   same RSC account, there is a risk of a race condition when the resources are
-   destroyed. This can result in custom labels remaining in RSC even after all
-   ´rubrik_gcp_custom_labels´ resources have been destroyed. The race condition
-   can be avoided by either managing all custom labels using a single
-   ´rubrik_gcp_custom_labels´ resource or by using ´depends_on´ to ensure that
-   the resources are destroyed in a serial fashion.
+~> **Warning:** When using multiple ´rubrik_gcp_custom_labels´ resources
+   managing the same scope, there is a risk of a race condition when the
+   resources are destroyed. This can result in custom labels remaining in RSC
+   even after all ´rubrik_gcp_custom_labels´ resources have been destroyed. The
+   race condition can be avoided by either managing all custom labels of a
+   scope using a single ´rubrik_gcp_custom_labels´ resource or by using
+   ´depends_on´ to ensure that the resources are destroyed in a serial
+   fashion.
 
-~> **Warning:** The ´override_resource_labels´ field refers to a single global
-   value in RSC. So multiple ´rubrik_gcp_custom_labels´ resources with
-   different values for the ´override_resource_labels´ field will result in a
-   perpetual diff.
+~> **Warning:** The ´override_resource_labels´ field refers to a single value
+   per scope in RSC. So multiple ´rubrik_gcp_custom_labels´ resources managing
+   the same scope with different values for the ´override_resource_labels´
+   field will result in a perpetual diff.
 `
 
 const gcpCustomLabelsID = "31e3cbd5c7bd25c4de00fdd6635f2d0bf237930e0d6a4e6b1bbf8a4fcccc6c4c"
@@ -101,10 +104,23 @@ func (r *gcpCustomLabelsResource) Schema(ctx context.Context, _ resource.SchemaR
 		Description: description(resourceGCPCustomLabelsDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
-				Computed:    true,
-				Description: "SHA-256 hash of the string \"GCP\".",
+				Computed: true,
+				Description: "RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the " +
+					"SHA-256 hash of the string \"GCP\".",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			keyCloudAccountID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC cloud account ID (UUID) to scope the custom labels to. When omitted, the " +
+					"custom labels are scoped to all cloud accounts of the cloud vendor. Changing this forces " +
+					"a new resource to be created.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			keyCustomLabels: schema.MapAttribute{
@@ -167,11 +183,6 @@ func (r *gcpCustomLabelsResource) Create(ctx context.Context, req resource.Creat
 	}
 
 	createCustomTagsResource(ctx, polarisClient, core.CloudVendorGCP, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(gcpCustomLabelsID))...)
 }
 
 func (r *gcpCustomLabelsResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -220,11 +231,6 @@ func (r *gcpCustomLabelsResource) ImportState(ctx context.Context, req resource.
 	}
 
 	importCustomTagsResource(ctx, polarisClient, core.CloudVendorGCP, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(gcpCustomLabelsID))...)
 }
 
 func (r *gcpCustomLabelsResource) MoveState(ctx context.Context) []resource.StateMover {

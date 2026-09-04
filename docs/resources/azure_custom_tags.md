@@ -6,7 +6,9 @@ description: |-
 The `rubrik_azure_custom_tags` resource manages RSC custom Azure tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future Azure subscriptions in
-your RSC account.
+your RSC account, unless `cloud_account_id` is specified, in which case they are
+scoped to that single cloud account. RSC keeps the two scopes as independent
+configurations, changing one does not affect the other.
 
 Tag keys matching a pattern in `excluded_tags` are excluded from snapshots. At
 least one of `custom_tags` and `excluded_tags` must be specified, and neither
@@ -15,18 +17,18 @@ can be empty when specified.
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple `rubrik_azure_custom_tags` resources in the
-   same RSC account, there is a risk of a race condition when the resources are
+~> **Warning:** When using multiple `rubrik_azure_custom_tags` resources managing
+   the same scope, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
    `rubrik_azure_custom_tags` resources have been destroyed. The race condition
-   can be avoided by either managing all custom tags using a single
+   can be avoided by either managing all custom tags of a scope using a single
    `rubrik_azure_custom_tags` resource or by using the `depends_on` field to
    ensure that the resources are destroyed in a serial fashion.
 
-~> **Warning:** The `override_resource_tags` field refers to a single global
-   value in RSC. So multiple `rubrik_azure_custom_tags` resources with
-   different values for the `override_resource_tags` field will result in a
-   perpetual diff.
+~> **Warning:** The `override_resource_tags` field refers to a single value per
+   scope in RSC. So multiple `rubrik_azure_custom_tags` resources managing the
+   same scope with different values for the `override_resource_tags` field will
+   result in a perpetual diff.
 
 ---
 
@@ -36,7 +38,9 @@ can be empty when specified.
 The `rubrik_azure_custom_tags` resource manages RSC custom Azure tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future Azure subscriptions in
-your RSC account.
+your RSC account, unless `cloud_account_id` is specified, in which case they are
+scoped to that single cloud account. RSC keeps the two scopes as independent
+configurations, changing one does not affect the other.
 
 Tag keys matching a pattern in `excluded_tags` are excluded from snapshots. At
 least one of `custom_tags` and `excluded_tags` must be specified, and neither
@@ -45,18 +49,18 @@ can be empty when specified.
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple `rubrik_azure_custom_tags` resources in the
-   same RSC account, there is a risk of a race condition when the resources are
+~> **Warning:** When using multiple `rubrik_azure_custom_tags` resources managing
+   the same scope, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
    `rubrik_azure_custom_tags` resources have been destroyed. The race condition
-   can be avoided by either managing all custom tags using a single
+   can be avoided by either managing all custom tags of a scope using a single
    `rubrik_azure_custom_tags` resource or by using the `depends_on` field to
    ensure that the resources are destroyed in a serial fashion.
 
-~> **Warning:** The `override_resource_tags` field refers to a single global
-   value in RSC. So multiple `rubrik_azure_custom_tags` resources with
-   different values for the `override_resource_tags` field will result in a
-   perpetual diff.
+~> **Warning:** The `override_resource_tags` field refers to a single value per
+   scope in RSC. So multiple `rubrik_azure_custom_tags` resources managing the
+   same scope with different values for the `override_resource_tags` field will
+   result in a perpetual diff.
 
 
 
@@ -74,6 +78,15 @@ resource "rubrik_azure_custom_tags" "tags" {
     "temp-*",
   ]
 }
+
+# Scoped to a single cloud account.
+resource "rubrik_azure_custom_tags" "account_tags" {
+  cloud_account_id = "b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c"
+
+  custom_tags = {
+    "env" = "test"
+  }
+}
 ```
 
 
@@ -82,18 +95,21 @@ resource "rubrik_azure_custom_tags" "tags" {
 
 ### Optional
 
+- `cloud_account_id` (String) RSC cloud account ID (UUID) to scope the custom tags to. When omitted, the custom tags are scoped to all cloud accounts of the cloud vendor. Changing this forces a new resource to be created.
 - `custom_tags` (Map of String) Custom tags to add to cloud resources. Must contain at least one tag when specified.
 - `excluded_tags` (Set of String) Tag key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`). Must contain at least one pattern when specified.
 - `override_resource_tags` (Boolean) Should custom tags overwrite existing tags with the same keys. Default value is `true`.
 
 ### Read-Only
 
-- `id` (String) SHA-256 hash of the string "Azure".
+- `id` (String) RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the SHA-256 hash of the string "Azure".
 
 ## Import
 
-To import the resource, you need to provide a dummy ID to the import command. This is because the resource manages an
-RSC account-level configuration that don't have a unique identifier.
+To import a resource scoped to a single cloud account, provide the cloud account ID to the import command. To import
+a resource scoped to all cloud accounts of the cloud vendor, provide `global`. The latter scope manages an RSC
+account-level configuration that don't have a unique identifier. Any other import ID is rejected, so that a malformed
+cloud account ID fails the import instead of silently taking ownership of the wrong scope.
 
 Import is supported using the following syntax:
 
@@ -103,7 +119,13 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 ```terraform
 import {
   to = rubrik_azure_custom_tags.tags
-  id = "dummy"
+  id = "global"
+}
+
+# Scoped to a single cloud account, using the cloud account ID.
+import {
+  to = rubrik_azure_custom_tags.account_tags
+  id = "b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c"
 }
 ```
 
@@ -112,6 +134,9 @@ import {
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```terraform
-% terraform import rubrik_azure_custom_tags.tags dummy
+% terraform import rubrik_azure_custom_tags.tags global
+
+# Scoped to a single cloud account, using the cloud account ID.
+% terraform import rubrik_azure_custom_tags.account_tags b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c
 ```
 

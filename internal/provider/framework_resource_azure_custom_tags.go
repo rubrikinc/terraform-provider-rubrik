@@ -42,7 +42,9 @@ var resourceAzureCustomTagsDescription = `
 The ´rubrik_azure_custom_tags´ resource manages RSC custom Azure tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future Azure subscriptions in
-your RSC account.
+your RSC account, unless ´cloud_account_id´ is specified, in which case they are
+scoped to that single cloud account. RSC keeps the two scopes as independent
+configurations, changing one does not affect the other.
 
 Tag keys matching a pattern in ´excluded_tags´ are excluded from snapshots. At
 least one of ´custom_tags´ and ´excluded_tags´ must be specified, and neither
@@ -51,18 +53,18 @@ can be empty when specified.
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
 
-~> **Warning:** When using multiple ´rubrik_azure_custom_tags´ resources in the
-   same RSC account, there is a risk of a race condition when the resources are
+~> **Warning:** When using multiple ´rubrik_azure_custom_tags´ resources managing
+   the same scope, there is a risk of a race condition when the resources are
    destroyed. This can result in custom tags remaining in RSC even after all
    ´rubrik_azure_custom_tags´ resources have been destroyed. The race condition
-   can be avoided by either managing all custom tags using a single
+   can be avoided by either managing all custom tags of a scope using a single
    ´rubrik_azure_custom_tags´ resource or by using the ´depends_on´ field to
    ensure that the resources are destroyed in a serial fashion.
 
-~> **Warning:** The ´override_resource_tags´ field refers to a single global
-   value in RSC. So multiple ´rubrik_azure_custom_tags´ resources with
-   different values for the ´override_resource_tags´ field will result in a
-   perpetual diff.
+~> **Warning:** The ´override_resource_tags´ field refers to a single value per
+   scope in RSC. So multiple ´rubrik_azure_custom_tags´ resources managing the
+   same scope with different values for the ´override_resource_tags´ field will
+   result in a perpetual diff.
 `
 
 const azureCustomTagsID = "3140d22d8cb307e2e7ffbae4a07225e09537ce90c32033582f01d979c0ad8f26"
@@ -101,10 +103,23 @@ func (r *azureCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaR
 		Description: description(resourceAzureCustomTagsDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
-				Computed:    true,
-				Description: "SHA-256 hash of the string \"Azure\".",
+				Computed: true,
+				Description: "RSC cloud account ID (UUID) when `cloud_account_id` is specified, otherwise the " +
+					"SHA-256 hash of the string \"Azure\".",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			keyCloudAccountID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC cloud account ID (UUID) to scope the custom tags to. When omitted, the " +
+					"custom tags are scoped to all cloud accounts of the cloud vendor. Changing this forces " +
+					"a new resource to be created.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			keyCustomTags: schema.MapAttribute{
@@ -167,11 +182,6 @@ func (r *azureCustomTagsResource) Create(ctx context.Context, req resource.Creat
 	}
 
 	createCustomTagsResource(ctx, polarisClient, core.CloudVendorAzure, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(azureCustomTagsID))...)
 }
 
 func (r *azureCustomTagsResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -220,11 +230,6 @@ func (r *azureCustomTagsResource) ImportState(ctx context.Context, req resource.
 	}
 
 	importCustomTagsResource(ctx, polarisClient, core.CloudVendorAzure, req, res)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), types.StringValue(azureCustomTagsID))...)
 }
 
 func (r *azureCustomTagsResource) MoveState(ctx context.Context) []resource.StateMover {

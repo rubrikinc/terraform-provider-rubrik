@@ -24,9 +24,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
 	gqlaccess "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/access"
@@ -120,6 +123,56 @@ func testAzureResourceGroupRegion(t *testing.T) string {
 
 	_, conf := loadAzureTestConfig(t)
 	return conf.CloudNativeProtection.ResourceGroupRegion
+}
+
+// testGCPCredentials returns the GCP service account credentials from the GCP
+// test configuration.
+func testGCPCredentials(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	return conf.Credentials
+}
+
+// testGCPProjectID returns the GCP project ID from the GCP test configuration.
+func testGCPProjectID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	return conf.ProjectID
+}
+
+// testGCPProjectName returns the GCP project name from the GCP test
+// configuration.
+func testGCPProjectName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	return conf.ProjectName
+}
+
+// testGCPProjectNumber returns the GCP project number from the GCP test
+// configuration. The project number is a string in the schema, guarded by a
+// numeric validator.
+func testGCPProjectNumber(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	return strconv.FormatInt(conf.ProjectNumber, 10)
+}
+
+// testGCPOrganizationName returns the GCP organization name from the GCP test
+// configuration.
+func testGCPOrganizationName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	return conf.OrganizationName
 }
 
 // testUniqueName returns a unique name for a test resource, suffixed with a
@@ -295,6 +348,19 @@ func createTestUser(t *testing.T, email string, roleID uuid.UUID) string {
 	})
 
 	return userID
+}
+
+// customTagsImportID returns the import ID of a custom tags resource scoped to
+// a cloud account, which is the cloud account ID.
+func customTagsImportID(resourceName string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return "", fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		return rs.Primary.Attributes[keyCloudAccountID], nil
+	}
 }
 
 // skipUnlessAcceptanceTest skips the test if the TF_ACC environment variable is

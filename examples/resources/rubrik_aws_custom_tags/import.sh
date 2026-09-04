@@ -1,1 +1,4 @@
-% terraform import rubrik_aws_custom_tags.tags dummy
+% terraform import rubrik_aws_custom_tags.tags global
+
+# Scoped to a single cloud account, using the cloud account ID.
+% terraform import rubrik_aws_custom_tags.account_tags b6c0b4a2-1d3e-4f5a-8b7c-9d0e1f2a3b4c
