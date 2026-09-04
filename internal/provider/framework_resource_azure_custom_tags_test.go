@@ -419,7 +419,7 @@ func TestAccAzureCustomTagsResource_CloudAccountScoped(t *testing.T) {
 						resource_group_region = var.resource_group_region
 					}
 
-					#depends_on = [rubrik_azure_service_principal.principal]
+					depends_on = [rubrik_azure_service_principal.principal]
 				}
 
 				resource "rubrik_azure_custom_tags" "global" {
