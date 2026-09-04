@@ -4,69 +4,124 @@ page_title: "rubrik_azure_sql_managed_instance_credentials Resource - terraform-
 subcategory: ""
 description: |-
   The rubrik_azure_sql_managed_instance_credentials resource configures the
-  SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
-  server.
-  RSC connects to the managed instance using the SQL Server credentials in the
-  sql_credentials block and creates the user it uses to perform backups. These
-  administrator credentials are only used for that setup and are not stored by
-  RSC, which is why they are write-only arguments: they are sent to RSC but never
-  written to Terraform state, so they can be sourced from a secret store such as
-  Vault without leaking into state.
+  credentials RSC uses to back up an Azure SQL Managed Instance server.
+  There are two ways to create the user RSC backs up as, selected with
+  setup_script_installed:
+  By default, RSC connects to the managed instance using the credentials in the
+  sql_credentials block and creates the backup user itself. Those credentials
+  are an administrator login, used only for that setup and not stored by RSC.When setup_script_installed is true, the setup script has already been run
+  against the managed instance and has created the backup user, so RSC only
+  records which credentials to use. The sql_credentials block is then the
+  backup user's own login, which must match the login and password the setup
+  script was run with.
+  Whether sql_credentials is required depends on the authentication mechanisms
+  the managed instance supports. The rubrik_object data source reports them as
+  auth_type for an object type of AzureSqlManagedInstanceServer.
+  | `auth_type` | Default | `setup_script_installed = true` |
+  | --- | --- | --- |
+  | `SQL_AUTH_ONLY` | Required | Required |
+  | `SQL_AUTH_AND_AAD` | Required | Must not be set |
+  | `AAD_ONLY` | Not supported | Must not be set |
+  | `AUTH_TYPE_UNSPECIFIED` | Required | Required |
+  Where the table says the block must not be set, RSC authenticates using
+  Microsoft Entra ID instead and no credentials are sent at all.
+  AUTH_TYPE_UNSPECIFIED means RSC holds no authentication type for the managed
+  instance, which is the case until its subscription is refreshed. Such a server
+  is treated as SQL_AUTH_ONLY, since RSC accepts a SQL Server login for it.
   Use the rubrik_object data source with an object type of
   AzureSqlManagedInstanceServer to look up the server_id by name.
+  ~> Note: auth_type is only known once RSC has been queried, so a
+  combination which does not match the table above is reported when the resource
+  is applied, not when it is planned.
   ~> Note: Because the sql_credentials arguments are write-only, changing
   them produces no difference in the plan. Change sql_credential_version to make
   Terraform send the credentials again.
-  ~> Note: The credentials are validated by the managed instance only once the
-  setup job runs, so invalid credentials surface as a failed job rather than as an
-  immediate error.
+  ~> Note: When RSC creates the backup user, the credentials are validated by
+  the managed instance only once the setup job runs, so invalid credentials
+  surface as a failed job rather than as an immediate error. Registering
+  credentials for an already installed setup script is not a job and returns
+  immediately.
   ~> Note: Destroying the resource clears the backup credentials RSC holds for
-  the managed instance, which are the credentials of the user RSC created, not the
-  sql_credentials administrator login. If the managed instance server itself no
-  longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
-  the resource is simply removed from the Terraform state.
+  the managed instance, which are the credentials of the backup user, not the
+  administrator login RSC may have created it with. If the managed instance server
+  itself no longer exists in RSC, there is nothing left to clear, so the destroy
+  succeeds and the resource is simply removed from the Terraform state.
 ---
 
 # rubrik_azure_sql_managed_instance_credentials (Resource)
 
 The `rubrik_azure_sql_managed_instance_credentials` resource configures the
-SQL Server credentials RSC uses to back up an Azure SQL Managed Instance
-server.
+credentials RSC uses to back up an Azure SQL Managed Instance server.
 
-RSC connects to the managed instance using the SQL Server credentials in the
-`sql_credentials` block and creates the user it uses to perform backups. These
-administrator credentials are only used for that setup and are not stored by
-RSC, which is why they are write-only arguments: they are sent to RSC but never
-written to Terraform state, so they can be sourced from a secret store such as
-Vault without leaking into state.
+There are two ways to create the user RSC backs up as, selected with
+`setup_script_installed`:
+
+* By default, RSC connects to the managed instance using the credentials in the
+  `sql_credentials` block and creates the backup user itself. Those credentials
+  are an administrator login, used only for that setup and not stored by RSC.
+* When `setup_script_installed` is `true`, the setup script has already been run
+  against the managed instance and has created the backup user, so RSC only
+  records which credentials to use. The `sql_credentials` block is then the
+  backup user's own login, which must match the login and password the setup
+  script was run with.
+
+Whether `sql_credentials` is required depends on the authentication mechanisms
+the managed instance supports. The `rubrik_object` data source reports them as
+`auth_type` for an object type of `AzureSqlManagedInstanceServer`.
+
+| `auth_type` | Default | `setup_script_installed = true` |
+| --- | --- | --- |
+| `SQL_AUTH_ONLY` | Required | Required |
+| `SQL_AUTH_AND_AAD` | Required | Must not be set |
+| `AAD_ONLY` | Not supported | Must not be set |
+| `AUTH_TYPE_UNSPECIFIED` | Required | Required |
+
+Where the table says the block must not be set, RSC authenticates using
+Microsoft Entra ID instead and no credentials are sent at all.
+
+`AUTH_TYPE_UNSPECIFIED` means RSC holds no authentication type for the managed
+instance, which is the case until its subscription is refreshed. Such a server
+is treated as `SQL_AUTH_ONLY`, since RSC accepts a SQL Server login for it.
 
 Use the `rubrik_object` data source with an object type of
 `AzureSqlManagedInstanceServer` to look up the `server_id` by name.
+
+~> **Note:** `auth_type` is only known once RSC has been queried, so a
+combination which does not match the table above is reported when the resource
+is applied, not when it is planned.
 
 ~> **Note:** Because the `sql_credentials` arguments are write-only, changing
 them produces no difference in the plan. Change `sql_credential_version` to make
 Terraform send the credentials again.
 
-~> **Note:** The credentials are validated by the managed instance only once the
-setup job runs, so invalid credentials surface as a failed job rather than as an
-immediate error.
+~> **Note:** When RSC creates the backup user, the credentials are validated by
+the managed instance only once the setup job runs, so invalid credentials
+surface as a failed job rather than as an immediate error. Registering
+credentials for an already installed setup script is not a job and returns
+immediately.
 
 ~> **Note:** Destroying the resource clears the backup credentials RSC holds for
-the managed instance, which are the credentials of the user RSC created, not the
-`sql_credentials` administrator login. If the managed instance server itself no
-longer exists in RSC, there is nothing left to clear, so the destroy succeeds and
-the resource is simply removed from the Terraform state.
+the managed instance, which are the credentials of the backup user, not the
+administrator login RSC may have created it with. If the managed instance server
+itself no longer exists in RSC, there is nothing left to clear, so the destroy
+succeeds and the resource is simply removed from the Terraform state.
 
 ## Example Usage
 
 ```terraform
-# Configures the SQL Server credentials RSC uses to back up an Azure SQL
-# Managed Instance server.
+# Configures the credentials RSC uses to back up an Azure SQL Managed Instance
+# server.
 #
-# RSC connects to the managed instance using the credentials in the
-# sql_credentials block and creates the user it uses to perform backups. The
-# credentials are write-only: they are sent to RSC but never written to
-# Terraform state, so they can come straight from a secret store.
+# There are two ways to create the user RSC backs up as, selected with
+# setup_script_installed. By default RSC connects to the managed instance using
+# the credentials in the sql_credentials block and creates the backup user
+# itself. With setup_script_installed set to true, the setup script has already
+# been run against the managed instance and created that user, so RSC only
+# records which credentials to use.
+#
+# Whether sql_credentials is required depends on the authentication mechanisms
+# the managed instance supports, reported as auth_type by the rubrik_object
+# data source. The three examples below cover each case.
 
 # Look up the managed instance server by name to get its RSC object ID.
 data "rubrik_object" "sql_mi" {
@@ -87,7 +142,10 @@ variable "sql_password" {
   sensitive = true
 }
 
-resource "rubrik_azure_sql_managed_instance_credentials" "example" {
+# RSC creates the backup user. The credentials are an administrator login with
+# permission to do so, used only for the setup and not stored by RSC. Works for
+# a managed instance whose auth_type is SQL_AUTH_ONLY or SQL_AUTH_AND_AAD.
+resource "rubrik_azure_sql_managed_instance_credentials" "rsc_creates_user" {
   server_id = data.rubrik_object.sql_mi.id
 
   # Write-only, so these never reach Terraform state and can be sourced from a
@@ -102,6 +160,30 @@ resource "rubrik_azure_sql_managed_instance_credentials" "example" {
   # them again, for example after rotating the password.
   sql_credential_version = "1"
 }
+
+# The setup script has already been run against a managed instance whose
+# auth_type is SQL_AUTH_ONLY. The credentials are the backup user's own login
+# and must match the login and password the script was run with.
+resource "rubrik_azure_sql_managed_instance_credentials" "script_sql_auth" {
+  server_id              = data.rubrik_object.sql_mi.id
+  setup_script_installed = true
+
+  sql_credentials {
+    sql_username = var.sql_username
+    sql_password = var.sql_password
+  }
+
+  sql_credential_version = "1"
+}
+
+# The setup script has already been run against a managed instance which
+# supports Microsoft Entra ID, so auth_type is SQL_AUTH_AND_AAD or AAD_ONLY.
+# RSC authenticates using Entra ID, so no credentials are sent at all and the
+# sql_credentials block must be left out.
+resource "rubrik_azure_sql_managed_instance_credentials" "script_entra_id" {
+  server_id              = data.rubrik_object.sql_mi.id
+  setup_script_installed = true
+}
 ```
 
 <!-- schema generated by tfplugindocs -->
@@ -110,13 +192,14 @@ resource "rubrik_azure_sql_managed_instance_credentials" "example" {
 ### Required
 
 - `server_id` (String) RSC object ID of the SQL Managed Instance server (UUID). Changing this forces a new resource to be created.
-- `sql_credential_version` (String) Arbitrary value identifying the version of the credentials. Change it to make Terraform send the `sql_credentials` block again, e.g. after rotating the password. Write-only arguments produce no difference in the plan on their own.
 
 ### Optional
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `sql_credentials` (Block, Optional) Required. Credentials of a SQL Server user with permission to create the user RSC uses to perform backups. Write-only, change `sql_credential_version` to send them again. Note that Terraform lists the block as optional because the validator enforcing it is not visible to the documentation generator. (see [below for nested schema](#nestedblock--sql_credentials))
+- `setup_script_installed` (Boolean) Whether the setup script has already been run against the managed instance. When `false`, the default, RSC connects to the managed instance using `sql_credentials` and creates the backup user itself. When `true`, the script has already created the backup user and RSC only records which credentials to use.
+- `sql_credential_version` (String) Arbitrary value identifying the version of the credentials. Change it to make Terraform send the `sql_credentials` block again, e.g. after rotating the password. Write-only arguments produce no difference in the plan on their own. Required when `sql_credentials` is set and must not be set otherwise.
+- `sql_credentials` (Block List) SQL Server credentials. When `setup_script_installed` is `false`, these are the credentials of a user with permission to create the user RSC uses to perform backups. When it is `true`, these are the credentials of the backup user the setup script created. Whether the block is required depends on the authentication mechanisms the managed instance supports, see the resource description. May be specified at most once. Write-only, change `sql_credential_version` to send them again. (see [below for nested schema](#nestedblock--sql_credentials))
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only

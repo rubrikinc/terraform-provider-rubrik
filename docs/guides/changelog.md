@@ -31,9 +31,11 @@ page_title: "Changelog"
   policy ID. [[docs](../data-sources/data_security_policy.md)]
 * New resource added for `rubrik_self_serve_rolling_upgrade` which manages the account-wide self-serve rolling upgrade
   setting in RSC. [[docs](../resources/self_serve_rolling_upgrade.md)]
-* New resource added for `rubrik_azure_sql_managed_instance_credentials` which configures the SQL Server credentials
-  RSC uses to back up an Azure SQL Managed Instance server. RSC connects to the managed instance using those
-  credentials and creates the user it uses to perform backups. The credentials are write-only, so they never reach
+* New resource added for `rubrik_azure_sql_managed_instance_credentials` which configures the credentials RSC uses to
+  back up an Azure SQL Managed Instance server. By default RSC connects to the managed instance using the
+  `sql_credentials` block and creates the user it backs up as. Set `setup_script_installed` to `true` when the setup
+  script has already created that user, in which case RSC only records which credentials to use, and authenticates
+  using Microsoft Entra ID when the managed instance supports it. The credentials are write-only, so they never reach
   Terraform state, change `sql_credential_version` to send them again.
   [[docs](../resources/azure_sql_managed_instance_credentials.md)]
 * Add support for the `CloudNativeTagRule` object type in the `rubrik_object` data source, resolving a cloud native
@@ -42,6 +44,10 @@ page_title: "Changelog"
 * Add support for the `AzureSqlManagedInstanceServer` object type in the `rubrik_object` data source, resolving an
   Azure SQL Managed Instance server to its RSC ID by name for use with the `rubrik_sla_domain_assignment` resource.
   Set `subscription_id` to disambiguate a server name shared across subscriptions.
+  [[docs](../data-sources/object.md)]
+* Add an `auth_type` attribute to the `rubrik_object` data source, reporting the authentication mechanisms an
+  `AzureSqlManagedInstanceServer` supports. It decides which credentials the
+  `rubrik_azure_sql_managed_instance_credentials` resource requires, and is null for all other object types.
   [[docs](../data-sources/object.md)]
 * No longer require `subscription_id` when `object_type` is `AzureNativeResourceGroup` in the `rubrik_object` data
   source. Set it only to disambiguate a resource group name shared across subscriptions.
