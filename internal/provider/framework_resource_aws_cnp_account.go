@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -299,12 +300,7 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
 								"`SERVERS_AND_APPS`.",
 							Validators: []validator.String{
-								stringvalidator.OneOf(
-									"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION",
-									"CLOUD_NATIVE_DYNAMODB_PROTECTION", "CLOUD_NATIVE_S3_PROTECTION",
-									"KUBERNETES_PROTECTION", "EXOCOMPUTE", "ROLE_CHAINING",
-									"RDS_PROTECTION", "SERVERS_AND_APPS",
-								),
+								stringvalidator.OneOf(awsCnpFeatureNames...),
 							},
 						},
 						keyPermissionGroups: schema.SetAttribute{
@@ -483,8 +479,20 @@ func (r *awsCnpAccountResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	features := make([]core.Feature, 0, len(account.Features))
-	for _, feature := range account.Features {
+	// RSC enables some features on its own: CLOUD_COST_REPORT is added to any
+	// account carrying a workload feature which accrues AWS spend, regardless of
+	// the feature set passed when onboarding. Such a feature cannot be declared
+	// in the feature block, so tracking it would show up as a diff removing it.
+	// The diff applies, but it silently disables cost reporting for the account,
+	// and it returns the next time the features are onboarded, as RSC adds cost
+	// reporting again. Only the features which can be declared are tracked,
+	// which also keeps import from writing an undeclarable feature into state.
+	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
+		return !slices.Contains(awsCnpFeatureNames, feature.Name)
+	})
+
+	features := make([]core.Feature, 0, len(accountFeatures))
+	for _, feature := range accountFeatures {
 		features = append(features, feature.Feature)
 	}
 
@@ -511,14 +519,14 @@ func (r *awsCnpAccountResource) Read(ctx context.Context, req resource.ReadReque
 		state.RoleChainingAccountID = types.StringNull()
 	}
 
-	featureSet, diags := awsFromFeatures(ctx, account.Features)
+	featureSet, diags := awsFromFeatures(ctx, accountFeatures)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 	state.Feature = featureSet
 
-	regionSet, diags := awsFromFeatureRegions(account.Features)
+	regionSet, diags := awsFromFeatureRegions(accountFeatures)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -634,8 +642,13 @@ func (r *awsCnpAccountResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	currentFeatures := make([]core.Feature, 0, len(account.Features))
-	for _, feature := range account.Features {
+	// Drop the features RSC enabled on its own, see the comment in Read.
+	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
+		return !slices.Contains(awsCnpFeatureNames, feature.Name)
+	})
+
+	currentFeatures := make([]core.Feature, 0, len(accountFeatures))
+	for _, feature := range accountFeatures {
 		currentFeatures = append(currentFeatures, feature.Feature)
 	}
 
@@ -658,14 +671,14 @@ func (r *awsCnpAccountResource) Update(ctx context.Context, req resource.UpdateR
 		plan.RoleChainingAccountID = types.StringValue(account.RoleChainingAccountID.String())
 	}
 
-	featureSet, diags := awsFromFeatures(ctx, account.Features)
+	featureSet, diags := awsFromFeatures(ctx, accountFeatures)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 	plan.Feature = featureSet
 
-	regionSet, diags := awsFromFeatureRegions(account.Features)
+	regionSet, diags := awsFromFeatureRegions(accountFeatures)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -706,6 +719,39 @@ func (r *awsCnpAccountResource) Delete(ctx context.Context, req resource.DeleteR
 	features, diags := awsToFeatures(ctx, state.Feature)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
+		return
+	}
+
+	id, err := uuid.Parse(state.ID.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError("Invalid cloud account ID", err.Error())
+		return
+	}
+
+	// Read the account to find out which features RSC enabled on its own, see
+	// featuresToRemove.
+	account, err := aws.Wrap(polarisClient).AccountByID(ctx, id)
+	if errors.Is(err, graphql.ErrNotFound) {
+		return
+	}
+	if err != nil {
+		res.Diagnostics.AddError("Failed to read AWS account", err.Error())
+		return
+	}
+	// RSC removes every feature on the account when passed an empty feature
+	// list, so an empty result must not be handed to RemoveAccountWithIAM. What
+	// is left on the account then belongs to RSC or to another resource.
+	features = featuresToRemove(features, account)
+	if len(features) == 0 {
+		remaining := make([]string, 0, len(account.Features))
+		for _, feature := range account.Features {
+			remaining = append(remaining, feature.Name)
+		}
+		slices.Sort(remaining)
+
+		res.Diagnostics.AddWarning("AWS account not removed", fmt.Sprintf("None of the features tracked in state "+
+			"are enabled on cloud account %s, so nothing was removed and the account was left in RSC. Features "+
+			"still enabled on the account: %s.", id, strings.Join(remaining, ", ")))
 		return
 	}
 
@@ -832,6 +878,44 @@ func (r *awsCnpAccountResource) ImportState(ctx context.Context, req resource.Im
 	}
 
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
+}
+
+// featuresToRemove returns the features to remove when destroying an account:
+// the declared features tracked in state which RSC still has on the account,
+// plus CLOUD_COST_REPORT when RSC has it on the account.
+//
+// RSC removes the account once its last feature is removed, and it enables
+// CLOUD_COST_REPORT on its own (see Read) without ever removing it along with
+// the features it was enabled for, so removing only the declared features
+// would leave cost reporting behind, and the account with it. The position of
+// cost reporting in the result carries no meaning: it has no parent and no
+// child features, and the SDK reorders the list before sending it, moving
+// CLOUD_DISCOVERY last.
+//
+// Declared features which RSC no longer has, e.g. removed out of band, are
+// dropped. RSC rejects the removal of a feature the account does not have,
+// which would otherwise leave the resource impossible to destroy. The declared
+// features are matched by name, so the permission groups tracked in state are
+// kept.
+//
+// The other features RSC enables on its own are left to RSC. They are deletion
+// children of the declared features, e.g. CLOUDACCOUNTS is a deletion child of
+// CLOUD_NATIVE_PROTECTION, and are archived along with their parent. Naming
+// them here would be redundant, as RSC skips a feature already archived by the
+// time it is reached.
+//
+// The result is empty when RSC has none of the declared features and no cost
+// reporting. Callers must not pass an empty feature list to RSC, see Delete.
+func featuresToRemove(declared []core.Feature, account aws.CloudAccount) []core.Feature {
+	features := slices.DeleteFunc(slices.Clone(declared), func(feature core.Feature) bool {
+		_, ok := account.Feature(feature)
+		return !ok
+	})
+	if _, ok := account.Feature(core.FeatureCloudCostReport); ok {
+		features = append(features, core.FeatureCloudCostReport)
+	}
+
+	return features
 }
 
 // diffFeatures splits a desired feature list against the existing one into the
