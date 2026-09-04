@@ -23,12 +23,16 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -39,6 +43,10 @@ The ´rubrik_aws_custom_tags´ resource manages RSC custom AWS tags. Simplify
 your cloud resource management by assigning custom tags for easy identification.
 These custom tags will be used on all existing and future AWS accounts in your
 RSC account.
+
+Tag keys matching a pattern in ´excluded_tags´ are excluded from
+snapshots. At least one of ´custom_tags´ and ´excluded_tags´ must be specified,
+and neither can be empty when specified.
 
 -> **Note:** The newly updated custom tags will be applied to all existing and
    new resources, while the previously applied tags will remain unchanged.
@@ -60,10 +68,11 @@ RSC account.
 const awsCustomTagsID = "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0"
 
 var (
-	_ resource.Resource                = &awsCustomTagsResource{}
-	_ resource.ResourceWithConfigure   = &awsCustomTagsResource{}
-	_ resource.ResourceWithImportState = &awsCustomTagsResource{}
-	_ resource.ResourceWithMoveState   = &awsCustomTagsResource{}
+	_ resource.Resource                     = &awsCustomTagsResource{}
+	_ resource.ResourceWithConfigValidators = &awsCustomTagsResource{}
+	_ resource.ResourceWithConfigure        = &awsCustomTagsResource{}
+	_ resource.ResourceWithImportState      = &awsCustomTagsResource{}
+	_ resource.ResourceWithMoveState        = &awsCustomTagsResource{}
 )
 
 type awsCustomTagsResource struct {
@@ -100,8 +109,11 @@ func (r *awsCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaReq
 			},
 			keyCustomTags: schema.MapAttribute{
 				ElementType: types.StringType,
-				Required:    true,
-				Description: "Custom tags to add to cloud resources.",
+				Optional:    true,
+				Description: "Custom tags to add to cloud resources. Must contain at least one tag when specified.",
+				Validators: []validator.Map{
+					mapvalidator.SizeAtLeast(1),
+				},
 			},
 			keyOverrideResourceTags: schema.BoolAttribute{
 				Optional:    true,
@@ -109,11 +121,30 @@ func (r *awsCustomTagsResource) Schema(ctx context.Context, _ resource.SchemaReq
 				Default:     booldefault.StaticBool(true),
 				Description: "Should custom tags overwrite existing tags with the same keys. Default value is `true`.",
 			},
+			keyExcludedTags: schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "Tag key patterns to exclude from snapshots. Supports exact matches and prefix wildcards (e.g. `temp-*`). Must contain at least one pattern when specified.",
+				Validators: []validator.Set{
+					setvalidator.SizeAtLeast(1),
+				},
+			},
 		},
 	}
 
 	if r.prefix == keyPolaris {
 		res.Schema.DeprecationMessage = "use `rubrik_aws_custom_tags` instead."
+	}
+}
+
+func (r *awsCustomTagsResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	tflog.Trace(ctx, "awsCustomTagsResource.ConfigValidators")
+
+	return []resource.ConfigValidator{
+		resourcevalidator.AtLeastOneOf(
+			path.MatchRoot(keyCustomTags),
+			path.MatchRoot(keyExcludedTags),
+		),
 	}
 }
 

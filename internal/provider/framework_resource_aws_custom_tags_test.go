@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/config"
@@ -38,11 +39,15 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 	tagKey2 := testUniqueTagKey(t)
 	tagKey3 := testUniqueTagKey(t)
 
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorAWS),
 		Steps: []resource.TestStep{{
-			// Verify that the resource can be created.
+			// Verify that the resource can be created without excluded tags.
 			Config: `
 				variable "key1" {
 					type = string
@@ -50,7 +55,6 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
-
 				resource "rubrik_aws_custom_tags" "tags" {
 					custom_tags = {
 						(var.key1) = "value1"
@@ -59,8 +63,10 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey2),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyID),
@@ -70,19 +76,75 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 						tagKey1: knownvalue.StringExact("value1"),
 						tagKey2: knownvalue.StringExact("value2"),
 					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.Null()),
 				// The override_resource_tags field defaults to true.
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(true)),
 			},
 		}, {
-			// Verify that the resource can be updated. One tag is added, one
-			// is removed, one has its value changed and the override field is
-			// explicitly turned off.
+			// Verify that the resource can be updated to include excluded tags.
 			Config: `
 				variable "key1" {
 					type = string
 				}
 				variable "key2" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_aws_custom_tags" "tags" {
+					custom_tags = {
+						(var.key1) = "value1"
+						(var.key2) = "value2"
+					}
+
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(awsCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						tagKey1: knownvalue.StringExact("value1"),
+						tagKey2: knownvalue.StringExact("value2"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				// The override_resource_tags field defaults to true.
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated by changing its values.
+			Config: `
+				variable "key1" {
+					type = string
+				}
+				variable "key2" {
+					type = string
+				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
 					type = string
 				}
 				resource "rubrik_aws_custom_tags" "tags" {
@@ -91,18 +153,30 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 						(var.key2) = "value3"
 					}
 
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+
 					override_resource_tags = false
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("updated1"),
 						tagKey3: knownvalue.StringExact("value3"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
 					})),
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(false)),
@@ -118,18 +192,36 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 				resource "rubrik_aws_custom_tags" "tags" {
 					custom_tags = {
 						(var.key1) = "updated1"
 						(var.key2) = "value3"
 					}
+
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
 					knownvalue.Bool(true)),
 			},
@@ -143,8 +235,10 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 		}, {
 			// import {} block with id attribute. Note, the import will take
@@ -156,8 +250,10 @@ func TestAccAwsCustomTagsResource(t *testing.T) {
 			ImportStateId:   "dummy",
 			ImportState:     true,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey3),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey3),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
 			},
 		}},
 	})
@@ -170,11 +266,15 @@ func TestAccAwsCustomTagsResource_MultipleResources(t *testing.T) {
 	tagKey1 := testUniqueTagKey(t)
 	tagKey2 := testUniqueTagKey(t)
 
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorAWS),
 		Steps: []resource.TestStep{{
-			// Two resources, each managing a disjoint set of custom tags.
+			// Two resources, each managing a disjoint set of custom tags and
+			// excluded tags.
 			Config: `
 				variable "key1" {
 					type = string
@@ -182,38 +282,64 @@ func TestAccAwsCustomTagsResource_MultipleResources(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
 
 				resource "rubrik_aws_custom_tags" "tags1" {
 					custom_tags = {
 						(var.key1) = "value1"
 					}
+
+					excluded_tags = [
+						var.exKey1,
+					]
 				}
 
 				resource "rubrik_aws_custom_tags" "tags2" {
-					depends_on = [rubrik_aws_custom_tags.tags1]
-
 					custom_tags = {
 						(var.key2) = "value2"
 					}
+
+					excluded_tags = [
+						var.exKey2,
+					]
+
+					depends_on = [
+						rubrik_aws_custom_tags.tags1,
+					]
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey2),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags1", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("value1"),
+					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags1", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
 					})),
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags2", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey2: knownvalue.StringExact("value2"),
 					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags2", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey2),
+					})),
 			},
 		}, {
-			// Destroying the second resource must not remove the custom tag
-			// managed by the first resource.
+			// Destroying the second resource must not remove the custom tag or
+			// the excluded tag managed by the first resource.
 			Config: `
 				variable "key1" {
 					type = string
@@ -221,23 +347,156 @@ func TestAccAwsCustomTagsResource_MultipleResources(t *testing.T) {
 				variable "key2" {
 					type = string
 				}
+				variable "exKey1" {
+					type = string
+				}
 
 				resource "rubrik_aws_custom_tags" "tags1" {
 					custom_tags = {
 						(var.key1) = "value1"
 					}
+
+					excluded_tags = [
+						var.exKey1,
+					]
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"key1": config.StringVariable(tagKey1),
-				"key2": config.StringVariable(tagKey2),
+				"key1":   config.StringVariable(tagKey1),
+				"key2":   config.StringVariable(tagKey2),
+				"exKey1": config.StringVariable(exKey1),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags1", tfjsonpath.New(keyCustomTags),
 					knownvalue.MapExact(map[string]knownvalue.Check{
 						tagKey1: knownvalue.StringExact("value1"),
 					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags1", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+					})),
 			},
+		}},
+	})
+}
+
+// TestAccAwsCustomTagsResource_ExcludedTagsOnly verifies that a resource can
+// manage excluded tags without any custom tags.
+func TestAccAwsCustomTagsResource_ExcludedTagsOnly(t *testing.T) {
+	exKey1 := testUniqueTagKey(t)
+	exKey2 := testUniqueTagKey(t)
+	exKey3 := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             customTagsCheckDestroy(t, core.CloudVendorAWS),
+		Steps: []resource.TestStep{{
+			// Verify that the resource can be created with only excluded tags.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_aws_custom_tags" "tags" {
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey2),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyID),
+					knownvalue.StringExact(awsCustomTagsID)),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey2),
+					})),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyOverrideResourceTags),
+					knownvalue.Bool(true)),
+			},
+		}, {
+			// Verify that the resource can be updated. One excluded tag is
+			// added and one is removed, still without any custom tags.
+			Config: `
+				variable "exKey1" {
+					type = string
+				}
+				variable "exKey2" {
+					type = string
+				}
+				resource "rubrik_aws_custom_tags" "tags" {
+					excluded_tags = [
+						var.exKey1,
+						var.exKey2,
+					]
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"exKey1": config.StringVariable(exKey1),
+				"exKey2": config.StringVariable(exKey3),
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyCustomTags),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_aws_custom_tags.tags", tfjsonpath.New(keyExcludedTags),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact(exKey1),
+						knownvalue.StringExact(exKey3),
+					})),
+			},
+		}},
+	})
+}
+
+// TestAccAwsCustomTagsResource_InvalidConfigs verifies that the custom_tags and
+// excluded_tags fields reject an explicitly empty collection, and that at least
+// one of them must be specified. Terraform distinguishes an unset field from an
+// empty one, and only the unset form is meaningful for these fields.
+func TestAccAwsCustomTagsResource_InvalidConfigs(t *testing.T) {
+	tagKey := testUniqueTagKey(t)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				resource "rubrik_aws_custom_tags" "tags" {
+					custom_tags = {}
+				}
+			`,
+			ExpectError: regexp.MustCompile(`custom_tags map must contain at least 1 elements`),
+		}, {
+			Config: `
+				variable "key" {
+					type = string
+				}
+
+				resource "rubrik_aws_custom_tags" "tags" {
+					custom_tags = {
+						(var.key) = "value"
+					}
+
+					excluded_tags = []
+				}
+			`,
+			ConfigVariables: config.Variables{
+				"key": config.StringVariable(tagKey),
+			},
+			ExpectError: regexp.MustCompile(`excluded_tags set must contain at least 1 elements`),
+		}, {
+			Config: `
+				resource "rubrik_aws_custom_tags" "tags" {
+				}
+			`,
+			ExpectError: regexp.MustCompile(`At least one of these attributes must be configured:\s+\[custom_tags,excluded_tags\]`),
 		}},
 	})
 }

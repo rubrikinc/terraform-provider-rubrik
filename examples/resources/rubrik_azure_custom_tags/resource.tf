@@ -3,4 +3,9 @@ resource "rubrik_azure_custom_tags" "tags" {
     "app"    = "RSC"
     "vendor" = "Rubrik"
   }
+
+  excluded_tags = [
+    "internal-cost-center",
+    "temp-*",
+  ]
 }

@@ -210,6 +210,8 @@ const (
 	keyErrorMsg                                     = "error_msg"
 	keyExcludeAnomalous                             = "exclude_anomalous"
 	keyExcludeQuarantined                           = "exclude_quarantined"
+	keyExcludedLabels                               = "excluded_labels"
+	keyExcludedTags                                 = "excluded_tags"
 	keyExistingSnapshotRetention                    = "existing_snapshot_retention"
 	keyExocompute                                   = "exocompute"
 	keyExocomputeID                                 = "exocompute_id"
