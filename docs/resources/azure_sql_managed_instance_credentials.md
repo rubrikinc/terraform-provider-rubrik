@@ -22,8 +22,12 @@ description: |-
   | `SQL_AUTH_ONLY` | Required | Required |
   | `SQL_AUTH_AND_AAD` | Required | Must not be set |
   | `AAD_ONLY` | Not supported | Must not be set |
+  | `AUTH_TYPE_UNSPECIFIED` | Required | Required |
   Where the table says the block must not be set, RSC authenticates using
   Microsoft Entra ID instead and no credentials are sent at all.
+  AUTH_TYPE_UNSPECIFIED means RSC holds no authentication type for the managed
+  instance, which is the case until its subscription is refreshed. Such a server
+  is treated as SQL_AUTH_ONLY, since RSC accepts a SQL Server login for it.
   Use the rubrik_object data source with an object type of
   AzureSqlManagedInstanceServer to look up the server_id by name.
   ~> Note: auth_type is only known once RSC has been queried, so a
@@ -70,9 +74,14 @@ the managed instance supports. The `rubrik_object` data source reports them as
 | `SQL_AUTH_ONLY` | Required | Required |
 | `SQL_AUTH_AND_AAD` | Required | Must not be set |
 | `AAD_ONLY` | Not supported | Must not be set |
+| `AUTH_TYPE_UNSPECIFIED` | Required | Required |
 
 Where the table says the block must not be set, RSC authenticates using
 Microsoft Entra ID instead and no credentials are sent at all.
+
+`AUTH_TYPE_UNSPECIFIED` means RSC holds no authentication type for the managed
+instance, which is the case until its subscription is refreshed. Such a server
+is treated as `SQL_AUTH_ONLY`, since RSC accepts a SQL Server login for it.
 
 Use the `rubrik_object` data source with an object type of
 `AzureSqlManagedInstanceServer` to look up the `server_id` by name.

@@ -78,9 +78,14 @@ the managed instance supports. The ´rubrik_object´ data source reports them as
 | ´SQL_AUTH_ONLY´ | Required | Required |
 | ´SQL_AUTH_AND_AAD´ | Required | Must not be set |
 | ´AAD_ONLY´ | Not supported | Must not be set |
+| ´AUTH_TYPE_UNSPECIFIED´ | Required | Required |
 
 Where the table says the block must not be set, RSC authenticates using
 Microsoft Entra ID instead and no credentials are sent at all.
+
+´AUTH_TYPE_UNSPECIFIED´ means RSC holds no authentication type for the managed
+instance, which is the case until its subscription is refreshed. Such a server
+is treated as ´SQL_AUTH_ONLY´, since RSC accepts a SQL Server login for it.
 
 Use the ´rubrik_object´ data source with an object type of
 ´AzureSqlManagedInstanceServer´ to look up the ´server_id´ by name.
@@ -518,6 +523,15 @@ func (r *azureSQLManagedInstanceCredentialsResource) setupBackup(ctx context.Con
 		return diags, false
 	}
 	authType := gqlazure.AzureSQLAuthenticationType(server.AuthType)
+	if authType == gqlazure.AzureSQLAuthTypeUnspecified {
+		// RSC records no authentication type for a server whose subscription has
+		// not been refreshed since RSC started tracking the field. RSC accepts a
+		// SQL Server login for such a server, so proceed rather than block a
+		// setup which would succeed. Logged because the provider is assuming
+		// rather than reading the authentication type.
+		tflog.Warn(ctx, "RSC reports no authentication type for the SQL Managed Instance server, "+
+			"assuming SQL Server authentication", map[string]any{"server_id": serverID.String()})
+	}
 
 	var credentials *gqlazure.LoginCredentials
 	if len(config.SQLCredentials) > 0 {
@@ -542,7 +556,10 @@ func (r *azureSQLManagedInstanceCredentialsResource) createBackupUser(ctx contex
 	var diags diag.Diagnostics
 
 	switch authType {
-	case gqlazure.AzureSQLAuthTypeSQLOnly, gqlazure.AzureSQLAuthTypeSQLAndEntraID:
+	// All three accept a SQL Server login for RSC to connect with, an
+	// unspecified authentication type by assumption, warned about above.
+	case gqlazure.AzureSQLAuthTypeSQLOnly, gqlazure.AzureSQLAuthTypeSQLAndEntraID,
+		gqlazure.AzureSQLAuthTypeUnspecified:
 	case gqlazure.AzureSQLAuthTypeEntraIDOnly:
 		diags.AddError("SQL Server authentication not supported", fmt.Sprintf("SQL Managed Instance server "+
 			"%s only supports Microsoft Entra ID authentication, so RSC cannot connect to it with a SQL "+
@@ -585,11 +602,15 @@ func (r *azureSQLManagedInstanceCredentialsResource) registerBackupCredentials(c
 
 	var err error
 	switch authType {
-	case gqlazure.AzureSQLAuthTypeSQLOnly:
+	// An unspecified authentication type is assumed to be SQL Server
+	// authentication, warned about above, so the setup script RSC generated
+	// created a SQL Server login just as it does for SQL_AUTH_ONLY.
+	case gqlazure.AzureSQLAuthTypeSQLOnly, gqlazure.AzureSQLAuthTypeUnspecified:
 		if credentials == nil {
-			diags.AddError("Missing SQL credentials", fmt.Sprintf("SQL Managed Instance server %s only "+
-				"supports SQL Server authentication, so the sql_credentials block is required. It must "+
-				"hold the login and password the setup script was run with", serverID))
+			diags.AddError("Missing SQL credentials", fmt.Sprintf("RSC generates the SQL Server setup "+
+				"script for SQL Managed Instance server %s, and that script creates a SQL Server login, "+
+				"so the sql_credentials block is required. It must hold the login and password the setup "+
+				"script was run with", serverID))
 			return diags
 		}
 		err = azure.Wrap(client).AddSQLManagedInstanceBackupCredentials(ctx, []uuid.UUID{serverID}, *credentials)
