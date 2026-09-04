@@ -22,8 +22,6 @@ package provider
 
 import (
 	"context"
-	"maps"
-	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -205,7 +203,10 @@ func updateCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 		customerTags.Tags = append(customerTags.Tags, core.Tag{Key: key, Value: value})
 	}
 
-	customerTags.ExcludedTags = slices.Collect(maps.Keys(newExcludeTags))
+	customerTags.ExcludedTags = make([]string, 0, len(newExcludeTags))
+	for key := range newExcludeTags {
+		customerTags.ExcludedTags = append(customerTags.ExcludedTags, key)
+	}
 	customerTags.OverrideResourceTags = planOverride
 	if err := tags.Wrap(client).ReplaceCustomerTags(ctx, customerTags); err != nil {
 		res.Diagnostics.AddError("Failed to update custom tags", err.Error())
@@ -239,15 +240,21 @@ func deleteCustomTagsResource(ctx context.Context, client *polaris.Client, vendo
 		return
 	}
 
-	customerTags.Tags = slices.DeleteFunc(customerTags.Tags, func(tag core.Tag) bool {
-		_, ok := stateTags[tag.Key]
-		return ok
-	})
+	newTags := make([]core.Tag, 0, len(customerTags.Tags))
+	for _, tag := range customerTags.Tags {
+		if _, ok := stateTags[tag.Key]; !ok {
+			newTags = append(newTags, tag)
+		}
+	}
+	customerTags.Tags = newTags
 
-	customerTags.ExcludedTags = slices.DeleteFunc(customerTags.ExcludedTags, func(key string) bool {
-		_, ok := stateExclude[key]
-		return ok
-	})
+	newExcludedTags := make([]string, 0, len(customerTags.ExcludedTags))
+	for _, key := range customerTags.ExcludedTags {
+		if _, ok := stateExclude[key]; !ok {
+			newExcludedTags = append(newExcludedTags, key)
+		}
+	}
+	customerTags.ExcludedTags = newExcludedTags
 
 	if err := tags.Wrap(client).ReplaceCustomerTags(ctx, customerTags); err != nil {
 		res.Diagnostics.AddError("Failed to replace custom tags", err.Error())
