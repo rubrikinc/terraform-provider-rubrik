@@ -1,8 +1,8 @@
 ---
-page_title: "Upgrade Guide: v1.9.2"
+page_title: "Upgrade Guide: v1.10.0"
 ---
 
-# Upgrade Guide v1.9.2
+# Upgrade Guide v1.10.0
 
 ## Before Upgrading
 
@@ -16,7 +16,7 @@ as well. Each guide documents breaking changes and migration steps specific to t
 
 ### If you are already using the `rubrikinc/rubrik` provider
 
-Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.9.2 release. One
+Make sure that the `version` field is configured in a way which allows Terraform to upgrade to the v1.10.0 release. One
 way of doing this is by using the pessimistic constraint operator `~>`, which allows Terraform to upgrade to the latest
 release within the same minor version:
 ```terraform
@@ -24,7 +24,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.2"
+      version = "~> 1.10.0"
     }
   }
 }
@@ -38,7 +38,7 @@ Validate the configuration:
 % terraform plan
 ```
 If you get an error or an unwanted diff, please see the _Significant Changes_ section below for additional
-instructions. Otherwise, refresh the state to the v1.9.2 version:
+instructions. Otherwise, refresh the state to the v1.10.0 version:
 ```shell
 % terraform apply -refresh-only
 ```
@@ -63,7 +63,7 @@ terraform {
   required_providers {
     polaris = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.2"
+      version = "~> 1.10.0"
     }
   }
 }
@@ -82,7 +82,7 @@ terraform {
   required_providers {
     rubrik = {
       source  = "rubrikinc/rubrik"
-      version = "~> 1.9.2"
+      version = "~> 1.10.0"
     }
   }
 }
@@ -144,7 +144,7 @@ unwanted diff, see the _Significant Changes_ section below for additional contex
 ```shell
 % terraform apply
 ```
-This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.9.2 version.
+This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.10.0 version.
 
 ## Significant Changes
 
@@ -264,3 +264,53 @@ silently fall back to the global scope and take ownership of every custom tag an
 If you have an `import {}` block still in your configuration with `id = "dummy"`, change it to `id = "global"`.
 Nothing else needs to change — the import ID is not recorded in state, so a `terraform import` completed against an
 earlier release is unaffected.
+### Security group fields in the AWS Exocompute resource are deprecated
+
+The `cluster_security_group_id` and `node_security_group_id` fields in the `rubrik_aws_exocompute` resource are
+deprecated. RSC now always creates and manages the security groups for RSC managed Exocompute configurations, and a
+future RSC release will reject configurations that supply them.
+
+RSC scopes its security group permissions on the name and tags of the security group it creates, notably the
+`rk_managed` tag. It cannot apply that tag to a security group you created without holding `CreateTags` on every
+security group in the account, so customer-supplied groups can fail with an authorization error during some
+operations.
+
+Setting either field still works in this release and produces a deprecation warning. To resolve the warning, remove
+both fields and let RSC create the security groups:
+```terraform
+# Before
+resource "rubrik_aws_exocompute" "host" {
+  account_id                = data.rubrik_aws_account.host.id
+  cluster_security_group_id = "sg-005656347687b8170"
+  node_security_group_id    = "sg-00e147656785d7e2f"
+  region                    = "us-east-2"
+  vpc_id                    = "vpc-4859acb9"
+
+  subnets = [
+    "subnet-ea67b67b",
+    "subnet-ea43ec78"
+  ]
+}
+
+# After
+resource "rubrik_aws_exocompute" "host" {
+  account_id = data.rubrik_aws_account.host.id
+  region     = "us-east-2"
+  vpc_id     = "vpc-4859acb9"
+
+  subnets = [
+    "subnet-ea67b67b",
+    "subnet-ea43ec78"
+  ]
+}
+```
+Run `terraform plan` before applying the change and read the plan. Both fields are marked `ForceNew`, so if the plan
+does show a change to either of them it replaces the Exocompute configuration, which tears down and redeploys the
+Exocompute cluster. Treat a replacement in the plan as a maintenance operation rather than applying it straight away.
+
+Leaving the fields in place is the riskier option over time. Once RSC manages the security groups for a configuration,
+a configuration that still supplies security group IDs differs from what RSC reports for it, and because both fields
+force a new resource that difference is planned as a replacement of the Exocompute configuration.
+
+Customer managed Exocompute — where you attach your own EKS cluster with the
+`rubrik_aws_exocompute_cluster_attachment` resource — never used these fields and is unaffected.
