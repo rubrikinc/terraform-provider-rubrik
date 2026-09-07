@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const gcpProjectTmpl = `
@@ -181,6 +182,68 @@ func TestAccPolarisGCPProject_feature(t *testing.T) {
 					"permission_groups.#": "1",
 					"status":              "CONNECTED",
 				}),
+			),
+		}},
+	})
+}
+
+const gcpProjectCloudSQLTmpl = `
+provider "rubrik" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "rubrik_gcp_project" "default" {
+	credentials    = "{{ .Resource.Credentials }}"
+	project        = "{{ .Resource.ProjectID }}"
+	project_name   = "{{ .Resource.ProjectName }}"
+	project_number = {{ .Resource.ProjectNumber }}
+
+	feature {
+		name = "CLOUD_SQL_PROTECTION"
+		permission_groups = [
+			"BASIC",
+			"EXPORT_AND_RESTORE",
+		]
+	}
+}
+`
+
+// TestAccPolarisGCPProject_cloudSQL verifies that the Cloud SQL protection
+// feature can be onboarded on a GCP project.
+//
+// The test skips unless the CNP_GCP_SQL_ENABLED feature flag is enabled for the
+// RSC account, since RSC rejects the feature without it.
+func TestAccPolarisGCPProject_cloudSQL(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("CNP_GCP_SQL_ENABLED"))
+
+	config, project := loadGCPTestConfig(t)
+
+	projectCloudSQL, err := makeTerraformConfig(config, gcpProjectCloudSQLTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: projectCloudSQL,
+			Check: resource.ComposeTestCheckFunc(
+				// Project resource.
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project", project.ProjectID),
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project_name", project.ProjectName),
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project_number", strconv.FormatInt(project.ProjectNumber, 10)),
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "feature.#", "1"),
+
+				// Cloud SQL Protection feature.
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "CLOUD_SQL_PROTECTION",
+					"permissions":         "",
+					"permission_groups.#": "2",
+					"status":              "CONNECTED",
+				}),
+				resource.TestCheckTypeSetElemAttr("rubrik_gcp_project.default", "feature.*.permission_groups.*", "BASIC"),
+				resource.TestCheckTypeSetElemAttr("rubrik_gcp_project.default", "feature.*.permission_groups.*", "EXPORT_AND_RESTORE"),
 			),
 		}},
 	})
