@@ -205,11 +205,29 @@ resource "rubrik_gcp_project" "default" {
 			"EXPORT_AND_RESTORE",
 		]
 	}
+
+	feature {
+		name = "EXOCOMPUTE"
+		permission_groups = [
+			"BASIC",
+			"CLOUDSQL",
+		]
+	}
+
+	feature {
+		name = "GCP_SHARED_VPC_HOST"
+		permission_groups = [
+			"BASIC",
+			"CLOUDSQL",
+		]
+	}
 }
 `
 
 // TestAccPolarisGCPProject_cloudSQL verifies that the Cloud SQL protection
-// feature can be onboarded on a GCP project.
+// feature can be onboarded on a GCP project, together with the CLOUDSQL
+// permission group of the EXOCOMPUTE and GCP_SHARED_VPC_HOST features, which
+// RSC requires for Cloud SQL archival and archived recovery.
 //
 // The test skips unless the CNP_GCP_SQL_ENABLED feature flag is enabled for the
 // RSC account, since RSC rejects the feature without it.
@@ -232,7 +250,7 @@ func TestAccPolarisGCPProject_cloudSQL(t *testing.T) {
 				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project", project.ProjectID),
 				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project_name", project.ProjectName),
 				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project_number", strconv.FormatInt(project.ProjectNumber, 10)),
-				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "feature.#", "1"),
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "feature.#", "3"),
 
 				// Cloud SQL Protection feature.
 				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
@@ -244,6 +262,25 @@ func TestAccPolarisGCPProject_cloudSQL(t *testing.T) {
 				}),
 				resource.TestCheckTypeSetElemAttr("rubrik_gcp_project.default", "feature.*.permission_groups.*", "BASIC"),
 				resource.TestCheckTypeSetElemAttr("rubrik_gcp_project.default", "feature.*.permission_groups.*", "EXPORT_AND_RESTORE"),
+
+				// Exocompute feature, with the Cloud SQL permission group.
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "EXOCOMPUTE",
+					"permissions":         "",
+					"permission_groups.#": "2",
+					"status":              "CONNECTED",
+				}),
+
+				// Shared VPC host feature, with the Cloud SQL permission group.
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "GCP_SHARED_VPC_HOST",
+					"permissions":         "",
+					"permission_groups.#": "2",
+					"status":              "CONNECTED",
+				}),
+				resource.TestCheckTypeSetElemAttr("rubrik_gcp_project.default", "feature.*.permission_groups.*", "CLOUDSQL"),
 			),
 		}},
 	})
