@@ -39,7 +39,7 @@ import (
 const resourceGCPProjectDescription = `
 The ´rubrik_gcp_project´ resource adds a GCP project to RSC.
 
-The ´permissions´ field of the each feature can be used with the 
+The ´permissions´ field of each feature can be used with the
 ´rubrik_gcp_permissions´ data source to notify RSC about permission updates
 when the Terraform configuration is applied.
 
@@ -67,11 +67,11 @@ are used when specifying the feature.
   * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
     and restore operations.
 
-  Note, RSC runs Cloud SQL archival and archived recovery on Exocompute, which
-  additionally requires the ´CLOUDSQL´ permission group on the ´EXOCOMPUTE´
-  feature. When Exocompute uses a VPC network in a shared VPC host project, the
-  ´CLOUDSQL´ permission group is also required on the ´GCP_SHARED_VPC_HOST´
-  feature of the host project.
+-> **Note:** RSC runs Cloud SQL archival and archived recovery on Exocompute,
+   which additionally requires the ´CLOUDSQL´ permission group on the
+   ´EXOCOMPUTE´ feature. When Exocompute uses a VPC network in a shared VPC host
+   project, the ´CLOUDSQL´ permission group is also required on the
+   ´GCP_SHARED_VPC_HOST´ feature of the host project.
 
 ´GCP_SHARED_VPC_HOST´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the

@@ -18,6 +18,10 @@ page_title: "Changelog"
   account ID to import a resource scoped to a single cloud account, or `global` for the scope covering all cloud
   accounts of the cloud vendor. Any other import ID, including the dummy ID previously documented, is rejected. See
   the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
+* **Breaking Change:** The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for an object
+  type which does not support one, failing the apply with an error. Previously the block was sent as an AWS S3
+  configuration for any object type, where RSC ignored it. See the [v1.10.0 upgrade guide](upgrade_guide_v1.10.0.md).
+  [[docs](../resources/sla_domain.md)]
 * **Deprecated:** `cluster_security_group_id` and `node_security_group_id` in the `rubrik_aws_exocompute`
   resource. RSC now always creates and manages the Exocompute security groups for RSC managed configurations.
   Existing configurations continue to work, but the fields will be removed in a future release. See the
@@ -110,9 +114,6 @@ page_title: "Changelog"
   feature is removed, and it does not remove the `CLOUD_COST_REPORT` feature it enables on its own along with the
   features it was enabled for, so cost reporting is now removed explicitly. Previously the account could remain in
   RSC after the resource was destroyed. [[docs](../resources/aws_cnp_account.md)]
-* The `rubrik_sla_domain` resource now rejects `backup_location` when it is set for object types which do not support
-  one. Previously the block was sent as an AWS S3 configuration for any object type, where RSC ignored it.
-  [[docs](../resources/sla_domain.md)]
 * Add support for excluding tags from snapshots in the `rubrik_aws_custom_tags` and `rubrik_azure_custom_tags`
   resources, and labels in the `rubrik_gcp_custom_labels` resource, through the new `excluded_tags` and
   `excluded_labels` fields. A pattern is either an exact key or a prefix wildcard, such as `temp-*`. As with custom

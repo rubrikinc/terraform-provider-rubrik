@@ -146,6 +146,243 @@ unwanted diff, see the _Significant Changes_ section below for additional contex
 ```
 This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.10.0 version.
 
+## New Features
+
+### Azure SQL Managed Instance Credentials
+
+The new `rubrik_azure_sql_managed_instance_credentials` resource configures the credentials RSC uses to back up an
+Azure SQL Managed Instance server. Look the server up with the `rubrik_object` data source, which now supports the
+`AzureSqlManagedInstanceServer` object type and reports the authentication mechanisms the server supports as
+`auth_type`.
+
+Which credentials RSC needs depends on `auth_type` and on whether the RSC setup script has already been run against the
+managed instance:
+
+* `setup_script_installed = false`, the default — RSC connects to the managed instance using the `sql_credentials`
+  block and creates the user it backs up as. The credentials are an administrator login with permission to do so, used
+  only for the setup and not stored by RSC. Applies when `auth_type` is `SQL_AUTH_ONLY` or `SQL_AUTH_AND_AAD`.
+* `setup_script_installed = true` and `auth_type` is `SQL_AUTH_ONLY` — the script has already created the backup user,
+  so `sql_credentials` is that user's own login and must match the login and password the script was run with.
+* `setup_script_installed = true` and `auth_type` is `SQL_AUTH_AND_AAD` or `AAD_ONLY` — RSC authenticates using
+  Microsoft Entra ID, so no credentials are sent at all and the `sql_credentials` block is left out entirely.
+
+```terraform
+data "rubrik_object" "sql_mi" {
+  name        = "my-sql-managed-instance"
+  object_type = "AzureSqlManagedInstanceServer"
+}
+
+resource "rubrik_azure_sql_managed_instance_credentials" "creds" {
+  server_id = data.rubrik_object.sql_mi.id
+
+  sql_credentials {
+    sql_username = var.sql_username
+    sql_password = var.sql_password
+  }
+
+  sql_credential_version = "1"
+}
+```
+
+~> **Note:** `sql_credentials` is write-only, so the values never reach Terraform state and changing them produces no
+difference in the plan on their own. Change `sql_credential_version` to send them again, for example after rotating the
+password. The two fields are required together. Write-only arguments require Terraform v1.11.0 or later.
+
+### Azure Database for PostgreSQL Flexible Servers
+
+Protection of Azure Database for PostgreSQL flexible servers is supported end to end, across four objects:
+
+1. The `rubrik_azure_permissions` data source supports the `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION` feature, with
+   the `BASIC` and `RECOVERY` permission groups.
+2. The `rubrik_azure_subscription` resource has a new `postgres_flexible_server_protection` feature block.
+3. The `rubrik_object` data source supports the `AzurePostgresFlexibleServer` object type.
+4. The `rubrik_sla_domain` resource supports the `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE` object type and a new
+   `azure_postgres_flexible_server_config` block.
+
+Unlike the other Azure features, `postgres_flexible_server_protection` requires both an Azure resource group and a
+user-assigned managed identity, so those fields are mandatory. RSC assigns the identity to the temporary and recovery
+flexible servers it creates, and requires it to be in the feature's own resource group — a configuration where
+`user_assigned_managed_identity_resource_group_name` does not match `resource_group_name` is rejected during plan.
+Create the identity out of band, for example with the `azurerm_user_assigned_identity` resource.
+
+```terraform
+data "rubrik_azure_permissions" "postgres" {
+  feature           = "AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION"
+  permission_groups = ["BASIC", "RECOVERY"]
+}
+
+resource "rubrik_azure_subscription" "subscription" {
+  subscription_id = "31be1bb0-c76c-11eb-9217-afdffe83a002"
+  tenant_domain   = "my-domain.onmicrosoft.com"
+
+  postgres_flexible_server_protection {
+    permissions           = data.rubrik_azure_permissions.postgres.id
+    permission_groups     = data.rubrik_azure_permissions.postgres.permission_groups
+    resource_group_name   = "my-postgres-rg"
+    resource_group_region = "eastus2"
+
+    regions = [
+      "eastus2",
+    ]
+
+    user_assigned_managed_identity_name                = azurerm_user_assigned_identity.postgres.name
+    user_assigned_managed_identity_principal_id        = azurerm_user_assigned_identity.postgres.principal_id
+    user_assigned_managed_identity_region              = "eastus2"
+    user_assigned_managed_identity_resource_group_name = "my-postgres-rg"
+  }
+}
+```
+
+An SLA Domain protecting flexible servers uses the object type on its own — it cannot be combined with any other
+object type — stores its backup location in `backup_location` rather than the `archival` block, and does not support
+replication. The optional `azure_postgres_flexible_server_config` block sets the point-in-time restore retention,
+between 7 and 35 days, that RSC enforces on the source server. Omit the block to leave the server's existing
+Azure-side retention untouched.
+
+```terraform
+resource "rubrik_sla_domain" "postgres" {
+  name         = "postgres-flexible-server"
+  object_types = ["AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE"]
+
+  hourly_schedule {
+    frequency      = 1
+    retention      = 1
+    retention_unit = "DAYS"
+  }
+
+  azure_postgres_flexible_server_config {
+    backup_retention_in_days = 7
+  }
+
+  backup_location {
+    archival_group_id = data.rubrik_azure_archival_location.archival_location.id
+  }
+}
+```
+
+-> **Note:** RSC returns only the name and the principal ID of a user-assigned managed identity, not its region or its
+resource group name. Those two fields keep whatever is already in state, so drift in them is not detected and they are
+left empty after an import.
+
+### Google Cloud SQL
+
+The `CLOUD_SQL_PROTECTION` feature enables backup and in-place restore of Google Cloud SQL instances. It is supported
+by the `rubrik_gcp_permissions` data source and the `rubrik_gcp_project` resource, and has the `BASIC` and
+`EXPORT_AND_RESTORE` permission groups.
+
+RSC runs Cloud SQL archival and archived recovery on Exocompute, so the `EXOCOMPUTE` feature additionally needs the new
+`CLOUDSQL` permission group. It grants the Private Service Access networking permissions and the temporary Cloud SQL
+instance permissions those operations use. When Exocompute uses a VPC network in a shared VPC host project, add the
+same permission group to the `GCP_SHARED_VPC_HOST` feature of the host project as well.
+
+```terraform
+data "rubrik_gcp_permissions" "cloud_sql" {
+  feature           = "CLOUD_SQL_PROTECTION"
+  permission_groups = ["BASIC", "EXPORT_AND_RESTORE"]
+}
+
+data "rubrik_gcp_permissions" "exocompute" {
+  feature           = "EXOCOMPUTE"
+  permission_groups = ["BASIC", "CLOUDSQL"]
+}
+
+resource "rubrik_gcp_project" "project" {
+  project        = "my-project"
+  project_name   = "My Project"
+  project_number = 123456789012
+
+  feature {
+    name              = "CLOUD_SQL_PROTECTION"
+    permission_groups = ["BASIC", "EXPORT_AND_RESTORE"]
+    permissions       = data.rubrik_gcp_permissions.cloud_sql.id
+  }
+
+  feature {
+    name              = "EXOCOMPUTE"
+    permission_groups = ["BASIC", "CLOUDSQL"]
+    permissions       = data.rubrik_gcp_permissions.exocompute.id
+  }
+}
+```
+
+~> **Note:** Cloud SQL protection must be enabled for the RSC account before the `CLOUDSQL` permission group can be
+used, otherwise RSC rejects the permission group.
+
+### Data Security Policies
+
+The new `rubrik_data_security_policy` resource creates and manages data security policies in RSC, and the matching
+`rubrik_data_security_policy` data source looks one up by `name` or by `policy_id`.
+
+A policy matches on up to two groups of conditions: object conditions in the `object_filter` block, and identity
+conditions in the `identity_filter` block. At least one of the two is required. Conditions within a block are joined by
+that block's `op` field, and the two blocks are always joined by AND. This is the only filter structure RSC accepts,
+and it mirrors the RSC data security policy editor. Which block a condition belongs to follows from its `filter_type`:
+`SECURITY_DOCUMENT_*` and `SECURITY_SNAPPABLE_*` are object conditions, `SECURITY_IDENTITY_*` and `SECURITY_GPO_*` are
+identity conditions.
+
+```terraform
+resource "rubrik_data_security_policy" "overexposed_sensitive_data" {
+  name        = "Overexposed Sensitive Data"
+  description = "Highly sensitive documents without backup protection"
+  category    = "OVEREXPOSED"
+  severity    = "CRITICAL"
+
+  object_filter {
+    op = "AND"
+
+    condition {
+      filter_type  = "SECURITY_DOCUMENT_SENSITIVITY"
+      values       = ["HIGH", "MEDIUM"]
+      relationship = "IS"
+    }
+
+    condition {
+      filter_type  = "SECURITY_SNAPPABLE_BACKUP"
+      values       = ["Unprotected"]
+      relationship = "IS"
+    }
+  }
+}
+```
+
+`category` is one of `MISPLACED`, `OVEREXPOSED`, `REDUNDANT` and `UNPROTECTED`, and `severity` one of `LOW`, `MEDIUM`,
+`HIGH` and `CRITICAL`. The optional `threshold_filter` block holds a single condition deciding how many matches raise a
+violation, typically a `SECURITY_DOCUMENT_HIT_COUNT` condition.
+
+### Self-Serve Rolling Upgrade
+
+The new `rubrik_self_serve_rolling_upgrade` resource manages the account-wide self-serve rolling upgrade setting in
+RSC. The setting is a singleton, so only one instance of the resource is meaningful per RSC tenant.
+
+```terraform
+resource "rubrik_self_serve_rolling_upgrade" "account" {
+  enabled = true
+}
+```
+
+Because the setting is account-wide rather than an object with an ID of its own, the import ID is ignored — importing
+the resource works with any value.
+
+### S3 Recovery Permission Groups
+
+The `CLOUD_NATIVE_S3_PROTECTION` feature gains the `EXPORT` and `RECOVERY` permission groups in the
+`rubrik_aws_account` and `rubrik_aws_cnp_account` resources, and in the `rubrik_aws_cnp_artifacts` and
+`rubrik_aws_cnp_permissions` data sources. `RECOVERY` grants the AWS permissions required to write objects back into an
+existing bucket, and `EXPORT` those required to export an S3 recovery to a newly created target bucket.
+
+~> **Note:** Both permission groups require S3 recovery to be enabled for the RSC account. Use the
+`rubrik_aws_permission_groups` data source to read the permission groups currently available for a feature.
+
+### New `rubrik_object` Object Types
+
+Besides `AzurePostgresFlexibleServer` and `AzureSqlManagedInstanceServer`, covered above, the `rubrik_object` data
+source supports the `CloudNativeTagRule` object type, resolving a cloud native tag rule to its RSC ID by name for use
+with the `rubrik_sla_domain_assignment` resource.
+
+The data source also gains an `auth_type` attribute, reporting the authentication mechanisms an
+`AzureSqlManagedInstanceServer` supports. It is null for every other object type, which is why it is only useful with
+the `rubrik_azure_sql_managed_instance_credentials` resource.
+
 ## Significant Changes
 
 ### The `timeouts` block in `rubrik_object` is now a nested attribute
@@ -264,6 +501,30 @@ silently fall back to the global scope and take ownership of every custom tag an
 If you have an `import {}` block still in your configuration with `id = "dummy"`, change it to `id = "global"`.
 Nothing else needs to change — the import ID is not recorded in state, so a `terraform import` completed against an
 earlier release is unaffected.
+
+### The `rubrik_sla_domain` resource rejects `backup_location` for unsupported object types
+
+The `backup_location` block in the `rubrik_sla_domain` resource is now only accepted for the object types which have a
+backup location:
+
+* `AWS_S3_OBJECT_TYPE`
+* `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE`
+* `AZURE_SQL_DATABASE_OBJECT_TYPE` and `AZURE_SQL_MANAGED_INSTANCE_OBJECT_TYPE`, when the `CNP_AZURE_SQL_SLA_REVAMP`
+  feature is enabled for the RSC account
+
+Previously the block was sent as an AWS S3 configuration whatever the object type, and RSC ignored it for anything but
+an AWS S3 SLA Domain. Setting it for any other object type now fails with `backup_location is not supported by the
+configured object types`.
+
+The error is raised during apply rather than plan, so a configuration carrying a stray `backup_location` block still
+plans clean. Remove the block from any SLA Domain whose `object_types` are not in the list above — it had no effect
+before, so removing it does not change the SLA Domain.
+
+Note that Azure SQL Database and Azure SQL Managed Instance SLA Domains are only in the list when the
+`CNP_AZURE_SQL_SLA_REVAMP` feature is enabled for the RSC account. Without the feature they carry their archival
+location in the `archival` block, and a `backup_location` block is now rejected rather than silently sent as an AWS S3
+configuration.
+
 ### Security group fields in the AWS Exocompute resource are deprecated
 
 The `cluster_security_group_id` and `node_security_group_id` fields in the `rubrik_aws_exocompute` resource are
@@ -314,3 +575,22 @@ force a new resource that difference is planned as a replacement of the Exocompu
 
 Customer managed Exocompute — where you attach your own EKS cluster with the
 `rubrik_aws_exocompute_cluster_attachment` resource — never used these fields and is unaffected.
+
+### `CLOUD_COST_REPORT` is no longer tracked on AWS IAM roles accounts
+
+RSC enables the `CLOUD_COST_REPORT` feature on its own for any AWS account carrying a workload feature which accrues
+AWS spend, whatever feature set was passed when onboarding. It cannot be declared in the `feature` block of the
+`rubrik_aws_cnp_account` resource, so tracking it produced a persistent diff removing it. Applying that diff silently
+disabled cost reporting for the account, and RSC added the feature back the next time the features were onboarded.
+
+Only the features which can be declared are tracked now. Expect a one-time change on upgrade for accounts where RSC
+enabled cost reporting: the feature drops out of state on the first refresh, and the diff removing it goes with it.
+Nothing needs to change in the configuration, and cost reporting in RSC is left alone.
+
+The same filtering applies to the `features` field of the `rubrik_aws_cnp_account_attachments` resource, to imports of
+both resources, and to the configuration generated by the `rubrik_aws_cnp_account` and
+`rubrik_aws_cnp_account_attachments` list resources.
+
+Destroying a `rubrik_aws_cnp_account` now removes cost reporting explicitly. RSC removes an account once its last
+feature is removed, but it never removes `CLOUD_COST_REPORT` along with the features it was enabled for, so removing
+only the declared features could leave the feature — and with it the account — behind in RSC.
