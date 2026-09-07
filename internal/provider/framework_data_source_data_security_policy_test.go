@@ -28,9 +28,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccDataSecurityPolicyDataSource(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagPolicyEngineEnabled)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             dataSecurityPolicyCheckDestroy(t),
