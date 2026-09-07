@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const gcpProjectTmpl = `
@@ -210,13 +211,12 @@ resource "rubrik_gcp_project" "default" {
 // TestAccPolarisGCPProject_cloudSQL verifies that the Cloud SQL protection
 // feature can be onboarded on a GCP project.
 //
-// The test skips unless cloudSql is enabled in TEST_GCPPROJECT_FILE, since RSC
-// rejects the feature on accounts without the CNP_GCP_SQL_ENABLED feature flag.
+// The test skips unless the CNP_GCP_SQL_ENABLED feature flag is enabled for the
+// RSC account, since RSC rejects the feature without it.
 func TestAccPolarisGCPProject_cloudSQL(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("CNP_GCP_SQL_ENABLED"))
+
 	config, project := loadGCPTestConfig(t)
-	if !project.CloudSQL.Enabled {
-		t.Skip("skipping, cloudSql is not enabled in TEST_GCPPROJECT_FILE")
-	}
 
 	projectCloudSQL, err := makeTerraformConfig(config, gcpProjectCloudSQLTmpl)
 	if err != nil {
