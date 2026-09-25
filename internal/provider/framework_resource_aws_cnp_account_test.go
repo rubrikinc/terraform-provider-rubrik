@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	gqlaws "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
@@ -658,5 +659,161 @@ func TestSplitAccountID(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestAccAwsCnpAccountResource_ConfigProtection onboards the Cloud
+// Applications feature, CLOUD_NATIVE_CONFIG_PROTECTION, with its full
+// permission group set.
+//
+// The RSC account must offer the granular permission group layout, i.e. have
+// LIC_ENABLE_AWS_APP_RESILIENCE enabled. On an account still using the
+// superseded BASIC/RECOVERY/RECOVERY_NETWORKING layout, RSC does not offer
+// BASIC_2 or RECOVERY_2/3/4 and onboarding fails for reasons unrelated to the
+// provider, so the test skips instead of reporting a confusing failure.
+func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
+	requireConfigProtectionGranularLayout(t)
+
+	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name = "CLOUD_NATIVE_CONFIG_PROTECTION"
+						permission_groups = [
+							"BASIC",
+							"BASIC_2",
+							"RECOVERY",
+							"RECOVERY_2",
+							"RECOVERY_3",
+							"RECOVERY_4",
+						]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
+				// The permission groups must read back exactly as written. RSC
+				// silently drops permission groups it considers superseded, which
+				// would show up here as a non-converging plan.
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyFeature),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_DISCOVERY"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+							}),
+						}),
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_NATIVE_CONFIG_PROTECTION"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+								knownvalue.StringExact("BASIC_2"),
+								knownvalue.StringExact("RECOVERY"),
+								knownvalue.StringExact("RECOVERY_2"),
+								knownvalue.StringExact("RECOVERY_3"),
+								knownvalue.StringExact("RECOVERY_4"),
+							}),
+						}),
+					})),
+			},
+		}, {
+			// A second plan must be empty. This is the check that would catch
+			// RSC dropping a permission group that was accepted on apply.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name = "CLOUD_NATIVE_CONFIG_PROTECTION"
+						permission_groups = [
+							"BASIC",
+							"BASIC_2",
+							"RECOVERY",
+							"RECOVERY_2",
+							"RECOVERY_3",
+							"RECOVERY_4",
+						]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}},
+	})
+}
+
+// requireConfigProtectionGranularLayout skips the test unless RSC offers the
+// granular CLOUD_NATIVE_CONFIG_PROTECTION permission groups for the account.
+func requireConfigProtectionGranularLayout(t *testing.T) {
+	t.Helper()
+
+	featurePerms, err := gqlaws.Wrap(testClient(t).GQL).AllFeaturePermissions(
+		t.Context(), []core.Feature{core.FeatureCloudNativeConfigProtection})
+	if err != nil {
+		t.Fatalf("failed to read permission groups: %v", err)
+	}
+
+	var groups []core.PermissionGroup
+	for _, featurePerm := range featurePerms {
+		for _, group := range featurePerm.PermissionsGroupPermissions {
+			groups = append(groups, group.PermissionsGroup)
+		}
+	}
+
+	for _, group := range []core.PermissionGroup{
+		core.PermissionGroupBasic2,
+		core.PermissionGroupRecovery2,
+		core.PermissionGroupRecovery3,
+		core.PermissionGroupRecovery4,
+	} {
+		if !slices.Contains(groups, group) {
+			t.Skipf("RSC does not offer the %s permission group for %s, the account is not "+
+				"using the granular App Resilience layout. Permission groups offered: %v",
+				group, core.FeatureCloudNativeConfigProtection.Name, groups)
+		}
 	}
 }
