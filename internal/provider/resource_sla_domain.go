@@ -1186,7 +1186,9 @@ func resourceSLADomain() *schema.Resource {
 					"`NAS_OBJECT_TYPE`, `NCD_OBJECT_TYPE`, `NUTANIX_OBJECT_TYPE`, `O365_OBJECT_TYPE`, `OKTA_OBJECT_TYPE`, `OLVM_OBJECT_TYPE`, `OPENSTACK_OBJECT_TYPE`, " +
 					"`ORACLE_OBJECT_TYPE`, `POSTGRES_DB_CLUSTER_OBJECT_TYPE`, `PROXMOX_OBJECT_TYPE`, `SALESFORCE_OBJECT_TYPE`, `SAP_HANA_OBJECT_TYPE`, " +
 					"`SNAPMIRROR_CLOUD_OBJECT_TYPE`, `VCD_OBJECT_TYPE`, `VOLUME_GROUP_OBJECT_TYPE`, and `VSPHERE_OBJECT_TYPE`. " +
-					"Note, `AZURE_SQL_DATABASE_OBJECT_TYPE` cannot be provided at the same time as other object types.",
+					"Note, `AZURE_SQL_DATABASE_OBJECT_TYPE` cannot be provided at the same time as other object types. " +
+					"`AWS_CONFIG_OBJECT_TYPE` cannot be combined with other object types, does not support a minute " +
+					"schedule, requires an hourly frequency of at least 6 hours, and accepts at most one `backup_location`.",
 			},
 			keyQuarterlySchedule: {
 				Type: schema.TypeList,
@@ -2308,8 +2310,9 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 		}
 
 		// backup_location is routed to one of two places depending on the object
-		// type. Azure Postgres Flexible Server and Azure SQL (V1/V2 model) store
-		// their backup location in the SLA-level backup location specs. AWS S3
+		// type. AWS Config, Azure Postgres Flexible Server and Azure SQL (V1/V2
+		// model) store their backup location in the SLA-level backup location
+		// specs. AWS S3
 		// uses the specs when the multiple backup locations feature is enabled and
 		// the legacy object specific config otherwise. No other object type
 		// accepts a backup location.
@@ -2320,6 +2323,7 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 		// an AWS S3 config.
 		objectTypeSet := d.Get(keyObjectTypes).(*schema.Set)
 		locations := d.Get(keyBackupLocation).([]any)
+		hasAWSConfig := objectTypeSet.Contains(string(gqlsla.ObjectAWSConfig))
 		hasAWSS3 := objectTypeSet.Contains(string(gqlsla.ObjectAWSS3))
 		hasAzurePostgres := objectTypeSet.Contains(string(gqlsla.ObjectAzurePostgresFlexibleServer))
 		hasAzureSQL := objectTypeSet.Contains(string(gqlsla.ObjectAzureSQLDatabase)) ||
@@ -2332,7 +2336,7 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 			if awsS3Config, err = fromAWSS3Config(locations); err != nil {
 				return diag.FromErr(err)
 			}
-		case hasAWSS3 || hasAzurePostgres || (hasAzureSQL && azureSQLRevamp.Enabled):
+		case hasAWSConfig || hasAWSS3 || hasAzurePostgres || (hasAzureSQL && azureSQLRevamp.Enabled):
 			backupLocations = fromBackupLocation(locations)
 		case len(locations) > 0:
 			return diag.Errorf("%s is not supported by the configured object types", keyBackupLocation)
@@ -3116,6 +3120,11 @@ func slaDomainCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, m any) 
 	if err := validateAzurePostgresFlexibleServerConfig(len(blocks) > 0, objectTypes); err != nil {
 		return err
 	}
+	if objectTypes != nil && objectTypes.Contains(string(gqlsla.ObjectAWSConfig)) {
+		if err := validateAWSConfigObjectType(objectTypes.List(), awsConfigScheduleFromDiff(d), backupLocationCount(d)); err != nil {
+			return err
+		}
+	}
 
 	// Changing the backup service of an existing SLA domain is rejected below.
 	// Creating a new SLA domain with any backup service is allowed, so the
@@ -3172,6 +3181,64 @@ func validateAzurePostgresFlexibleServerConfig(configPresent bool, objectTypes *
 	}
 
 	return nil
+}
+
+// minAWSConfigHourlyFrequency is the smallest hourly snapshot frequency RSC
+// accepts for an SLA carrying the AWS Config object type.
+const minAWSConfigHourlyFrequency = 6
+
+// validateAWSConfigObjectType validates an SLA carrying the AWS Config (Cloud
+// Applications) object type.
+//
+// RSC rejects minute schedules, hourly frequencies below 6 hours and more than
+// one backup location for this object type when the SLA is created or updated.
+// The backup location itself is optional. The object type cannot be combined
+// with any other, matching the RSC UI, which does not allow it.
+//
+// This is called from CustomizeDiff so that it fails during plan rather than
+// part way through an apply.
+func validateAWSConfigObjectType(objectTypeList []any, schedule gqlsla.SnapshotSchedule, backupLocationCount int) error {
+	if len(objectTypeList) > 1 {
+		return fmt.Errorf("the AWS Config object type cannot be combined with other object types")
+	}
+	if backupLocationCount > 1 {
+		return fmt.Errorf("the AWS Config object type supports at most one backup_location")
+	}
+	if schedule.Minute != nil {
+		return fmt.Errorf("the AWS Config object type does not support a minute schedule")
+	}
+	if schedule.Hourly != nil && schedule.Hourly.BasicSchedule.Frequency < minAWSConfigHourlyFrequency {
+		return fmt.Errorf("the AWS Config object type requires an hourly frequency of at least %d hours",
+			minAWSConfigHourlyFrequency)
+	}
+
+	return nil
+}
+
+// awsConfigScheduleFromDiff returns the parts of the planned snapshot schedule
+// validateAWSConfigObjectType checks. An hourly frequency that is not yet known
+// is left out; CustomizeDiff runs again with known values when the plan is
+// finalized during apply.
+func awsConfigScheduleFromDiff(d *schema.ResourceDiff) gqlsla.SnapshotSchedule {
+	var schedule gqlsla.SnapshotSchedule
+	if blocks, _ := d.Get(keyMinuteSchedule).([]any); len(blocks) > 0 {
+		schedule.Minute = &gqlsla.MinuteSnapshotSchedule{}
+	}
+	if blocks, _ := d.Get(keyHourlySchedule).([]any); len(blocks) > 0 && d.NewValueKnown(keyHourlySchedule+".0."+keyFrequency) {
+		if block, ok := blocks[0].(map[string]any); ok {
+			frequency, _ := block[keyFrequency].(int)
+			schedule.Hourly = &gqlsla.HourlySnapshotSchedule{
+				BasicSchedule: gqlsla.BasicSnapshotSchedule{Frequency: frequency},
+			}
+		}
+	}
+	return schedule
+}
+
+// backupLocationCount returns the number of planned backup_location blocks.
+func backupLocationCount(d *schema.ResourceDiff) int {
+	blocks, _ := d.Get(keyBackupLocation).([]any)
+	return len(blocks)
 }
 
 // validateAzurePostgresFlexibleServerObjectType validates an Azure Postgres

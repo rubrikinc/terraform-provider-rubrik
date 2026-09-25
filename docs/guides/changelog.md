@@ -12,7 +12,9 @@ page_title: "Changelog"
   sources. Its permission groups are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3` and `RECOVERY_4`.
   [[docs](../resources/aws_account.md)]
 * Add support for the `AWS_CONFIG_OBJECT_TYPE` object type in the `rubrik_sla_domain` resource, so an SLA Domain can
-  protect the configuration captured by the Cloud Applications feature. [[docs](../resources/sla_domain.md)]
+  protect the configuration captured by the Cloud Applications feature. The object type cannot be combined with other
+  object types, cannot use a minute schedule, requires an hourly frequency of at least 6 hours, and accepts an optional
+  single `backup_location`. [[docs](../resources/sla_domain.md)]
 * Add support for specifying the Shared VPC host project and the GKE pods secondary IP range in the
   `regional_config` block of the `rubrik_gcp_exocompute` resource, using the new `host_project_id` and
   `secondary_range_name` fields. [[docs](../resources/gcp_exocompute.md)]

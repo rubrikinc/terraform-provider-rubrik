@@ -219,6 +219,70 @@ func TestConfigHasLTRConfig(t *testing.T) {
 // schema: the object type cannot be combined with any other, matching the RSC
 // UI, and a backup location is mandatory because these SLAs use
 // backupLocationSpecs rather than the legacy archivalSpecs.
+func TestValidateAWSConfigObjectType(t *testing.T) {
+	config := string(gqlsla.ObjectAWSConfig)
+	hourly := func(frequency int) *gqlsla.HourlySnapshotSchedule {
+		return &gqlsla.HourlySnapshotSchedule{BasicSchedule: gqlsla.BasicSnapshotSchedule{Frequency: frequency}}
+	}
+	tests := []struct {
+		name                string
+		objectTypes         []any
+		schedule            gqlsla.SnapshotSchedule
+		backupLocationCount int
+		wantErr             string
+	}{{
+		name:     "DailyOnly",
+		schedule: gqlsla.SnapshotSchedule{Daily: &gqlsla.DailySnapshotSchedule{}},
+	}, {
+		// Mirrors an SLA created in the RSC UI.
+		name:                "HourlyWithOneBackupLocation",
+		schedule:            gqlsla.SnapshotSchedule{Hourly: hourly(6)},
+		backupLocationCount: 1,
+	}, {
+		name:                "MultipleBackupLocations",
+		schedule:            gqlsla.SnapshotSchedule{Hourly: hourly(6)},
+		backupLocationCount: 2,
+		wantErr:             "at most one backup_location",
+	}, {
+		name:        "CombinedWithOtherObjectType",
+		objectTypes: []any{config, string(gqlsla.ObjectAWSEC2EBS)},
+		schedule:    gqlsla.SnapshotSchedule{Hourly: hourly(6)},
+		wantErr:     "cannot be combined with other object types",
+	}, {
+		name:     "HourlyAtMinimum",
+		schedule: gqlsla.SnapshotSchedule{Hourly: hourly(6)},
+	}, {
+		name:     "HourlyAboveMinimum",
+		schedule: gqlsla.SnapshotSchedule{Hourly: hourly(12)},
+	}, {
+		name:     "HourlyBelowMinimum",
+		schedule: gqlsla.SnapshotSchedule{Hourly: hourly(5)},
+		wantErr:  "at least 6 hours",
+	}, {
+		name:     "Minute",
+		schedule: gqlsla.SnapshotSchedule{Minute: &gqlsla.MinuteSnapshotSchedule{}},
+		wantErr:  "does not support a minute schedule",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objectTypes := tt.objectTypes
+			if objectTypes == nil {
+				objectTypes = []any{config}
+			}
+			err := validateAWSConfigObjectType(objectTypes, tt.schedule, tt.backupLocationCount)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Fatalf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateAzurePostgresFlexibleServerObjectType(t *testing.T) {
 	pg := string(gqlsla.ObjectAzurePostgresFlexibleServer)
 	backupLocation := []gqlsla.BackupLocationSpec{{ArchivalGroupID: uuid.MustParse("f6b1f4e8-5d1e-4f4e-9b6f-3a1c2d5e7f90")}}
