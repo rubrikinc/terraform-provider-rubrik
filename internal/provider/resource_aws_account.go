@@ -61,6 +61,10 @@ for an account:
     for existing accounts.
   * ´cloud_native_archival´ - Enable the Cloud Native Archival feature for the
     account.
+  * ´cloud_native_config_protection´ - Enable the Cloud Applications feature,
+    also known as Cloud Native Config Protection, for the account. Protects the
+    AWS configuration surrounding an application, such as VPC and networking,
+    IAM, KMS and load balancers.
   * ´cloud_native_protection´ - Enable the Cloud Native Protection feature for
     the account.
   * ´cloud_native_dynamodb_protection´ - Enable the Cloud Native DynamoDB
@@ -234,6 +238,7 @@ func resourceAwsAccount() *schema.Resource {
 				AtLeastOneOf: []string{
 					keyCloudDiscovery,
 					keyCloudNativeArchival,
+					keyCloudNativeConfigProtection,
 					keyCloudNativeDynamoDBProtection,
 					keyCloudNativeS3Protection,
 					keyCyberRecoveryDataScanning,
@@ -247,6 +252,24 @@ func resourceAwsAccount() *schema.Resource {
 					keyServersAndApps,
 				},
 				Description: "Enable the Cloud Native Protection feature for the account.",
+			},
+			keyCloudNativeConfigProtection: {
+				Type: schema.TypeList,
+				Elem: awsCFTFeatureResource([]core.PermissionGroup{
+					core.PermissionGroupBasic,
+					core.PermissionGroupBasic2,
+					core.PermissionGroupRecovery,
+					core.PermissionGroupRecovery2,
+					core.PermissionGroupRecovery3,
+					core.PermissionGroupRecovery4,
+					// RECOVERY_NETWORKING is deliberately absent. It is
+					// deprecated in favour of the groups above and RSC silently
+					// drops it, which would leave a permanent plan diff.
+				}),
+				MaxItems: 1,
+				Optional: true,
+				Description: "Enable the Cloud Applications feature, also known as Cloud Native " +
+					"Config Protection, for the account.",
 			},
 			keyCloudNativeDynamoDBProtection: {
 				Type: schema.TypeList,
@@ -429,6 +452,7 @@ func resourceAwsAccount() *schema.Resource {
 				ConflictsWith: []string{
 					keyCloudDiscovery,
 					keyCloudNativeArchival,
+					keyCloudNativeConfigProtection,
 					keyCloudNativeProtection,
 					keyCloudNativeDynamoDBProtection,
 					keyCloudNativeS3Protection,
@@ -528,6 +552,14 @@ func awsCreateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	}
 
 	featureBlock, err = awsFromCFTFeatureBlock(keyCloudNativeProtection, d.Get(keyCloudNativeProtection))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if featureBlock != nil {
+		featureBlocks = append(featureBlocks, *featureBlock)
+	}
+
+	featureBlock, err = awsFromCFTFeatureBlock(keyCloudNativeConfigProtection, d.Get(keyCloudNativeConfigProtection))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -705,6 +737,9 @@ func awsReadAccount(ctx context.Context, d *schema.ResourceData, m any) diag.Dia
 	if err := d.Set(keyCloudNativeProtection, awsToCFTFeatureBlock(account, keyCloudNativeProtection)); err != nil {
 		return diag.FromErr(err)
 	}
+	if err := d.Set(keyCloudNativeConfigProtection, awsToCFTFeatureBlock(account, keyCloudNativeConfigProtection)); err != nil {
+		return diag.FromErr(err)
+	}
 	if err := d.Set(keyCloudNativeDynamoDBProtection, awsToCFTFeatureBlock(account, keyCloudNativeDynamoDBProtection)); err != nil {
 		return diag.FromErr(err)
 	}
@@ -867,6 +902,9 @@ func awsUpdateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeProtection, d); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeConfigProtection, d); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeDynamoDBProtection, d); err != nil {
@@ -1060,6 +1098,10 @@ func awsCustomizeDiffAccount(ctx context.Context, diff *schema.ResourceDiff, m a
 	// onboarding protection features for a new account.
 	if diff.Id() != "" && diff.HasChange(keyCloudDiscovery) {
 		if block := diff.Get(keyCloudDiscovery).([]any); len(block) == 0 {
+			// Note, cloud_native_config_protection is deliberately absent. Its
+			// permissions are not carried by Cloud Discovery, unlike the
+			// features below, so it does not depend on Cloud Discovery
+			// remaining enabled.
 			protectionKeys := []string{
 				keyCloudNativeProtection,
 				keyCloudNativeDynamoDBProtection,
@@ -1192,6 +1234,9 @@ var awsCFTFeatureBlockMap = map[string][]core.Feature{
 	},
 	keyCloudNativeProtection: {
 		core.FeatureCloudNativeProtection,
+	},
+	keyCloudNativeConfigProtection: {
+		core.FeatureCloudNativeConfigProtection,
 	},
 	keyCloudNativeDynamoDBProtection: {
 		core.FeatureCloudNativeDynamoDBProtection,

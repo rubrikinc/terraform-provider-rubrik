@@ -5,6 +5,14 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.11.0
+* Add support for the Cloud Applications feature, `CLOUD_NATIVE_CONFIG_PROTECTION`, which protects the AWS
+  configuration surrounding an application, such as VPC and networking, IAM, KMS and load balancers. The feature is
+  enabled with the new `cloud_native_config_protection` block in the `rubrik_aws_account` resource, and is accepted
+  by the `rubrik_aws_cnp_account` resource and the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data
+  sources. Its permission groups are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3` and `RECOVERY_4`.
+  [[docs](../resources/aws_account.md)]
+* Add support for the `AWS_CONFIG_OBJECT_TYPE` object type in the `rubrik_sla_domain` resource, so an SLA Domain can
+  protect the configuration captured by the Cloud Applications feature. [[docs](../resources/sla_domain.md)]
 * Add support for specifying the Shared VPC host project and the GKE pods secondary IP range in the
   `regional_config` block of the `rubrik_gcp_exocompute` resource, using the new `host_project_id` and
   `secondary_range_name` fields. [[docs](../resources/gcp_exocompute.md)]

@@ -147,6 +147,7 @@ const (
 	keyCloudNativeArchival                          = "cloud_native_archival"
 	keyCloudNativeArchivalEncryption                = "cloud_native_archival_encryption"
 	keyCloudNativeBlobProtection                    = "cloud_native_blob_protection"
+	keyCloudNativeConfigProtection                  = "cloud_native_config_protection"
 	keyCloudNativeDynamoDBProtection                = "cloud_native_dynamodb_protection"
 	keyCloudNativeProtection                        = "cloud_native_protection"
 	keyCloudNativeS3Protection                      = "cloud_native_s3_protection"

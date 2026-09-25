@@ -17,7 +17,10 @@ description: |-
   cloud_discovery - Enable the Cloud Discovery feature for the account.
   Required when onboarding a new account with protection features. Optional
   for existing accounts.cloud_native_archival - Enable the Cloud Native Archival feature for the
-  account.cloud_native_protection - Enable the Cloud Native Protection feature for
+  account.cloud_native_config_protection - Enable the Cloud Applications feature,
+  also known as Cloud Native Config Protection, for the account. Protects the
+  AWS configuration surrounding an application, such as VPC and networking,
+  IAM, KMS and load balancers.cloud_native_protection - Enable the Cloud Native Protection feature for
   the account.cloud_native_dynamodb_protection - Enable the Cloud Native DynamoDB
   Protection feature for the account.cloud_native_s3_protection - Enable the Cloud Native S3 Protection feature
   for the account.cyber_recovery_data_scanning - Enable the Cyber Recovery Data Scanning
@@ -135,6 +138,10 @@ for an account:
     for existing accounts.
   * `cloud_native_archival` - Enable the Cloud Native Archival feature for the
     account.
+  * `cloud_native_config_protection` - Enable the Cloud Applications feature,
+    also known as Cloud Native Config Protection, for the account. Protects the
+    AWS configuration surrounding an application, such as VPC and networking,
+    IAM, KMS and load balancers.
   * `cloud_native_protection` - Enable the Cloud Native Protection feature for
     the account.
   * `cloud_native_dynamodb_protection` - Enable the Cloud Native DynamoDB
@@ -376,6 +383,7 @@ resource "rubrik_aws_account" "account2" {
 - `assume_role` (String) Role ARN of role to assume.
 - `cloud_discovery` (Block List, Max: 1) Enable the Cloud Discovery feature for the account. (see [below for nested schema](#nestedblock--cloud_discovery))
 - `cloud_native_archival` (Block List, Max: 1) Enable the Cloud Native Archival feature for the account. (see [below for nested schema](#nestedblock--cloud_native_archival))
+- `cloud_native_config_protection` (Block List, Max: 1) Enable the Cloud Applications feature, also known as Cloud Native Config Protection, for the account. (see [below for nested schema](#nestedblock--cloud_native_config_protection))
 - `cloud_native_dynamodb_protection` (Block List, Max: 1) Enable the Cloud Native DynamoDB Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_dynamodb_protection))
 - `cloud_native_protection` (Block List, Max: 1) Enable the Cloud Native Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_protection))
 - `cloud_native_s3_protection` (Block List, Max: 1) Enable the Cloud Native S3 Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_s3_protection))
@@ -418,6 +426,20 @@ Read-Only:
 Required:
 
 - `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `regions` (Set of String) Regions the feature will be enabled in.
+
+Read-Only:
+
+- `stack_arn` (String) CloudFormation stack ARN.
+- `status` (String) Status of the feature.
+
+
+<a id="nestedblock--cloud_native_config_protection"></a>
+### Nested Schema for `cloud_native_config_protection`
+
+Required:
+
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
