@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -209,8 +210,15 @@ func (c *client) polaris() (*polaris.Client, error) {
 	return c.polarisClient, nil
 }
 
-// description returns the description string with all acute accents replaced
-// with grave accents (backticks).
+// description returns the description string with all shared snippets expanded
+// and all acute accents replaced with grave accents (backticks).
 func description(description string) string {
-	return strings.ReplaceAll(description, "´", "`")
+	tmpl := template.Must(template.Must(docSnippets.Clone()).New("description").Parse(description))
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, nil); err != nil {
+		panic(fmt.Sprintf("failed to render description: %s", err))
+	}
+
+	return strings.ReplaceAll(buf.String(), "´", "`")
 }

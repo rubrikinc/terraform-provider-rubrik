@@ -44,8 +44,10 @@ description: |-
   Cloud SQL protection to be enabled for the RSC account.
   SERVERS_AND_APPS
   CLOUD_CLUSTER_ES - Represents the set of permissions required to onboard
-  the feature. Note, unlike other features, SERVERS_AND_APPS does not use
-  the BASIC permission group.
+  the feature.
+  -> Note: When permission groups are specified, the BASIC permission group
+  is always required, except for SERVERS_AND_APPS which only supports the
+  CLOUD_CLUSTER_ES permission group and does not use BASIC.
 ---
 
 # rubrik_gcp_project (Resource)
@@ -107,8 +109,11 @@ are used when specifying the feature.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the set of permissions required to onboard
-    the feature. Note, unlike other features, `SERVERS_AND_APPS` does not use
-    the `BASIC` permission group.
+    the feature.
+
+-> **Note:** When permission groups are specified, the `BASIC` permission group
+   is always required, except for `SERVERS_AND_APPS` which only supports the
+   `CLOUD_CLUSTER_ES` permission group and does not use `BASIC`.
 
 ## Example Usage
 

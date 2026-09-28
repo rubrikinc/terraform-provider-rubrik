@@ -51,8 +51,8 @@ description: |-
   BASIC - Represents the basic set of permissions required to onboard the
   feature.
   SERVERS_AND_APPS
-  CLOUD_CLUSTER_ES - Represents the basic set of permissions required to onboard the
-  feature.
+  CLOUD_CLUSTER_ES - Represents the basic set of permissions required to
+  onboard the feature.
   -> Note: When permission groups are specified, the BASIC permission group
   is always required except for the SERVERS_AND_APPS feature.
   -> Note: The EXPORT and RECOVERY permission groups of the
@@ -132,8 +132,8 @@ are used when specifying the feature set.
     feature.
 
 `SERVERS_AND_APPS`
-  * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to onboard the
-    feature.
+  * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
+    onboard the feature.
 
 -> **Note:** When permission groups are specified, the `BASIC` permission group
    is always required except for the `SERVERS_AND_APPS` feature.

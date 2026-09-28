@@ -12,7 +12,7 @@ description: |-
   when the Terraform configuration is applied.
   Permission Groups
   Following is a list of features and their applicable permission groups. These
-  are used when specifying the feature set.
+  are used when specifying the feature.
   AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
   feature.RECOVERY - Represents the set of permissions required for all recovery
@@ -27,6 +27,9 @@ description: |-
   feature.RECOVERY - Represents the set of permissions required for all recovery
   operations.BACKUP_V2 - Represents the set of permissions required for immutable
   backup V2 operations.
+  CLOUD_DISCOVERY
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   CLOUD_NATIVE_ARCHIVAL
   BASIC - Represents the basic set of permissions required to onboard the
   feature.ENCRYPTION - Represents the set of permissions required for encryption
@@ -52,16 +55,16 @@ description: |-
   onboard the feature.SAP_HANA_SS_BASIC - Represents the basic set of permissions required for
   SAP HANA snapshot support.SAP_HANA_SS_RECOVERY - Represents the set of permissions required for SAP
   HANA recovery operations.
-  CLOUD_DISCOVERY
-  BASIC - Represents the basic set of permissions required to onboard the
-  feature.
   EXOCOMPUTE
   BASIC - Represents the basic set of permissions required to onboard the
   feature.PRIVATE_ENDPOINTS - Represents the set of permissions required for usage
   of private endpoints.CUSTOMER_MANAGED_BASIC - Represents the permissions required to enable
   customer-managed Exocompute feature.AKS_CUSTOM_PRIVATE_DNS_ZONE - Represents the permissions required for AKS
   custom private DNS zone configuration.SERVICE_ENDPOINT_AUTOMATION - Represents the permissions required for
-  service endpoint automation.
+  service endpoint automation.AUTOMATED_NETWORKING_SETUP - Represents the permissions required for
+  automated networking setup.
+  -> Note: When permission groups are specified, the BASIC permission group
+  is always required.
   ~> Note: Even though the resource_group_name and the
   resource_group_region fields are marked as optional you should always
   specify them. They are marked as optional to simplify the migration of
@@ -97,7 +100,7 @@ when the Terraform configuration is applied.
 
 ## Permission Groups
 Following is a list of features and their applicable permission groups. These
-are used when specifying the feature set.
+are used when specifying the feature.
 
 `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -120,6 +123,10 @@ are used when specifying the feature set.
     operations.
   * `BACKUP_V2` - Represents the set of permissions required for immutable
     backup V2 operations.
+
+`CLOUD_DISCOVERY`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_NATIVE_ARCHIVAL`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -161,10 +168,6 @@ are used when specifying the feature set.
   * `SAP_HANA_SS_RECOVERY` - Represents the set of permissions required for SAP
     HANA recovery operations.
 
-`CLOUD_DISCOVERY`
-  * `BASIC` - Represents the basic set of permissions required to onboard the
-    feature.
-
 `EXOCOMPUTE`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
@@ -176,6 +179,11 @@ are used when specifying the feature set.
     custom private DNS zone configuration.
   * `SERVICE_ENDPOINT_AUTOMATION` - Represents the permissions required for
     service endpoint automation.
+  * `AUTOMATED_NETWORKING_SETUP` - Represents the permissions required for
+    automated networking setup.
+
+-> **Note:** When permission groups are specified, the `BASIC` permission group
+   is always required.
 
 ~> **Note:** Even though the `resource_group_name` and the
    `resource_group_region` fields are marked as optional you should always
