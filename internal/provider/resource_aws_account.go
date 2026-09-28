@@ -1098,12 +1098,9 @@ func awsCustomizeDiffAccount(ctx context.Context, diff *schema.ResourceDiff, m a
 	// onboarding protection features for a new account.
 	if diff.Id() != "" && diff.HasChange(keyCloudDiscovery) {
 		if block := diff.Get(keyCloudDiscovery).([]any); len(block) == 0 {
-			// Note, cloud_native_config_protection is deliberately absent. Its
-			// permissions are not carried by Cloud Discovery, unlike the
-			// features below, so it does not depend on Cloud Discovery
-			// remaining enabled.
 			protectionKeys := []string{
 				keyCloudNativeProtection,
+				keyCloudNativeConfigProtection,
 				keyCloudNativeDynamoDBProtection,
 				keyCloudNativeS3Protection,
 				keyKubernetesProtection,
