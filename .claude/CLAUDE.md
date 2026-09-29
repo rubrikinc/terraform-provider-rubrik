@@ -55,13 +55,17 @@ The provider uses both SDKv2 and the Terraform Plugin Framework (muxed together)
 
 ### Description Helper
 
-Use `description()` to wrap description constants. It converts acute accents to backticks since Go raw string literals can't contain backticks:
+Use `description()` to wrap description constants. It renders the description as a Go `text/template` template and converts acute accents to backticks, since Go raw string literals can't contain backticks:
 
 ```go
 const resourceExampleDescription = `
 The ´rubrik_example´ resource manages examples in RSC.
+
+{{template "awsPermissionGroups"}}
 `
 ```
+
+Because descriptions are templates, a literal `{{` must be escaped as `{{"{{"}}` — an unescaped one panics when the schema is built. Shared snippets are defined and registered in `snippets.go`; large ones live in their own file, such as `snippets_permission_groups.go`.
 
 ### CRUD Pattern
 

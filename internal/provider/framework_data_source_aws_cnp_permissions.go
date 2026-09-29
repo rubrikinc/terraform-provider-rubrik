@@ -50,75 +50,7 @@ resources.
    block-style syntax is preserved to remain compatible with existing Terraform
    configurations.
 
-## Permission Groups
-Following is a list of features and their applicable permission groups. These
-are used when specifying the feature set.
-
-´CLOUD_DISCOVERY´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-
-´CLOUD_NATIVE_ARCHIVAL´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-
-´CLOUD_NATIVE_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´DOWNLOAD_FILE´ - Represents the set of permissions required to download
-    files from snapshots.
-  * ´EXPORT_POWER_OFF´ - Represents the set of permissions required to export
-    EC2 instances and leave them powered off.
-  * ´EXPORT_POWER_ON´ - Represents the set of permissions required to export
-    EC2 instances and power them on.
-  * ´RESTORE´ - Represents the set of permissions required to restore from
-    snapshots.
-
-´CLOUD_NATIVE_DYNAMODB_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
-    recovery operations.
-
-´CLOUD_NATIVE_S3_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´EXPORT´ - Represents the set of permissions required to export an S3
-    recovery to a newly created target bucket.
-  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
-    recovery operations.
-
-´EXOCOMPUTE´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´RSC_MANAGED_CLUSTER´ - Represents the set of permissions required for the
-    Rubrik-managed Exocompute cluster.
-
-´KUBERNETES_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-
-´RDS_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
-    recovery operations.
-
-´ROLE_CHAINING´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-
-´SERVERS_AND_APPS´
-  * ´CLOUD_CLUSTER_ES´ - Represents the basic set of permissions required to
-    onboard the feature.
-
--> **Note:** When permission groups are specified, the ´BASIC´ permission group
-   is always required except for the ´SERVERS_AND_APPS´ feature.
-
--> **Note:** The ´EXPORT´ and ´RECOVERY´ permission groups of the
-   ´CLOUD_NATIVE_S3_PROTECTION´ feature are only available once S3 recovery has
-   been enabled for the RSC account. Use the ´rubrik_aws_permission_groups´
-   data source to read the permission groups currently available for a feature.
+{{template "awsPermissionGroups"}}
 `
 
 var _ datasource.DataSource = &awsPermissionsDataSource{}

@@ -63,7 +63,7 @@ description: |-
   service endpoint automation.AUTOMATED_NETWORKING_SETUP - Represents the permissions required for
   automated networking setup.
   -> Note: When permission groups are specified, the BASIC permission group
-  is always required .
+  is always required.
   -> Note: To better fit the RSC Azure permission model where each RSC feature
   have two Azure roles, the features field has been deprecated and replaced
   with the feature field.
@@ -173,7 +173,7 @@ are used when specifying the feature.
     automated networking setup.
 
 -> **Note:** When permission groups are specified, the `BASIC` permission group
-   is always required .
+   is always required.
 
 -> **Note:** To better fit the RSC Azure permission model where each RSC feature
    have two Azure roles, the `features` field has been deprecated and replaced

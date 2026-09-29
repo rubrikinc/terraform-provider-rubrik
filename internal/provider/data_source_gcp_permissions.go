@@ -44,56 +44,7 @@ The ´rubrik_gcp_permissions´ data source can be used with the
 ´rubrik_gcp_project´ resource to automatically update the permissions of roles
 and notify RSC about the updated.
 
-## Permission Groups
-Following is a list of features and their applicable permission groups. These
-are used when specifying the feature.
-
-´CLOUD_NATIVE_ARCHIVAL´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´ENCRYPTION´ - Represents the set of permissions required for encryption
-    operation.
-
-´CLOUD_NATIVE_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
-    and restore operations.
-  * ´FILE_LEVEL_RECOVERY´ - Represents the set of permissions required for
-    file-level recovery operations.
-
-´CLOUD_SQL_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
-    and restore operations.
-
-´GCP_SHARED_VPC_HOST´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´CLOUDSQL´ - Represents the set of permissions required to configure
-    Private Service Access on the shared VPC host project for Cloud SQL
-    protection.
-
-´EXOCOMPUTE´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´AUTOMATED_NETWORKING_SETUP´ - Represents the set of permissions required
-    for automated networking setup. When automated networking setup is enabled,
-    RSC is responsible for creating and maintaining the networking resources for
-    Exocompute. See the ´rubrik_gcp_exocompute´ resource for more information.
-  * ´CLOUDSQL´ - Represents the set of permissions required for Cloud SQL
-    archival and archived recovery operations, covering Private Service Access
-    networking and the temporary Cloud SQL instances RSC creates. Requires
-    Cloud SQL protection to be enabled for the RSC account.
-
-´SERVERS_AND_APPS´
-  * ´CLOUD_CLUSTER_ES´ - Represents the set of permissions required to onboard
-    the feature.
-
--> **Note:** When permission groups are specified, the ´BASIC´ permission group
-   is always required, except for ´SERVERS_AND_APPS´ which only supports the
-   ´CLOUD_CLUSTER_ES´ permission group and does not use ´BASIC´.
+{{template "gcpPermissionGroups"}}
 
 -> **Note:** Due to backward compatibility, the ´features´ field allow the
    feature names to be given in 3 different styles: ´EXAMPLE_FEATURE_NAME´,

@@ -43,59 +43,7 @@ The ´permissions´ field of each feature can be used with the
 ´rubrik_gcp_permissions´ data source to notify RSC about permission updates
 when the Terraform configuration is applied.
 
-## Permission Groups
-Following is a list of features and their applicable permission groups. These
-are used when specifying the feature.
-
-´CLOUD_NATIVE_ARCHIVAL´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´ENCRYPTION´ - Represents the set of permissions required for encryption
-    operation.
-
-´CLOUD_NATIVE_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
-    and restore operations.
-  * ´FILE_LEVEL_RECOVERY´ - Represents the set of permissions required for
-    file-level recovery operations.
-
-´CLOUD_SQL_PROTECTION´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
-    and restore operations.
-
--> **Note:** RSC runs Cloud SQL archival and archived recovery on Exocompute,
-   which additionally requires the ´CLOUDSQL´ permission group on the
-   ´EXOCOMPUTE´ feature. When Exocompute uses a VPC network in a shared VPC host
-   project, the ´CLOUDSQL´ permission group is also required on the
-   ´GCP_SHARED_VPC_HOST´ feature of the host project.
-
-´GCP_SHARED_VPC_HOST´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´CLOUDSQL´ - Represents the set of permissions required to configure
-    Private Service Access on the shared VPC host project for Cloud SQL
-    protection.
-
-´EXOCOMPUTE´
-  * ´BASIC´ - Represents the basic set of permissions required to onboard the
-    feature.
-  * ´AUTOMATED_NETWORKING_SETUP´ - Represents the set of permissions required
-    for automated networking setup. When automated networking setup is enabled,
-    RSC is responsible for creating and maintaining the networking resources for
-    Exocompute. See the ´rubrik_gcp_exocompute´ resource for more information.
-  * ´CLOUDSQL´ - Represents the set of permissions required for Cloud SQL
-    archival and archived recovery operations, covering Private Service Access
-    networking and the temporary Cloud SQL instances RSC creates. Requires
-    Cloud SQL protection to be enabled for the RSC account.
-
-´SERVERS_AND_APPS´
-  * ´CLOUD_CLUSTER_ES´ - Represents the set of permissions required to onboard
-    the feature. Note, unlike other features, ´SERVERS_AND_APPS´ does not use
-    the ´BASIC´ permission group.
+{{template "gcpPermissionGroups"}}
 `
 
 func resourceGcpProject() *schema.Resource {
