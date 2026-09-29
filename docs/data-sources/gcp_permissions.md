@@ -30,6 +30,20 @@ description: |-
   EXOCOMPUTE feature. When Exocompute uses a VPC network in a shared VPC host
   project, the CLOUDSQL permission group is also required on the
   GCP_SHARED_VPC_HOST feature of the host project.
+  GCP_BIGQUERY_PROTECTION
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.EXPORT_AND_RESTORE - Represents the set of permissions required for export
+  and restore operations.
+  GCP_BIGQUERY_RESERVATION
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
+  -> Note: RSC runs BigQuery backup and recovery jobs on a BigQuery slot
+  reservation that it creates in a dedicated reservation project. The
+  reservation project is designated by onboarding it with the
+  GCP_BIGQUERY_RESERVATION feature. Only one project per RSC account can have
+  the feature, so to move it to another project, remove it from the current
+  project before adding it to the new one. Both BigQuery features require
+  BigQuery protection to be enabled for the RSC account.
   GCP_SHARED_VPC_HOST
   BASIC - Represents the basic set of permissions required to onboard the
   feature.CLOUDSQL - Represents the set of permissions required to configure
@@ -96,6 +110,24 @@ are used when specifying the feature.
    project, the `CLOUDSQL` permission group is also required on the
    `GCP_SHARED_VPC_HOST` feature of the host project.
 
+`GCP_BIGQUERY_PROTECTION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
+  * `EXPORT_AND_RESTORE` - Represents the set of permissions required for export
+    and restore operations.
+
+`GCP_BIGQUERY_RESERVATION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
+
+-> **Note:** RSC runs BigQuery backup and recovery jobs on a BigQuery slot
+   reservation that it creates in a dedicated reservation project. The
+   reservation project is designated by onboarding it with the
+   `GCP_BIGQUERY_RESERVATION` feature. Only one project per RSC account can have
+   the feature, so to move it to another project, remove it from the current
+   project before adding it to the new one. Both BigQuery features require
+   BigQuery protection to be enabled for the RSC account.
+
 `GCP_SHARED_VPC_HOST`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
@@ -145,8 +177,8 @@ data "rubrik_gcp_permissions" "cloud_native_archival" {
 
 ### Optional
 
-- `feature` (String) RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.
-- `features` (Set of String, Deprecated) RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` instead.
+- `feature` (String) RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.
+- `features` (Set of String, Deprecated) RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` instead.
 - `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC`, `ENCRYPTION`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `AUTOMATED_NETWORKING_SETUP`, `CLOUD_CLUSTER_ES` and `CLOUDSQL`.
 
 ### Read-Only

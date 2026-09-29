@@ -78,10 +78,12 @@ func dataSourceGcpPermissions() *schema.Resource {
 				ExactlyOneOf: []string{keyFeatures},
 				Description: "RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. " +
 					"Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, " +
-					"`CLOUD_SQL_PROTECTION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
+					"`CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, " +
+					"`GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
 				ValidateFunc: validation.StringInSlice([]string{
 					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-					"GCP_SHARED_VPC_HOST", "EXOCOMPUTE", "SERVERS_AND_APPS",
+					"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
+					"EXOCOMPUTE", "SERVERS_AND_APPS",
 				}, false),
 			},
 			keyFeatures: {
@@ -90,15 +92,17 @@ func dataSourceGcpPermissions() *schema.Resource {
 					Type: schema.TypeString,
 					ValidateFunc: validation.StringInSlice([]string{
 						"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-						"GCP_SHARED_VPC_HOST", "EXOCOMPUTE", "SERVERS_AND_APPS",
+						"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
+						"EXOCOMPUTE", "SERVERS_AND_APPS",
 					}, false),
 				},
 				Optional:     true,
 				MinItems:     1,
 				ExactlyOneOf: []string{keyFeature},
 				Description: "RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, " +
-					"`CLOUD_SQL_PROTECTION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. " +
-					"**Deprecated:** use `feature` instead.",
+					"`CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, " +
+					"`GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` " +
+					"instead.",
 				Deprecated: "Use `feature` instead",
 			},
 			keyHash: {
