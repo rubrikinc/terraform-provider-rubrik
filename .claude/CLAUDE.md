@@ -55,16 +55,7 @@ The provider uses both SDKv2 and the Terraform Plugin Framework (muxed together)
 
 ### Description Helper
 
-Use `description()` to wrap description constants. It converts acute accents to backticks since Go raw string literals can't contain backticks:
-
-```go
-const resourceExampleDescription = `
-The ´rubrik_example´ resource manages examples in RSC.
-`
-```
-
-`description()` also renders the description as a Go `text/template` template, so shared documentation
-snippets can be inserted:
+Use `description()` to wrap description constants. It renders the description as a Go `text/template` template and converts acute accents to backticks, since Go raw string literals can't contain backticks:
 
 ```go
 const resourceExampleDescription = `
@@ -74,17 +65,7 @@ The ´rubrik_example´ resource manages examples in RSC.
 `
 ```
 
-Every snippet is registered in `snippets.go`, by declaring a const that wraps the text in
-`{{- define "name" -}}` and `{{- end -}}`, then appending it to the concatenation passed to
-`template.Must`. Where the const itself lives depends on its size: a short one-off can sit directly in
-`snippets.go`, the permission group snippets live in `snippets_permission_groups.go`, and any other large
-snippet gets its own `snippets_<topic>.go` file.
-
-Because descriptions are templates, a literal `{{` must be escaped as `{{"{{"}}`. An unescaped `{{`, or a
-`{{template}}` action naming a snippet that does not exist, makes `description()` panic when the schema is
-built, during provider startup or `go generate ./...`, rather than failing at compile time. A well-formed
-action that is not a snippet, such as `{{.Field}}`, does not panic but silently renders as `<no value>`.
-Terraform interpolation, `${...}`, is unaffected.
+Because descriptions are templates, a literal `{{` must be escaped as `{{"{{"}}` — an unescaped one panics when the schema is built. Shared snippets are defined and registered in `snippets.go`; large ones live in their own file, such as `snippets_permission_groups.go`.
 
 ### CRUD Pattern
 
