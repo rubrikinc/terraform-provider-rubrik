@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
-	gqlaws "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
@@ -664,15 +663,10 @@ func TestSplitAccountID(t *testing.T) {
 
 // TestAccAwsCnpAccountResource_ConfigProtection onboards the Cloud
 // Applications feature, CLOUD_NATIVE_CONFIG_PROTECTION, with its full
-// permission group set.
-//
-// The RSC account must offer the granular permission group layout, i.e. have
-// LIC_ENABLE_AWS_APP_RESILIENCE enabled. On an account still using the
-// superseded BASIC/RECOVERY/RECOVERY_NETWORKING layout, RSC does not offer
-// BASIC_2 or RECOVERY_2/3/4 and onboarding fails for reasons unrelated to the
-// provider, so the test skips instead of reporting a confusing failure.
+// permission group set. The feature requires LIC_ENABLE_AWS_APP_RESILIENCE to
+// be enabled for the RSC account.
 func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
-	requireConfigProtectionGranularLayout(t)
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("LIC_ENABLE_AWS_APP_RESILIENCE"))
 
 	vars := config.Variables{
 		"credentials":    config.StringVariable(testCredentials(t)),
@@ -784,36 +778,4 @@ func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
 			},
 		}},
 	})
-}
-
-// requireConfigProtectionGranularLayout skips the test unless RSC offers the
-// granular CLOUD_NATIVE_CONFIG_PROTECTION permission groups for the account.
-func requireConfigProtectionGranularLayout(t *testing.T) {
-	t.Helper()
-
-	featurePerms, err := gqlaws.Wrap(testClient(t).GQL).AllFeaturePermissions(
-		t.Context(), []core.Feature{core.FeatureCloudNativeConfigProtection})
-	if err != nil {
-		t.Fatalf("failed to read permission groups: %v", err)
-	}
-
-	var groups []core.PermissionGroup
-	for _, featurePerm := range featurePerms {
-		for _, group := range featurePerm.PermissionsGroupPermissions {
-			groups = append(groups, group.PermissionsGroup)
-		}
-	}
-
-	for _, group := range []core.PermissionGroup{
-		core.PermissionGroupBasic2,
-		core.PermissionGroupRecovery2,
-		core.PermissionGroupRecovery3,
-		core.PermissionGroupRecovery4,
-	} {
-		if !slices.Contains(groups, group) {
-			t.Skipf("RSC does not offer the %s permission group for %s, the account is not "+
-				"using the granular App Resilience layout. Permission groups offered: %v",
-				group, core.FeatureCloudNativeConfigProtection.Name, groups)
-		}
-	}
 }
