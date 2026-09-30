@@ -159,7 +159,8 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 				Optional:    true,
 				Computed:    true,
 				Description: "RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
+					"`CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
+					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
 					"`EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
 					"`SERVERS_AND_APPS`.",
 				DeprecationMessage: "Permission groups are now read from the cloud account managed by " +

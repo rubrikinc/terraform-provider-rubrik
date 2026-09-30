@@ -28,6 +28,12 @@ description: |-
   EC2 instances and leave them powered off.EXPORT_POWER_ON - Represents the set of permissions required to export
   EC2 instances and power them on.RESTORE - Represents the set of permissions required to restore from
   snapshots.
+  CLOUD_NATIVE_CONFIG_PROTECTION (Cloud Applications)
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.BASIC_2 - Additional onboarding permissions, split out of BASIC to stay
+  within the AWS managed policy size limit.RECOVERY - Represents the set of elevated permissions required to perform
+  recovery operations.RECOVERY_2, RECOVERY_3, RECOVERY_4 - Additional recovery permissions,
+  split out of RECOVERY to stay within the AWS managed policy size limit.
   CLOUD_NATIVE_DYNAMODB_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
   feature.RECOVERY - Represents the set of elevated permissions required to perform
@@ -60,6 +66,13 @@ description: |-
   CLOUD_NATIVE_S3_PROTECTION feature are only available once S3 recovery has
   been enabled for the RSC account. Use the rubrik_aws_permission_groups
   data source to read the permission groups currently available for a feature.
+  -> Note: The numbered CLOUD_NATIVE_CONFIG_PROTECTION permission groups
+  exist only because a single AWS managed policy cannot hold the whole
+  permission set. They carry no separate meaning: grant BASIC with BASIC_2,
+  and RECOVERY with RECOVERY_2, RECOVERY_3 and RECOVERY_4. The older
+  RECOVERY_NETWORKING group is deprecated, superseded by these groups, and is
+  not accepted here. Use the rubrik_aws_permission_groups data source to read
+  the permission groups currently available for the feature on the account.
 ---
 
 # rubrik_aws_cnp_permissions (Data Source)
@@ -98,6 +111,16 @@ are used when specifying the feature set.
     EC2 instances and power them on.
   * `RESTORE` - Represents the set of permissions required to restore from
     snapshots.
+
+`CLOUD_NATIVE_CONFIG_PROTECTION` (Cloud Applications)
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
+  * `BASIC_2` - Additional onboarding permissions, split out of `BASIC` to stay
+    within the AWS managed policy size limit.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
+  * `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4` - Additional recovery permissions,
+    split out of `RECOVERY` to stay within the AWS managed policy size limit.
 
 `CLOUD_NATIVE_DYNAMODB_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -144,6 +167,14 @@ are used when specifying the feature set.
    `CLOUD_NATIVE_S3_PROTECTION` feature are only available once S3 recovery has
    been enabled for the RSC account. Use the `rubrik_aws_permission_groups`
    data source to read the permission groups currently available for a feature.
+
+-> **Note:** The numbered `CLOUD_NATIVE_CONFIG_PROTECTION` permission groups
+   exist only because a single AWS managed policy cannot hold the whole
+   permission set. They carry no separate meaning: grant `BASIC` with `BASIC_2`,
+   and `RECOVERY` with `RECOVERY_2`, `RECOVERY_3` and `RECOVERY_4`. The older
+   `RECOVERY_NETWORKING` group is deprecated, superseded by these groups, and is
+   not accepted here. Use the `rubrik_aws_permission_groups` data source to read
+   the permission groups currently available for the feature on the account.
 
 ## Example Usage
 
@@ -205,8 +236,8 @@ data "rubrik_aws_cnp_permissions" "permissions" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
-- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
+- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 
 <a id="nestedatt--customer_managed_policies"></a>

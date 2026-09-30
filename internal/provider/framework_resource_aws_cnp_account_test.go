@@ -660,3 +660,122 @@ func TestSplitAccountID(t *testing.T) {
 		})
 	}
 }
+
+// TestAccAwsCnpAccountResource_ConfigProtection onboards the Cloud
+// Applications feature, CLOUD_NATIVE_CONFIG_PROTECTION, with its full
+// permission group set. The feature requires LIC_ENABLE_AWS_APP_RESILIENCE to
+// be enabled for the RSC account.
+func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("LIC_ENABLE_AWS_APP_RESILIENCE"))
+
+	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name = "CLOUD_NATIVE_CONFIG_PROTECTION"
+						permission_groups = [
+							"BASIC",
+							"BASIC_2",
+							"RECOVERY",
+							"RECOVERY_2",
+							"RECOVERY_3",
+							"RECOVERY_4",
+						]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
+				// The permission groups must read back exactly as written. RSC
+				// silently drops permission groups it considers superseded, which
+				// would show up here as a non-converging plan.
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyFeature),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_DISCOVERY"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+							}),
+						}),
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_NATIVE_CONFIG_PROTECTION"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+								knownvalue.StringExact("BASIC_2"),
+								knownvalue.StringExact("RECOVERY"),
+								knownvalue.StringExact("RECOVERY_2"),
+								knownvalue.StringExact("RECOVERY_3"),
+								knownvalue.StringExact("RECOVERY_4"),
+							}),
+						}),
+					})),
+			},
+		}, {
+			// A second plan must be empty. This is the check that would catch
+			// RSC dropping a permission group that was accepted on apply.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name = "CLOUD_NATIVE_CONFIG_PROTECTION"
+						permission_groups = [
+							"BASIC",
+							"BASIC_2",
+							"RECOVERY",
+							"RECOVERY_2",
+							"RECOVERY_3",
+							"RECOVERY_4",
+						]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}},
+	})
+}

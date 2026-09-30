@@ -37,7 +37,8 @@ import (
 // See the comment in the Read function of the rubrik_aws_cnp_account resource.
 var awsCnpFeatureNames = []string{
 	core.FeatureCloudDiscovery.Name, core.FeatureCloudNativeArchival.Name, core.FeatureCloudNativeProtection.Name,
-	core.FeatureCloudNativeDynamoDBProtection.Name, core.FeatureCloudNativeS3Protection.Name,
+	core.FeatureCloudNativeConfigProtection.Name, core.FeatureCloudNativeDynamoDBProtection.Name,
+	core.FeatureCloudNativeS3Protection.Name,
 	core.FeatureKubernetesProtection.Name, core.FeatureExocompute.Name, core.FeatureRoleChaining.Name,
 	core.FeatureRDSProtection.Name, core.FeatureServerAndApps.Name,
 }

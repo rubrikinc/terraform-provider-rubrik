@@ -236,7 +236,8 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 						keyName: schema.StringAttribute{
 							Required: true,
 							Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, " +
-								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
+								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
+								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
 								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
 								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
 								"`SERVERS_AND_APPS`.",
@@ -248,13 +249,15 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 							ElementType: types.StringType,
 							Required:    true,
 							Description: "RSC permission groups for the feature. Possible values are " +
-								"`BASIC`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, " +
-								"`EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RESTORE` and " +
+								"`BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, " +
+								"`EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, " +
+								"`RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and " +
 								"`RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is " +
 								"interpreted as all applicable permission groups.",
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									"BASIC", "RECOVERY", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
+									"BASIC", "BASIC_2", "RECOVERY", "RECOVERY_2", "RECOVERY_3",
+									"RECOVERY_4", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
 									"EXPORT", "EXPORT_POWER_ON", "EXPORT_POWER_OFF", "RESTORE",
 									"DOWNLOAD_FILE",
 									// The following permission groups cannot be used when onboarding an
