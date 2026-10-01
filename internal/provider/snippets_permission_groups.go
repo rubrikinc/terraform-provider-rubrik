@@ -235,6 +235,24 @@ are used when specifying the feature.
    project, the ´CLOUDSQL´ permission group is also required on the
    ´GCP_SHARED_VPC_HOST´ feature of the host project.
 
+´GCP_BIGQUERY_PROTECTION´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
+  * ´EXPORT_AND_RESTORE´ - Represents the set of permissions required for export
+    and restore operations.
+
+´GCP_BIGQUERY_RESERVATION´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
+
+-> **Note:** RSC runs BigQuery backup and recovery jobs on a BigQuery slot
+   reservation that it creates in a dedicated reservation project. The
+   reservation project is designated by onboarding it with the
+   ´GCP_BIGQUERY_RESERVATION´ feature. Only one project per RSC account can have
+   the feature, so to move it to another project, remove it from the current
+   project before adding it to the new one. Both BigQuery features require
+   BigQuery protection to be enabled for the RSC account.
+
 ´GCP_SHARED_VPC_HOST´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
