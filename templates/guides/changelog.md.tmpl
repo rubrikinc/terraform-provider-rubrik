@@ -32,6 +32,10 @@ page_title: "Changelog"
   `backup_location`, and does not support the `archival` block, replication or a minute schedule. The most frequent
   schedule must take a snapshot at least every 7 days. These rules are checked during plan.
   [[docs](../resources/sla_domain.md)]
+* Fix a bug in the `rubrik_aws_permission_groups` and `rubrik_azure_permission_groups` data sources where permission
+  groups not supported by the provider were returned, which failed validation when the result was passed to the account
+  resources. Only permission groups supported by the provider are now returned.
+  [[docs](../data-sources/aws_permission_groups.md)]
 
 ## v1.10.0
 * **Breaking Change:** The `timeouts` block in the `rubrik_object` data source is now a nested attribute, so a custom
