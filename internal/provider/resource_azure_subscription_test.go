@@ -21,10 +21,12 @@
 package provider
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const azureSubscriptionOneRegionTmpl = `
@@ -410,5 +412,20 @@ func TestDiffAzureUserAssignedManagedIdentity(t *testing.T) {
 				t.Errorf("diffAzureUserAssignedManagedIdentity() = %t, want %t", diff, tc.diff)
 			}
 		})
+	}
+}
+
+// TestAzureKeyFeatureMap verifies that the feature blocks of the
+// rubrik_azure_subscription resource cover exactly the features which can be
+// onboarded for an Azure subscription.
+func TestAzureKeyFeatureMap(t *testing.T) {
+	var got []string
+	for _, feature := range azureKeyFeatureMap {
+		got = append(got, feature.feature.Name)
+	}
+	slices.Sort(got)
+
+	if want := core.AzureSubscriptionFeatureNames(); !slices.Equal(got, want) {
+		t.Errorf("unexpected features, got: %s, want: %s", got, want)
 	}
 }

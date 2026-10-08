@@ -111,9 +111,9 @@ func (d *azureDevOpsPermissionsDataSource) Schema(ctx context.Context, _ datasou
 			keyFeature: schema.StringAttribute{
 				Required: true,
 				Description: fmt.Sprintf("RSC Azure DevOps feature to look up permissions for. %s.",
-					possibleValues(devops.AzureSupportedFeatureNames())),
+					possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 				Validators: []validator.String{
-					stringvalidator.OneOf(devops.AzureSupportedFeatureNames()...),
+					stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
 				},
 			},
 			keyPermissionGroups: schema.SetAttribute{

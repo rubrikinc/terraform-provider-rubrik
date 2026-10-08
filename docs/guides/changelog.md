@@ -46,6 +46,10 @@ page_title: "Changelog"
   `backup_location`, and does not support the `archival` block, replication or a minute schedule. The most frequent
   schedule must take a snapshot at least every 7 days. These rules are checked during plan.
   [[docs](../resources/sla_domain.md)]
+* Improve the validation of the `rubrik_aws_cnp_account` and `rubrik_gcp_project` resources and the
+  `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and `rubrik_gcp_permissions` data
+  sources. Permission groups which aren't supported by the feature they are given for are now rejected when the
+  configuration is planned.
 * Fix a bug in the `rubrik_aws_permission_groups` and `rubrik_azure_permission_groups` data sources where permission
   groups not supported by the provider were returned, which failed validation when the result was passed to the account
   resources. Only permission groups supported by the provider are now returned. See the

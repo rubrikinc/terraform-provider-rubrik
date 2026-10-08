@@ -411,7 +411,7 @@ resource "rubrik_aws_account" "account2" {
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -425,7 +425,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -439,7 +439,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3` and `RECOVERY_4`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -453,7 +453,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RECOVERY`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -467,7 +467,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RESTORE`, `DOWNLOAD_FILE`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `DOWNLOAD_FILE`, `EXPORT_POWER_OFF`, `EXPORT_POWER_ON` and `RESTORE`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -481,7 +481,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT` and `RECOVERY`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -495,7 +495,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -509,7 +509,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -523,7 +523,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -537,7 +537,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RSC_MANAGED_CLUSTER`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RSC_MANAGED_CLUSTER`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -551,7 +551,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -565,7 +565,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Outpost feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Outpost feature. Possible value is `BASIC`.
 
 Optional:
 
@@ -583,7 +583,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RECOVERY`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -597,7 +597,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Role Chaining feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Role Chaining feature. Possible value is `BASIC`.
 
 Read-Only:
 
@@ -610,7 +610,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `CLOUD_CLUSTER_ES`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `CLOUD_CLUSTER_ES`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
