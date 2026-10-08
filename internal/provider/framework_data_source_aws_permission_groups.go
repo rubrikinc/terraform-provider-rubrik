@@ -28,6 +28,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -100,10 +101,11 @@ func (d *awsPermissionGroupsDataSource) Schema(ctx context.Context, _ datasource
 				Description: "SHA-256 hash of the permission groups and statements returned.",
 			},
 			keyFeature: schema.StringAttribute{
-				Required:    true,
-				Description: "RSC feature name to look up permission groups for (e.g. `RDS_PROTECTION`).",
+				Required: true,
+				Description: fmt.Sprintf("RSC feature name to look up permission groups for. %s.",
+					possibleValues(core.CloudVendorFeatureNames(core.CloudVendorAWS))),
 				Validators: []validator.String{
-					isNotWhiteSpace(),
+					stringvalidator.OneOf(core.CloudVendorFeatureNames(core.CloudVendorAWS)...),
 				},
 			},
 			keyPermissionGroups: schema.SetNestedAttribute{

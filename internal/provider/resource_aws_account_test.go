@@ -21,9 +21,11 @@
 package provider
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const awsAccountOneRegionTmpl = `
@@ -220,4 +222,19 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 			),
 		}},
 	})
+}
+
+// TestAWSCFTFeatureBlockMap verifies that the feature blocks of the
+// rubrik_aws_account resource cover exactly the features which can be onboarded
+// using the AWS CloudFormation workflow.
+func TestAWSCFTFeatureBlockMap(t *testing.T) {
+	var got []string
+	for _, features := range awsCFTFeatureBlockMap {
+		got = append(got, core.FeatureNames(features)...)
+	}
+	slices.Sort(got)
+
+	if want := core.AWSCloudFormationFeatureNames(); !slices.Equal(got, want) {
+		t.Errorf("unexpected features, got: %s want: %s", got, want)
+	}
 }

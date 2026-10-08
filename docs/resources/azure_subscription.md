@@ -295,7 +295,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Cloud Discovery feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Discovery feature. Possible value is `BASIC`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 
 Read-Only:
@@ -373,7 +373,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native Protection feature. Possible values are `BASIC`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `CLOUD_CLUSTER_ES`, `SNAPSHOT_PRIVATE_ACCESS` and `EXPORT_AND_RESTORE_POWER_OFF_VM`.
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native Protection feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `EXPORT_AND_RESTORE`, `EXPORT_AND_RESTORE_POWER_OFF_VM`, `FILE_LEVEL_RECOVERY` and `SNAPSHOT_PRIVATE_ACCESS`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -393,7 +393,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Exocompute feature. Possible values are `BASIC`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION` and `AUTOMATED_NETWORKING_SETUP`.
+- `permission_groups` (Set of String) Permission groups to assign to the Exocompute feature. Possible values are `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `AUTOMATED_NETWORKING_SETUP`, `BASIC`, `CUSTOMER_MANAGED_BASIC`, `PRIVATE_ENDPOINTS` and `SERVICE_ENDPOINT_AUTOMATION`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -457,7 +457,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the SQL DB Protection feature. Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.
+- `permission_groups` (Set of String) Permission groups to assign to the SQL DB Protection feature. Possible values are `BACKUP_V2`, `BASIC` and `RECOVERY`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -481,7 +481,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the SQL MI Protection feature. Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.
+- `permission_groups` (Set of String) Permission groups to assign to the SQL MI Protection feature. Possible values are `BACKUP_V2`, `BASIC` and `RECOVERY`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 
 Read-Only:
