@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 var _ provider.ProviderWithListResources = &FrameworkProvider{}
@@ -233,11 +234,12 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 
 // possibleValues returns a sentence describing the allowed values for use in an
 // attribute description. Each value is backtick-quoted and the last two are
-// joined by "and". An empty slice returns the empty string.
+// joined by "and". An empty slice returns a sentence saying there are no
+// possible values.
 func possibleValues[T ~string](values []T) string {
 	switch l := len(values); l {
 	case 0:
-		return ""
+		return "Possible values are none"
 	case 1:
 		return "Possible value is `" + string(values[0]) + "`"
 	default:
@@ -252,6 +254,19 @@ func possibleValues[T ~string](values []T) string {
 
 		return fmt.Sprintf("Possible values are %s", sb.String()[2:])
 	}
+}
+
+// possiblePermissionGroups returns a sentence describing the permission groups
+// of the feature with the specified name, for use in an attribute description.
+// If the feature isn't found in the features, the sentence says there are no
+// possible values.
+func possiblePermissionGroups(features []core.Feature, featureName string) string {
+	var permissionGroups []core.PermissionGroup
+	if feature, ok := core.LookupFeatureName(features, featureName); ok {
+		permissionGroups = feature.PermissionGroups
+	}
+
+	return possibleValues(permissionGroups)
 }
 
 // decodeStringSetOrNil decodes a string types.Set into a []string, returning nil

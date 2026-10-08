@@ -13,6 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 // validateAwsAccountID verifies the account number is numeric, 12 digits.
@@ -111,6 +114,36 @@ func validateStringIsNumber(i any, k string) ([]string, []error) {
 	}
 
 	return nil, nil
+}
+
+// validatePermissionGroup returns a function that validates that the value is
+// one of the permission groups of the feature with the specified name, or one
+// of the extra permission groups. If the feature isn't found in the features,
+// no values are allowed.
+func validatePermissionGroup(features []core.Feature, name string, extraGroups ...core.PermissionGroup) schema.SchemaValidateFunc {
+	var groups []string
+	if feature, ok := core.LookupFeatureName(features, name); ok {
+		groups = core.PermissionGroupNames(slices.Concat(feature.PermissionGroups, extraGroups))
+	}
+
+	return validation.StringInSlice(groups, false)
+}
+
+// checkFeaturePermissionGroups returns an error if the feature with the
+// specified name isn't found in the features, or if it doesn't support all
+// the permission groups.
+func checkFeaturePermissionGroups(features []core.Feature, name string, groups []string) error {
+	feature, ok := core.LookupFeatureName(features, name)
+	if !ok {
+		return fmt.Errorf("feature %s is not supported", name)
+	}
+	for _, group := range groups {
+		if !feature.HasPermissionGroup(core.PermissionGroup(group)) {
+			return fmt.Errorf("feature %s does not support permission group %s", name, group)
+		}
+	}
+
+	return nil
 }
 
 // validateStartAt returns a function that validates the start_at value.

@@ -146,18 +146,15 @@ func (r *awsAccountManagedResource) Schema(ctx context.Context, _ resource.Schem
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
-				Description: "RSC features to onboard. When omitted, all BaaS-supported features are used: " +
-					"`CLOUD_NATIVE_PROTECTION`, `RDS_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION` and `CLOUD_DISCOVERY`. " +
-					"`CLOUD_DISCOVERY` is a prerequisite for the protection features and must be included when " +
-					"`features` is set. When omitted, the account tracks the current default set and newly " +
-					"released features are added in place. Adding a feature is applied in place (the " +
-					"CloudFormation stack is redeployed via the `rubrik_aws_account_managed_stack` resource); " +
-					"removing a feature forces a new resource to be created.",
+				Description: fmt.Sprintf("RSC features to onboard. %s. When omitted, all of them are used. "+
+					"`CLOUD_DISCOVERY` is a prerequisite for the protection features and must be included when "+
+					"`features` is set. When omitted, the account tracks the current default set and newly released "+
+					"features are added in place. Adding a feature is applied in place (the CloudFormation stack is "+
+					"redeployed via the `rubrik_aws_account_managed_stack` resource); removing a feature forces a "+
+					"new resource to be created.", possibleValues(core.AWSManagedFeatureNames())),
 				Validators: []validator.Set{
-					setvalidator.ValueStringsAre(stringvalidator.OneOf(
-						"CLOUD_NATIVE_PROTECTION", "RDS_PROTECTION", "CLOUD_NATIVE_S3_PROTECTION", "CLOUD_DISCOVERY",
-					)),
-					setMustContain("CLOUD_DISCOVERY"),
+					setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AWSManagedFeatureNames()...)),
+					setMustContain(core.FeatureCloudDiscovery.Name),
 				},
 			},
 			keyRegions: schema.SetAttribute{

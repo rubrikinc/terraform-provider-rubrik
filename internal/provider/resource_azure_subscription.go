@@ -99,13 +99,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudDiscovery),
 							},
-							Optional:    true,
-							Description: "Permission groups to assign to the Cloud Discovery feature. Possible values are `BASIC`.",
+							Optional: true,
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Discovery feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudDiscovery)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -144,14 +143,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "ENCRYPTION", "SQL_ARCHIVAL",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeArchival),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Archival feature. " +
-								"Possible values are `BASIC`, `ENCRYPTION` and `SQL_ARCHIVAL`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Archival feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeArchival)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -233,14 +230,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "ENCRYPTION",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeArchivalEncryption),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Archival Encryption " +
-								"feature. Possible values are `BASIC` and `ENCRYPTION`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Archival Encryption feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeArchivalEncryption)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -342,14 +337,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeBlobProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Blob Protection feature. " +
-								"Possible values are `BASIC` and `RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Blob Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeBlobProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -397,16 +390,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "CLOUD_CLUSTER_ES",
-									"SNAPSHOT_PRIVATE_ACCESS", "EXPORT_AND_RESTORE_POWER_OFF_VM",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Protection feature. " +
-								"Possible values are `BASIC`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, " +
-								"`CLOUD_CLUSTER_ES`, `SNAPSHOT_PRIVATE_ACCESS` and `EXPORT_AND_RESTORE_POWER_OFF_VM`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -495,18 +484,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "PRIVATE_ENDPOINTS", "CUSTOMER_MANAGED_BASIC",
-									"AKS_CUSTOM_PRIVATE_DNS_ZONE", "SERVICE_ENDPOINT_AUTOMATION",
-									"AUTOMATED_NETWORKING_SETUP",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.Exocompute),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Exocompute feature. Possible values " +
-								"are `BASIC`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, " +
-								"`AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION` and " +
-								"`AUTOMATED_NETWORKING_SETUP`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Exocompute feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.Exocompute)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -588,14 +571,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzurePostgresFlexibleServerProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Postgres Flexible Server Protection " +
-								"feature. Possible values are `BASIC` and `RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Postgres Flexible Server Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzurePostgresFlexibleServerProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -698,14 +679,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"CLOUD_CLUSTER_ES", "SAP_HANA_SS_BASIC", "SAP_HANA_SS_RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.ServerAndApps),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Servers and Apps feature. " +
-								"Possible values are `CLOUD_CLUSTER_ES`, `SAP_HANA_SS_BASIC` and `SAP_HANA_SS_RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Servers and Apps feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.ServerAndApps)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -787,14 +766,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY", "BACKUP_V2",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzureSQLDBProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the SQL DB Protection feature. " +
-								"Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.",
+							Description: fmt.Sprintf("Permission groups to assign to the SQL DB Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzureSQLDBProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -942,14 +919,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY", "BACKUP_V2",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzureSQLMIProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the SQL MI Protection feature. " +
-								"Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.",
+							Description: fmt.Sprintf("Permission groups to assign to the SQL MI Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzureSQLMIProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,

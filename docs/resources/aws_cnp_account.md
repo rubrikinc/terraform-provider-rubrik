@@ -323,8 +323,8 @@ resource "rubrik_aws_cnp_account" "role_chained" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
-- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
+- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_OFF`, `EXPORT_POWER_ON`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 
 <a id="nestedatt--trust_policies"></a>
