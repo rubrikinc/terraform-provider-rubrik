@@ -247,6 +247,16 @@ type testRSCConfig struct {
 	// Optional for acceptance tests, if omitted the tests are skipped.
 	AuthDomainID    string `json:"authDomainId"`
 	NewSSOGroupName string `json:"newSsoGroupName"`
+
+	// Optional for acceptance tests, if omitted the tests are skipped. Key
+	// managers can only be registered in the RSC UI, so these must refer to
+	// pre-existing key managers.
+	AWSKeyManagerID       string `json:"awsKeyManagerId"`
+	AWSKeyManagerName     string `json:"awsKeyManagerName"`
+	AWSKeyManagerRegion   string `json:"awsKeyManagerRegion"`
+	AzureKeyManagerID     string `json:"azureKeyManagerId"`
+	AzureKeyManagerName   string `json:"azureKeyManagerName"`
+	AzureKeyManagerRegion string `json:"azureKeyManagerRegion"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default
