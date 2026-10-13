@@ -99,13 +99,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudDiscovery),
 							},
-							Optional:    true,
-							Description: "Permission groups to assign to the Cloud Discovery feature. Possible values are `BASIC`.",
+							Optional: true,
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Discovery feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudDiscovery)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -144,14 +143,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "ENCRYPTION", "SQL_ARCHIVAL",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeArchival),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Archival feature. " +
-								"Possible values are `BASIC`, `ENCRYPTION` and `SQL_ARCHIVAL`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Archival feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeArchival)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -217,6 +214,7 @@ func resourceAzureSubscription() *schema.Resource {
 				AtLeastOneOf: []string{
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
@@ -233,14 +231,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "ENCRYPTION",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeArchivalEncryption),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Archival Encryption " +
-								"feature. Possible values are `BASIC` and `ENCRYPTION`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Archival Encryption feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeArchivalEncryption)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -342,14 +338,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeBlobProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Blob Protection feature. " +
-								"Possible values are `BASIC` and `RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Blob Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeBlobProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -381,6 +375,7 @@ func resourceAzureSubscription() *schema.Resource {
 				AtLeastOneOf: []string{
 					keyCloudNativeArchival,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
@@ -397,16 +392,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "CLOUD_CLUSTER_ES",
-									"SNAPSHOT_PRIVATE_ACCESS", "EXPORT_AND_RESTORE_POWER_OFF_VM",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Cloud Native Protection feature. " +
-								"Possible values are `BASIC`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, " +
-								"`CLOUD_CLUSTER_ES`, `SNAPSHOT_PRIVATE_ACCESS` and `EXPORT_AND_RESTORE_POWER_OFF_VM`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -472,6 +463,7 @@ func resourceAzureSubscription() *schema.Resource {
 				AtLeastOneOf: []string{
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
@@ -481,6 +473,53 @@ func resourceAzureSubscription() *schema.Resource {
 				Description: "Enable the RSC Cloud Native Protection feature for the Azure subscription. Provides " +
 					"protection for Azure virtual machines and managed disks through the rules and policies of SLA " +
 					"Domains.",
+			},
+			keyCloudNativeUEMKeyManagement: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keyPermissionGroups: {
+							Type: schema.TypeSet,
+							Elem: &schema.Schema{
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeUEMKeyManagement),
+							},
+							Optional: true,
+							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native UEM Key Management feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeUEMKeyManagement)),
+						},
+						keyPermissions: {
+							Type:     schema.TypeString,
+							Optional: true,
+							Description: "Permissions updated signal. When this field changes, the provider will notify " +
+								"RSC that the permissions for the feature has been updated. Use this field with the " +
+								"`rubrik_azure_permissions` data source.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+						keyStatus: {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "Status of the Cloud Native UEM Key Management feature.",
+						},
+					},
+				},
+				MaxItems: 1,
+				Optional: true,
+				AtLeastOneOf: []string{
+					keyCloudNativeArchival,
+					keyCloudNativeBlobProtection,
+					keyCloudNativeProtection,
+					keyExocompute,
+					keyPostgresFlexibleServerProtection,
+					keySQLDBProtection,
+					keySQLMIProtection,
+					keyServersAndApps,
+				},
+				Description: "Enable the RSC Cloud Native UEM Key Management feature for the Azure subscription. " +
+					"Required to register the subscription's key vaults as key managers in RSC. The feature only " +
+					"grants RSC permission to read the key vaults, the key operations require RSC to be assigned the " +
+					"Key Vault Crypto User role on the key vault. RSC doesn't allow the feature to be removed while a " +
+					"key manager references the subscription.",
 			},
 			keyDeleteSnapshotsOnDestroy: {
 				Type:        schema.TypeBool,
@@ -495,18 +534,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "PRIVATE_ENDPOINTS", "CUSTOMER_MANAGED_BASIC",
-									"AKS_CUSTOM_PRIVATE_DNS_ZONE", "SERVICE_ENDPOINT_AUTOMATION",
-									"AUTOMATED_NETWORKING_SETUP",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.Exocompute),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Exocompute feature. Possible values " +
-								"are `BASIC`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, " +
-								"`AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION` and " +
-								"`AUTOMATED_NETWORKING_SETUP`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Exocompute feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.Exocompute)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -573,6 +606,7 @@ func resourceAzureSubscription() *schema.Resource {
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
 					keySQLMIProtection,
@@ -588,14 +622,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzurePostgresFlexibleServerProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Postgres Flexible Server Protection " +
-								"feature. Possible values are `BASIC` and `RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Postgres Flexible Server Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzurePostgresFlexibleServerProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -682,6 +714,7 @@ func resourceAzureSubscription() *schema.Resource {
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keySQLDBProtection,
 					keySQLMIProtection,
@@ -698,14 +731,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"CLOUD_CLUSTER_ES", "SAP_HANA_SS_BASIC", "SAP_HANA_SS_RECOVERY",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.ServerAndApps),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the Servers and Apps feature. " +
-								"Possible values are `CLOUD_CLUSTER_ES`, `SAP_HANA_SS_BASIC` and `SAP_HANA_SS_RECOVERY`.",
+							Description: fmt.Sprintf("Permission groups to assign to the Servers and Apps feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.ServerAndApps)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -772,6 +803,7 @@ func resourceAzureSubscription() *schema.Resource {
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
@@ -787,14 +819,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY", "BACKUP_V2",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzureSQLDBProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the SQL DB Protection feature. " +
-								"Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.",
+							Description: fmt.Sprintf("Permission groups to assign to the SQL DB Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzureSQLDBProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -927,6 +957,7 @@ func resourceAzureSubscription() *schema.Resource {
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLMIProtection,
@@ -942,14 +973,12 @@ func resourceAzureSubscription() *schema.Resource {
 						keyPermissionGroups: {
 							Type: schema.TypeSet,
 							Elem: &schema.Schema{
-								Type: schema.TypeString,
-								ValidateFunc: validation.StringInSlice([]string{
-									"BASIC", "RECOVERY", "BACKUP_V2",
-								}, false),
+								Type:         schema.TypeString,
+								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.AzureSQLMIProtection),
 							},
 							Optional: true,
-							Description: "Permission groups to assign to the SQL MI Protection feature. " +
-								"Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.",
+							Description: fmt.Sprintf("Permission groups to assign to the SQL MI Protection feature. %s.",
+								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.AzureSQLMIProtection)),
 						},
 						keyPermissions: {
 							Type:     schema.TypeString,
@@ -982,6 +1011,7 @@ func resourceAzureSubscription() *schema.Resource {
 					keyCloudNativeArchival,
 					keyCloudNativeBlobProtection,
 					keyCloudNativeProtection,
+					keyCloudNativeUEMKeyManagement,
 					keyExocompute,
 					keyPostgresFlexibleServerProtection,
 					keySQLDBProtection,
@@ -1348,8 +1378,10 @@ func azureUpdateSubscription(ctx context.Context, d *schema.ResourceData, m any)
 				feature = feature.WithPermissionGroups(core.PermissionGroup(permGroup.(string)))
 			}
 			var opts []azure.OptionFunc
-			for _, region := range update.block[keyRegions].(*schema.Set).List() {
-				opts = append(opts, azure.Region(region.(string)))
+			if regions, ok := update.block[keyRegions]; ok {
+				for _, region := range regions.(*schema.Set).List() {
+					opts = append(opts, azure.Region(region.(string)))
+				}
 			}
 			if groupID, ok := d.GetOk(keyEntraGroupID); ok {
 				opts = append(opts, azure.EntraGroupID(groupID.(string)))
@@ -1498,6 +1530,13 @@ var azureKeyFeatureMap = map[string]orderedFeature{
 		orderSplitAdd:    207,
 		orderSplitRemove: 206,
 	},
+	keyCloudNativeUEMKeyManagement: {
+		feature:          core.FeatureCloudNativeUEMKeyManagement,
+		orderAdd:         109,
+		orderRemove:      310,
+		orderSplitAdd:    221,
+		orderSplitRemove: 220,
+	},
 	keyExocompute: {
 		feature:          core.FeatureExocompute,
 		orderAdd:         104,
@@ -1586,11 +1625,15 @@ func updateAzureFeatureState(d *schema.ResourceData, key string, feature azure.F
 	}
 	block[keyPermissionGroups] = &permGroups
 
-	regions := schema.Set{F: schema.HashString}
-	for _, region := range feature.Regions {
-		regions.Add(region)
+	// RSC doesn't use regions for the Cloud Native UEM Key Management feature,
+	// so its block has no regions field.
+	if !feature.Equal(core.FeatureCloudNativeUEMKeyManagement) {
+		regions := schema.Set{F: schema.HashString}
+		for _, region := range feature.Regions {
+			regions.Add(region)
+		}
+		block[keyRegions] = &regions
 	}
-	block[keyRegions] = &regions
 	block[keyStatus] = string(feature.Status)
 
 	if feature.SupportResourceGroup() {

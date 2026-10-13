@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -33,6 +34,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const dataSourceAWSCNPArtifactsDescription = `
@@ -120,46 +122,27 @@ func (d *awsArtifactsDataSource) Schema(ctx context.Context, _ datasource.Schema
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
-							Required: true,
-							Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, " +
-								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
-								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
-								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
-								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-								"`SERVERS_AND_APPS`.",
+							Required:    true,
+							Description: fmt.Sprintf("RSC feature name. %s.", possibleValues(core.AWSIAMRolesFeatureNames())),
 							Validators: []validator.String{
-								stringvalidator.OneOf(
-									"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION",
-									"CLOUD_NATIVE_CONFIG_PROTECTION",
-									"CLOUD_NATIVE_DYNAMODB_PROTECTION", "CLOUD_NATIVE_S3_PROTECTION",
-									"KUBERNETES_PROTECTION", "EXOCOMPUTE", "ROLE_CHAINING",
-									"RDS_PROTECTION", "SERVERS_AND_APPS",
-								),
+								stringvalidator.OneOf(core.AWSIAMRolesFeatureNames()...),
 							},
 						},
 						keyPermissionGroups: schema.SetAttribute{
 							ElementType: types.StringType,
 							Required:    true,
-							Description: "RSC permission groups for the feature. Possible values are " +
-								"`BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, " +
-								"`EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, " +
-								"`RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and " +
-								"`RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is " +
-								"interpreted as all applicable permission groups.",
+							Description: fmt.Sprintf("RSC permission groups for the feature. %s. For backwards "+
+								"compatibility, `[]` is interpreted as all applicable permission groups.",
+								possibleValues(core.AWSIAMRolesPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									"BASIC", "BASIC_2", "RECOVERY", "RECOVERY_2", "RECOVERY_3",
-									"RECOVERY_4", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
-									"EXPORT", "EXPORT_POWER_ON", "EXPORT_POWER_OFF", "RESTORE",
-									"DOWNLOAD_FILE",
-									// The following permission groups cannot be used when onboarding an
-									// AWS account. They have been accepted in the past so we still
-									// silently allow them.
-									"EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "SNAPSHOT_PRIVATE_ACCESS",
-									"PRIVATE_ENDPOINT",
+									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), awsCNPExtraPermissionGroups)...,
 								)),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AWSIAMRolesFeatures(), awsCNPExtraPermissionGroups...),
 					},
 				},
 			},

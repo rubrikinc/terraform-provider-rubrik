@@ -23,6 +23,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/google/uuid"
@@ -158,11 +159,7 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
-				Description: "RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
-					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
-					"`EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-					"`SERVERS_AND_APPS`.",
+				Description: fmt.Sprintf("RSC features. %s.", possibleValues(core.AWSIAMRolesFeatureNames())),
 				DeprecationMessage: "Permission groups are now read from the cloud account managed by " +
 					"`rubrik_aws_cnp_account` when artifacts are registered, so the attachments resource no " +
 					"longer needs to track features. This field is retained for backwards compatibility, is " +
@@ -171,7 +168,7 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 					setplanmodifier.UseStateForUnknown(),
 				},
 				Validators: []validator.Set{
-					setvalidator.ValueStringsAre(stringvalidator.OneOf(awsCnpFeatureNames...)),
+					setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AWSIAMRolesFeatureNames()...)),
 				},
 			},
 			keyRoleChainingAccountID: schema.StringAttribute{
@@ -351,7 +348,7 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 	if plan.Features.IsUnknown() {
 		featureValues := make([]attr.Value, 0, len(features))
 		for _, feature := range features {
-			if !slices.Contains(awsCnpFeatureNames, feature.Name) {
+			if !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Name) {
 				continue
 			}
 			featureValues = append(featureValues, types.StringValue(feature.Name))
@@ -413,7 +410,7 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 	// Skip the features RSC enabled on its own, see the comment in Create.
 	featureValues := make([]attr.Value, 0, len(account.Features))
 	for _, feature := range account.Features {
-		if !slices.Contains(awsCnpFeatureNames, feature.Feature.Name) {
+		if !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Feature.Name) {
 			continue
 		}
 		featureValues = append(featureValues, types.StringValue(feature.Feature.Name))

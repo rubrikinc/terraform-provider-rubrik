@@ -107,7 +107,7 @@ output "permission_groups_by_feature" {
 
 ### Required
 
-- `feature` (String) RSC feature name to look up permission groups for (e.g. `CLOUD_NATIVE_PROTECTION`).
+- `feature` (String) RSC feature name to look up permission groups for. Possible values are `AZURE_DEVOPS_REPOSITORY_PROTECTION`, `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.
 
 ### Read-Only
 

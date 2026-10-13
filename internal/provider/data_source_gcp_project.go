@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -170,27 +171,19 @@ func gcpFeatureResourceWithStatus() *schema.Resource {
 			keyName: {
 				Type:     schema.TypeString,
 				Required: true,
-				Description: "RSC feature name. Possible values are `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, " +
-					"`GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
-				ValidateFunc: validation.StringInSlice([]string{
-					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-					"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
-					"EXOCOMPUTE", "SERVERS_AND_APPS",
-				}, false),
+				Description: fmt.Sprintf("RSC feature name. %s.",
+					possibleValues(core.GCPProjectFeatureNames())),
+				ValidateFunc: validation.StringInSlice(core.GCPProjectFeatureNames(), false),
 			},
 			keyPermissionGroups: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"BASIC", "ENCRYPTION", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY",
-						"AUTOMATED_NETWORKING_SETUP", "CLOUD_CLUSTER_ES",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.GCPProjectPermissionGroupNames(), false),
 				},
 				Required: true,
-				Description: "Permission groups for the RSC feature. Possible values are `BASIC`, `ENCRYPTION`, " +
-					"`EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `AUTOMATED_NETWORKING_SETUP` and `CLOUD_CLUSTER_ES`.",
+				Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
+					possibleValues(core.GCPProjectPermissionGroupNames())),
 			},
 			keyStatus: {
 				Type:        schema.TypeString,
