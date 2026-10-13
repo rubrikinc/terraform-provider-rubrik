@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/terraform-plugin-mux v0.22.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
 	github.com/hashicorp/terraform-plugin-testing v1.14.0
-	github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.11.0
+	github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.11.1-0.20261013114049-2bd1eafd5c6b
 )
 
 require (
