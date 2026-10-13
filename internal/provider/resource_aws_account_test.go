@@ -226,6 +226,58 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 	})
 }
 
+const awsAccountUEMKeyManagementTmpl = `
+provider "polaris" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "polaris_aws_account" "default" {
+	name    = "{{ .Resource.AccountName }}"
+	profile = "{{ .Resource.Profile }}"
+
+	cloud_native_uem_key_management {
+		permission_groups = [
+			"BASIC",
+		]
+		regions = [
+			"us-east-2",
+		]
+	}
+}
+`
+
+// TestAccPolarisAWSAccount_uemKeyManagement onboards and offboards the Cloud
+// Native UEM Key Management feature as the only feature of the account.
+//
+// The feature is gated in RSC behind the REL_ENABLE_AWS_EC2_UEM and
+// REL_ENABLE_AWS_S3_UEM feature flags, either of which allows the feature to
+// be onboarded. The test skips unless REL_ENABLE_AWS_EC2_UEM is enabled.
+func TestAccPolarisAWSAccount_uemKeyManagement(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAWSCloudAccountUEM)
+
+	config, account := loadAWSTestConfig(t)
+	accountUEM, err := makeTerraformConfig(config, awsAccountUEMKeyManagementTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProviderFactories: providerFactories,
+		Steps: []resource.TestStep{{
+			Config: accountUEM,
+			Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("polaris_aws_account.default", "name", account.AccountName),
+				resource.TestCheckResourceAttr("polaris_aws_account.default", "profile", account.Profile),
+				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.status", "connected"),
+				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.regions.#", "1"),
+				resource.TestCheckTypeSetElemAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.regions.*", "us-east-2"),
+				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.permission_groups.#", "1"),
+				resource.TestCheckTypeSetElemAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.permission_groups.*", "BASIC"),
+			),
+		}},
+	})
+}
+
 // TestAWSCFTFeatureBlockMap verifies that the feature blocks of the
 // rubrik_aws_account resource cover exactly the features which can be onboarded
 // using the AWS CloudFormation workflow.

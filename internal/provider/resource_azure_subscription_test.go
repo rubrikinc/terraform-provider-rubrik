@@ -364,6 +364,61 @@ func TestAccPolarisAzureSubscription_basic(t *testing.T) {
 	})
 }
 
+const azureSubscriptionUEMKeyManagementTmpl = `
+provider "polaris" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "polaris_azure_service_principal" "default" {
+	credentials   = "{{ .Resource.Credentials }}"
+	tenant_domain = "{{ .Resource.TenantDomain }}"
+}
+
+resource "polaris_azure_subscription" "default" {
+	subscription_id   = "{{ .Resource.SubscriptionID }}"
+	subscription_name = "{{ .Resource.SubscriptionName }}"
+	tenant_domain     = "{{ .Resource.TenantDomain }}"
+
+	cloud_native_uem_key_management {}
+
+	depends_on = [polaris_azure_service_principal.default]
+}
+`
+
+// TestAccPolarisAzureSubscription_uemKeyManagement onboards and offboards the
+// Cloud Native UEM Key Management feature as the only feature of the
+// subscription.
+//
+// The feature is gated in RSC behind the REL_ENABLE_AZURE_VM_UEM and
+// REL_ENABLE_AZURE_BLOB_UEM feature flags, either of which allows the feature
+// to be onboarded. The test skips unless REL_ENABLE_AZURE_VM_UEM is enabled.
+func TestAccPolarisAzureSubscription_uemKeyManagement(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureCloudAccountUEM)
+
+	config, subscription := loadAzureTestConfig(t)
+	subscriptionUEM, err := makeTerraformConfig(config, azureSubscriptionUEMKeyManagementTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProviderFactories: providerFactories,
+		Steps: []resource.TestStep{{
+			Config: subscriptionUEM,
+			Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "subscription_id", subscription.SubscriptionID),
+				resource.TestCheckResourceAttr("polaris_azure_subscription.default", "tenant_domain", subscription.TenantDomain),
+				resource.TestCheckResourceAttr("polaris_azure_subscription.default",
+					"cloud_native_uem_key_management.0.status", "CONNECTED"),
+			),
+		}, {
+			ResourceName:      "polaris_azure_subscription.default",
+			ImportState:       true,
+			ImportStateVerify: true,
+		}},
+	})
+}
+
 func TestDiffAzureUserAssignedManagedIdentity(t *testing.T) {
 	block := func(name, principalID, region, rgName string) map[string]any {
 		return map[string]any{
