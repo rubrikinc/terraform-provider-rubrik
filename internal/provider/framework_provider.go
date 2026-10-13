@@ -137,10 +137,14 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisAwsCnpAccountAttachmentsResource,
 		newAwsCustomTagsResource,
 		newPolarisAwsCustomTagsResource,
+		newAWSRCVArchivalLocationResource,
+		newPolarisAWSRCVArchivalLocationResource,
 		newAzureCustomTagsResource,
 		newPolarisAzureCustomTagsResource,
 		newAzureDevOpsOrganizationResource,
 		newPolarisAzureDevOpsOrganizationResource,
+		newAzureRCVArchivalLocationResource,
+		newPolarisAzureRCVArchivalLocationResource,
 		newAzureSQLManagedInstanceCredentialsResource,
 		newClusterSettingsResource,
 		newCustomRoleResource,
@@ -150,6 +154,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisGcpCloudClusterResource,
 		newGcpCustomLabelsResource,
 		newPolarisGcpCustomLabelsResource,
+		newGCPRCVArchivalLocationResource,
+		newPolarisGCPRCVArchivalLocationResource,
 		newRoleAssignmentResource,
 		newPolarisRoleAssignmentResource,
 		newSelfServeRollingUpgradeResource,
@@ -226,16 +232,34 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 		newPolarisAwsCnpAccountListResource,
 		newAwsCnpAccountAttachmentsListResource,
 		newPolarisAwsCnpAccountAttachmentsListResource,
+		newAWSRCVArchivalLocationListResource,
+		newPolarisAWSRCVArchivalLocationListResource,
 		newAzureDevOpsOrganizationListResource,
 		newPolarisAzureDevOpsOrganizationListResource,
+		newAzureRCVArchivalLocationListResource,
+		newPolarisAzureRCVArchivalLocationListResource,
 		newClusterSettingsListResource,
 		newCustomRoleListResource,
 		newPolarisCustomRoleListResource,
+		newGCPRCVArchivalLocationListResource,
+		newPolarisGCPRCVArchivalLocationListResource,
 		newSSOGroupListResource,
 		newPolarisSSOGroupListResource,
 		newUserListResource,
 		newPolarisUserListResource,
 	}
+}
+
+// enumValues converts a slice of SDK enum constants into the plain strings
+// stringvalidator.OneOf takes, so the valid set is declared once in the SDK
+// rather than duplicated as literals here.
+func enumValues[T ~string](values []T) []string {
+	strs := make([]string, len(values))
+	for i := range values {
+		strs[i] = string(values[i])
+	}
+
+	return strs
 }
 
 // possibleValues returns a sentence describing the allowed values for use in an
