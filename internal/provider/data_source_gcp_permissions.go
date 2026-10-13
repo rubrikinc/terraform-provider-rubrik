@@ -171,7 +171,7 @@ func gcpPermissionsRead(ctx context.Context, d *schema.ResourceData, m any) diag
 		features = append(features, core.Feature{Name: feature.(string), PermissionGroups: pgs})
 	} else {
 		for _, feature := range d.Get(keyFeatures).(*schema.Set).List() {
-			features = append(features, core.ParseFeatureNoValidation(feature.(string)))
+			features = append(features, core.Feature{Name: feature.(string)})
 		}
 	}
 	featurePerms, err := gcp.Wrap(client).FeaturePermissions(ctx, features)

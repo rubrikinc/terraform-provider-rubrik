@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
@@ -120,7 +119,7 @@ func validateStringIsNumber(i any, k string) ([]string, []error) {
 // one of the permission groups of the feature with the specified name, or one
 // of the extra permission groups. If the feature isn't found in the features,
 // no values are allowed.
-func validatePermissionGroup(features []core.Feature, name string, extraGroups ...core.PermissionGroup) schema.SchemaValidateFunc {
+func validatePermissionGroup(features []core.Feature, name string, extraGroups ...core.PermissionGroup) func(any, string) ([]string, []error) {
 	var groups []string
 	if feature, ok := core.LookupFeatureName(features, name); ok {
 		groups = core.PermissionGroupNames(slices.Concat(feature.PermissionGroups, extraGroups))
