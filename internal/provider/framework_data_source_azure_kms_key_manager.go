@@ -121,7 +121,7 @@ func (d *azureKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.
 			},
 			keyNaturalID: schema.StringAttribute{
 				Computed: true,
-				Description: "Identifier of whatever the key manager connects to, in Azure terms. Not an RSC ID: " +
+				Description: "Identifies what the key manager connects to, rather than the key manager itself: " +
 					"the key vault URL.",
 			},
 			keyDataLocationsCount: schema.Int64Attribute{
