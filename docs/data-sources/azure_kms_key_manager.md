@@ -58,7 +58,7 @@ data "rubrik_azure_kms_key_manager" "by_id" {
 - `data_locations_count` (Number) Number of data locations encrypted with keys from this key manager.
 - `description` (String) Key manager description.
 - `key_vault_url` (String) Key vault URL.
-- `natural_id` (String) Identifier of whatever the key manager connects to, in Azure terms. Not an RSC ID: the key vault URL.
+- `natural_id` (String) Identifies what the key manager connects to, rather than the key manager itself: the key vault URL.
 - `provisioning_method` (String) How RSC obtains the credentials it reaches the key vault with. Possible values are `CLOUD_ACCOUNT_PROVISION`, `DIRECT_PROVISION` and `SECURE_PROVISION`.
 - `region` (String) Azure region of the key vault.
 - `tenant_id` (String) Azure tenant ID.

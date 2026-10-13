@@ -56,6 +56,6 @@ data "rubrik_aws_kms_key_manager" "by_id" {
 - `data_locations_count` (Number) Number of data locations encrypted with keys from this key manager.
 - `description` (String) Key manager description.
 - `iam_role_arn` (String) IAM role ARN.
-- `natural_id` (String) Identifier of whatever the key manager connects to, in AWS terms. Not an RSC ID: the IAM role ARN for a directly provisioned key manager and the RSC cloud account ID for a cloud account provisioned one.
+- `natural_id` (String) Identifies what the key manager connects to, rather than the key manager itself: the IAM role ARN for a directly provisioned key manager, or the RSC cloud account ID for a cloud account provisioned one.
 - `provisioning_method` (String) How RSC obtains the credentials it reaches AWS KMS with. Possible values are `CLOUD_ACCOUNT_PROVISION` and `DIRECT_PROVISION`.
 - `region` (String) AWS region of the key management service, as its display name.

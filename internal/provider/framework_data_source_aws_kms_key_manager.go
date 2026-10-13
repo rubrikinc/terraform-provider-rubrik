@@ -119,8 +119,8 @@ func (d *awsKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.Sc
 			},
 			keyNaturalID: schema.StringAttribute{
 				Computed: true,
-				Description: "Identifier of whatever the key manager connects to, in AWS terms. Not an RSC ID: " +
-					"the IAM role ARN for a directly provisioned key manager and the RSC cloud account ID for a " +
+				Description: "Identifies what the key manager connects to, rather than the key manager itself: " +
+					"the IAM role ARN for a directly provisioned key manager, or the RSC cloud account ID for a " +
 					"cloud account provisioned one.",
 			},
 			keyDataLocationsCount: schema.Int64Attribute{

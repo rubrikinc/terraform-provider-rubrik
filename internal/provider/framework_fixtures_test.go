@@ -352,6 +352,45 @@ func testAzureKeyManagerRegion(t *testing.T) string {
 	return conf.AzureKeyManagerRegion
 }
 
+// testGCPKeyManagerID
+func testGCPKeyManagerID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerID == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerID not set")
+	}
+
+	return conf.GCPKeyManagerID
+}
+
+// testGCPKeyManagerName
+func testGCPKeyManagerName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerName == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerName not set")
+	}
+
+	return conf.GCPKeyManagerName
+}
+
+// testGCPKeyManagerRegion
+func testGCPKeyManagerRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerRegion == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerRegion not set")
+	}
+
+	return conf.GCPKeyManagerRegion
+}
+
 // createTestRole creates a custom role via the SDK and registers a cleanup
 // function to delete it. The role will have the VIEW_CLUSTER and
 // VIEW_CLUSTER_REFERENCE permissions on the CLUSTER_ROOT. Returns the role ID.
