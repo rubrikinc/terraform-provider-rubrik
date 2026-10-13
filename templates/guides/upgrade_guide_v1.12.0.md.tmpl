@@ -233,6 +233,147 @@ data "rubrik_gcp_kms_key_manager" "gcp" {
 }
 ```
 
+### RCV Archival Locations
+
+Rubrik Cloud Vault, RCV, is Rubrik hosted archival storage. Unlike the cloud native archival locations managed by the
+`rubrik_aws_archival_location`, `rubrik_azure_archival_location` and `rubrik_gcp_archival_location` resources, the
+cloud account and the storage container are owned by Rubrik. There is no cloud account to onboard and no bucket or
+container to point at, so the new resources take a region and a tier and nothing else:
+
+```terraform
+resource "rubrik_aws_rcv_archival_location" "archive" {
+  name   = "us-east-1-archive"
+  region = "us-east-1"
+  tier   = "BACKUP"
+}
+
+resource "rubrik_azure_rcv_archival_location" "archive" {
+  name       = "eastus2-archive"
+  region     = "eastus2"
+  tier       = "BACKUP"
+  redundancy = "MULTI_ZONE"
+}
+
+resource "rubrik_gcp_rcv_archival_location" "archive" {
+  name   = "us-west1-archive"
+  region = "us-west1"
+  tier   = "ARCHIVE"
+}
+```
+
+The cloud in each resource name is the destination cloud, the cloud hosting the vault, not the cloud the archived
+workloads originate from.
+
+RCV archival locations support the `BACKUP` and `ARCHIVE` tiers. Redundancy is one of `SINGLE_ZONE`, `MULTI_ZONE` or
+`MULTI_REGION`, and applies to AWS and Azure only.
+
+What RSC allows you to change after creation differs per cloud, and the resources force a new archival location for
+everything else. AWS supports updating the `name` and the `tier`, Azure the `name`, the `tier` and the `redundancy`,
+and GCP only the `name`.
+
+~> **Note:** Replacing an archival location destroys the existing one. Review the plan before applying a change that
+   shows a replacement.
+
+On AWS the `region` is optional. Leaving it out creates a source region archival location, which follows the region of
+the workload being archived rather than pinning the vault to one region. The computed `location_template` attribute
+reports which of the two applies, `SPECIFIC_REGION` or `SOURCE_REGION`.
+
+```terraform
+resource "rubrik_aws_rcv_archival_location" "source_region_archive" {
+  name = "source-region-archive"
+  tier = "ARCHIVE"
+}
+```
+
+Azure is the only RCV cloud accepting a `source_workload_cloud`, which lets an Azure hosted vault archive AWS or GCP
+workloads. When it is left out, RSC derives it from the destination cloud.
+
+```terraform
+resource "rubrik_azure_rcv_archival_location" "aws_workload_archive" {
+  name                  = "eastus2-aws-archive"
+  region                = "eastus2"
+  tier                  = "ARCHIVE"
+  source_workload_cloud = "SOURCE_AWS"
+}
+```
+
+Azure also reports the immutability lock period through the computed `lock_duration_days` attribute.
+
+### RCV Encryption
+
+By default RCV creates and manages the encryption key for an archival location, and no configuration is needed. Both
+AWS and Azure additionally accept a customer managed key, in two mutually exclusive forms each. The computed
+`encryption_type` attribute, available on all three resources, reports which mode RSC actually applied.
+
+On AWS, the `kms_key` block selects client-side encryption with an AWS KMS key:
+
+```terraform
+resource "rubrik_aws_rcv_archival_location" "kms_archive" {
+  name   = "us-east-1-kms-archive"
+  region = "us-east-1"
+  tier   = "BACKUP"
+
+  kms_key {
+    key_manager_id = "8d2d0ee8-6b5a-4a58-b2a1-cd0b5f4ee2a4"
+    key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+  }
+}
+```
+
+The `customer_provided_key` block instead selects server-side encryption with an AES-256 key you supply, base64
+encoded — generate one with `openssl rand -base64 32`. On Azure the two modes are the `key_vault_key` block and the
+`rsa_key` block, both client-side. The provider rejects a configuration setting both modes for a cloud at plan time.
+
+The key inside each block is
+[write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments), so it never
+reaches Terraform state and can be sourced from a secret manager or an ephemeral variable. Because a write-only
+argument produces no difference in the plan on its own, each block pairs its key with a `version` acting as the nonce
+that makes a new key take effect:
+
+```terraform
+variable "archive_aes_key" {
+  type      = string
+  sensitive = true
+}
+
+resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
+  name   = "us-east-1-cpk-archive"
+  region = "us-east-1"
+  tier   = "BACKUP"
+
+  customer_provided_key {
+    key     = var.archive_aes_key
+    version = "1"
+  }
+}
+```
+
+RSC only accepts an encryption key when the archival location is created — the update APIs take no encryption field at
+all — so there is no way to rotate a key in place. Changing `version` therefore replaces the archival location rather
+than updating it.
+
+~> **Note:** Write-only arguments are supported in Terraform 1.11 and later.
+
+### Listing Archival Locations
+
+Each of the three resources has a matching list resource, so existing archival locations can be discovered without
+importing them one at a time. Declare one in a `.tfquery.hcl` file:
+
+```terraform
+list "rubrik_aws_rcv_archival_location" "all" {
+  provider = rubrik
+}
+```
+
+Run `terraform query` to discover archival locations, or `terraform query -generate-config-out=generated.tf` to also
+generate a `resource` block and a matching `import` block for each one. The optional `name` argument filters on a name
+prefix; leaving it out lists every RCV archival location of that cloud.
+
+Because the encryption keys are write-only, RSC does not return them and generated configuration leaves them out. An
+archival location created with a customer managed key still imports and reads back correctly, and `encryption_type`
+reports the mode in use, but the key itself has to be added to the configuration by hand if you want Terraform to
+recreate the archival location with the same key.
+
 ## Significant Changes
 
 ### Permission groups are validated per feature
