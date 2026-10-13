@@ -21,6 +21,9 @@ description: |-
   feature.EXPORT_AND_RESTORE - Represents the set of permissions required for export
   and restore operations.FILE_LEVEL_RECOVERY - Represents the set of permissions required for
   file-level recovery operations.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   CLOUD_SQL_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
   feature.EXPORT_AND_RESTORE - Represents the set of permissions required for export
@@ -97,6 +100,10 @@ are used when specifying the feature.
     and restore operations.
   * `FILE_LEVEL_RECOVERY` - Represents the set of permissions required for
     file-level recovery operations.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_SQL_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
