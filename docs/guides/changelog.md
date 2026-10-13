@@ -35,6 +35,19 @@ page_title: "Changelog"
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
 * Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry
   removed outside of Terraform was not detected, leaving the resource in state with empty values.
+* New resource added for `rubrik_aws_rcv_archival_location` which creates and manages RCV AWS archival locations in
+  RSC. Rubrik Cloud Vault storage is Rubrik owned, so the resource takes a region and a tier but no cloud account ID.
+  Encryption defaults to an RCV managed key, with the `kms_key` block selecting client-side encryption and the
+  `customer_provided_key` block selecting server-side encryption with a write-only, base64 encoded AES-256 key. See the
+  [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../resources/aws_rcv_archival_location.md)]
+* New resource added for `rubrik_azure_rcv_archival_location` which creates and manages RCV Azure archival locations
+  in RSC. Azure is the only RCV cloud accepting a `source_workload_cloud`, letting an Azure hosted vault archive AWS
+  or GCP workloads. A customer managed key is configured with the `key_vault_key` block or the `rsa_key` block, whose
+  key is write-only. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  [[docs](../resources/azure_rcv_archival_location.md)]
+* New resource added for `rubrik_gcp_rcv_archival_location` which creates and manages RCV GCP archival locations in
+  RSC. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  [[docs](../resources/gcp_rcv_archival_location.md)]
 * Add support for the `CLOUD_NATIVE_UEM_KEY_MANAGEMENT` feature in the `rubrik_aws_account`,
   `rubrik_aws_cnp_account`, `rubrik_aws_cnp_account_attachments`, `rubrik_azure_subscription` and `rubrik_gcp_project`
   resources and the `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and
