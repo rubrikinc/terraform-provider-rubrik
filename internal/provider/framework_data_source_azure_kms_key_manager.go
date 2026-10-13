@@ -60,6 +60,7 @@ var (
 
 type azureKMSKeyManagerDataSource struct {
 	client *client
+	prefix string
 }
 
 type azureKMSKeyManagerModel struct {
@@ -77,13 +78,17 @@ type azureKMSKeyManagerModel struct {
 }
 
 func newAzureKMSKeyManagerDataSource() datasource.DataSource {
-	return &azureKMSKeyManagerDataSource{}
+	return &azureKMSKeyManagerDataSource{prefix: keyRubrik}
+}
+
+func newPolarisAzureKMSKeyManagerDataSource() datasource.DataSource {
+	return &azureKMSKeyManagerDataSource{prefix: keyPolaris}
 }
 
 func (d *azureKMSKeyManagerDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "azureKMSKeyManagerDataSource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyAzureKMSKeyManager
+	res.TypeName = d.prefix + "_" + keyAzureKMSKeyManager
 }
 
 func (d *azureKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -150,6 +155,10 @@ func (d *azureKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.
 				Description: "Azure client ID.",
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_azure_kms_key_manager` data source instead."
 	}
 }
 
