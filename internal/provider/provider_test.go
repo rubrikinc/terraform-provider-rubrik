@@ -257,6 +257,9 @@ type testRSCConfig struct {
 	AzureKeyManagerID     string `json:"azureKeyManagerId"`
 	AzureKeyManagerName   string `json:"azureKeyManagerName"`
 	AzureKeyManagerRegion string `json:"azureKeyManagerRegion"`
+	GCPKeyManagerID       string `json:"gcpKeyManagerId"`
+	GCPKeyManagerName     string `json:"gcpKeyManagerName"`
+	GCPKeyManagerRegion   string `json:"gcpKeyManagerRegion"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default
