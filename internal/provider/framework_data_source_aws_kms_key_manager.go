@@ -60,6 +60,7 @@ var (
 
 type awsKMSKeyManagerDataSource struct {
 	client *client
+	prefix string
 }
 
 type awsKMSKeyManagerModel struct {
@@ -75,13 +76,17 @@ type awsKMSKeyManagerModel struct {
 }
 
 func newAWSKMSKeyManagerDataSource() datasource.DataSource {
-	return &awsKMSKeyManagerDataSource{}
+	return &awsKMSKeyManagerDataSource{prefix: keyRubrik}
+}
+
+func newPolarisAWSKMSKeyManagerDataSource() datasource.DataSource {
+	return &awsKMSKeyManagerDataSource{prefix: keyPolaris}
 }
 
 func (d *awsKMSKeyManagerDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "awsKMSKeyManagerDataSource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyAWSKMSKeyManager
+	res.TypeName = d.prefix + "_" + keyAWSKMSKeyManager
 }
 
 func (d *awsKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -141,6 +146,10 @@ func (d *awsKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.Sc
 				Description: "IAM role ARN.",
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_aws_kms_key_manager` data source instead."
 	}
 }
 

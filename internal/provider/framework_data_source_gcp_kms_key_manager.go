@@ -60,6 +60,7 @@ var (
 
 type gcpKMSKeyManagerDataSource struct {
 	client *client
+	prefix string
 }
 
 type gcpKMSKeyManagerModel struct {
@@ -75,13 +76,17 @@ type gcpKMSKeyManagerModel struct {
 }
 
 func newGCPKMSKeyManagerDataSource() datasource.DataSource {
-	return &gcpKMSKeyManagerDataSource{}
+	return &gcpKMSKeyManagerDataSource{prefix: keyRubrik}
+}
+
+func newPolarisGCPKMSKeyManagerDataSource() datasource.DataSource {
+	return &gcpKMSKeyManagerDataSource{prefix: keyPolaris}
 }
 
 func (d *gcpKMSKeyManagerDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "gcpKMSKeyManagerDataSource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyGCPKMSKeyManager
+	res.TypeName = d.prefix + "_" + keyGCPKMSKeyManager
 }
 
 func (d *gcpKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -139,6 +144,10 @@ func (d *gcpKMSKeyManagerDataSource) Schema(ctx context.Context, _ datasource.Sc
 				Description: "Key ring name.",
 			},
 		},
+	}
+
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_gcp_kms_key_manager` data source instead."
 	}
 }
 
