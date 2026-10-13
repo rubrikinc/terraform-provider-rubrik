@@ -433,3 +433,36 @@ resource.
 The attribute is computed, so no change to the resource configuration is needed and Terraform does not plan any changes
 for it. If your configuration compares the status to a lower case value, for example in a `precondition` or an output,
 update the comparison to use the upper case value.
+
+## Significant Changes
+
+### Permission groups are validated per feature
+
+The `rubrik_aws_cnp_account` and `rubrik_gcp_project` resources and the `rubrik_aws_cnp_artifacts`,
+`rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and `rubrik_gcp_permissions` data sources now check that each
+permission group is supported by the feature it is given for. Previously, any known permission group was accepted for
+any feature, and an unsupported combination was only rejected by RSC, if at all. For example, `EXPORT` is a permission
+group of `CLOUD_NATIVE_S3_PROTECTION`, but not of `RDS_PROTECTION`:
+
+```terraform
+resource "rubrik_aws_cnp_account" "account" {
+  name      = "My Account"
+  native_id = "123456789123"
+
+  feature {
+    name = "RDS_PROTECTION"
+    permission_groups = [
+      "BASIC",
+      "EXPORT", # Now fails the plan.
+    ]
+  }
+
+  regions = [
+    "us-east-2",
+  ]
+}
+```
+
+If the plan fails with an error about a permission group not being supported by a feature, remove the permission group
+from the feature. The permission groups each feature supports are listed in the documentation of the resource or data
+source.
