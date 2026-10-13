@@ -42,6 +42,9 @@ description: |-
   feature.EXPORT - Represents the set of permissions required to export an S3
   recovery to a newly created target bucket.RECOVERY - Represents the set of elevated permissions required to perform
   recovery operations.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   EXOCOMPUTE
   BASIC - Represents the basic set of permissions required to onboard the
   feature.RSC_MANAGED_CLUSTER - Represents the set of permissions required for the
@@ -133,6 +136,10 @@ are used when specifying the feature set.
     recovery to a newly created target bucket.
   * `RECOVERY` - Represents the set of elevated permissions required to perform
     recovery operations.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `EXOCOMPUTE`
   * `BASIC` - Represents the basic set of permissions required to onboard the

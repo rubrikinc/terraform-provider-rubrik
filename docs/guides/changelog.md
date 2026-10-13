@@ -46,6 +46,13 @@ page_title: "Changelog"
   `backup_location`, and does not support the `archival` block, replication or a minute schedule. The most frequent
   schedule must take a snapshot at least every 7 days. These rules are checked during plan.
   [[docs](../resources/sla_domain.md)]
+* Add support for the `CLOUD_NATIVE_UEM_KEY_MANAGEMENT` feature in the `rubrik_aws_account`,
+  `rubrik_aws_cnp_account`, `rubrik_aws_cnp_account_attachments`, `rubrik_azure_subscription` and `rubrik_gcp_project`
+  resources and the `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and
+  `rubrik_gcp_permissions` data sources. The feature is required to register a cloud account's key management service
+  as a key manager in RSC. Its permission group is `BASIC`. In the `rubrik_aws_account` and `rubrik_azure_subscription`
+  resources, the feature is enabled with the `cloud_native_uem_key_management` block.
+  [[docs](../resources/aws_cnp_account.md)]
 * Improve the validation of the `rubrik_aws_cnp_account` and `rubrik_gcp_project` resources and the
   `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and `rubrik_gcp_permissions` data
   sources. Permission groups which aren't supported by the feature they are given for are now rejected when the

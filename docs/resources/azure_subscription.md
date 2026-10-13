@@ -50,6 +50,9 @@ description: |-
   file-level recovery operations.SNAPSHOT_PRIVATE_ACCESS - Represents the set of permissions required for
   private access to disk snapshots.EXPORT_AND_RESTORE_POWER_OFF_VM - Represents the set of permissions
   required for export and restore operations with VM power off capability.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   SERVERS_AND_APPS
   CLOUD_CLUSTER_ES - Represents the basic set of permissions required to
   onboard the feature.SAP_HANA_SS_BASIC - Represents the basic set of permissions required for
@@ -159,6 +162,10 @@ are used when specifying the feature.
     private access to disk snapshots.
   * `EXPORT_AND_RESTORE_POWER_OFF_VM` - Represents the set of permissions
     required for export and restore operations with VM power off capability.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
@@ -273,6 +280,7 @@ resource "rubrik_azure_subscription" "subscription" {
 - `cloud_native_archival_encryption` (Block List, Max: 1) Enable the RSC Cloud Native Archival Encryption feature for the Azure subscription. Allows cloud archival locations to be encrypted with customer managed keys. (see [below for nested schema](#nestedblock--cloud_native_archival_encryption))
 - `cloud_native_blob_protection` (Block List, Max: 1) Enable the RSC Cloud Native Protection feature for Azure Blob Storage. Provides protection for Azure Blob Storage through the rules and policies of SLA Domains. (see [below for nested schema](#nestedblock--cloud_native_blob_protection))
 - `cloud_native_protection` (Block List, Max: 1) Enable the RSC Cloud Native Protection feature for the Azure subscription. Provides protection for Azure virtual machines and managed disks through the rules and policies of SLA Domains. (see [below for nested schema](#nestedblock--cloud_native_protection))
+- `cloud_native_uem_key_management` (Block List, Max: 1) Enable the RSC Cloud Native UEM Key Management feature for the Azure subscription. Required to register the subscription's key vaults as key managers in RSC. The feature only grants RSC permission to read the key vaults, the key operations require RSC to be assigned the Key Vault Crypto User role on the key vault. RSC doesn't allow the feature to be removed while a key manager references the subscription. (see [below for nested schema](#nestedblock--cloud_native_uem_key_management))
 - `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed. Default value is `false`.
 - `entra_group_id` (String) Object ID of the Entra ID group used for Entra ID authentication in Exocompute AKS clusters. This is a tenant-level setting shared across all subscriptions in the same tenant.
 - `exocompute` (Block List, Max: 1) Enable the RSC Exocompute feature for the Azure subscription. Provides snapshot indexing, file recovery, storage tiering, and application-consistent protection of Azure objects. (see [below for nested schema](#nestedblock--exocompute))
@@ -382,6 +390,19 @@ Optional:
 Read-Only:
 
 - `status` (String) Status of the Cloud Native Protection feature.
+
+
+<a id="nestedblock--cloud_native_uem_key_management"></a>
+### Nested Schema for `cloud_native_uem_key_management`
+
+Optional:
+
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native UEM Key Management feature. Possible value is `BASIC`.
+- `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
+
+Read-Only:
+
+- `status` (String) Status of the Cloud Native UEM Key Management feature.
 
 
 <a id="nestedblock--exocompute"></a>

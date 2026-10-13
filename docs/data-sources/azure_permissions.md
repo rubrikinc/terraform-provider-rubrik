@@ -49,6 +49,9 @@ description: |-
   file-level recovery operations.SNAPSHOT_PRIVATE_ACCESS - Represents the set of permissions required for
   private access to disk snapshots.EXPORT_AND_RESTORE_POWER_OFF_VM - Represents the set of permissions
   required for export and restore operations with VM power off capability.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   SERVERS_AND_APPS
   CLOUD_CLUSTER_ES - Represents the basic set of permissions required to
   onboard the feature.SAP_HANA_SS_BASIC - Represents the basic set of permissions required for
@@ -149,6 +152,10 @@ are used when specifying the feature.
     private access to disk snapshots.
   * `EXPORT_AND_RESTORE_POWER_OFF_VM` - Represents the set of permissions
     required for export and restore operations with VM power off capability.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
