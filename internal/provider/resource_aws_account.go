@@ -71,6 +71,9 @@ for an account:
     Protection feature for the account.
   * ´cloud_native_s3_protection´ - Enable the Cloud Native S3 Protection feature
     for the account.
+  * ´cloud_native_uem_key_management´ - Enable the Cloud Native UEM Key
+    Management feature for the account. Required to register the account's KMS
+    as a key manager in RSC.
   * ´cyber_recovery_data_scanning´ - Enable the Cyber Recovery Data Scanning
     feature for the account. Requires the Outpost feature to be enabled, either
     in the same account or in a separate account onboarded before this resource.
@@ -236,6 +239,7 @@ func resourceAwsAccount() *schema.Resource {
 					keyCloudNativeConfigProtection,
 					keyCloudNativeDynamoDBProtection,
 					keyCloudNativeS3Protection,
+					keyCloudNativeUEMKeyManagement,
 					keyCyberRecoveryDataScanning,
 					keyDataScanning,
 					keyDSPM,
@@ -269,6 +273,14 @@ func resourceAwsAccount() *schema.Resource {
 				MaxItems:    1,
 				Optional:    true,
 				Description: "Enable the Cloud Native S3 Protection feature for the account.",
+			},
+			keyCloudNativeUEMKeyManagement: {
+				Type:     schema.TypeList,
+				Elem:     awsCFTFeatureResource(core.CloudNativeUEMKeyManagement),
+				MaxItems: 1,
+				Optional: true,
+				Description: "Enable the Cloud Native UEM Key Management feature for the account. Required to " +
+					"register the account's KMS as a key manager in RSC.",
 			},
 			keyCyberRecoveryDataScanning: {
 				Type:     schema.TypeList,
@@ -429,6 +441,7 @@ func resourceAwsAccount() *schema.Resource {
 					keyCloudNativeProtection,
 					keyCloudNativeDynamoDBProtection,
 					keyCloudNativeS3Protection,
+					keyCloudNativeUEMKeyManagement,
 					keyCyberRecoveryDataScanning,
 					keyDataScanning,
 					keyDSPM,
@@ -549,6 +562,14 @@ func awsCreateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	}
 
 	featureBlock, err = awsFromCFTFeatureBlock(keyCloudNativeS3Protection, d.Get(keyCloudNativeS3Protection))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if featureBlock != nil {
+		featureBlocks = append(featureBlocks, *featureBlock)
+	}
+
+	featureBlock, err = awsFromCFTFeatureBlock(keyCloudNativeUEMKeyManagement, d.Get(keyCloudNativeUEMKeyManagement))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -719,6 +740,9 @@ func awsReadAccount(ctx context.Context, d *schema.ResourceData, m any) diag.Dia
 	if err := d.Set(keyCloudNativeS3Protection, awsToCFTFeatureBlock(account, keyCloudNativeS3Protection)); err != nil {
 		return diag.FromErr(err)
 	}
+	if err := d.Set(keyCloudNativeUEMKeyManagement, awsToCFTFeatureBlock(account, keyCloudNativeUEMKeyManagement)); err != nil {
+		return diag.FromErr(err)
+	}
 	if err := d.Set(keyCyberRecoveryDataScanning, awsToCFTFeatureBlock(account, keyCyberRecoveryDataScanning)); err != nil {
 		return diag.FromErr(err)
 	}
@@ -884,6 +908,9 @@ func awsUpdateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeS3Protection, d); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeUEMKeyManagement, d); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCyberRecoveryDataScanning, d); err != nil {
@@ -1197,6 +1224,9 @@ var awsCFTFeatureBlockMap = map[string][]core.Feature{
 	},
 	keyCloudNativeS3Protection: {
 		core.FeatureCloudNativeS3Protection,
+	},
+	keyCloudNativeUEMKeyManagement: {
+		core.FeatureCloudNativeUEMKeyManagement,
 	},
 	keyCyberRecoveryDataScanning: {
 		core.FeatureCyberRecoveryDataClassificationData,
