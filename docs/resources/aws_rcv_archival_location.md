@@ -11,12 +11,17 @@ description: |-
   -> Note: When region is left out, the archival location follows the region
   of the workload being archived, and location_template becomes
   SOURCE_REGION instead of SPECIFIC_REGION.
-  -> Note: RSC only supports updating the name and the tier. Changing any
-  other argument replaces the archival location.
   -> Note: Encryption defaults to a key RCV creates and manages. The kms_key
   block selects client-side encryption with an AWS KMS key instead, and the
   customer_provided_key block selects server-side encryption with an AES key
   you supply. The two blocks are mutually exclusive.
+  Changing the key ID or the key manager of the kms_key block rekeys the
+  archival location in place. The rekey moves the archival location to the new key
+  without re-encrypting the archived data. It can take several minutes, increase
+  timeouts.update if it takes longer than the default of 20 minutes.
+  -> Note: RSC only supports updating the name and the tier, and rekeying
+  the kms_key. Changing any other argument, or adding or removing the
+  kms_key block, replaces the archival location.
 ---
 
 # rubrik_aws_rcv_archival_location (Resource)
@@ -32,13 +37,19 @@ only a region and a tier.
    of the workload being archived, and `location_template` becomes
    `SOURCE_REGION` instead of `SPECIFIC_REGION`.
 
--> **Note:** RSC only supports updating the `name` and the `tier`. Changing any
-   other argument replaces the archival location.
-
 -> **Note:** Encryption defaults to a key RCV creates and manages. The `kms_key`
    block selects client-side encryption with an AWS KMS key instead, and the
    `customer_provided_key` block selects server-side encryption with an AES key
    you supply. The two blocks are mutually exclusive.
+
+Changing the key ID or the key manager of the `kms_key` block rekeys the
+archival location in place. The rekey moves the archival location to the new key
+without re-encrypting the archived data. It can take several minutes, increase
+`timeouts.update` if it takes longer than the default of 20 minutes.
+
+-> **Note:** RSC only supports updating the `name` and the `tier`, and rekeying
+   the `kms_key`. Changing any other argument, or adding or removing the
+   `kms_key` block, replaces the archival location.
 
 ## Example Usage
 
@@ -104,7 +115,7 @@ resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
 - `customer_provided_key` (Block List) Customer provided AES key used for server-side encryption of the archived data. Conflicts with `kms_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--customer_provided_key))
-- `kms_key` (Block List) AWS KMS key used for client-side encryption of the archived data. Conflicts with `customer_provided_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `kms_key` (Block List) AWS KMS key used for client-side encryption of the archived data. Conflicts with `customer_provided_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing the key ID or the key manager rekeys the archival location in place. Adding or removing the block forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
 - `redundancy` (String) Storage redundancy. Possible values are `SINGLE_ZONE`, `MULTI_ZONE` and `MULTI_REGION`. Changing this forces a new resource to be created, the RSC API does not support updating it.
 - `region` (String) AWS region hosting the vault, e.g. `us-east-1`. When left out, the archival location follows the region of the workload being archived. Changing this forces a new resource to be created.
 - `tier` (String) Storage tier. Possible values are `ARCHIVE`, `BACKUP` and `RECOVERY`.
@@ -134,3 +145,11 @@ Required:
 
 - `key_id` (String) KMS key ID.
 - `key_manager_id` (String) KMS key manager ID (UUID).
+
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `update` (String) How long to wait for a rekey of the archival location to complete. Default is `20m0s`.

@@ -11,12 +11,19 @@ description: |-
   -> Note: Azure is the only RCV cloud accepting a source_workload_cloud,
   letting an Azure hosted vault archive AWS or GCP workloads. When left out,
   RSC derives it from the destination cloud.
-  -> Note: RSC only supports updating the name, the tier and the
-  redundancy. Changing any other argument replaces the archival location.
   -> Note: Encryption defaults to a key RCV creates and manages. The
   key_vault_key block selects client-side encryption with an Azure Key Vault
   key instead, and the rsa_key block selects client-side encryption with an
   RSA key you supply. The two blocks are mutually exclusive.
+  Changing the key name, the key version or the key vault of the key_vault_key
+  block rekeys the archival location in place. The rekey moves the archival
+  location to the new key without re-encrypting the archived data. It can take
+  several minutes, increase timeouts.update if it takes longer than the default
+  of 20 minutes.
+  -> Note: RSC only supports updating the name, the tier and the
+  redundancy, and rekeying the key_vault_key. Changing any other argument,
+  or adding or removing the key_vault_key block, replaces the archival
+  location.
 ---
 
 # rubrik_azure_rcv_archival_location (Resource)
@@ -32,13 +39,21 @@ only a region and a tier.
    letting an Azure hosted vault archive AWS or GCP workloads. When left out,
    RSC derives it from the destination cloud.
 
--> **Note:** RSC only supports updating the `name`, the `tier` and the
-   `redundancy`. Changing any other argument replaces the archival location.
-
 -> **Note:** Encryption defaults to a key RCV creates and manages. The
    `key_vault_key` block selects client-side encryption with an Azure Key Vault
    key instead, and the `rsa_key` block selects client-side encryption with an
    RSA key you supply. The two blocks are mutually exclusive.
+
+Changing the key name, the key version or the key vault of the `key_vault_key`
+block rekeys the archival location in place. The rekey moves the archival
+location to the new key without re-encrypting the archived data. It can take
+several minutes, increase `timeouts.update` if it takes longer than the default
+of 20 minutes.
+
+-> **Note:** RSC only supports updating the `name`, the `tier` and the
+   `redundancy`, and rekeying the `key_vault_key`. Changing any other argument,
+   or adding or removing the `key_vault_key` block, replaces the archival
+   location.
 
 ## Example Usage
 
@@ -107,7 +122,7 @@ resource "rubrik_azure_rcv_archival_location" "rsa_key_archive" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `key_vault_key` (Block List) Azure Key Vault key used for client-side encryption of the archived data. Conflicts with `rsa_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
+- `key_vault_key` (Block List) Azure Key Vault key used for client-side encryption of the archived data. Conflicts with `rsa_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing the key name, the key version or the key vault rekeys the archival location in place. Adding or removing the block forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
 - `redundancy` (String) Storage redundancy. Possible values are `SINGLE_ZONE`, `MULTI_ZONE` and `MULTI_REGION`.
 - `rsa_key` (Block List) RSA key used for client-side encryption of the archived data. Conflicts with `key_vault_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--rsa_key))
 - `source_workload_cloud` (String) Cloud the archived workloads originate from, letting an Azure hosted vault archive AWS or GCP workloads. Possible values are `SOURCE_AWS`, `SOURCE_AZURE` and `SOURCE_GCP`. When left out, RSC derives it from the destination cloud. Changing this forces a new resource to be created.
@@ -141,3 +156,11 @@ Required:
 
 - `key` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) RSA key. Write-only, so it never reaches Terraform state. RSC only accepts the key when the archival location is created, change `version` to replace the archival location with one using a new key.
 - `version` (String) Arbitrary value identifying the version of `key`. Write-only arguments produce no difference in the plan on their own, so changing this is what makes a new key take effect.
+
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `update` (String) How long to wait for a rekey of the archival location to complete. Default is `20m0s`.
