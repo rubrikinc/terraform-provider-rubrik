@@ -77,7 +77,7 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
 ### Read-Only
 
 - `connection_status` (String) Connection status of the archival location.
-- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `SSE_DEFAULT_PMK`, `UEKM_AWS_KMS_BASED`, `UEKM_AKV_BASED`, `UEKM_GCP_KMS_BASED`, `UEKM_RSA_BASED` and `SSE_CPK`.
+- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `SSE_DEFAULT_PMK` and `UEKM_GCP_KMS_BASED`.
 - `id` (String) Archival location ID (UUID).
 - `location_template` (String) Location template, `SPECIFIC_REGION` or `SOURCE_REGION`.
 

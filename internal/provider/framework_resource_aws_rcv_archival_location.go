@@ -44,6 +44,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqlarchival "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/archival"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core/secret"
 	gqlaws "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/aws"
 )
@@ -199,7 +200,7 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 			keyEncryptionType: schema.StringAttribute{
 				Computed: true,
 				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
-					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues())),
+					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorAWS))),
 			},
 			keyLocationTemplate: schema.StringAttribute{
 				Computed: true,
