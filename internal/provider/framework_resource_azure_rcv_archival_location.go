@@ -24,8 +24,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -61,14 +63,26 @@ only a region and a tier.
    letting an Azure hosted vault archive AWS or GCP workloads. When left out,
    RSC derives it from the destination cloud.
 
--> **Note:** RSC only supports updating the ´name´, the ´tier´ and the
-   ´redundancy´. Changing any other argument replaces the archival location.
-
 -> **Note:** Encryption defaults to a key RCV creates and manages. The
    ´key_vault_key´ block selects client-side encryption with an Azure Key Vault
    key instead, and the ´rsa_key´ block selects client-side encryption with an
    RSA key you supply. The two blocks are mutually exclusive.
+
+Changing the key name, the key version or the key vault of the ´key_vault_key´
+block rekeys the archival location in place. The rekey moves the archival
+location to the new key without re-encrypting the archived data. It can take
+several minutes, increase ´timeouts.update´ if it takes longer than the default
+of 20 minutes.
+
+-> **Note:** RSC only supports updating the ´name´, the ´tier´ and the
+   ´redundancy´, and rekeying the ´key_vault_key´. Changing any other argument,
+   or adding or removing the ´key_vault_key´ block, replaces the archival
+   location.
 `
+
+// defaultAzureRCVRekeyTimeout is the default time to wait for a rekey of an RCV
+// Azure archival location to complete.
+const defaultAzureRCVRekeyTimeout = 20 * time.Minute
 
 var (
 	_ resource.Resource                     = &azureRCVArchivalLocationResource{}
@@ -83,19 +97,20 @@ type azureRCVArchivalLocationResource struct {
 }
 
 type azureRCVArchivalLocationModel struct {
-	ID                  types.String `tfsdk:"id"`
-	Name                types.String `tfsdk:"name"`
-	Region              types.String `tfsdk:"region"`
-	Tier                types.String `tfsdk:"tier"`
-	Redundancy          types.String `tfsdk:"redundancy"`
-	SourceWorkloadCloud types.String `tfsdk:"source_workload_cloud"`
-	UpdateChildVaults   types.Bool   `tfsdk:"update_child_vaults"`
-	RSAKey              types.List   `tfsdk:"rsa_key"`
-	LockDurationDays    types.Int64  `tfsdk:"lock_duration_days"`
-	ConnectionStatus    types.String `tfsdk:"connection_status"`
-	LocationTemplate    types.String `tfsdk:"location_template"`
-	EncryptionType      types.String `tfsdk:"encryption_type"`
-	KeyVaultKey         types.List   `tfsdk:"key_vault_key"`
+	ID                  types.String   `tfsdk:"id"`
+	Name                types.String   `tfsdk:"name"`
+	Region              types.String   `tfsdk:"region"`
+	Tier                types.String   `tfsdk:"tier"`
+	Redundancy          types.String   `tfsdk:"redundancy"`
+	SourceWorkloadCloud types.String   `tfsdk:"source_workload_cloud"`
+	UpdateChildVaults   types.Bool     `tfsdk:"update_child_vaults"`
+	RSAKey              types.List     `tfsdk:"rsa_key"`
+	LockDurationDays    types.Int64    `tfsdk:"lock_duration_days"`
+	ConnectionStatus    types.String   `tfsdk:"connection_status"`
+	LocationTemplate    types.String   `tfsdk:"location_template"`
+	EncryptionType      types.String   `tfsdk:"encryption_type"`
+	KeyVaultKey         types.List     `tfsdk:"key_vault_key"`
+	Timeouts            timeouts.Value `tfsdk:"timeouts"`
 }
 
 type azureRCVKeyVaultKeyModel struct {
@@ -226,6 +241,11 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorAzure))),
 			},
+			keyTimeouts: timeouts.Attributes(ctx, timeouts.Opts{
+				Update: true,
+				UpdateDescription: fmt.Sprintf("How long to wait for a rekey of the archival location to "+
+					"complete. Default is `%s`.", defaultAzureRCVRekeyTimeout),
+			}),
 		},
 		Blocks: map[string]schema.Block{
 			// A single-element list block rather than a SingleNestedBlock. The
@@ -236,10 +256,11 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 			keyKeyVaultKey: schema.ListNestedBlock{
 				Description: "Azure Key Vault key used for client-side encryption of the archived data. " +
 					"Conflicts with `rsa_key`. When neither is given, RCV creates and manages the " +
-					"encryption key. May be specified at most once. Changing this forces a new resource " +
-					"to be created.",
+					"encryption key. May be specified at most once. Changing the key name, the key version " +
+					"or the key vault rekeys the archival location in place. Adding or removing the block " +
+					"forces a new resource to be created.",
 				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+					requiresReplaceOnAddOrRemove(),
 				},
 				Validators: []validator.List{
 					listvalidator.SizeAtMost(1),
@@ -486,6 +507,36 @@ func (r *azureRCVArchivalLocationResource) Update(ctx context.Context, req resou
 		return
 	}
 
+	// The rekey runs before the update, a failed rekey then leaves the name, the
+	// tier and the redundancy unchanged. Adding or removing the key replaces the
+	// archival location, so a difference here is always a change to the existing
+	// key.
+	if !plan.KeyVaultKey.Equal(state.KeyVaultKey) {
+		keyVaultKey, diags := toAzureRCVKeyVaultKey(ctx, plan.KeyVaultKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+
+		if keyVaultKey != nil {
+			timeout, diags := plan.Timeouts.Update(ctx, defaultAzureRCVRekeyTimeout)
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+
+			err := archival.Wrap(polarisClient).RekeyRCVAzureMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				AzureKeyVaultKey: keyVaultKey,
+			})
+			if err != nil {
+				res.Diagnostics.AddError("Failed to rekey RCV Azure archival location", err.Error())
+				return
+			}
+		}
+	}
+
 	updateParams := gqlarchival.UpdateRCVAzureStorageSettingParams{
 		Name:       plan.Name.ValueString(),
 		Tier:       gqlarchival.RCVTier(plan.Tier.ValueString()),
@@ -624,13 +675,16 @@ func updateAzureRCVArchivalLocationModel(m *azureRCVArchivalLocationModel, targe
 
 // newAzureRCVArchivalLocationModel builds a complete model from a target
 // mapping. The RSA key and the Key Vault key are null, the RSC API does not
-// return them, as is update_child_vaults, which only exists for updates.
-func newAzureRCVArchivalLocationModel(targetMapping gqlarchival.RCVAzureTargetMapping) azureRCVArchivalLocationModel {
+// return them, as is update_child_vaults, which only exists for updates. The
+// timeouts are the correctly typed null value, derived from the resource
+// schema.
+func newAzureRCVArchivalLocationModel(targetMapping gqlarchival.RCVAzureTargetMapping, nullTimeouts timeouts.Value) azureRCVArchivalLocationModel {
 	m := azureRCVArchivalLocationModel{
 		ID:                types.StringValue(targetMapping.ID.String()),
 		UpdateChildVaults: types.BoolNull(),
 		RSAKey:            types.ListNull(azureRCVRSAKeyType),
 		KeyVaultKey:       types.ListNull(azureRCVKeyVaultKeyType),
+		Timeouts:          nullTimeouts,
 	}
 	updateAzureRCVArchivalLocationModel(&m, targetMapping)
 
