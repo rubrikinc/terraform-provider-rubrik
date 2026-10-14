@@ -24,8 +24,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -61,14 +63,24 @@ only a region and a tier.
    of the workload being archived, and ´location_template´ becomes
    ´SOURCE_REGION´ instead of ´SPECIFIC_REGION´.
 
--> **Note:** RSC only supports updating the ´name´ and the ´tier´. Changing any
-   other argument replaces the archival location.
-
 -> **Note:** Encryption defaults to a key RCV creates and manages. The ´kms_key´
    block selects client-side encryption with an AWS KMS key instead, and the
    ´customer_provided_key´ block selects server-side encryption with an AES key
    you supply. The two blocks are mutually exclusive.
+
+Changing the key ID or the key manager of the ´kms_key´ block rekeys the
+archival location in place. The rekey moves the archival location to the new key
+without re-encrypting the archived data. It can take several minutes, increase
+´timeouts.update´ if it takes longer than the default of 20 minutes.
+
+-> **Note:** RSC only supports updating the ´name´ and the ´tier´, and rekeying
+   the ´kms_key´. Changing any other argument, or adding or removing the
+   ´kms_key´ block, replaces the archival location.
 `
+
+// defaultAWSRCVRekeyTimeout is the default time to wait for a rekey of an RCV
+// AWS archival location to complete.
+const defaultAWSRCVRekeyTimeout = 20 * time.Minute
 
 var (
 	_ resource.Resource                     = &awsRCVArchivalLocationResource{}
@@ -93,7 +105,8 @@ type awsRCVArchivalLocationModel struct {
 	EncryptionType   types.String `tfsdk:"encryption_type"`
 	KMSKey           types.List   `tfsdk:"kms_key"`
 
-	CustomerProvidedKey types.List `tfsdk:"customer_provided_key"`
+	CustomerProvidedKey types.List     `tfsdk:"customer_provided_key"`
+	Timeouts            timeouts.Value `tfsdk:"timeouts"`
 }
 
 type awsRCVKMSKeyModel struct {
@@ -207,6 +220,11 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 				Description: "Location template. `SPECIFIC_REGION` when `region` is specified, otherwise " +
 					"`SOURCE_REGION`.",
 			},
+			keyTimeouts: timeouts.Attributes(ctx, timeouts.Opts{
+				Update: true,
+				UpdateDescription: fmt.Sprintf("How long to wait for a rekey of the archival location to "+
+					"complete. Default is `%s`.", defaultAWSRCVRekeyTimeout),
+			}),
 		},
 		Blocks: map[string]schema.Block{
 			// A single-element list block rather than a SingleNestedBlock. The
@@ -217,10 +235,11 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 			keyKMSKey: schema.ListNestedBlock{
 				Description: "AWS KMS key used for client-side encryption of the archived data. Conflicts " +
 					"with `customer_provided_key`. When neither is given, RCV creates and manages the " +
-					"encryption key. May be specified at most once. Changing this forces a new resource to " +
-					"be created.",
+					"encryption key. May be specified at most once. Changing the key ID or the key manager " +
+					"rekeys the archival location in place. Adding or removing the block forces a new " +
+					"resource to be created.",
 				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+					requiresReplaceOnAddOrRemove(),
 				},
 				Validators: []validator.List{
 					listvalidator.SizeAtMost(1),
@@ -466,6 +485,35 @@ func (r *awsRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 		return
 	}
 
+	// The rekey runs before the update, a failed rekey then leaves the name and
+	// the tier unchanged. Adding or removing the key replaces the archival
+	// location, so a difference here is always a change to the existing key.
+	if !plan.KMSKey.Equal(state.KMSKey) {
+		kmsKey, diags := toAWSRCVKMSKey(ctx, plan.KMSKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+
+		if kmsKey != nil {
+			timeout, diags := plan.Timeouts.Update(ctx, defaultAWSRCVRekeyTimeout)
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+
+			err := archival.Wrap(polarisClient).RekeyRCVAWSMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				AWSKMSKey: kmsKey,
+			})
+			if err != nil {
+				res.Diagnostics.AddError("Failed to rekey RCV AWS archival location", err.Error())
+				return
+			}
+		}
+	}
+
 	updateParams := gqlarchival.UpdateRCVAWSStorageSettingParams{
 		Name: plan.Name.ValueString(),
 		Tier: gqlarchival.RCVTier(plan.Tier.ValueString()),
@@ -596,12 +644,14 @@ func updateAWSRCVArchivalLocationModel(m *awsRCVArchivalLocationModel, targetMap
 }
 
 // newAWSRCVArchivalLocationModel builds a complete model from a target mapping.
-// The KMS key is null, the RSC API does not return it.
-func newAWSRCVArchivalLocationModel(targetMapping gqlarchival.RCVAWSTargetMapping) awsRCVArchivalLocationModel {
+// The KMS key is null, the RSC API does not return it. The timeouts are the
+// correctly typed null value, derived from the resource schema.
+func newAWSRCVArchivalLocationModel(targetMapping gqlarchival.RCVAWSTargetMapping, nullTimeouts timeouts.Value) awsRCVArchivalLocationModel {
 	m := awsRCVArchivalLocationModel{
 		ID:                  types.StringValue(targetMapping.ID.String()),
 		KMSKey:              types.ListNull(awsRCVKMSKeyType),
 		CustomerProvidedKey: types.ListNull(awsRCVCustomerProvidedKeyType),
+		Timeouts:            nullTimeouts,
 	}
 	updateAWSRCVArchivalLocationModel(&m, targetMapping)
 

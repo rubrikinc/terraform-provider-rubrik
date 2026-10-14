@@ -407,8 +407,7 @@ func (r *gcpRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 			defer cancel()
 
 			err := archival.Wrap(polarisClient).RekeyRCVGCPMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
-				KeyManagerID: kmsKey.KeyManagerID,
-				GCPKMSKey:    *kmsKey,
+				GCPKMSKey: kmsKey,
 			})
 			if err != nil {
 				res.Diagnostics.AddError("Failed to rekey RCV GCP archival location", err.Error())
