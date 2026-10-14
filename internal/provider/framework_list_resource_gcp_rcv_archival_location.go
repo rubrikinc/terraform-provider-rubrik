@@ -23,6 +23,7 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	listschema "github.com/hashicorp/terraform-plugin-framework/list/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -115,6 +116,17 @@ func (r *gcpRCVArchivalLocationListResource) List(ctx context.Context, req list.
 		return
 	}
 
+	// The resource model carries a timeouts.Value whose zero value is a null
+	// object with no attribute types. Setting it against the resource schema
+	// would fail type conversion, so derive a correctly-typed null from the
+	// schema's timeouts attribute.
+	nullTimeouts := timeouts.Value{Object: types.ObjectNull(nil)}
+	if obj, ok := req.ResourceSchema.Type().(types.ObjectType); ok {
+		if t, ok := obj.AttrTypes[keyTimeouts].(types.ObjectType); ok {
+			nullTimeouts = timeouts.Value{Object: types.ObjectNull(t.AttrTypes)}
+		}
+	}
+
 	stream.Results = func(push func(list.ListResult) bool) {
 		for i, targetMapping := range targetMappings {
 			if int64(i) >= req.Limit {
@@ -134,7 +146,7 @@ func (r *gcpRCVArchivalLocationListResource) List(ctx context.Context, req list.
 			}
 
 			if req.IncludeResource {
-				model := newGCPRCVArchivalLocationModel(targetMapping)
+				model := newGCPRCVArchivalLocationModel(targetMapping, nullTimeouts)
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {
 					push(result)

@@ -12,8 +12,14 @@ description: |-
   selects client-side encryption with a GCP Cloud KMS key instead. The key manager
   must already be registered in RSC, see the rubrik_gcp_kms_key_manager data
   source.
-  -> Note: RSC only supports updating the name. Changing the region, the
-  tier or the kms_key replaces the archival location.
+  Changing the key name, the key version or the key manager of the kms_key block
+  rekeys the archival location in place. The rekey moves the archival location to
+  the new key without re-encrypting the archived data. It can take several
+  minutes, increase timeouts.update if it takes longer than the default of 20
+  minutes.
+  -> Note: RSC only supports updating the name and rekeying the kms_key.
+  Changing the region or the tier, or adding or removing the kms_key
+  block, replaces the archival location.
 ---
 
 # rubrik_gcp_rcv_archival_location (Resource)
@@ -30,8 +36,15 @@ selects client-side encryption with a GCP Cloud KMS key instead. The key manager
 must already be registered in RSC, see the `rubrik_gcp_kms_key_manager` data
 source.
 
--> **Note:** RSC only supports updating the `name`. Changing the `region`, the
-   `tier` or the `kms_key` replaces the archival location.
+Changing the key name, the key version or the key manager of the `kms_key` block
+rekeys the archival location in place. The rekey moves the archival location to
+the new key without re-encrypting the archived data. It can take several
+minutes, increase `timeouts.update` if it takes longer than the default of 20
+minutes.
+
+-> **Note:** RSC only supports updating the `name` and rekeying the `kms_key`.
+   Changing the `region` or the `tier`, or adding or removing the `kms_key`
+   block, replaces the archival location.
 
 ## Example Usage
 
@@ -72,7 +85,8 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
 
 ### Optional
 
-- `kms_key` (Block List) GCP Cloud KMS key used for client-side encryption of the archived data. When not given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `kms_key` (Block List) GCP Cloud KMS key used for client-side encryption of the archived data. When not given, RCV creates and manages the encryption key. May be specified at most once. Changing the key name, the key version or the key manager rekeys the archival location in place. Adding or removing the block forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 
 ### Read-Only
 
@@ -89,3 +103,11 @@ Required:
 - `key_manager_id` (String) KMS key manager ID (UUID).
 - `key_name` (String) Cloud KMS crypto key name.
 - `key_version` (String) Cloud KMS crypto key version.
+
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `update` (String) How long to wait for a rekey of the archival location to complete. Default is `20m0s`.

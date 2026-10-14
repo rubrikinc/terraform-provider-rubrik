@@ -24,8 +24,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -34,7 +36,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -60,9 +61,20 @@ selects client-side encryption with a GCP Cloud KMS key instead. The key manager
 must already be registered in RSC, see the ´rubrik_gcp_kms_key_manager´ data
 source.
 
--> **Note:** RSC only supports updating the ´name´. Changing the ´region´, the
-   ´tier´ or the ´kms_key´ replaces the archival location.
+Changing the key name, the key version or the key manager of the ´kms_key´ block
+rekeys the archival location in place. The rekey moves the archival location to
+the new key without re-encrypting the archived data. It can take several
+minutes, increase ´timeouts.update´ if it takes longer than the default of 20
+minutes.
+
+-> **Note:** RSC only supports updating the ´name´ and rekeying the ´kms_key´.
+   Changing the ´region´ or the ´tier´, or adding or removing the ´kms_key´
+   block, replaces the archival location.
 `
+
+// defaultGCPRCVRekeyTimeout is the default time to wait for a rekey of an RCV
+// GCP archival location to complete.
+const defaultGCPRCVRekeyTimeout = 20 * time.Minute
 
 var (
 	_ resource.Resource                = &gcpRCVArchivalLocationResource{}
@@ -76,14 +88,15 @@ type gcpRCVArchivalLocationResource struct {
 }
 
 type gcpRCVArchivalLocationModel struct {
-	ID               types.String `tfsdk:"id"`
-	Name             types.String `tfsdk:"name"`
-	Region           types.String `tfsdk:"region"`
-	Tier             types.String `tfsdk:"tier"`
-	ConnectionStatus types.String `tfsdk:"connection_status"`
-	LocationTemplate types.String `tfsdk:"location_template"`
-	EncryptionType   types.String `tfsdk:"encryption_type"`
-	KMSKey           types.List   `tfsdk:"kms_key"`
+	ID               types.String   `tfsdk:"id"`
+	Name             types.String   `tfsdk:"name"`
+	Region           types.String   `tfsdk:"region"`
+	Tier             types.String   `tfsdk:"tier"`
+	ConnectionStatus types.String   `tfsdk:"connection_status"`
+	LocationTemplate types.String   `tfsdk:"location_template"`
+	EncryptionType   types.String   `tfsdk:"encryption_type"`
+	KMSKey           types.List     `tfsdk:"kms_key"`
+	Timeouts         timeouts.Value `tfsdk:"timeouts"`
 }
 
 type gcpRCVKMSKeyModel struct {
@@ -174,6 +187,11 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorGCP))),
 			},
+			keyTimeouts: timeouts.Attributes(ctx, timeouts.Opts{
+				Update: true,
+				UpdateDescription: fmt.Sprintf("How long to wait for a rekey of the archival location to "+
+					"complete. Default is `%s`.", defaultGCPRCVRekeyTimeout),
+			}),
 		},
 		Blocks: map[string]schema.Block{
 			// A single-element list block rather than a SingleNestedBlock. The
@@ -184,9 +202,10 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 			keyKMSKey: schema.ListNestedBlock{
 				Description: "GCP Cloud KMS key used for client-side encryption of the archived data. When " +
 					"not given, RCV creates and manages the encryption key. May be specified at most " +
-					"once. Changing this forces a new resource to be created.",
+					"once. Changing the key name, the key version or the key manager rekeys the archival " +
+					"location in place. Adding or removing the block forces a new resource to be created.",
 				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+					requiresReplaceOnAddOrRemove(),
 				},
 				Validators: []validator.List{
 					listvalidator.SizeAtMost(1),
@@ -368,6 +387,36 @@ func (r *gcpRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 		return
 	}
 
+	// The rekey runs before the rename, a failed rekey then leaves the name
+	// unchanged. Adding or removing the key replaces the archival location, so
+	// a difference here is always a change to the existing key.
+	if !plan.KMSKey.Equal(state.KMSKey) {
+		kmsKey, diags := toGCPRCVKMSKey(ctx, plan.KMSKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+
+		if kmsKey != nil {
+			timeout, diags := plan.Timeouts.Update(ctx, defaultGCPRCVRekeyTimeout)
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+
+			err := archival.Wrap(polarisClient).RekeyRCVGCPMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				KeyManagerID: kmsKey.KeyManagerID,
+				GCPKMSKey:    *kmsKey,
+			})
+			if err != nil {
+				res.Diagnostics.AddError("Failed to rekey RCV GCP archival location", err.Error())
+				return
+			}
+		}
+	}
+
 	updateParams := gqlarchival.UpdateRCVGCPStorageSettingParams{
 		Name: plan.Name.ValueString(),
 	}
@@ -476,11 +525,13 @@ func updateGCPRCVArchivalLocationModel(m *gcpRCVArchivalLocationModel, targetMap
 }
 
 // newGCPRCVArchivalLocationModel builds a complete model from a target mapping.
-// The Cloud KMS key is null, the RSC API does not return it.
-func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMapping) gcpRCVArchivalLocationModel {
+// The Cloud KMS key is null, the RSC API does not return it. The timeouts are
+// the correctly typed null value, derived from the resource schema.
+func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMapping, nullTimeouts timeouts.Value) gcpRCVArchivalLocationModel {
 	m := gcpRCVArchivalLocationModel{
-		ID:     types.StringValue(targetMapping.ID.String()),
-		KMSKey: types.ListNull(gcpRCVKMSKeyType),
+		ID:       types.StringValue(targetMapping.ID.String()),
+		KMSKey:   types.ListNull(gcpRCVKMSKeyType),
+		Timeouts: nullTimeouts,
 	}
 	updateGCPRCVArchivalLocationModel(&m, targetMapping)
 
