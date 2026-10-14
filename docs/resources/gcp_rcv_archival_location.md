@@ -8,8 +8,12 @@ description: |-
   Rubrik Cloud Vault, RCV, is Rubrik hosted archival storage. The cloud account
   and the storage container are owned by Rubrik, so no cloud account ID is needed,
   only a region and a tier.
-  -> Note: RSC only supports updating the name. Changing the region or the
-  tier replaces the archival location.
+  Encryption defaults to a key created and managed by RCV. The kms_key block
+  selects client-side encryption with a GCP Cloud KMS key instead. The key manager
+  must already be registered in RSC, see the rubrik_gcp_kms_key_manager data
+  source.
+  -> Note: RSC only supports updating the name. Changing the region, the
+  tier or the kms_key replaces the archival location.
 ---
 
 # rubrik_gcp_rcv_archival_location (Resource)
@@ -21,8 +25,13 @@ Rubrik Cloud Vault, RCV, is Rubrik hosted archival storage. The cloud account
 and the storage container are owned by Rubrik, so no cloud account ID is needed,
 only a region and a tier.
 
--> **Note:** RSC only supports updating the `name`. Changing the `region` or the
-   `tier` replaces the archival location.
+Encryption defaults to a key created and managed by RCV. The `kms_key` block
+selects client-side encryption with a GCP Cloud KMS key instead. The key manager
+must already be registered in RSC, see the `rubrik_gcp_kms_key_manager` data
+source.
+
+-> **Note:** RSC only supports updating the `name`. Changing the `region`, the
+   `tier` or the `kms_key` replaces the archival location.
 
 ## Example Usage
 
@@ -31,6 +40,24 @@ resource "rubrik_gcp_rcv_archival_location" "archive" {
   name   = "us-west1-archive"
   region = "us-west1"
   tier   = "ARCHIVE"
+}
+
+# Client-side encryption with a customer managed Cloud KMS key. The key manager
+# must already be registered in RSC.
+data "rubrik_gcp_kms_key_manager" "production" {
+  name = "Production GCP Cloud KMS"
+}
+
+resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
+  name   = "us-west1-kms-archive"
+  region = "us-west1"
+  tier   = "BACKUP"
+
+  kms_key {
+    key_manager_id = data.rubrik_gcp_kms_key_manager.production.id
+    key_name       = "rcv-archive-key"
+    key_version    = "1"
+  }
 }
 ```
 
@@ -43,9 +70,22 @@ resource "rubrik_gcp_rcv_archival_location" "archive" {
 - `region` (String) GCP region hosting the vault, e.g. `us-west1`. Changing this forces a new resource to be created.
 - `tier` (String) Storage tier. Possible values are `BACKUP` and `ARCHIVE`. Changing this forces a new resource to be created, the RSC API only supports updating the name.
 
+### Optional
+
+- `kms_key` (Block List) GCP Cloud KMS key used for client-side encryption of the archived data. When not given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+
 ### Read-Only
 
 - `connection_status` (String) Connection status of the archival location.
-- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `SSE_DEFAULT_PMK`, `UEKM_AWS_KMS_BASED`, `UEKM_AKV_BASED`, `UEKM_RSA_BASED` and `SSE_CPK`.
+- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `SSE_DEFAULT_PMK`, `UEKM_AWS_KMS_BASED`, `UEKM_AKV_BASED`, `UEKM_GCP_KMS_BASED`, `UEKM_RSA_BASED` and `SSE_CPK`.
 - `id` (String) Archival location ID (UUID).
 - `location_template` (String) Location template, `SPECIFIC_REGION` or `SOURCE_REGION`.
+
+<a id="nestedblock--kms_key"></a>
+### Nested Schema for `kms_key`
+
+Required:
+
+- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_name` (String) Cloud KMS crypto key name.
+- `key_version` (String) Cloud KMS crypto key version.

@@ -26,11 +26,15 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -50,8 +54,13 @@ Rubrik Cloud Vault, RCV, is Rubrik hosted archival storage. The cloud account
 and the storage container are owned by Rubrik, so no cloud account ID is needed,
 only a region and a tier.
 
--> **Note:** RSC only supports updating the ´name´. Changing the ´region´ or the
-   ´tier´ replaces the archival location.
+Encryption defaults to a key created and managed by RCV. The ´kms_key´ block
+selects client-side encryption with a GCP Cloud KMS key instead. The key manager
+must already be registered in RSC, see the ´rubrik_gcp_kms_key_manager´ data
+source.
+
+-> **Note:** RSC only supports updating the ´name´. Changing the ´region´, the
+   ´tier´ or the ´kms_key´ replaces the archival location.
 `
 
 var (
@@ -73,7 +82,22 @@ type gcpRCVArchivalLocationModel struct {
 	ConnectionStatus types.String `tfsdk:"connection_status"`
 	LocationTemplate types.String `tfsdk:"location_template"`
 	EncryptionType   types.String `tfsdk:"encryption_type"`
+	KMSKey           types.List   `tfsdk:"kms_key"`
 }
+
+type gcpRCVKMSKeyModel struct {
+	KeyManagerID types.String `tfsdk:"key_manager_id"`
+	KeyName      types.String `tfsdk:"key_name"`
+	KeyVersion   types.String `tfsdk:"key_version"`
+}
+
+// gcpRCVKMSKeyType is the element type of the kms_key block, needed to build a
+// null list when the block has no value to hold.
+var gcpRCVKMSKeyType = types.ObjectType{AttrTypes: map[string]attr.Type{
+	keyKeyManagerID: types.StringType,
+	keyKeyName:      types.StringType,
+	keyKeyVersion:   types.StringType,
+}}
 
 type gcpRCVArchivalLocationIdentityModel struct {
 	ID types.String `tfsdk:"id"`
@@ -150,6 +174,49 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues())),
 			},
 		},
+		Blocks: map[string]schema.Block{
+			// A single-element list block rather than a SingleNestedBlock. The
+			// two are written identically in a configuration, but a
+			// SingleNestedBlock cannot be left out when its attributes are
+			// required: the framework still demands a value for each of them
+			// and rejects the configuration.
+			keyKMSKey: schema.ListNestedBlock{
+				Description: "GCP Cloud KMS key used for client-side encryption of the archived data. When " +
+					"not given, RCV creates and manages the encryption key. May be specified at most " +
+					"once. Changing this forces a new resource to be created.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.List{
+					listvalidator.SizeAtMost(1),
+				},
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						keyKeyManagerID: schema.StringAttribute{
+							Required:    true,
+							Description: "KMS key manager ID (UUID).",
+							Validators: []validator.String{
+								isUUID(),
+							},
+						},
+						keyKeyName: schema.StringAttribute{
+							Required:    true,
+							Description: "Cloud KMS crypto key name.",
+							Validators: []validator.String{
+								isNotWhiteSpace(),
+							},
+						},
+						keyKeyVersion: schema.StringAttribute{
+							Required:    true,
+							Description: "Cloud KMS crypto key version.",
+							Validators: []validator.String{
+								isNotWhiteSpace(),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	if r.prefix == keyPolaris {
@@ -199,6 +266,13 @@ func (r *gcpRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 		Region: gqlgcp.RegionFromName(plan.Region.ValueString()).ToRCSRegionEnum(),
 		Tier:   gqlarchival.RCVTier(plan.Tier.ValueString()),
 	}
+
+	kmsKey, diags := toGCPRCVKMSKey(ctx, plan.KMSKey)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	createParams.KMSKey = kmsKey
 
 	id, err := archival.Wrap(polarisClient).CreateRCVGCPStorageSetting(ctx, createParams)
 	if err != nil {
@@ -356,6 +430,34 @@ func (r *gcpRCVArchivalLocationResource) ImportState(ctx context.Context, req re
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
+// toGCPRCVKMSKey converts the kms_key block into the SDK Cloud KMS key
+// parameter. It returns nil when the block is left out, letting RCV create and
+// manage the encryption key.
+func toGCPRCVKMSKey(ctx context.Context, list types.List) (*gqlarchival.GCPKMSKey, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	if list.IsNull() || list.IsUnknown() {
+		return nil, diags
+	}
+
+	var keys []gcpRCVKMSKeyModel
+	diags.Append(list.ElementsAs(ctx, &keys, false)...)
+	if diags.HasError() || len(keys) == 0 {
+		return nil, diags
+	}
+
+	keyManagerID, err := uuid.Parse(keys[0].KeyManagerID.ValueString())
+	if err != nil {
+		diags.AddAttributeError(path.Root(keyKMSKey), "Invalid key manager ID", err.Error())
+		return nil, diags
+	}
+
+	return &gqlarchival.GCPKMSKey{
+		KeyManagerID: keyManagerID,
+		KeyName:      keys[0].KeyName.ValueString(),
+		KeyVersion:   keys[0].KeyVersion.ValueString(),
+	}, diags
+}
+
 // updateGCPRCVArchivalLocationModel updates the model with the values read back
 // from RSC.
 func updateGCPRCVArchivalLocationModel(m *gcpRCVArchivalLocationModel, targetMapping gqlarchival.RCVGCPTargetMapping) {
@@ -373,9 +475,11 @@ func updateGCPRCVArchivalLocationModel(m *gcpRCVArchivalLocationModel, targetMap
 }
 
 // newGCPRCVArchivalLocationModel builds a complete model from a target mapping.
+// The Cloud KMS key is null, the RSC API does not return it.
 func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMapping) gcpRCVArchivalLocationModel {
 	m := gcpRCVArchivalLocationModel{
-		ID: types.StringValue(targetMapping.ID.String()),
+		ID:     types.StringValue(targetMapping.ID.String()),
+		KMSKey: types.ListNull(gcpRCVKMSKeyType),
 	}
 	updateGCPRCVArchivalLocationModel(&m, targetMapping)
 
