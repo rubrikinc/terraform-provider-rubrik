@@ -109,3 +109,30 @@ resource "rubrik_aws_account" "account2" {
     rubrik_aws_account.outpost,
   ]
 }
+
+# Protect the Apache Iceberg tables in the account's AWS Glue Data Catalog and
+# S3 table buckets. Iceberg backups run on Exocompute in the region where the
+# table data is stored.
+resource "rubrik_aws_account" "iceberg" {
+  profile = "iceberg"
+
+  cloud_discovery {
+    permission_groups = ["BASIC"]
+    regions           = ["us-east-1"]
+  }
+
+  exocompute {
+    permission_groups = ["BASIC", "RSC_MANAGED_CLUSTER"]
+    regions           = ["us-east-1"]
+  }
+
+  glue_iceberg_protection {
+    permission_groups = ["BASIC", "RECOVERY"]
+    regions           = ["us-east-1"]
+  }
+
+  s3_tables_iceberg_protection {
+    permission_groups = ["BASIC", "RECOVERY"]
+    regions           = ["us-east-1"]
+  }
+}

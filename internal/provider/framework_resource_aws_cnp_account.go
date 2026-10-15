@@ -239,8 +239,8 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
 								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
 								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
-								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-								"`SERVERS_AND_APPS`.",
+								"`GLUE_ICEBERG_PROTECTION`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, " +
+								"`ROLE_CHAINING`, `S3_TABLES_ICEBERG_PROTECTION` and `SERVERS_AND_APPS`.",
 							Validators: []validator.String{
 								stringvalidator.OneOf(awsCnpFeatureNames...),
 							},

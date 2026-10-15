@@ -519,6 +519,36 @@ func TestValidateObjectConfig(t *testing.T) {
 			wantErrPaths: []string{keyOrgID},
 		},
 		{
+			name: "ParentIDWithGlueIcebergTable",
+			config: objectModel{
+				ObjectType: types.StringValue("GlueIcebergTable"),
+				ParentID:   types.StringValue("550e8400-e29b-41d4-a716-446655440000"),
+			},
+		},
+		{
+			name: "ParentIDWithS3TablesIcebergNamespace",
+			config: objectModel{
+				ObjectType: types.StringValue("S3TablesIcebergNamespace"),
+				ParentID:   types.StringValue("550e8400-e29b-41d4-a716-446655440000"),
+			},
+		},
+		{
+			name: "ParentIDWithWrongType",
+			config: objectModel{
+				ObjectType: types.StringValue("AwsNativeEc2Instance"),
+				ParentID:   types.StringValue("550e8400-e29b-41d4-a716-446655440000"),
+			},
+			wantErrPaths: []string{keyParentID},
+		},
+		{
+			name: "SubscriptionIDWithIcebergType",
+			config: objectModel{
+				ObjectType:     types.StringValue("GlueIcebergDatabase"),
+				SubscriptionID: types.StringValue("550e8400-e29b-41d4-a716-446655440000"),
+			},
+			wantErrPaths: []string{keySubscriptionID},
+		},
+		{
 			name: "ProjectIDWithAzureDevOpsRepository",
 			config: objectModel{
 				ObjectType: types.StringValue("AzureDevOpsRepository"),

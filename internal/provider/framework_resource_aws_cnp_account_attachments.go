@@ -161,8 +161,8 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 				Description: "RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
 					"`CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
 					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
-					"`EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-					"`SERVERS_AND_APPS`.",
+					"`EXOCOMPUTE`, `GLUE_ICEBERG_PROTECTION`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, " +
+					"`ROLE_CHAINING`, `S3_TABLES_ICEBERG_PROTECTION` and `SERVERS_AND_APPS`.",
 				DeprecationMessage: "Permission groups are now read from the cloud account managed by " +
 					"`rubrik_aws_cnp_account` when artifacts are registered, so the attachments resource no " +
 					"longer needs to track features. This field is retained for backwards compatibility, is " +

@@ -180,3 +180,33 @@ resource "rubrik_sla_domain" "gcp_bigquery" {
     archival_group_id = data.rubrik_gcp_archival_location.archival_location.id
   }
 }
+
+# AWS Glue Iceberg SLA
+# - Iceberg tables back up to exactly one AWS or Rubrik Cloud Vault backup
+#   location; the archival block and replication are not used
+# - iceberg_config selects the snapshot each backup captures, here the newest
+#   compacted snapshot, falling back to the latest when none exists
+data "rubrik_aws_archival_location" "iceberg" {
+  name = "my-iceberg-archival-location"
+}
+
+resource "rubrik_sla_domain" "glue_iceberg" {
+  name         = "glue-iceberg"
+  description  = "AWS Glue Iceberg SLA"
+  object_types = ["GLUE_ICEBERG_TABLE_OBJECT_TYPE"]
+
+  daily_schedule {
+    frequency      = 1
+    retention      = 30
+    retention_unit = "DAYS"
+  }
+
+  backup_location {
+    archival_group_id = data.rubrik_aws_archival_location.iceberg.id
+  }
+
+  iceberg_config {
+    snapshot_selection_strategy = "ICEBERG_SNAPSHOT_LATEST_COMPACTED"
+    fallback_to_latest          = true
+  }
+}

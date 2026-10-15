@@ -108,3 +108,36 @@ func TestAccAwsPermissionGroupsDataSource(t *testing.T) {
 		}},
 	})
 }
+
+// TestAccAwsPermissionGroupsDataSource_Iceberg verifies that the BASIC and
+// RECOVERY permission groups of the Apache Iceberg features pass the data
+// source's allowlist. A feature missing from the allowlist reads back as an
+// empty set rather than an error. RSC returns the permission groups even when
+// the Iceberg feature flags are off, so the test is not gated on them.
+func TestAccAwsPermissionGroupsDataSource_Iceberg(t *testing.T) {
+	icebergGroups := knownvalue.SetExact([]knownvalue.Check{
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{keyName: knownvalue.StringExact("BASIC")}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{keyName: knownvalue.StringExact("RECOVERY")}),
+	})
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "rubrik_aws_permission_groups" "glue" {
+					feature = "GLUE_ICEBERG_PROTECTION"
+				}
+
+				data "rubrik_aws_permission_groups" "s3_tables" {
+					feature = "S3_TABLES_ICEBERG_PROTECTION"
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.rubrik_aws_permission_groups.glue",
+					tfjsonpath.New(keyPermissionGroups), icebergGroups),
+				statecheck.ExpectKnownValue("data.rubrik_aws_permission_groups.s3_tables",
+					tfjsonpath.New(keyPermissionGroups), icebergGroups),
+			},
+		}},
+	})
+}

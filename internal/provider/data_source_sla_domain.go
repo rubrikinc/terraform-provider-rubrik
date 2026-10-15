@@ -666,6 +666,30 @@ func dataSourceSLADomain() *schema.Resource {
 				Computed:    true,
 				Description: "Informix database configuration.",
 			},
+			keyIcebergConfig: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keySnapshotSelectionStrategy: {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "Which native Iceberg snapshot each backup captures.",
+						},
+						keyTagRegex: {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "RE2 regular expression matched against tag ref names.",
+						},
+						keyFallbackToLatest: {
+							Type:        schema.TypeBool,
+							Computed:    true,
+							Description: "Back up the latest snapshot when the selected snapshot cannot be resolved.",
+						},
+					},
+				},
+				Computed:    true,
+				Description: "Apache Iceberg configuration.",
+			},
 			keyGCPCloudSQLConfig: {
 				Type: schema.TypeList,
 				Elem: &schema.Resource{
@@ -1272,6 +1296,9 @@ func slaDomainRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diag
 		return diag.FromErr(err)
 	}
 	if err := d.Set(keyAzureSQLManagedInstanceConfig, toAzureSQLConfig(slaDomain.ObjectSpecificConfigs.AzureSQLManagedInstanceDBConfig)); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set(keyIcebergConfig, toIcebergConfig(slaDomain.ObjectSpecificConfigs.IcebergConfig, true)); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := d.Set(keyVMwareVMConfig, toVMwareVMConfig(slaDomain.ObjectSpecificConfigs.VMwareVMConfig)); err != nil {

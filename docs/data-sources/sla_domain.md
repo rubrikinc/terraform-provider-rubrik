@@ -56,6 +56,7 @@ data "rubrik_sla_domain" "sla_domain" {
 - `first_full_snapshot` (List of Object) First full snapshot window. (see [below for nested schema](#nestedatt--first_full_snapshot))
 - `gcp_cloud_sql_config` (List of Object) GCP Cloud SQL configuration. (see [below for nested schema](#nestedatt--gcp_cloud_sql_config))
 - `hourly_schedule` (List of Object) Hourly schedule. (see [below for nested schema](#nestedatt--hourly_schedule))
+- `iceberg_config` (List of Object) Apache Iceberg configuration. (see [below for nested schema](#nestedatt--iceberg_config))
 - `informix_config` (List of Object) Informix database configuration. (see [below for nested schema](#nestedatt--informix_config))
 - `local_retention` (List of Object) Local retention. (see [below for nested schema](#nestedatt--local_retention))
 - `managed_volume_config` (List of Object) Managed Volume configuration. (see [below for nested schema](#nestedatt--managed_volume_config))
@@ -289,6 +290,16 @@ Read-Only:
 - `frequency` (Number) Frequency of snapshots (hours).
 - `retention` (Number) Retention.
 - `retention_unit` (String) Retention unit.
+
+
+<a id="nestedatt--iceberg_config"></a>
+### Nested Schema for `iceberg_config`
+
+Read-Only:
+
+- `fallback_to_latest` (Boolean) Back up the latest snapshot when the selected snapshot cannot be resolved.
+- `snapshot_selection_strategy` (String) Which native Iceberg snapshot each backup captures.
+- `tag_regex` (String) RE2 regular expression matched against tag ref names.
 
 
 <a id="nestedatt--informix_config"></a>

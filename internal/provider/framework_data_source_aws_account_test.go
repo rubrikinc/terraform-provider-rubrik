@@ -27,8 +27,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccAwsAccountDataSource(t *testing.T) {
@@ -228,6 +230,82 @@ func TestAccAwsAccountDataSource_FrameworkMigration(t *testing.T) {
 					"data.polaris_aws_account.old", tfjsonpath.New(keyFeature),
 					"data.polaris_aws_account.new", tfjsonpath.New(keyFeature),
 					compare.ValuesSame()),
+			},
+		}},
+	})
+}
+
+// TestAccAwsAccountResource_Iceberg onboards both Apache Iceberg features with
+// the CloudFormation workflow of the rubrik_aws_account resource. Each feature
+// must read back connected, which means the CloudFormation stack granted its
+// permissions, with both permission groups, and a second plan must be empty.
+// The features require their feature flags to be enabled for the RSC account.
+func TestAccAwsAccountResource_Iceberg(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("REL_ENABLE_GLUE_ICEBERG_PROTECTION"))
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("REL_ENABLE_S3_TABLES_ICEBERG_PROTECTION"))
+
+	vars := config.Variables{
+		"profile":      config.StringVariable(testAWSProfile(t)),
+		"account_name": config.StringVariable(testAWSAccountName(t)),
+	}
+	accountConfig := `
+		variable "profile" {
+			type = string
+		}
+		variable "account_name" {
+			type = string
+		}
+		resource "rubrik_aws_account" "account" {
+			name    = var.account_name
+			profile = var.profile
+
+			cloud_discovery {
+				permission_groups = ["BASIC"]
+				regions           = ["us-east-1"]
+			}
+			glue_iceberg_protection {
+				permission_groups = ["BASIC", "RECOVERY"]
+				regions           = ["us-east-1"]
+			}
+			s3_tables_iceberg_protection {
+				permission_groups = ["BASIC", "RECOVERY"]
+				regions           = ["us-east-1"]
+			}
+		}
+	`
+	icebergBlock := knownvalue.ListExact([]knownvalue.Check{
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyStatus: knownvalue.StringExact("connected"),
+			keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+				knownvalue.StringExact("BASIC"),
+				knownvalue.StringExact("RECOVERY"),
+			}),
+			keyRegions: knownvalue.SetExact([]knownvalue.Check{
+				knownvalue.StringExact("us-east-1"),
+			}),
+		}),
+	})
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsAccountCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			Config:          accountConfig,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_account.account", tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_aws_account.account",
+					tfjsonpath.New(keyGlueIcebergProtection), icebergBlock),
+				statecheck.ExpectKnownValue("rubrik_aws_account.account",
+					tfjsonpath.New(keyS3TablesIcebergProtection), icebergBlock),
+			},
+		}, {
+			Config:          accountConfig,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
 			},
 		}},
 	})

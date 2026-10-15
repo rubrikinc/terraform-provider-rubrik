@@ -7,7 +7,9 @@ description: |-
   name and type. This is useful for finding the ID of an object when only its
   name and type are known.
   Supported object types:
-  AwsNativeAccount - AWS Native AccountAwsNativeEbsVolume - AWS Native EBS VolumeAwsNativeEc2Instance - AWS Native EC2 InstanceAwsNativeRdsInstance - AWS Native RDS InstanceAzureDevOpsOrganization - Azure DevOps OrganizationAzureDevOpsProject - Azure DevOps ProjectAzureDevOpsRepository - Azure DevOps RepositoryAzureNativeResourceGroup - Azure Native Resource GroupAzureNativeSubscription - Azure Native SubscriptionAzureNativeVirtualMachine - Azure Native Virtual MachineAzurePostgresFlexibleServer - Azure Postgres Flexible ServerAzureSqlManagedInstanceServer - Azure SQL Managed Instance ServerCloudNativeTagRule - Cloud Native Tag RuleGitHubOrganization - GitHub OrganizationGitHubRepository - GitHub Repository
+  AwsNativeAccount - AWS Native AccountAwsNativeEbsVolume - AWS Native EBS VolumeAwsNativeEc2Instance - AWS Native EC2 InstanceAwsNativeRdsInstance - AWS Native RDS InstanceAzureDevOpsOrganization - Azure DevOps OrganizationAzureDevOpsProject - Azure DevOps ProjectAzureDevOpsRepository - Azure DevOps RepositoryAzureNativeResourceGroup - Azure Native Resource GroupAzureNativeSubscription - Azure Native SubscriptionAzureNativeVirtualMachine - Azure Native Virtual MachineAzurePostgresFlexibleServer - Azure Postgres Flexible ServerAzureSqlManagedInstanceServer - Azure SQL Managed Instance ServerCloudNativeTagRule - Cloud Native Tag RuleGitHubOrganization - GitHub OrganizationGitHubRepository - GitHub RepositoryGlueIcebergCatalog - AWS Glue Iceberg Catalog, one per AWS account and
+  regionGlueIcebergDatabase - AWS Glue Iceberg DatabaseGlueIcebergTable - AWS Glue Iceberg TableS3TablesIcebergCatalog - Amazon S3 Tables Iceberg Catalog, one per S3
+  table bucketS3TablesIcebergNamespace - Amazon S3 Tables Iceberg NamespaceS3TablesIcebergTable - Amazon S3 Tables Iceberg Table
   -> Note: Azure resource group, SQL Managed Instance server and Postgres
   flexible server names are only unique within a subscription. When a name is
   shared across subscriptions, set subscription_id to the parent
@@ -18,9 +20,17 @@ description: |-
   parents, set org_id (for AzureDevOpsProject or GitHubRepository)
   or org_id and/or project_id (for AzureDevOpsRepository) to
   disambiguate; otherwise the lookup returns a "multiple objects found" error.
+  -> Note: Apache Iceberg table names are only unique within their database
+  or namespace, database and namespace names within their catalog, and Glue
+  catalog names within an AWS account. When a name is shared, set parent_id to
+  the RSC ID of an ancestor object, such as the database, namespace, catalog or
+  AWS account, to disambiguate; otherwise the lookup returns a "multiple objects
+  found" error. Assign an SLA Domain to any of these objects with the
+  rubrik_sla_domain_assignment resource. An assignment to a catalog, database or
+  namespace is inherited by the tables below it.
   -> Note: auth_type is only returned for AzureSqlManagedInstanceServer,
   which is the only object type that has one. It is null for every other object
-  type.
+  type. Likewise, region is only returned for the Apache Iceberg object types.
 ---
 
 # rubrik_object (Data Source)
@@ -45,6 +55,14 @@ Supported object types:
   * `CloudNativeTagRule` - Cloud Native Tag Rule
   * `GitHubOrganization` - GitHub Organization
   * `GitHubRepository` - GitHub Repository
+  * `GlueIcebergCatalog` - AWS Glue Iceberg Catalog, one per AWS account and
+    region
+  * `GlueIcebergDatabase` - AWS Glue Iceberg Database
+  * `GlueIcebergTable` - AWS Glue Iceberg Table
+  * `S3TablesIcebergCatalog` - Amazon S3 Tables Iceberg Catalog, one per S3
+    table bucket
+  * `S3TablesIcebergNamespace` - Amazon S3 Tables Iceberg Namespace
+  * `S3TablesIcebergTable` - Amazon S3 Tables Iceberg Table
 
 -> **Note:** Azure resource group, SQL Managed Instance server and Postgres
 flexible server names are only unique within a subscription. When a name is
@@ -58,9 +76,18 @@ parents, set `org_id` (for `AzureDevOpsProject` or `GitHubRepository`)
 or `org_id` and/or `project_id` (for `AzureDevOpsRepository`) to
 disambiguate; otherwise the lookup returns a "multiple objects found" error.
 
+-> **Note:** Apache Iceberg table names are only unique within their database
+or namespace, database and namespace names within their catalog, and Glue
+catalog names within an AWS account. When a name is shared, set `parent_id` to
+the RSC ID of an ancestor object, such as the database, namespace, catalog or
+AWS account, to disambiguate; otherwise the lookup returns a "multiple objects
+found" error. Assign an SLA Domain to any of these objects with the
+`rubrik_sla_domain_assignment` resource. An assignment to a catalog, database or
+namespace is inherited by the tables below it.
+
 -> **Note:** `auth_type` is only returned for `AzureSqlManagedInstanceServer`,
 which is the only object type that has one. It is null for every other object
-type.
+type. Likewise, `region` is only returned for the Apache Iceberg object types.
 
 ## Example Usage
 
@@ -86,6 +113,20 @@ data "rubrik_object" "project" {
   object_type = "AzureDevOpsProject"
   org_id      = "a1b2c3d4-1234-4c5b-9abc-0123456789ab"
 }
+
+# Look up an AWS Glue Iceberg database and one of its tables. Table names are
+# only unique within their database, so parent_id scopes the table lookup to
+# the database.
+data "rubrik_object" "glue_database" {
+  name        = "sales"
+  object_type = "GlueIcebergDatabase"
+}
+
+data "rubrik_object" "glue_table" {
+  name        = "orders"
+  object_type = "GlueIcebergTable"
+  parent_id   = data.rubrik_object.glue_database.id
+}
 ```
 
 <!-- schema generated by tfplugindocs -->
@@ -94,11 +135,12 @@ data "rubrik_object" "project" {
 ### Required
 
 - `name` (String) Exact object name to search for.
-- `object_type` (String) Object type. Possible values are `AwsNativeAccount`, `AwsNativeEbsVolume`, `AwsNativeEc2Instance`, `AwsNativeRdsInstance`, `AzureDevOpsOrganization`, `AzureDevOpsProject`, `AzureDevOpsRepository`, `AzureNativeResourceGroup`, `AzureNativeSubscription`, `AzureNativeVirtualMachine`, `AzurePostgresFlexibleServer`, `AzureSqlManagedInstanceServer`, `CloudNativeTagRule`, `GitHubOrganization` and `GitHubRepository`.
+- `object_type` (String) Object type. Possible values are `AwsNativeAccount`, `AwsNativeEbsVolume`, `AwsNativeEc2Instance`, `AwsNativeRdsInstance`, `AzureDevOpsOrganization`, `AzureDevOpsProject`, `AzureDevOpsRepository`, `AzureNativeResourceGroup`, `AzureNativeSubscription`, `AzureNativeVirtualMachine`, `AzurePostgresFlexibleServer`, `AzureSqlManagedInstanceServer`, `CloudNativeTagRule`, `GitHubOrganization`, `GitHubRepository`, `GlueIcebergCatalog`, `GlueIcebergDatabase`, `GlueIcebergTable`, `S3TablesIcebergCatalog`, `S3TablesIcebergNamespace` and `S3TablesIcebergTable`.
 
 ### Optional
 
 - `org_id` (String) RSC object ID of the parent organization (UUID). May be set when `object_type` is `AzureDevOpsProject` to disambiguate a project name shared across organizations, when `object_type` is `AzureDevOpsRepository` to disambiguate a repository name shared across projects, or when `object_type` is `GitHubRepository` to disambiguate a repository name shared across organizations; must not be set for other object types.
+- `parent_id` (String) RSC object ID of an ancestor object (UUID). May be set when `object_type` is one of the Apache Iceberg object types to disambiguate a name shared across parents: the database or namespace, the catalog or the AWS account for a table; the catalog or the AWS account for a database or namespace; the AWS account for a catalog. Must not be set for other object types.
 - `project_id` (String) RSC object ID of the parent Azure DevOps project (UUID). May be set when `object_type` is `AzureDevOpsRepository` to disambiguate a repository name shared across projects; must not be set for other object types.
 - `subscription_id` (String) RSC cloud account ID of the parent Azure subscription (UUID). May be set when `object_type` is `AzureNativeResourceGroup`, `AzurePostgresFlexibleServer` or `AzureSqlManagedInstanceServer` to disambiguate a name shared across subscriptions; must not be set for other object types.
 - `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
@@ -107,6 +149,7 @@ data "rubrik_object" "project" {
 
 - `auth_type` (String) The authentication mechanisms the object supports. Only returned when `object_type` is `AzureSqlManagedInstanceServer`, null for all other object types. One of `SQL_AUTH_ONLY`, `SQL_AUTH_AND_AAD`, `AAD_ONLY` or `AUTH_TYPE_UNSPECIFIED`. RSC spells Microsoft Entra ID by its former name, AAD.
 - `id` (String) Object ID (UUID).
+- `region` (String) AWS region of the object, e.g., `us-east-1`. Only returned for the Apache Iceberg object types, null for all other object types.
 
 <a id="nestedatt--timeouts"></a>
 ### Nested Schema for `timeouts`

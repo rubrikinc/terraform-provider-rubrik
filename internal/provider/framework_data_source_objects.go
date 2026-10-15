@@ -32,11 +32,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/hierarchy"
 )
 
 const dataSourceObjectsDescription = `
@@ -48,14 +50,32 @@ Supported object types:
   * ´AzureNativeResourceGroup´ - Azure Native Resource Group (optionally
     scoped to a single subscription with ´subscription_id´; omitting it
     searches across all subscriptions managed by RSC)
+  * ´GlueIcebergCatalog´, ´GlueIcebergDatabase´ and ´GlueIcebergTable´ - AWS
+    Glue Iceberg catalogs, databases and tables
+  * ´S3TablesIcebergCatalog´, ´S3TablesIcebergNamespace´ and
+    ´S3TablesIcebergTable´ - Amazon S3 Tables Iceberg catalogs, namespaces and
+    tables
+
+The Apache Iceberg object types can be scoped to the objects below an ancestor,
+e.g., the tables in a database, with ´parent_id´; omitting it returns every
+object of the type managed by RSC. Each returned Iceberg object carries its AWS
+region and the ID of its immediate parent.
 
 Additional object types will be added in future releases.
 `
 
 var (
-	_ datasource.DataSource              = &objectsDataSource{}
-	_ datasource.DataSourceWithConfigure = &objectsDataSource{}
+	_ datasource.DataSource                   = &objectsDataSource{}
+	_ datasource.DataSourceWithConfigure      = &objectsDataSource{}
+	_ datasource.DataSourceWithValidateConfig = &objectsDataSource{}
 )
+
+// icebergObjectTypes are the Apache Iceberg object types supported by the
+// rubrik_objects data source.
+var icebergObjectTypes = []string{
+	"GlueIcebergCatalog", "GlueIcebergDatabase", "GlueIcebergTable",
+	"S3TablesIcebergCatalog", "S3TablesIcebergNamespace", "S3TablesIcebergTable",
+}
 
 type objectsDataSource struct {
 	client *client
@@ -66,6 +86,7 @@ type objectsModel struct {
 	ID             types.String `tfsdk:"id"`
 	ObjectType     types.String `tfsdk:"object_type"`
 	SubscriptionID types.String `tfsdk:"subscription_id"`
+	ParentID       types.String `tfsdk:"parent_id"`
 	Objects        types.Set    `tfsdk:"objects"`
 }
 
@@ -91,13 +112,14 @@ func (d *objectsDataSource) Schema(ctx context.Context, _ datasource.SchemaReque
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
-				Description: "SHA-256 hash of the object type, subscription ID and objects returned.",
+				Description: "SHA-256 hash of the object type, subscription ID, parent ID and objects returned.",
 			},
 			keyObjectType: schema.StringAttribute{
-				Required:    true,
-				Description: "Object type. The only value currently supported is `AzureNativeResourceGroup`.",
+				Required: true,
+				Description: fmt.Sprintf("Object type. %s.",
+					possibleValues(append([]string{"AzureNativeResourceGroup"}, icebergObjectTypes...))),
 				Validators: []validator.String{
-					stringvalidator.OneOf("AzureNativeResourceGroup"),
+					stringvalidator.OneOf(append([]string{"AzureNativeResourceGroup"}, icebergObjectTypes...)...),
 				},
 			},
 			keySubscriptionID: schema.StringAttribute{
@@ -109,9 +131,18 @@ func (d *objectsDataSource) Schema(ctx context.Context, _ datasource.SchemaReque
 					isUUID(),
 				},
 			},
+			keyParentID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC object ID of an ancestor object (UUID) to scope the search to, e.g., a Glue " +
+					"database to return its tables. When omitted, every object of the type managed by RSC is " +
+					"returned. Only valid when `object_type` is one of the Apache Iceberg object types.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+			},
 			keyObjects: schema.SetNestedAttribute{
 				Computed:    true,
-				Description: "Objects matching `object_type` (and `subscription_id`, if specified).",
+				Description: "Objects matching `object_type` (and `subscription_id` or `parent_id`, if specified).",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						keyID: schema.StringAttribute{
@@ -123,8 +154,18 @@ func (d *objectsDataSource) Schema(ctx context.Context, _ datasource.SchemaReque
 							Description: "Object name.",
 						},
 						keySubscriptionID: schema.StringAttribute{
+							Computed: true,
+							Description: "RSC cloud account ID of the parent Azure subscription (UUID). Only " +
+								"returned for `AzureNativeResourceGroup`.",
+						},
+						keyParentID: schema.StringAttribute{
+							Computed: true,
+							Description: "RSC object ID of the immediate parent object (UUID), e.g., the database " +
+								"of a Glue Iceberg table. Only returned for the Apache Iceberg object types.",
+						},
+						keyRegion: schema.StringAttribute{
 							Computed:    true,
-							Description: "RSC cloud account ID of the parent Azure subscription (UUID).",
+							Description: "AWS region of the object. Only returned for the Apache Iceberg object types.",
 						},
 					},
 				},
@@ -146,6 +187,26 @@ func (d *objectsDataSource) Configure(ctx context.Context, req datasource.Config
 	d.client = req.ProviderData.(*client)
 }
 
+func (d *objectsDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, res *datasource.ValidateConfigResponse) {
+	tflog.Trace(ctx, "objectsDataSource.ValidateConfig")
+
+	var config objectsModel
+	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if res.Diagnostics.HasError() || config.ObjectType.IsNull() || config.ObjectType.IsUnknown() {
+		return
+	}
+
+	objectType := config.ObjectType.ValueString()
+	if !config.SubscriptionID.IsNull() && !config.SubscriptionID.IsUnknown() && objectType != "AzureNativeResourceGroup" {
+		res.Diagnostics.AddAttributeError(path.Root(keySubscriptionID), "Invalid subscription_id",
+			"subscription_id may only be set when object_type is AzureNativeResourceGroup.")
+	}
+	if !config.ParentID.IsNull() && !config.ParentID.IsUnknown() && !slices.Contains(icebergObjectTypes, objectType) {
+		res.Diagnostics.AddAttributeError(path.Root(keyParentID), "Invalid parent_id",
+			"parent_id may only be set when object_type is one of the Apache Iceberg object types.")
+	}
+}
+
 func (d *objectsDataSource) Read(ctx context.Context, req datasource.ReadRequest, res *datasource.ReadResponse) {
 	tflog.Trace(ctx, "objectsDataSource.Read")
 
@@ -163,6 +224,22 @@ func (d *objectsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 
 	objectType := config.ObjectType.ValueString()
 	subscriptionID := config.SubscriptionID.ValueString()
+	parentID := config.ParentID.ValueString()
+
+	var icebergFilters []hierarchy.Filter
+	if parentID != "" {
+		id, err := uuid.Parse(parentID)
+		if err != nil {
+			res.Diagnostics.AddError("Invalid parent ID", err.Error())
+			return
+		}
+		icebergFilters = append(icebergFilters, hierarchy.AncestorFilter(id))
+	}
+	icebergFilters = activeObjectFilters(icebergFilters...)
+
+	api := hierarchy.Wrap(polarisClient.GQL)
+	var icebergObjects []hierarchy.IcebergObject
+	var icebergErr error
 
 	var objects []any
 	switch objectType {
@@ -197,11 +274,38 @@ func (d *objectsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		for _, group := range groups {
 			objects = append(objects, group)
 		}
+	case "GlueIcebergCatalog":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.GlueIcebergCatalog](ctx, api, icebergFilters...)
+	case "GlueIcebergDatabase":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.GlueIcebergDatabase](ctx, api, icebergFilters...)
+	case "GlueIcebergTable":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.GlueIcebergTable](ctx, api, icebergFilters...)
+	case "S3TablesIcebergCatalog":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.S3TablesIcebergCatalog](ctx, api, icebergFilters...)
+	case "S3TablesIcebergNamespace":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.S3TablesIcebergNamespace](ctx, api, icebergFilters...)
+	case "S3TablesIcebergTable":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByType[hierarchy.S3TablesIcebergTable](ctx, api, icebergFilters...)
+	}
+	if icebergErr != nil {
+		res.Diagnostics.AddError("Failed to read Apache Iceberg objects", icebergErr.Error())
+		return
+	}
+	slices.SortFunc(icebergObjects, func(lhs, rhs hierarchy.IcebergObject) int {
+		return cmp.Compare(lhs.ID.String(), rhs.ID.String())
+	})
+	for _, obj := range icebergObjects {
+		objects = append(objects, obj)
 	}
 
 	idHash := sha256.New()
 	idHash.Write([]byte(objectType))
 	idHash.Write([]byte(subscriptionID))
+	// Only written when set, so the hash of an Azure resource group lookup,
+	// which cannot set parent_id, is unchanged.
+	if parentID != "" {
+		idHash.Write([]byte(parentID))
+	}
 
 	objectValues := make([]attr.Value, 0, len(objects))
 	for _, obj := range objects {
@@ -215,6 +319,31 @@ func (d *objectsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 				keyID:             types.StringValue(object.ID),
 				keyName:           types.StringValue(object.Name),
 				keySubscriptionID: types.StringValue(object.Subscription.CloudAccountID.String()),
+				keyParentID:       types.StringNull(),
+				keyRegion:         types.StringNull(),
+			})
+			res.Diagnostics.Append(diags...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+			objectValues = append(objectValues, objectValue)
+		case hierarchy.IcebergObject:
+			objectParentID := types.StringNull()
+			if parent, ok := object.Parent(); ok {
+				objectParentID = types.StringValue(parent.ID.String())
+			}
+			region := object.Region.Name()
+			idHash.Write([]byte(object.ID.String()))
+			idHash.Write([]byte(object.Name))
+			idHash.Write([]byte(objectParentID.ValueString()))
+			idHash.Write([]byte(region))
+
+			objectValue, diags := types.ObjectValue(objectAttrTypes(), map[string]attr.Value{
+				keyID:             types.StringValue(object.ID.String()),
+				keyName:           types.StringValue(object.Name),
+				keySubscriptionID: types.StringNull(),
+				keyParentID:       objectParentID,
+				keyRegion:         types.StringValue(region),
 			})
 			res.Diagnostics.Append(diags...)
 			if res.Diagnostics.HasError() {
@@ -240,5 +369,7 @@ func objectAttrTypes() map[string]attr.Type {
 		keyID:             types.StringType,
 		keyName:           types.StringType,
 		keySubscriptionID: types.StringType,
+		keyParentID:       types.StringType,
+		keyRegion:         types.StringType,
 	}
 }

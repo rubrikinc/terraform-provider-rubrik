@@ -145,7 +145,8 @@ func resourceSLADomainAssignment() *schema.Resource {
 				Description: "Workload hierarchy type for SLA Domain assignments. If not specified, " +
 					"`ALL_SUB_HIERARCHY_TYPE` is used. Valid values: `ALL_SUB_HIERARCHY_TYPE`, " +
 					"`AZURE_NATIVE_VIRTUAL_MACHINE`, `AZURE_NATIVE_MANAGED_DISK`, `AZURE_SQL_DATABASE_DB`, " +
-					"`AZURE_SQL_MANAGED_INSTANCE_DB`, `AZURE_STORAGE_ACCOUNT`.",
+					"`AZURE_SQL_MANAGED_INSTANCE_DB`, `AZURE_STORAGE_ACCOUNT`, `GLUE_ICEBERG_TABLE`, " +
+					"`S3_TABLES_ICEBERG_TABLE`.",
 			},
 		},
 		Importer: &schema.ResourceImporter{

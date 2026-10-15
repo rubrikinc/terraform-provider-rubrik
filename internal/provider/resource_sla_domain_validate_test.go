@@ -725,3 +725,149 @@ func TestFromAWSS3Config(t *testing.T) {
 		}
 	})
 }
+
+// TestSLADomainCustomizeDiffIceberg runs the Iceberg object type rules through
+// the resource's CustomizeDiff, so they are checked the way they run during
+// plan. An unknown number of backup locations must not fail the plan.
+func TestSLADomainCustomizeDiffIceberg(t *testing.T) {
+	glue := string(gqlsla.ObjectGlueIcebergTable)
+	s3Tables := string(gqlsla.ObjectS3TablesIcebergTable)
+	location := map[string]any{keyArchivalGroupID: "f6b1f4e8-5d1e-4f4e-9b6f-3a1c2d5e7f90"}
+	otherLocation := map[string]any{keyArchivalGroupID: "0b5c7e2a-8f1d-4c3b-a6e9-2d4f6a8b0c1e"}
+	daily := []any{map[string]any{keyFrequency: 1, keyRetention: 7}}
+	minute := []any{map[string]any{keyFrequency: 15, keyRetention: 7}}
+	icebergConfig := func(strategy, tagRegex string) []any {
+		return []any{map[string]any{keySnapshotSelectionStrategy: strategy, keyTagRegex: tagRegex}}
+	}
+
+	tests := []struct {
+		name        string
+		objectTypes []any
+		config      map[string]any
+		wantErr     string
+	}{{
+		name:        "ValidGlue",
+		objectTypes: []any{glue},
+		config:      map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location}},
+	}, {
+		name:        "ValidGlueAndS3Tables",
+		objectTypes: []any{glue, s3Tables},
+		config:      map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location}},
+	}, {
+		name:        "ValidTagged",
+		objectTypes: []any{glue},
+		config: map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location},
+			keyIcebergConfig: icebergConfig("ICEBERG_SNAPSHOT_LATEST_TAGGED", "^nightly_")},
+	}, {
+		name:        "ValidCompacted",
+		objectTypes: []any{s3Tables},
+		config: map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location},
+			keyIcebergConfig: icebergConfig("ICEBERG_SNAPSHOT_LATEST_COMPACTED", "")},
+	}, {
+		name:        "UnknownBackupLocations",
+		objectTypes: []any{glue},
+		config:      map[string]any{keyDailySchedule: daily, keyBackupLocation: unknownValue},
+	}, {
+		name:        "CombinedWithOtherObjectType",
+		objectTypes: []any{glue, string(gqlsla.ObjectAWSS3)},
+		config:      map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location}},
+		wantErr:     "cannot be combined with other object types",
+	}, {
+		name:        "MissingBackupLocation",
+		objectTypes: []any{glue},
+		config:      map[string]any{keyDailySchedule: daily},
+		wantErr:     "require exactly one backup_location",
+	}, {
+		name:        "TwoBackupLocations",
+		objectTypes: []any{glue},
+		config:      map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location, otherLocation}},
+		wantErr:     "require exactly one backup_location",
+	}, {
+		name:        "MinuteSchedule",
+		objectTypes: []any{glue},
+		config:      map[string]any{keyMinuteSchedule: minute, keyBackupLocation: []any{location}},
+		wantErr:     "do not support a minute schedule",
+	}, {
+		name:        "TagRegexWithoutTaggedStrategy",
+		objectTypes: []any{glue},
+		config: map[string]any{keyDailySchedule: daily, keyBackupLocation: []any{location},
+			keyIcebergConfig: icebergConfig("ICEBERG_SNAPSHOT_LATEST_COMPACTED", "^nightly_")},
+		wantErr: "tag_regex is only used when snapshot_selection_strategy is ICEBERG_SNAPSHOT_LATEST_TAGGED",
+	}, {
+		name:        "ConfigWithoutIcebergObjectType",
+		objectTypes: []any{string(gqlsla.ObjectAWSEC2EBS)},
+		config: map[string]any{keyDailySchedule: daily,
+			keyIcebergConfig: icebergConfig("ICEBERG_SNAPSHOT_LATEST", "")},
+		wantErr: "iceberg_config is only valid when object_types contains",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := map[string]any{
+				keyName:        "iceberg",
+				keyObjectTypes: tt.objectTypes,
+			}
+			maps.Copy(config, tt.config)
+
+			_, err := resourceSLADomain().SimpleDiff(context.Background(), &terraform.InstanceState{},
+				terraform.NewResourceConfigRaw(config), nil)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Fatalf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateIcebergObjectTypeArchivalAndReplication covers the rules the
+// SimpleDiff harness cannot reach, since the archival and replication blocks
+// need data center fixtures to build.
+func TestValidateIcebergObjectTypeArchivalAndReplication(t *testing.T) {
+	objectTypes := []any{string(gqlsla.ObjectGlueIcebergTable)}
+	if err := validateIcebergObjectType(objectTypes, false, 1, true, 1, 0, "", ""); err == nil ||
+		!strings.Contains(err.Error(), "remove the archival block") {
+		t.Errorf("archival: got %v", err)
+	}
+	if err := validateIcebergObjectType(objectTypes, false, 1, true, 0, 1, "", ""); err == nil ||
+		!strings.Contains(err.Error(), "do not support replication") {
+		t.Errorf("replication: got %v", err)
+	}
+}
+
+// TestToIcebergConfig verifies that a configuration equal to the defaults RSC
+// stores for every Iceberg SLA is only read back when the block is in the
+// configuration, so omitting the block does not cause a permanent diff.
+func TestToIcebergConfig(t *testing.T) {
+	defaults := &gqlsla.IcebergConfig{SnapshotSelectionStrategy: gqlsla.IcebergSnapshotLatest, FallbackToLatest: true}
+	tagged := &gqlsla.IcebergConfig{SnapshotSelectionStrategy: gqlsla.IcebergSnapshotLatestTagged, TagRegex: "^v"}
+
+	tests := []struct {
+		name     string
+		config   *gqlsla.IcebergConfig
+		inConfig bool
+		wantLen  int
+	}{
+		{name: "Nil", config: nil, inConfig: true, wantLen: 0},
+		{name: "DefaultsOmitted", config: defaults, inConfig: false, wantLen: 0},
+		{name: "DefaultsInConfig", config: defaults, inConfig: true, wantLen: 1},
+		{name: "EmptyStrategyIsDefault", config: &gqlsla.IcebergConfig{FallbackToLatest: true}, inConfig: false, wantLen: 0},
+		{name: "NonDefaultOmitted", config: tagged, inConfig: false, wantLen: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toIcebergConfig(tt.config, tt.inConfig); len(got) != tt.wantLen {
+				t.Fatalf("got %d blocks, want %d", len(got), tt.wantLen)
+			}
+		})
+	}
+
+	block := toIcebergConfig(tagged, false)[0].(map[string]any)
+	if block[keySnapshotSelectionStrategy] != "ICEBERG_SNAPSHOT_LATEST_TAGGED" || block[keyTagRegex] != "^v" ||
+		block[keyFallbackToLatest] != false {
+		t.Errorf("tagged block: got %v", block)
+	}
+}

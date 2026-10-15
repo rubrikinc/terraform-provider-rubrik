@@ -378,6 +378,48 @@ func resourceSLADomain() *schema.Resource {
 					"V2 (Rubrik-managed) SLA omits it and specifies a backup location and snapshot schedule. " +
 					"Note, the changes will be applied during the next maintenance window.",
 			},
+			keyIcebergConfig: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keySnapshotSelectionStrategy: {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  string(gqlsla.IcebergSnapshotLatest),
+							Description: "Which native Iceberg snapshot each backup captures. Possible values are " +
+								"`ICEBERG_SNAPSHOT_LATEST`, the latest snapshot by commit time, " +
+								"`ICEBERG_SNAPSHOT_LATEST_COMPACTED`, the newest compacted (overwrite) snapshot, " +
+								"and `ICEBERG_SNAPSHOT_LATEST_TAGGED`, the newest snapshot whose tag ref name " +
+								"matches `tag_regex`. Default value is `ICEBERG_SNAPSHOT_LATEST`.",
+							ValidateFunc: validation.StringInSlice(gqlsla.AllIcebergSnapshotSelectionStrategiesAsStrings(), false),
+						},
+						keyTagRegex: {
+							Type:     schema.TypeString,
+							Optional: true,
+							Description: "RE2 regular expression matched against tag ref names. Only valid when " +
+								"`snapshot_selection_strategy` is `ICEBERG_SNAPSHOT_LATEST_TAGGED`, where an empty " +
+								"pattern matches all tags.",
+							ValidateFunc: validation.StringIsValidRegExp,
+						},
+						keyFallbackToLatest: {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  true,
+							Description: "Back up the latest snapshot when the selected snapshot cannot be resolved, " +
+								"i.e., there is no compacted snapshot or no snapshot with a matching tag. When " +
+								"`false`, an unresolvable selection fails the backup. Ignored by " +
+								"`ICEBERG_SNAPSHOT_LATEST`, which always resolves. Default value is `true`.",
+						},
+					},
+				},
+				Optional: true,
+				MaxItems: 1,
+				Description: "Apache Iceberg configuration. Only valid when `object_types` contains " +
+					"`GLUE_ICEBERG_TABLE_OBJECT_TYPE` or `S3_TABLES_ICEBERG_TABLE_OBJECT_TYPE`. Selects which " +
+					"native Iceberg snapshot each backup captures. When omitted, backups capture the latest " +
+					"snapshot. RSC only applies the configuration to AWS Glue Iceberg tables; backups of " +
+					"Amazon S3 Tables Iceberg tables always capture the latest snapshot.",
+			},
 			keyBackupType: {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -1182,10 +1224,10 @@ func resourceSLADomain() *schema.Resource {
 					"`AZURE_AD_OBJECT_TYPE`, `AZURE_BLOB_OBJECT_TYPE`, `AZURE_DEVOPS_OBJECT_TYPE`, `AZURE_OBJECT_TYPE`, `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE`, " +
 					"`AZURE_SQL_DATABASE_OBJECT_TYPE`, `AZURE_SQL_MANAGED_INSTANCE_OBJECT_TYPE`, " +
 					"`CASSANDRA_OBJECT_TYPE`, `D365_OBJECT_TYPE`, `DB2_OBJECT_TYPE`, `EXCHANGE_OBJECT_TYPE`, `FILESET_OBJECT_TYPE`, `GCP_BIGQUERY_OBJECT_TYPE`, `GCP_CLOUD_SQL_OBJECT_TYPE`, `GCP_OBJECT_TYPE`, " +
-					"`GOOGLE_WORKSPACE_OBJECT_TYPE`, `HYPERV_OBJECT_TYPE`, `INFORMIX_INSTANCE_OBJECT_TYPE`, `K8S_OBJECT_TYPE`, `KUPR_OBJECT_TYPE`, " +
+					"`GITHUB_OBJECT_TYPE`, `GLUE_ICEBERG_TABLE_OBJECT_TYPE`, `GOOGLE_WORKSPACE_OBJECT_TYPE`, `HYPERV_OBJECT_TYPE`, `INFORMIX_INSTANCE_OBJECT_TYPE`, `K8S_OBJECT_TYPE`, `KUPR_OBJECT_TYPE`, " +
 					"`M365_BACKUP_STORAGE_OBJECT_TYPE`, `MANAGED_VOLUME_OBJECT_TYPE`, `MONGO_OBJECT_TYPE`, `MONGODB_OBJECT_TYPE`, `MSSQL_OBJECT_TYPE`, `MYSQLDB_OBJECT_TYPE`, " +
 					"`NAS_OBJECT_TYPE`, `NCD_OBJECT_TYPE`, `NUTANIX_OBJECT_TYPE`, `O365_OBJECT_TYPE`, `OKTA_OBJECT_TYPE`, `OLVM_OBJECT_TYPE`, `OPENSTACK_OBJECT_TYPE`, " +
-					"`ORACLE_OBJECT_TYPE`, `POSTGRES_DB_CLUSTER_OBJECT_TYPE`, `PROXMOX_OBJECT_TYPE`, `SALESFORCE_OBJECT_TYPE`, `SAP_HANA_OBJECT_TYPE`, " +
+					"`ORACLE_OBJECT_TYPE`, `POSTGRES_DB_CLUSTER_OBJECT_TYPE`, `PROXMOX_OBJECT_TYPE`, `S3_TABLES_ICEBERG_TABLE_OBJECT_TYPE`, `SALESFORCE_OBJECT_TYPE`, `SAP_HANA_OBJECT_TYPE`, " +
 					"`SNAPMIRROR_CLOUD_OBJECT_TYPE`, `VCD_OBJECT_TYPE`, `VOLUME_GROUP_OBJECT_TYPE`, and `VSPHERE_OBJECT_TYPE`.",
 			},
 			keyQuarterlySchedule: {
@@ -2257,6 +2299,7 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 		if err != nil {
 			return diag.FromErr(err)
 		}
+		icebergConfig := fromIcebergConfig(d)
 		ncdConfig, err := fromNcdConfig(d)
 		if err != nil {
 			return diag.FromErr(err)
@@ -2308,9 +2351,9 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 		}
 
 		// backup_location is routed to one of two places depending on the object
-		// type. AWS Config, Azure Postgres Flexible Server, Azure SQL (V1/V2 model)
-		// and GCP BigQuery store their backup location in the SLA-level backup
-		// location specs. AWS S3 uses the specs when the multiple backup locations
+		// type. AWS Config, Azure Postgres Flexible Server, Azure SQL (V1/V2 model),
+		// GCP BigQuery and the Apache Iceberg object types store their backup
+		// location in the SLA-level backup location specs. AWS S3 uses the specs when the multiple backup locations
 		// feature is enabled and the legacy object specific config otherwise. No
 		// other object type accepts a backup location.
 		//
@@ -2326,6 +2369,7 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 		hasAzureSQL := objectTypeSet.Contains(string(gqlsla.ObjectAzureSQLDatabase)) ||
 			objectTypeSet.Contains(string(gqlsla.ObjectAzureSQLManagedInstance))
 		hasGCPBigQuery := objectTypeSet.Contains(string(gqlsla.ObjectGCPBigQuery))
+		hasIceberg := hasIcebergObjectType(objectTypeSet)
 
 		var backupLocations []gqlsla.BackupLocationSpec
 		var awsS3Config *gqlsla.AWSS3Config
@@ -2334,10 +2378,20 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 			if awsS3Config, err = fromAWSS3Config(locations); err != nil {
 				return diag.FromErr(err)
 			}
-		case hasAWSConfig || hasAWSS3 || hasAzurePostgres || (hasAzureSQL && azureSQLRevamp.Enabled) || hasGCPBigQuery:
+		case hasAWSConfig || hasAWSS3 || hasAzurePostgres || (hasAzureSQL && azureSQLRevamp.Enabled) || hasGCPBigQuery || hasIceberg:
 			backupLocations = fromBackupLocation(locations)
 		case len(locations) > 0:
 			return diag.Errorf("%s is not supported by the configured object types", keyBackupLocation)
+		}
+
+		// RSC stores an Iceberg configuration for every Iceberg SLA, so the
+		// defaults are sent explicitly when the iceberg_config block is omitted.
+		// This keeps the stored configuration and the plan in agreement.
+		if hasIceberg && icebergConfig == nil {
+			icebergConfig = &gqlsla.IcebergConfig{
+				SnapshotSelectionStrategy: gqlsla.IcebergSnapshotLatest,
+				FallbackToLatest:          true,
+			}
 		}
 
 		var objectTypes []gqlsla.ObjectType
@@ -2434,6 +2488,7 @@ func newSLADomainMutator(op string) func(ctx context.Context, d *schema.Resource
 				NcdSlaConfig:                      ncdConfig,
 				InformixSlaConfig:                 informixConfig,
 				GcpCloudSqlConfig:                 gcpCloudSqlConfig,
+				IcebergConfig:                     icebergConfig,
 			},
 			ObjectTypes:       objectTypes,
 			ReplicationSpecs:  replicationSpecs,
@@ -2627,6 +2682,10 @@ func readSLADomain(ctx context.Context, d *schema.ResourceData, m any) diag.Diag
 		return diag.FromErr(err)
 	}
 	if err := d.Set(keyGCPCloudSQLConfig, toGcpCloudSqlConfig(slaDomain.ObjectSpecificConfigs.GcpCloudSqlConfig)); err != nil {
+		return diag.FromErr(err)
+	}
+	icebergConfigInState := len(d.Get(keyIcebergConfig).([]any)) > 0
+	if err := d.Set(keyIcebergConfig, toIcebergConfig(slaDomain.ObjectSpecificConfigs.IcebergConfig, icebergConfigInState)); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := d.Set(keyNCDConfig, toNcdConfig(slaDomain.ObjectSpecificConfigs.NcdSlaConfig)); err != nil {
@@ -3161,6 +3220,26 @@ func slaDomainCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, m any) 
 		}
 	}
 
+	icebergBlocks, _ := d.Get(keyIcebergConfig).([]any)
+	if err := validateIcebergConfig(len(icebergBlocks) > 0, objectTypes); err != nil {
+		return err
+	}
+	if objectTypes != nil && hasIcebergObjectType(objectTypes) {
+		var strategy, tagRegex string
+		if len(icebergBlocks) > 0 && icebergBlocks[0] != nil {
+			block, _ := icebergBlocks[0].(map[string]any)
+			strategy, _ = block[keySnapshotSelectionStrategy].(string)
+			tagRegex, _ = block[keyTagRegex].(string)
+		}
+		err := validateIcebergObjectType(objectTypes.List(), icebergPlannedBlockCount(d, keyMinuteSchedule) > 0,
+			icebergPlannedBlockCount(d, keyBackupLocation), d.NewValueKnown(keyBackupLocation),
+			icebergPlannedBlockCount(d, keyArchival), icebergPlannedBlockCount(d, keyReplicationSpec),
+			strategy, tagRegex)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Changing the backup service of an existing SLA domain is rejected below.
 	// Creating a new SLA domain with any backup service is allowed, so the
 	// check is scoped rather than returning early for the whole function.
@@ -3352,6 +3431,75 @@ func gcpBigQueryPlannedFrequency(d *schema.ResourceDiff, key string) (int, bool)
 // gcpBigQueryPlannedBlockCount returns the number of planned blocks with the
 // specified key for a GCP BigQuery SLA.
 func gcpBigQueryPlannedBlockCount(d *schema.ResourceDiff, key string) int {
+	blocks, _ := d.Get(key).([]any)
+	return len(blocks)
+}
+
+// hasIcebergObjectType reports whether the object types contain one of the
+// Apache Iceberg object types.
+func hasIcebergObjectType(objectTypes *schema.Set) bool {
+	return objectTypes.Contains(string(gqlsla.ObjectGlueIcebergTable)) ||
+		objectTypes.Contains(string(gqlsla.ObjectS3TablesIcebergTable))
+}
+
+// validateIcebergConfig validates that the iceberg_config block is only used
+// with the Apache Iceberg object types, enforcing what the field documents.
+func validateIcebergConfig(configPresent bool, objectTypes *schema.Set) error {
+	if !configPresent {
+		return nil
+	}
+	if objectTypes == nil || !hasIcebergObjectType(objectTypes) {
+		return fmt.Errorf("%s is only valid when %s contains %s or %s", keyIcebergConfig, keyObjectTypes,
+			gqlsla.ObjectGlueIcebergTable, gqlsla.ObjectS3TablesIcebergTable)
+	}
+
+	return nil
+}
+
+// validateIcebergObjectType validates an SLA carrying the AWS Glue Iceberg or
+// Amazon S3 Tables Iceberg object types.
+//
+// RSC requires exactly one backup location, AWS or Rubrik Cloud Vault, and
+// rejects archival, replication and minute schedules for these object types.
+// The two Iceberg object types can be combined with each other but not with
+// any other object type, matching the RSC UI. A tag regex is only used by the
+// tagged snapshot selection strategy, so setting it with another strategy is
+// rejected rather than silently ignored.
+//
+// The number of backup locations is not known during plan when the blocks are
+// generated from values only known after apply, so the count is only checked
+// when backupLocationKnown is true. This is called from CustomizeDiff so that
+// it fails during plan rather than part way through an apply.
+func validateIcebergObjectType(objectTypeList []any, hasMinuteSchedule bool, backupLocationCount int, backupLocationKnown bool, archivalCount, replicationCount int, strategy, tagRegex string) error {
+	for _, objectType := range objectTypeList {
+		if t := objectType.(string); t != string(gqlsla.ObjectGlueIcebergTable) && t != string(gqlsla.ObjectS3TablesIcebergTable) {
+			return fmt.Errorf("the Iceberg object types cannot be combined with other object types")
+		}
+	}
+	if archivalCount > 0 {
+		return fmt.Errorf("the Iceberg object types store their backup location in backup_location, not the " +
+			"archival block; remove the archival block")
+	}
+	if backupLocationKnown && backupLocationCount != 1 {
+		return fmt.Errorf("the Iceberg object types require exactly one backup_location")
+	}
+	if replicationCount > 0 {
+		return fmt.Errorf("the Iceberg object types do not support replication")
+	}
+	if hasMinuteSchedule {
+		return fmt.Errorf("the Iceberg object types do not support a minute schedule")
+	}
+	if tagRegex != "" && strategy != string(gqlsla.IcebergSnapshotLatestTagged) {
+		return fmt.Errorf("%s is only used when %s is %s", keyTagRegex, keySnapshotSelectionStrategy,
+			gqlsla.IcebergSnapshotLatestTagged)
+	}
+
+	return nil
+}
+
+// icebergPlannedBlockCount returns the number of planned blocks with the
+// specified key for an Iceberg SLA.
+func icebergPlannedBlockCount(d *schema.ResourceDiff, key string) int {
 	blocks, _ := d.Get(key).([]any)
 	return len(blocks)
 }
@@ -3875,6 +4023,45 @@ func toAzurePostgresFlexibleServerConfig(config *gqlsla.AzurePostgresFlexibleSer
 
 	return []any{map[string]any{
 		keyBackupRetentionInDays: config.BackupRetentionInDays,
+	}}
+}
+
+func fromIcebergConfig(d *schema.ResourceData) *gqlsla.IcebergConfig {
+	blocks, _ := d.Get(keyIcebergConfig).([]any)
+	if len(blocks) == 0 || blocks[0] == nil {
+		return nil
+	}
+
+	block := blocks[0].(map[string]any)
+	return &gqlsla.IcebergConfig{
+		SnapshotSelectionStrategy: gqlsla.IcebergSnapshotSelectionStrategy(block[keySnapshotSelectionStrategy].(string)),
+		TagRegex:                  block[keyTagRegex].(string),
+		FallbackToLatest:          block[keyFallbackToLatest].(bool),
+	}
+}
+
+// toIcebergConfig returns the iceberg_config block for the Iceberg config read
+// from RSC. RSC stores a configuration for every Iceberg SLA, so a config equal
+// to the defaults is only returned when the block is in the configuration,
+// otherwise an omitted block would show as a permanent diff.
+func toIcebergConfig(config *gqlsla.IcebergConfig, inConfig bool) []any {
+	if config == nil {
+		return nil
+	}
+
+	strategy := config.SnapshotSelectionStrategy
+	if strategy == "" {
+		strategy = gqlsla.IcebergSnapshotLatest
+	}
+	isDefault := strategy == gqlsla.IcebergSnapshotLatest && config.TagRegex == "" && config.FallbackToLatest
+	if isDefault && !inConfig {
+		return nil
+	}
+
+	return []any{map[string]any{
+		keySnapshotSelectionStrategy: string(strategy),
+		keyTagRegex:                  config.TagRegex,
+		keyFallbackToLatest:          config.FallbackToLatest,
 	}}
 }
 

@@ -82,6 +82,9 @@ for an account:
     onboarded before this resource.
   * ´exocompute´ - Enable the Exocompute feature for the account. Only required
     for accounts hosting the Exocompute cluster.
+  * ´glue_iceberg_protection´ - Enable the AWS Glue Iceberg Protection feature
+    for the account. Protects the Apache Iceberg tables in the account's AWS Glue
+    Data Catalog.
   * ´kubernetes_protection´ - Enable the Kubernetes Protection feature for the
     account.
   * ´outpost´ - Enable the Outpost feature for the account. Required for the
@@ -95,6 +98,9 @@ for an account:
   * ´role_chaining´ - Enable the Role Chaining feature for the account. This
     feature is mutually exclusive with all other features and cannot be combined
     with any other feature on the same account.
+  * ´s3_tables_iceberg_protection´ - Enable the Amazon S3 Tables Iceberg
+    Protection feature for the account. Protects the Apache Iceberg tables in the
+    account's S3 table buckets.
   * ´servers_and_apps´ - Enable the Servers and Apps feature for the account.
     Required to run CCES clusters.
 
@@ -176,6 +182,12 @@ resource "rubrik_aws_account" "main" {
 }
 ´´´
 
+-> **Note:** RSC runs Apache Iceberg backups and recoveries, for both the
+   ´glue_iceberg_protection´ and ´s3_tables_iceberg_protection´ features, on
+   Exocompute in the region where the table data is stored. Configure Exocompute
+   for those regions, see the ´rubrik_aws_exocompute´ resource, and give each
+   Iceberg SLA Domain a single AWS or Rubrik Cloud Vault backup location.
+
 -> **Note:** To onboard an account using IAM roles instead of a CloudFormation
    stack, use the ´rubrik_aws_cnp_account´ resource.
 
@@ -245,9 +257,11 @@ func resourceAwsAccount() *schema.Resource {
 					keyDataScanning,
 					keyDSPM,
 					keyExocompute,
+					keyGlueIcebergProtection,
 					keyKubernetesProtection,
 					keyOutpost,
 					keyRDSProtection,
+					keyS3TablesIcebergProtection,
 					keyRoleChaining,
 					keyServersAndApps,
 				},
@@ -334,6 +348,17 @@ func resourceAwsAccount() *schema.Resource {
 				MaxItems:    1,
 				Optional:    true,
 				Description: "Enable the Exocompute feature for the account.",
+			},
+			keyGlueIcebergProtection: {
+				Type: schema.TypeList,
+				Elem: awsCFTFeatureResource([]core.PermissionGroup{
+					core.PermissionGroupBasic,
+					core.PermissionGroupRecovery,
+				}),
+				MaxItems: 1,
+				Optional: true,
+				Description: "Enable the AWS Glue Iceberg Protection feature for the account. Protects the " +
+					"Apache Iceberg tables in the account's AWS Glue Data Catalog.",
 			},
 			keyKubernetesProtection: {
 				Type:        schema.TypeList,
@@ -460,9 +485,11 @@ func resourceAwsAccount() *schema.Resource {
 					keyDataScanning,
 					keyDSPM,
 					keyExocompute,
+					keyGlueIcebergProtection,
 					keyKubernetesProtection,
 					keyOutpost,
 					keyRDSProtection,
+					keyS3TablesIcebergProtection,
 					keyServersAndApps,
 				},
 				Description: "Enable the Role Chaining feature for the account. This feature is mutually " +
@@ -476,6 +503,17 @@ func resourceAwsAccount() *schema.Resource {
 				ValidateDiagFunc: validation.ToDiagFunc(validation.IsUUID),
 				Description: "RSC cloud account ID of the AWS account with the Role Chaining feature " +
 					"enabled. When specified, the account will use cross-account role chaining.",
+			},
+			keyS3TablesIcebergProtection: {
+				Type: schema.TypeList,
+				Elem: awsCFTFeatureResource([]core.PermissionGroup{
+					core.PermissionGroupBasic,
+					core.PermissionGroupRecovery,
+				}),
+				MaxItems: 1,
+				Optional: true,
+				Description: "Enable the Amazon S3 Tables Iceberg Protection feature for the account. Protects " +
+					"the Apache Iceberg tables in the account's S3 table buckets.",
 			},
 			keyServersAndApps: {
 				Type:        schema.TypeList,
@@ -576,6 +614,22 @@ func awsCreateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	}
 
 	featureBlock, err = awsFromCFTFeatureBlock(keyCloudNativeS3Protection, d.Get(keyCloudNativeS3Protection))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if featureBlock != nil {
+		featureBlocks = append(featureBlocks, *featureBlock)
+	}
+
+	featureBlock, err = awsFromCFTFeatureBlock(keyGlueIcebergProtection, d.Get(keyGlueIcebergProtection))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if featureBlock != nil {
+		featureBlocks = append(featureBlocks, *featureBlock)
+	}
+
+	featureBlock, err = awsFromCFTFeatureBlock(keyS3TablesIcebergProtection, d.Get(keyS3TablesIcebergProtection))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -746,6 +800,12 @@ func awsReadAccount(ctx context.Context, d *schema.ResourceData, m any) diag.Dia
 	if err := d.Set(keyCloudNativeS3Protection, awsToCFTFeatureBlock(account, keyCloudNativeS3Protection)); err != nil {
 		return diag.FromErr(err)
 	}
+	if err := d.Set(keyGlueIcebergProtection, awsToCFTFeatureBlock(account, keyGlueIcebergProtection)); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set(keyS3TablesIcebergProtection, awsToCFTFeatureBlock(account, keyS3TablesIcebergProtection)); err != nil {
+		return diag.FromErr(err)
+	}
 	if err := d.Set(keyCyberRecoveryDataScanning, awsToCFTFeatureBlock(account, keyCyberRecoveryDataScanning)); err != nil {
 		return diag.FromErr(err)
 	}
@@ -911,6 +971,12 @@ func awsUpdateAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCloudNativeS3Protection, d); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyGlueIcebergProtection, d); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyS3TablesIcebergProtection, d); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := awsUpdateCFTFeatureBlock(ctx, client, account, id, keyCyberRecoveryDataScanning, d); err != nil {
@@ -1103,8 +1169,10 @@ func awsCustomizeDiffAccount(ctx context.Context, diff *schema.ResourceDiff, m a
 				keyCloudNativeConfigProtection,
 				keyCloudNativeDynamoDBProtection,
 				keyCloudNativeS3Protection,
+				keyGlueIcebergProtection,
 				keyKubernetesProtection,
 				keyRDSProtection,
+				keyS3TablesIcebergProtection,
 			}
 			for _, key := range protectionKeys {
 				if block := diff.Get(key).([]any); len(block) > 0 {
@@ -1256,6 +1324,9 @@ var awsCFTFeatureBlockMap = map[string][]core.Feature{
 	keyExocompute: {
 		core.FeatureExocompute,
 	},
+	keyGlueIcebergProtection: {
+		core.FeatureGlueIcebergProtection,
+	},
 	keyKubernetesProtection: {
 		core.FeatureKubernetesProtection,
 	},
@@ -1267,6 +1338,9 @@ var awsCFTFeatureBlockMap = map[string][]core.Feature{
 	},
 	keyRoleChaining: {
 		core.FeatureRoleChaining,
+	},
+	keyS3TablesIcebergProtection: {
+		core.FeatureS3TablesIcebergProtection,
 	},
 	keyServersAndApps: {
 		core.FeatureServerAndApps,

@@ -64,6 +64,14 @@ Supported object types:
   * ´CloudNativeTagRule´ - Cloud Native Tag Rule
   * ´GitHubOrganization´ - GitHub Organization
   * ´GitHubRepository´ - GitHub Repository
+  * ´GlueIcebergCatalog´ - AWS Glue Iceberg Catalog, one per AWS account and
+    region
+  * ´GlueIcebergDatabase´ - AWS Glue Iceberg Database
+  * ´GlueIcebergTable´ - AWS Glue Iceberg Table
+  * ´S3TablesIcebergCatalog´ - Amazon S3 Tables Iceberg Catalog, one per S3
+    table bucket
+  * ´S3TablesIcebergNamespace´ - Amazon S3 Tables Iceberg Namespace
+  * ´S3TablesIcebergTable´ - Amazon S3 Tables Iceberg Table
 
 -> **Note:** Azure resource group, SQL Managed Instance server and Postgres
 flexible server names are only unique within a subscription. When a name is
@@ -77,9 +85,18 @@ parents, set ´org_id´ (for ´AzureDevOpsProject´ or ´GitHubRepository´)
 or ´org_id´ and/or ´project_id´ (for ´AzureDevOpsRepository´) to
 disambiguate; otherwise the lookup returns a "multiple objects found" error.
 
+-> **Note:** Apache Iceberg table names are only unique within their database
+or namespace, database and namespace names within their catalog, and Glue
+catalog names within an AWS account. When a name is shared, set ´parent_id´ to
+the RSC ID of an ancestor object, such as the database, namespace, catalog or
+AWS account, to disambiguate; otherwise the lookup returns a "multiple objects
+found" error. Assign an SLA Domain to any of these objects with the
+´rubrik_sla_domain_assignment´ resource. An assignment to a catalog, database or
+namespace is inherited by the tables below it.
+
 -> **Note:** ´auth_type´ is only returned for ´AzureSqlManagedInstanceServer´,
 which is the only object type that has one. It is null for every other object
-type.
+type. Likewise, ´region´ is only returned for the Apache Iceberg object types.
 `
 
 var (
@@ -101,6 +118,8 @@ type objectModel struct {
 	SubscriptionID types.String   `tfsdk:"subscription_id"`
 	OrgID          types.String   `tfsdk:"org_id"`
 	ProjectID      types.String   `tfsdk:"project_id"`
+	ParentID       types.String   `tfsdk:"parent_id"`
+	Region         types.String   `tfsdk:"region"`
 	Timeouts       timeouts.Value `tfsdk:"timeouts"`
 }
 
@@ -140,6 +159,12 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 		"CloudNativeTagRule",
 		"GitHubOrganization",
 		"GitHubRepository",
+		"GlueIcebergCatalog",
+		"GlueIcebergDatabase",
+		"GlueIcebergTable",
+		"S3TablesIcebergCatalog",
+		"S3TablesIcebergNamespace",
+		"S3TablesIcebergTable",
 	}
 
 	res.Schema = schema.Schema{
@@ -199,6 +224,22 @@ func (d *objectDataSource) Schema(ctx context.Context, _ datasource.SchemaReques
 				Validators: []validator.String{
 					isUUID(),
 				},
+			},
+			keyParentID: schema.StringAttribute{
+				Optional: true,
+				Description: "RSC object ID of an ancestor object (UUID). May be set when `object_type` is one of " +
+					"the Apache Iceberg object types to disambiguate a name shared across parents: the database " +
+					"or namespace, the catalog or the AWS account for a table; the catalog or the AWS account for " +
+					"a database or namespace; the AWS account for a catalog. Must not be set for other object " +
+					"types.",
+				Validators: []validator.String{
+					isUUID(),
+				},
+			},
+			keyRegion: schema.StringAttribute{
+				Computed: true,
+				Description: "AWS region of the object, e.g., `us-east-1`. Only returned for the Apache Iceberg " +
+					"object types, null for all other object types.",
 			},
 			// The read timeout is used by the AwsNativeAccount retry loop which
 			// polls the hierarchy until an active account appears. Other object
@@ -265,6 +306,11 @@ func validateObjectConfig(config objectModel) diag.Diagnostics {
 		key:     keyProjectID,
 		value:   config.ProjectID,
 		allowed: []string{"AzureDevOpsRepository"},
+	}, {
+		key:   keyParentID,
+		value: config.ParentID,
+		allowed: []string{"GlueIcebergCatalog", "GlueIcebergDatabase", "GlueIcebergTable", "S3TablesIcebergCatalog",
+			"S3TablesIcebergNamespace", "S3TablesIcebergTable"},
 	}}
 
 	objectType := config.ObjectType.ValueString()
@@ -324,6 +370,21 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	// object, because a lookup matching more than one object is rejected below,
 	// so at most one match ever reaches the state.
 	var authType string
+	var region string
+
+	// The Apache Iceberg object types all share the same lookup. parent_id
+	// narrows the search to the objects below an ancestor, at any depth.
+	icebergFilters := activeFilters
+	if parentID := config.ParentID.ValueString(); parentID != "" {
+		id, err := uuid.Parse(parentID)
+		if err != nil {
+			res.Diagnostics.AddError("Invalid parent ID", err.Error())
+			return
+		}
+		icebergFilters = activeObjectFilters(hierarchy.AncestorFilter(id))
+	}
+	var icebergObjects []hierarchy.IcebergObject
+	var icebergErr error
 
 	switch objectType {
 	case "AwsNativeAccount":
@@ -655,6 +716,26 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 				ObjectType: hierarchy.ObjectType(repo.ObjectType),
 			})
 		}
+	case "GlueIcebergCatalog":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.GlueIcebergCatalog](ctx, api, name, icebergFilters...)
+	case "GlueIcebergDatabase":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.GlueIcebergDatabase](ctx, api, name, icebergFilters...)
+	case "GlueIcebergTable":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.GlueIcebergTable](ctx, api, name, icebergFilters...)
+	case "S3TablesIcebergCatalog":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.S3TablesIcebergCatalog](ctx, api, name, icebergFilters...)
+	case "S3TablesIcebergNamespace":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.S3TablesIcebergNamespace](ctx, api, name, icebergFilters...)
+	case "S3TablesIcebergTable":
+		icebergObjects, icebergErr = hierarchy.IcebergObjectsByName[hierarchy.S3TablesIcebergTable](ctx, api, name, icebergFilters...)
+	}
+	if icebergErr != nil {
+		res.Diagnostics.AddError("Failed to look up objects", icebergErr.Error())
+		return
+	}
+	for _, obj := range icebergObjects {
+		objects = append(objects, obj.Object)
+		region = obj.Region.Name()
 	}
 
 	if len(objects) == 0 {
@@ -676,6 +757,10 @@ func (d *objectDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	config.AuthType = types.StringNull()
 	if authType != "" {
 		config.AuthType = types.StringValue(authType)
+	}
+	config.Region = types.StringNull()
+	if region != "" {
+		config.Region = types.StringValue(region)
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, config)...)

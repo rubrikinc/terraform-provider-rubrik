@@ -30,7 +30,9 @@ description: |-
   separate account onboarded before this resource.dspm - Enable the DSPM feature for the account. Requires the Outpost
   feature to be enabled, either in the same account or in a separate account
   onboarded before this resource.exocompute - Enable the Exocompute feature for the account. Only required
-  for accounts hosting the Exocompute cluster.kubernetes_protection - Enable the Kubernetes Protection feature for the
+  for accounts hosting the Exocompute cluster.glue_iceberg_protection - Enable the AWS Glue Iceberg Protection feature
+  for the account. Protects the Apache Iceberg tables in the account's AWS Glue
+  Data Catalog.kubernetes_protection - Enable the Kubernetes Protection feature for the
   account.outpost - Enable the Outpost feature for the account. Required for the
   Cyber Recovery Data Scanning, Data Scanning and DSPM features. The outpost
   account can be the same account as where the features are enabled, or it can
@@ -39,7 +41,9 @@ description: |-
   outpost_account_id and outpost_account_profile fields are legacy and not
   recommended.rds_protection - Enable the RDS Protection feature for the account.role_chaining - Enable the Role Chaining feature for the account. This
   feature is mutually exclusive with all other features and cannot be combined
-  with any other feature on the same account.servers_and_apps - Enable the Servers and Apps feature for the account.
+  with any other feature on the same account.s3_tables_iceberg_protection - Enable the Amazon S3 Tables Iceberg
+  Protection feature for the account. Protects the Apache Iceberg tables in the
+  account's S3 table buckets.servers_and_apps - Enable the Servers and Apps feature for the account.
   Required to run CCES clusters.
   Role Chaining
   The Role Chaining feature enables cross-account role chaining for AWS accounts.
@@ -111,6 +115,11 @@ description: |-
     ]
   }
   
+  -> Note: RSC runs Apache Iceberg backups and recoveries, for both the
+  glue_iceberg_protection and s3_tables_iceberg_protection features, on
+  Exocompute in the region where the table data is stored. Configure Exocompute
+  for those regions, see the rubrik_aws_exocompute resource, and give each
+  Iceberg SLA Domain a single AWS or Rubrik Cloud Vault backup location.
   -> Note: To onboard an account using IAM roles instead of a CloudFormation
   stack, use the rubrik_aws_cnp_account resource.
   -> Note: When importing the rubrik_aws_account resource, the
@@ -159,6 +168,9 @@ for an account:
     onboarded before this resource.
   * `exocompute` - Enable the Exocompute feature for the account. Only required
     for accounts hosting the Exocompute cluster.
+  * `glue_iceberg_protection` - Enable the AWS Glue Iceberg Protection feature
+    for the account. Protects the Apache Iceberg tables in the account's AWS Glue
+    Data Catalog.
   * `kubernetes_protection` - Enable the Kubernetes Protection feature for the
     account.
   * `outpost` - Enable the Outpost feature for the account. Required for the
@@ -172,6 +184,9 @@ for an account:
   * `role_chaining` - Enable the Role Chaining feature for the account. This
     feature is mutually exclusive with all other features and cannot be combined
     with any other feature on the same account.
+  * `s3_tables_iceberg_protection` - Enable the Amazon S3 Tables Iceberg
+    Protection feature for the account. Protects the Apache Iceberg tables in the
+    account's S3 table buckets.
   * `servers_and_apps` - Enable the Servers and Apps feature for the account.
     Required to run CCES clusters.
 
@@ -252,6 +267,12 @@ resource "rubrik_aws_account" "main" {
   ]
 }
 ```
+
+-> **Note:** RSC runs Apache Iceberg backups and recoveries, for both the
+   `glue_iceberg_protection` and `s3_tables_iceberg_protection` features, on
+   Exocompute in the region where the table data is stored. Configure Exocompute
+   for those regions, see the `rubrik_aws_exocompute` resource, and give each
+   Iceberg SLA Domain a single AWS or Rubrik Cloud Vault backup location.
 
 -> **Note:** To onboard an account using IAM roles instead of a CloudFormation
    stack, use the `rubrik_aws_cnp_account` resource.
@@ -373,6 +394,33 @@ resource "rubrik_aws_account" "account2" {
     rubrik_aws_account.outpost,
   ]
 }
+
+# Protect the Apache Iceberg tables in the account's AWS Glue Data Catalog and
+# S3 table buckets. Iceberg backups run on Exocompute in the region where the
+# table data is stored.
+resource "rubrik_aws_account" "iceberg" {
+  profile = "iceberg"
+
+  cloud_discovery {
+    permission_groups = ["BASIC"]
+    regions           = ["us-east-1"]
+  }
+
+  exocompute {
+    permission_groups = ["BASIC", "RSC_MANAGED_CLUSTER"]
+    regions           = ["us-east-1"]
+  }
+
+  glue_iceberg_protection {
+    permission_groups = ["BASIC", "RECOVERY"]
+    regions           = ["us-east-1"]
+  }
+
+  s3_tables_iceberg_protection {
+    permission_groups = ["BASIC", "RECOVERY"]
+    regions           = ["us-east-1"]
+  }
+}
 ```
 
 <!-- schema generated by tfplugindocs -->
@@ -392,6 +440,7 @@ resource "rubrik_aws_account" "account2" {
 - `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed.
 - `dspm` (Block List, Max: 1) Enable the DSPM feature for the account. The DSPM feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--dspm))
 - `exocompute` (Block List, Max: 1) Enable the Exocompute feature for the account. (see [below for nested schema](#nestedblock--exocompute))
+- `glue_iceberg_protection` (Block List, Max: 1) Enable the AWS Glue Iceberg Protection feature for the account. Protects the Apache Iceberg tables in the account's AWS Glue Data Catalog. (see [below for nested schema](#nestedblock--glue_iceberg_protection))
 - `kubernetes_protection` (Block List, Max: 1) Enable the Kubernetes Protection feature for the AWS account. (see [below for nested schema](#nestedblock--kubernetes_protection))
 - `name` (String) Account name in Polaris. If not given the name is taken from AWS Organizations or, if the required permissions are missing, is derived from the AWS account ID and the named profile.
 - `outpost` (Block List, Max: 1) Enable the Outpost feature for the account. To use the DSPM, Data Scanning and Cyber Recovery Data Scanning features, one account must have the Outpost feature enabled. (see [below for nested schema](#nestedblock--outpost))
@@ -400,6 +449,7 @@ resource "rubrik_aws_account" "account2" {
 - `rds_protection` (Block List, Max: 1) Enable the RDS Protection feature for the account. (see [below for nested schema](#nestedblock--rds_protection))
 - `role_chaining` (Block List, Max: 1) Enable the Role Chaining feature for the account. This feature is mutually exclusive with all other features. (see [below for nested schema](#nestedblock--role_chaining))
 - `role_chaining_account_id` (String) RSC cloud account ID of the AWS account with the Role Chaining feature enabled. When specified, the account will use cross-account role chaining.
+- `s3_tables_iceberg_protection` (Block List, Max: 1) Enable the Amazon S3 Tables Iceberg Protection feature for the account. Protects the Apache Iceberg tables in the account's S3 table buckets. (see [below for nested schema](#nestedblock--s3_tables_iceberg_protection))
 - `servers_and_apps` (Block List, Max: 1) Enable the Servers and Apps feature for the account. (see [below for nested schema](#nestedblock--servers_and_apps))
 
 ### Read-Only
@@ -546,6 +596,20 @@ Read-Only:
 - `status` (String) Status of the feature.
 
 
+<a id="nestedblock--glue_iceberg_protection"></a>
+### Nested Schema for `glue_iceberg_protection`
+
+Required:
+
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `regions` (Set of String) Regions the feature will be enabled in.
+
+Read-Only:
+
+- `stack_arn` (String) CloudFormation stack ARN.
+- `status` (String) Status of the feature.
+
+
 <a id="nestedblock--kubernetes_protection"></a>
 ### Nested Schema for `kubernetes_protection`
 
@@ -603,6 +667,20 @@ Read-Only:
 
 - `stack_arn` (String) CloudFormation stack ARN.
 - `status` (String) Status of the Role Chaining feature.
+
+
+<a id="nestedblock--s3_tables_iceberg_protection"></a>
+### Nested Schema for `s3_tables_iceberg_protection`
+
+Required:
+
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `regions` (Set of String) Regions the feature will be enabled in.
+
+Read-Only:
+
+- `stack_arn` (String) CloudFormation stack ARN.
+- `status` (String) Status of the feature.
 
 
 <a id="nestedblock--servers_and_apps"></a>

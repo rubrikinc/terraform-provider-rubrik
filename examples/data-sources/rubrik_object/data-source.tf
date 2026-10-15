@@ -19,3 +19,17 @@ data "rubrik_object" "project" {
   object_type = "AzureDevOpsProject"
   org_id      = "a1b2c3d4-1234-4c5b-9abc-0123456789ab"
 }
+
+# Look up an AWS Glue Iceberg database and one of its tables. Table names are
+# only unique within their database, so parent_id scopes the table lookup to
+# the database.
+data "rubrik_object" "glue_database" {
+  name        = "sales"
+  object_type = "GlueIcebergDatabase"
+}
+
+data "rubrik_object" "glue_table" {
+  name        = "orders"
+  object_type = "GlueIcebergTable"
+  parent_id   = data.rubrik_object.glue_database.id
+}

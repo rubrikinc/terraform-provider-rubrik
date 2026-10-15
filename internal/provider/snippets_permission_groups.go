@@ -76,6 +76,12 @@ are used when specifying the feature set.
   * ´RSC_MANAGED_CLUSTER´ - Represents the set of permissions required for the
     Rubrik-managed Exocompute cluster.
 
+´GLUE_ICEBERG_PROTECTION´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the AWS Glue Data Catalog.
+  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
+    recovery operations.
+
 ´KUBERNETES_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
@@ -89,6 +95,12 @@ are used when specifying the feature set.
 ´ROLE_CHAINING´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
+
+´S3_TABLES_ICEBERG_PROTECTION´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the S3 table buckets.
+  * ´RECOVERY´ - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 ´SERVERS_AND_APPS´
   * ´CLOUD_CLUSTER_ES´ - Represents the basic set of permissions required to

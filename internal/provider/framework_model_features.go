@@ -39,8 +39,9 @@ var awsCnpFeatureNames = []string{
 	core.FeatureCloudDiscovery.Name, core.FeatureCloudNativeArchival.Name, core.FeatureCloudNativeProtection.Name,
 	core.FeatureCloudNativeConfigProtection.Name, core.FeatureCloudNativeDynamoDBProtection.Name,
 	core.FeatureCloudNativeS3Protection.Name,
-	core.FeatureKubernetesProtection.Name, core.FeatureExocompute.Name, core.FeatureRoleChaining.Name,
-	core.FeatureRDSProtection.Name, core.FeatureServerAndApps.Name,
+	core.FeatureGlueIcebergProtection.Name, core.FeatureKubernetesProtection.Name, core.FeatureExocompute.Name,
+	core.FeatureRoleChaining.Name, core.FeatureRDSProtection.Name, core.FeatureS3TablesIcebergProtection.Name,
+	core.FeatureServerAndApps.Name,
 }
 
 func awsFeatureAttrTypes() map[string]attr.Type {

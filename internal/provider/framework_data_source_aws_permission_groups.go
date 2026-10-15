@@ -218,12 +218,14 @@ func (d *awsPermissionGroupsDataSource) Read(ctx context.Context, req datasource
 		core.FeatureDSPMData.Name:                                {core.PermissionGroupBasic},
 		core.FeatureDSPMMetadata.Name:                            {core.PermissionGroupBasic},
 		core.FeatureExocompute.Name:                              {core.PermissionGroupBasic, core.PermissionGroupRSCManagedCluster},
+		core.FeatureGlueIcebergProtection.Name:                   {core.PermissionGroupBasic, core.PermissionGroupRecovery},
 		core.FeatureKubernetesProtection.Name:                    {core.PermissionGroupBasic},
 		core.FeatureLaminarCrossAccount.Name:                     {core.PermissionGroupBasic},
 		core.FeatureLaminarInternal.Name:                         {core.PermissionGroupBasic},
 		core.FeatureOutpost.Name:                                 {core.PermissionGroupBasic},
 		core.FeatureRDSProtection.Name:                           {core.PermissionGroupBasic, core.PermissionGroupRecovery},
 		core.FeatureRoleChaining.Name:                            {core.PermissionGroupBasic},
+		core.FeatureS3TablesIcebergProtection.Name:               {core.PermissionGroupBasic, core.PermissionGroupRecovery},
 		core.FeatureServerAndApps.Name:                           {core.PermissionGroupCCES},
 	}
 	groups := slices.Clone(featurePerms[0].PermissionsGroupPermissions)

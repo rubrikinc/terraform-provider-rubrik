@@ -77,6 +77,12 @@ are used when specifying the feature set.
   * `RSC_MANAGED_CLUSTER` - Represents the set of permissions required for the
     Rubrik-managed Exocompute cluster.
 
+`GLUE_ICEBERG_PROTECTION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the AWS Glue Data Catalog.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
+
 `KUBERNETES_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
@@ -90,6 +96,12 @@ are used when specifying the feature set.
 `ROLE_CHAINING`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+
+`S3_TABLES_ICEBERG_PROTECTION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the S3 table buckets.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
@@ -189,6 +201,12 @@ are used when specifying the feature set.
   * `RSC_MANAGED_CLUSTER` - Represents the set of permissions required for the
     Rubrik-managed Exocompute cluster.
 
+`GLUE_ICEBERG_PROTECTION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the AWS Glue Data Catalog.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
+
 `KUBERNETES_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
@@ -202,6 +220,12 @@ are used when specifying the feature set.
 `ROLE_CHAINING`
   * `BASIC` - Represents the basic set of permissions required to onboard the
     feature.
+
+`S3_TABLES_ICEBERG_PROTECTION`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature and back up the Apache Iceberg tables in the S3 table buckets.
+  * `RECOVERY` - Represents the set of elevated permissions required to perform
+    recovery operations.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
@@ -323,7 +347,7 @@ resource "rubrik_aws_cnp_account" "role_chained" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `GLUE_ICEBERG_PROTECTION`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING`, `S3_TABLES_ICEBERG_PROTECTION` and `SERVERS_AND_APPS`.
 - `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 

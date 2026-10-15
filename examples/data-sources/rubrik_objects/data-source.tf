@@ -17,3 +17,18 @@ data "rubrik_objects" "resource_groups_in_subscription" {
   object_type     = "AzureNativeResourceGroup"
   subscription_id = data.rubrik_azure_subscription.subscription.id
 }
+
+# List the AWS Glue Iceberg tables in a database.
+data "rubrik_object" "glue_database" {
+  name        = "sales"
+  object_type = "GlueIcebergDatabase"
+}
+
+data "rubrik_objects" "glue_tables" {
+  object_type = "GlueIcebergTable"
+  parent_id   = data.rubrik_object.glue_database.id
+}
+
+output "glue_table_names" {
+  value = data.rubrik_objects.glue_tables.objects[*].name
+}

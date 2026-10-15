@@ -4,6 +4,29 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.12.0
+* Add support for the AWS Glue Iceberg Protection and Amazon S3 Tables Iceberg Protection features,
+  `GLUE_ICEBERG_PROTECTION` and `S3_TABLES_ICEBERG_PROTECTION`, which protect Apache Iceberg tables in the AWS Glue
+  Data Catalog and in S3 table buckets. The features are enabled with the new `glue_iceberg_protection` and
+  `s3_tables_iceberg_protection` blocks in the `rubrik_aws_account` resource, and are accepted by the
+  `rubrik_aws_cnp_account` resource and the `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions` and
+  `rubrik_aws_permission_groups` data sources. Their permission groups are `BASIC` and `RECOVERY`. Iceberg backups
+  run on Exocompute in the region where the table data is stored. [[docs](../resources/aws_account.md)]
+* Add support for the `GLUE_ICEBERG_TABLE_OBJECT_TYPE` and `S3_TABLES_ICEBERG_TABLE_OBJECT_TYPE` object types in the
+  `rubrik_sla_domain` resource. The two object types can be combined with each other but not with other object
+  types, require exactly one `backup_location`, and do not support the `archival` block, replication or
+  `minute_schedule`. The new `iceberg_config` block selects which Iceberg snapshot each backup captures: the latest,
+  the newest compacted or the newest tagged snapshot. The selection only applies to AWS Glue Iceberg tables.
+  [[docs](../resources/sla_domain.md)]
+* Add support for the Apache Iceberg object types `GlueIcebergCatalog`, `GlueIcebergDatabase`, `GlueIcebergTable`,
+  `S3TablesIcebergCatalog`, `S3TablesIcebergNamespace` and `S3TablesIcebergTable` in the `rubrik_object` and
+  `rubrik_objects` data sources, so SLA Domains can be assigned to Iceberg tables, databases, namespaces and catalogs
+  with the `rubrik_sla_domain_assignment` resource. The new `parent_id` field scopes a lookup to the objects below an
+  ancestor, and the new `region` field returns the AWS region of an Iceberg object.
+  [[docs](../data-sources/object.md)]
+* Add support for the `GLUE_ICEBERG_TABLE` and `S3_TABLES_ICEBERG_TABLE` workload types in the `workload` field of the
+  `rubrik_sla_domain_assignment` resource. [[docs](../resources/sla_domain_assignment.md)]
+
 ## v1.11.0
 * Add support for the Cloud Applications feature, `CLOUD_NATIVE_CONFIG_PROTECTION`, which protects the AWS
   configuration surrounding an application, such as VPC and networking, IAM, KMS and load balancers. The feature is

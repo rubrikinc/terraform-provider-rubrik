@@ -779,3 +779,96 @@ func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
 		}},
 	})
 }
+
+// TestAccAwsCnpAccountResource_Iceberg onboards each Apache Iceberg feature with
+// both of its permission groups, and checks that the permission groups read back
+// exactly as written, so a second plan is empty. Each feature requires its own
+// feature flag to be enabled for the RSC account.
+func TestAccAwsCnpAccountResource_Iceberg(t *testing.T) {
+	tests := []struct {
+		feature string
+		flag    core.FeatureFlagName
+	}{{
+		feature: "GLUE_ICEBERG_PROTECTION",
+		flag:    "REL_ENABLE_GLUE_ICEBERG_PROTECTION",
+	}, {
+		feature: "S3_TABLES_ICEBERG_PROTECTION",
+		flag:    "REL_ENABLE_S3_TABLES_ICEBERG_PROTECTION",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.feature, func(t *testing.T) {
+			skipUnlessFeatureEnabled(t, tt.flag)
+
+			vars := config.Variables{
+				"credentials":    config.StringVariable(testCredentials(t)),
+				"account_name":   config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+				"feature":        config.StringVariable(tt.feature),
+			}
+			accountConfig := `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				variable "feature" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-1"]
+
+					feature {
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name              = var.feature
+						permission_groups = ["BASIC", "RECOVERY"]
+					}
+				}
+			`
+
+			resource.Test(t, resource.TestCase{
+				ProtoV6ProviderFactories: protoV6ProviderFactories,
+				CheckDestroy:             awsCnpAccountCheckDestroy(t),
+				Steps: []resource.TestStep{{
+					Config:          accountConfig,
+					ConfigVariables: vars,
+					ConfigStateChecks: []statecheck.StateCheck{
+						statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+							tfjsonpath.New(keyID), NonNullUUID()),
+						statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+							tfjsonpath.New(keyFeature),
+							knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.ObjectExact(map[string]knownvalue.Check{
+									keyName: knownvalue.StringExact("CLOUD_DISCOVERY"),
+									keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+										knownvalue.StringExact("BASIC"),
+									}),
+								}),
+								knownvalue.ObjectExact(map[string]knownvalue.Check{
+									keyName: knownvalue.StringExact(tt.feature),
+									keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+										knownvalue.StringExact("BASIC"),
+										knownvalue.StringExact("RECOVERY"),
+									}),
+								}),
+							})),
+					},
+				}, {
+					Config:          accountConfig,
+					ConfigVariables: vars,
+					ConfigPlanChecks: resource.ConfigPlanChecks{
+						PreApply: []plancheck.PlanCheck{
+							plancheck.ExpectEmptyPlan(),
+						},
+					},
+				}},
+			})
+		})
+	}
+}

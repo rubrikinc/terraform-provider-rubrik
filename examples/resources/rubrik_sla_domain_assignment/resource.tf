@@ -54,3 +54,20 @@ resource "rubrik_sla_domain_assignment" "unprotected" {
     rubrik_tag_rule.dev_instances.id,
   ]
 }
+
+# Protect every Apache Iceberg table in an AWS Glue database. An SLA Domain
+# assigned to a database is inherited by the tables in it, including tables
+# created later.
+data "rubrik_sla_domain" "iceberg" {
+  name = "glue-iceberg"
+}
+
+data "rubrik_object" "glue_database" {
+  name        = "sales"
+  object_type = "GlueIcebergDatabase"
+}
+
+resource "rubrik_sla_domain_assignment" "glue_database" {
+  sla_domain_id = data.rubrik_sla_domain.iceberg.id
+  object_ids    = [data.rubrik_object.glue_database.id]
+}
