@@ -495,6 +495,28 @@ func (r *azureRCVArchivalLocationResource) Read(ctx context.Context, req resourc
 
 	updateAzureRCVArchivalLocationModel(&state, &targetMapping)
 
+	// RSC only lists the groups encrypted with a key from a key manager. A group
+	// which isn't listed has no such key, and the key_vault_key block is left as
+	// it is.
+	details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, id)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		res.Diagnostics.AddError("Failed to read RCV Azure archival location encryption details", err.Error())
+		return
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
+		keyVaultKey := []azureRCVKeyVaultKeyModel{{
+			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+			KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
+			KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
+		}}
+		list, diags := types.ListValueFrom(ctx, azureRCVKeyVaultKeyType, keyVaultKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		state.KeyVaultKey = list
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -674,10 +696,10 @@ func toAzureRCVRSAKey(ctx context.Context, list types.List) (secret.String, diag
 }
 
 // newAzureRCVArchivalLocationModel builds a complete model from a target
-// mapping. The RSA key and the Key Vault key are null, the RSC API does not
-// return them, as is update_child_vaults, which only exists for updates. The
-// timeouts are the correctly typed null value, derived from the resource
-// schema.
+// mapping. The RSA key is null, the RSC API does not return it. The Key Vault
+// key is null, the list resource sets it from the encryption details. So is
+// update_child_vaults, which only exists for updates. The timeouts are the
+// correctly typed null value, derived from the resource schema.
 func newAzureRCVArchivalLocationModel(targetMapping gqlarchival.RCVAzureTargetMapping, nullTimeouts timeouts.Value) azureRCVArchivalLocationModel {
 	m := azureRCVArchivalLocationModel{
 		ID:                types.StringValue(targetMapping.ID.String()),

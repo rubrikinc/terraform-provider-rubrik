@@ -365,6 +365,27 @@ func (r *gcpRCVArchivalLocationResource) Read(ctx context.Context, req resource.
 
 	updateGCPRCVArchivalLocationModel(&state, &targetMapping)
 
+	// RSC only lists the groups encrypted with a key from a key manager. A group
+	// which isn't listed has no such key, and the kms_key block is left as it is.
+	details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, id)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		res.Diagnostics.AddError("Failed to read RCV GCP archival location encryption details", err.Error())
+		return
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.GCPKMSKey != nil {
+		kmsKey := []gcpRCVKMSKeyModel{{
+			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+			KeyName:      types.StringValue(details.KMSKey.Key.GCPKMSKey.KeyName),
+			KeyVersion:   types.StringValue(details.KMSKey.Key.GCPKMSKey.KeyVersion),
+		}}
+		list, diags := types.ListValueFrom(ctx, gcpRCVKMSKeyType, kmsKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		state.KMSKey = list
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -518,8 +539,9 @@ func toGCPRCVKMSKey(ctx context.Context, list types.List) (*gqlarchival.GCPKMSKe
 }
 
 // newGCPRCVArchivalLocationModel builds a complete model from a target mapping.
-// The Cloud KMS key is null, the RSC API does not return it. The timeouts are
-// the correctly typed null value, derived from the resource schema.
+// The Cloud KMS key is null, the list resource sets it from the encryption
+// details. The timeouts are the correctly typed null value, derived from the
+// resource schema.
 func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMapping, nullTimeouts timeouts.Value) gcpRCVArchivalLocationModel {
 	m := gcpRCVArchivalLocationModel{
 		ID:       types.StringValue(targetMapping.ID.String()),

@@ -466,6 +466,26 @@ func (r *awsRCVArchivalLocationResource) Read(ctx context.Context, req resource.
 
 	updateAWSRCVArchivalLocationModel(&state, &targetMapping)
 
+	// RSC only lists the groups encrypted with a key from a key manager. A group
+	// which isn't listed has no such key, and the kms_key block is left as it is.
+	details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, id)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		res.Diagnostics.AddError("Failed to read RCV AWS archival location encryption details", err.Error())
+		return
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AWSKMSKey != nil {
+		kmsKey := []awsRCVKMSKeyModel{{
+			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+			KeyID:        types.StringValue(details.KMSKey.Key.AWSKMSKey.KeyID),
+		}}
+		list, diags := types.ListValueFrom(ctx, awsRCVKMSKeyType, kmsKey)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		state.KMSKey = list
+	}
+
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -638,8 +658,9 @@ func toAWSRCVCustomerProvidedKey(ctx context.Context, list types.List) (secret.S
 }
 
 // newAWSRCVArchivalLocationModel builds a complete model from a target mapping.
-// The KMS key is null, the RSC API does not return it. The timeouts are the
-// correctly typed null value, derived from the resource schema.
+// The KMS key is null, the list resource sets it from the encryption details.
+// The timeouts are the correctly typed null value, derived from the resource
+// schema.
 func newAWSRCVArchivalLocationModel(targetMapping gqlarchival.RCVAWSTargetMapping, nullTimeouts timeouts.Value) awsRCVArchivalLocationModel {
 	m := awsRCVArchivalLocationModel{
 		ID:                  types.StringValue(targetMapping.ID.String()),

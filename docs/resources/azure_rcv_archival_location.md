@@ -127,6 +127,7 @@ resource "rubrik_azure_rcv_archival_location" "rsa_key_archive" {
 - `rsa_key` (Block List) RSA key used for client-side encryption of the archived data. Conflicts with `key_vault_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--rsa_key))
 - `source_workload_cloud` (String) Cloud the archived workloads originate from, letting an Azure hosted vault archive AWS or GCP workloads. Possible values are `SOURCE_AWS`, `SOURCE_AZURE` and `SOURCE_GCP`. When left out, RSC derives it from the destination cloud. Changing this forces a new resource to be created.
 - `tier` (String) Storage tier. Possible values are `ARCHIVE`, `BACKUP` and `RECOVERY`.
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 - `update_child_vaults` (Boolean) Propagate updates to the child vaults of the archival location. Only used when updating an existing archival location.
 
 ### Read-Only

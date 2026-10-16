@@ -119,6 +119,7 @@ resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
 - `redundancy` (String) Storage redundancy. Possible values are `SINGLE_ZONE`, `MULTI_ZONE` and `MULTI_REGION`. Changing this forces a new resource to be created, the RSC API does not support updating it.
 - `region` (String) AWS region hosting the vault, e.g. `us-east-1`. When left out, the archival location follows the region of the workload being archived. Changing this forces a new resource to be created.
 - `tier` (String) Storage tier. Possible values are `ARCHIVE`, `BACKUP` and `RECOVERY`.
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 
 ### Read-Only
 

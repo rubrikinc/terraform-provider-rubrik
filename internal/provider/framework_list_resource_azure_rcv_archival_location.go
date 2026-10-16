@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
+	gqlarchival "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/archival"
 )
 
 const listResourceAzureRCVArchivalLocationDescription = `
@@ -116,6 +117,19 @@ func (r *azureRCVArchivalLocationListResource) List(ctx context.Context, req lis
 		return
 	}
 
+	// The encryption key of an archival location isn't part of the target
+	// mapping, it is listed with the encryption details of the archival groups.
+	// RSC only lists the groups encrypted with a key from a key manager.
+	var encryptionDetails []gqlarchival.ArchivalGroupEncryptionDetails
+	if req.IncludeResource {
+		encryptionDetails, err = archival.Wrap(polarisClient).ArchivalGroupEncryptionDetails(ctx, "")
+		if err != nil {
+			diags.AddError("Failed to list RCV Azure archival location encryption details", err.Error())
+			stream.Results = list.ListResultsStreamDiagnostics(diags)
+			return
+		}
+	}
+
 	// The resource model carries a timeouts.Value whose zero value is a null
 	// object with no attribute types. Setting it against the resource schema
 	// would fail type conversion, so derive a correctly-typed null from the
@@ -147,6 +161,21 @@ func (r *azureRCVArchivalLocationListResource) List(ctx context.Context, req lis
 
 			if req.IncludeResource {
 				model := newAzureRCVArchivalLocationModel(targetMapping, nullTimeouts)
+				for _, details := range encryptionDetails {
+					if details.ID != targetMapping.ID || details.KMSKey == nil || details.KMSKey.Key == nil ||
+						details.KMSKey.Key.AzureKey == nil {
+						continue
+					}
+
+					key := []azureRCVKeyVaultKeyModel{{
+						KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+						KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
+						KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
+					}}
+					keyList, keyDiags := types.ListValueFrom(ctx, azureRCVKeyVaultKeyType, key)
+					result.Diagnostics.Append(keyDiags...)
+					model.KeyVaultKey = keyList
+				}
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {
 					push(result)
