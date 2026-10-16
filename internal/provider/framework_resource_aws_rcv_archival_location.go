@@ -398,6 +398,14 @@ func (r *awsRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 		return
 	}
 
+	// The archival location exists in RSC from here on. Saving its ID before
+	// reading it back makes Terraform keep track of it if the read fails.
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), id.String())...)
+	res.Diagnostics.Append(res.Identity.SetAttribute(ctx, path.Root(keyID), id.String())...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
 	targetMapping, err := archival.Wrap(polarisClient).RCVAWSTargetMappingByID(ctx, id)
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read RCV AWS archival location", err.Error())
