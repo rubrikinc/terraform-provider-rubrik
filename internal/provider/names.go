@@ -282,6 +282,8 @@ const (
 	keyKMSAlias                                     = "kms_alias"
 	keyKMSEndpoint                                  = "kms_endpoint"
 	keyKMSKey                                       = "kms_key"
+	keyKMSRegionEndpoint                            = "kms_region_endpoint"
+	keySTSRegionEndpoint                            = "sts_region_endpoint"
 	keyKMSMasterKey                                 = "kms_master_key"
 	keyKubernetesProtection                         = "kubernetes_protection"
 	keyLastUpgradeDuration                          = "last_upgrade_duration"
