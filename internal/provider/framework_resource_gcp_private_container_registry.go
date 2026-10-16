@@ -78,10 +78,13 @@ requirements:
 
 The token is verified by RSC and then discarded, it is never stored by RSC or in
 the Terraform state. The token must be fresh every time the resource is created or
-updated. The ´google_service_account_id_token´ data source of the Google provider
-can be used to create the token, see the example below. For manual use, the
-´gcloud auth print-identity-token´ command can be used with the ´--audiences´ and
-´--include-email´ flags.
+updated. The ´google_service_account_id_token´ ephemeral resource of the Google
+provider can be used to create the token, see the example below. Ephemeral values
+are never stored in the plan or the Terraform state and are created again on every
+run, which keeps the token fresh. Set ´include_email´ to ´true´ when the ephemeral
+resource impersonates a service account, otherwise Google leaves out the ´email´
+claim. For manual use, the ´gcloud auth print-identity-token´ command can be used
+with the ´--audiences´ and ´--include-email´ flags.
 
 ~> **Warning:** Destroying the resource requires the PCR feature for GCP to remain
    enabled for the RSC account. If the feature is disabled, RSC rejects the
