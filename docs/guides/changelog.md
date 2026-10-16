@@ -4,6 +4,11 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.12.0
+* New resource added for `rubrik_gcp_private_container_registry` which registers a customer-owned Google Artifact
+  Registry as the private container registry for GCP Exocompute. The service account ownership token is write-only
+  and requires Terraform v1.11.0 or later. [[docs](../resources/gcp_private_container_registry.md)]
+
 ## v1.11.0
 * Add support for the Cloud Applications feature, `CLOUD_NATIVE_CONFIG_PROTECTION`, which protects the AWS
   configuration surrounding an application, such as VPC and networking, IAM, KMS and load balancers. The feature is
