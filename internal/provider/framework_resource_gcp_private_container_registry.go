@@ -59,6 +59,10 @@ customer owned Google Artifact Registry repository.
     field is a write-only field.
   * The private container registry feature for GCP must be enabled for the RSC
     account.
+  * The registry must be a Google Artifact Registry repository in the GCP project
+    running Exocompute. A registry hosted elsewhere can be mirrored into Artifact
+    Registry using a remote repository. RSC does not verify this when the registry
+    is registered.
   * The service account RSC uses for the GCP project, either the one in the
     ´credentials´ of the ´rubrik_gcp_project´ resource or the account-wide one
     managed by the ´rubrik_gcp_service_account´ resource, must have the
@@ -116,8 +120,9 @@ Registry:
      ´gcloud auth activate-service-account´.
   2. Configure Docker to authenticate to the registry host of ´repoUrl´, e.g.
      ´gcloud auth configure-docker us-docker.pkg.dev´.
-  3. Pull each image listed in ´bundleImages´ using
-     ´docker pull <repoUrl>/<name>:<tag>´.
+  3. Pull each image listed in ´bundleImages´. An image with a ´sha´ is pulled by
+     digest using ´docker pull <repoUrl>/<name>@sha256:<sha>´, and an image with a
+     ´tag´ using ´docker pull <repoUrl>/<name>:<tag>´.
   4. Tag each image with ´<url>/<name>:<bundleVersion>´, where ´url´ is the value
      of the ´url´ field of this resource, and push it.
 
