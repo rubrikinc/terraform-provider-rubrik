@@ -220,6 +220,12 @@ type testGCPProject struct {
 		SubnetName string `json:"subnetName"`
 		VPCName    string `json:"vpcNetworkName"`
 	} `json:"exocompute"`
+
+	// Optional for acceptance tests, if omitted the private container registry
+	// tests are skipped.
+	PCR struct {
+		RegistryURL string `json:"registryUrl"`
+	} `json:"pcr"`
 }
 
 // loadGCPTestConfig loads a GCP test configuration using the default
