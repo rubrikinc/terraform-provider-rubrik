@@ -21,7 +21,6 @@
 package provider
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -30,25 +29,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
-	"google.golang.org/api/idtoken"
 )
-
-// gcpPCRAudience is the audience RSC requires in the service account ownership
-// token.
-const gcpPCRAudience = "https://rubrik.com/exocompute/pcr/gcp"
 
 const gcpPrivateContainerRegistryTmpl = `
 provider "rubrik" {
 	credentials = "{{ .Provider.Credentials }}"
 }
 
-variable "service_account_email" {
-	type = string
+provider "google" {
+	credentials = "{{ .Resource.Credentials }}"
 }
 
-variable "service_account_ownership_token" {
-	type      = string
-	sensitive = true
+variable "service_account_email" {
+	type = string
 }
 
 variable "url" {
@@ -77,18 +70,25 @@ resource "rubrik_gcp_project" "default" {
 	}
 }
 
+# Google OIDC identity token proving ownership of the service account. Ephemeral
+# values are never stored in the plan or the state and are created on every run,
+# so the token is always fresh. The audience must match the one RSC verifies.
+ephemeral "google_service_account_id_token" "pcr" {
+	target_audience = "https://rubrik.com/exocompute/pcr/gcp"
+}
+
 resource "rubrik_gcp_private_container_registry" "default" {
 	cloud_account_id                = rubrik_gcp_project.default.id
 	service_account_email           = var.service_account_email
-	service_account_ownership_token = var.service_account_ownership_token
+	service_account_ownership_token = ephemeral.google_service_account_id_token.pcr.id_token
 	url                             = var.url
 }
 `
 
-// gcpPCRToken returns the email of the service account in the GCP credentials
-// file and a Google OIDC identity token for the service account, with the
-// audience RSC requires.
-func gcpPCRToken(t *testing.T) (email, token string) {
+// gcpPCRServiceAccountEmail returns the email of the service account in the GCP
+// credentials file. It is the service account registered with RSC, and the one
+// the Google provider mints the ownership token for.
+func gcpPCRServiceAccountEmail(t *testing.T) string {
 	t.Helper()
 
 	credentialsFile := os.Getenv(gcpCredentialsEnv)
@@ -110,17 +110,7 @@ func gcpPCRToken(t *testing.T) (email, token string) {
 		t.Fatal("GCP credentials file is not a service account key")
 	}
 
-	source, err := idtoken.NewTokenSource(context.Background(), gcpPCRAudience,
-		idtoken.WithCredentialsFile(credentialsFile))
-	if err != nil {
-		t.Fatalf("failed to create GCP identity token source: %v", err)
-	}
-	tok, err := source.Token()
-	if err != nil {
-		t.Fatalf("failed to create GCP identity token: %v", err)
-	}
-
-	return key.ClientEmail, tok.AccessToken
+	return key.ClientEmail
 }
 
 // TestAccGcpPrivateContainerRegistryResource_basic verifies that a GCP private
@@ -149,18 +139,22 @@ func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
 	url := project.PCR.RegistryURL
 	updatedURL := url + "-updated"
 
-	email, token := gcpPCRToken(t)
+	email := gcpPCRServiceAccountEmail(t)
 	variables := func(url string) config.Variables {
 		return config.Variables{
-			"service_account_email":           config.StringVariable(email),
-			"service_account_ownership_token": config.StringVariable(token),
-			"url":                             config.StringVariable(url),
+			"service_account_email": config.StringVariable(email),
+			"url":                   config.StringVariable(url),
 		}
 	}
 
 	const name = "rubrik_gcp_private_container_registry.default"
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		// The ownership token is created by an ephemeral resource of the Google
+		// provider, which is downloaded when the test runs.
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"google": {Source: "hashicorp/google"},
+		},
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			// The service account ownership token is a write-only attribute.
 			tfversion.SkipBelow(tfversion.Version1_11_0),

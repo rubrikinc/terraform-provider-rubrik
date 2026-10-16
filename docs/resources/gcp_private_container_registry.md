@@ -31,10 +31,13 @@ description: |-
   The audience must be https://rubrik.com/exocompute/pcr/gcp.The email claim must be present and equal to service_account_email.The token must be less than one hour old.
   The token is verified by RSC and then discarded, it is never stored by RSC or in
   the Terraform state. The token must be fresh every time the resource is created or
-  updated. The google_service_account_id_token data source of the Google provider
-  can be used to create the token, see the example below. For manual use, the
-  gcloud auth print-identity-token command can be used with the --audiences and
-  --include-email flags.
+  updated. The google_service_account_id_token ephemeral resource of the Google
+  provider can be used to create the token, see the example below. Ephemeral values
+  are never stored in the plan or the Terraform state and are created again on every
+  run, which keeps the token fresh. Set include_email to true when the ephemeral
+  resource impersonates a service account, otherwise Google leaves out the email
+  claim. For manual use, the gcloud auth print-identity-token command can be used
+  with the --audiences and --include-email flags.
   ~> Warning: Destroying the resource requires the PCR feature for GCP to remain
   enabled for the RSC account. If the feature is disabled, RSC rejects the
   request to remove the registry and the destroy fails.
@@ -124,10 +127,13 @@ requirements:
 
 The token is verified by RSC and then discarded, it is never stored by RSC or in
 the Terraform state. The token must be fresh every time the resource is created or
-updated. The `google_service_account_id_token` data source of the Google provider
-can be used to create the token, see the example below. For manual use, the
-`gcloud auth print-identity-token` command can be used with the `--audiences` and
-`--include-email` flags.
+updated. The `google_service_account_id_token` ephemeral resource of the Google
+provider can be used to create the token, see the example below. Ephemeral values
+are never stored in the plan or the Terraform state and are created again on every
+run, which keeps the token fresh. Set `include_email` to `true` when the ephemeral
+resource impersonates a service account, otherwise Google leaves out the `email`
+claim. For manual use, the `gcloud auth print-identity-token` command can be used
+with the `--audiences` and `--include-email` flags.
 
 ~> **Warning:** Destroying the resource requires the PCR feature for GCP to remain
    enabled for the RSC account. If the feature is disabled, RSC rejects the
@@ -190,7 +196,7 @@ data "rubrik_gcp_project" "project" {
   name = "my-project"
 }
 
-data "google_service_account_id_token" "pcr" {
+ephemeral "google_service_account_id_token" "pcr" {
   target_service_account = "exocompute-pull@my-project.iam.gserviceaccount.com"
   target_audience        = "https://rubrik.com/exocompute/pcr/gcp"
   include_email          = true
@@ -199,7 +205,7 @@ data "google_service_account_id_token" "pcr" {
 resource "rubrik_gcp_private_container_registry" "registry" {
   cloud_account_id                = data.rubrik_gcp_project.project.id
   service_account_email           = "exocompute-pull@my-project.iam.gserviceaccount.com"
-  service_account_ownership_token = data.google_service_account_id_token.pcr.id_token
+  service_account_ownership_token = ephemeral.google_service_account_id_token.pcr.id_token
   url                             = "us-docker.pkg.dev/my-project/rubrik-exocompute"
 }
 ```
