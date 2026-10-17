@@ -1,41 +1,30 @@
-# Description
+## What changed
 
-Please describe your pull request in detail.
+<!-- Bullet list of the specific resources, data sources, list resources, attributes, or schema versions added, modified, or removed -->
 
-## Related Issue
+-
 
-This project only accepts pull requests related to open issues.
+## Why
 
-* If suggesting a new feature or change, please discuss it in an issue first.
-* If fixing a bug, there should be an issue describing it with steps to reproduce
+<!-- 1-2 sentences: what was missing, what broke, or what the user needs -->
 
-_Please link to the issue here_
+## Testing
 
-## Motivation and Context
+<!-- Name the unit and acceptance tests added or updated and what each guards. State which RSC deployment the acceptance tests ran against. -->
 
-Why is this change required? What problem does it solve?
+- [ ] Unit tests added/updated
+- [ ] Acceptance tests added/updated and run (`TF_ACC=1`) against a live RSC deployment
+- [ ] New resources cover create, update, and all three import kinds (`ImportCommandWithID`, `ImportBlockWithID`, `ImportBlockWithResourceIdentity`) <!-- remove if no new resource -->
+- [ ] `go vet`, `staticcheck`, and `gofmt` pass
+- [ ] `go generate ./...` produces no diff
+- [ ] `go test ./...` passes
 
-## How Has This Been Tested?
+## Docs and changelog
 
-* Please describe in detail how you tested your changes.
-* Include details of your testing environment, and the tests you ran to see how your change affects other areas of the code, etc.
+- [ ] Examples added/updated under `examples/` <!-- remove if not applicable -->
+- [ ] Changelog entry added to `templates/guides/changelog.md.tmpl`
+- [ ] Upgrade guide added/updated <!-- remove if not applicable -->
 
-## Screenshots (if appropriate):
+## Notes for review
 
-## Types of changes
-
-What types of changes does your code introduce? Put an `x` in all the boxes that apply:
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] Other (please describe in the Description above)
-
-## Checklist:
-
-Go over all the following points, and put an `x` in all the boxes that apply. If you're unsure about any of these, don't hesitate to ask. We're here to help!
-- [ ] My code follows the code style of this project.
-- [ ] My change requires a change to the documentation.
-- [ ] I have updated the documentation accordingly.
-- [ ] I have updated the CHANGELOG file accordingly for the version that this merge modifies.
-- [ ] I have added tests to cover my changes.
-- [ ] All new and existing tests passed.
+<!-- Breaking changes, state upgrades or moves, SDK version (a pseudo-version during development), known gaps — delete section if none -->
