@@ -10,6 +10,10 @@ page_title: "Changelog"
   deprecation warning and do not need to be removed from the configuration. [[docs](../resources/aws_exocompute.md)]
 
 ## v1.11.0
+* Fix a bug in `rubrik_azure_private_container_registry` where updating the resource sent the RSC cloud account ID as
+  the Azure app ID, and where the resource was read back as an AWS registry after creation.
+* Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry
+  removed outside of Terraform was not detected, leaving the resource in state with empty values.
 * Add support for the Cloud Applications feature, `CLOUD_NATIVE_CONFIG_PROTECTION`, which protects the AWS
   configuration surrounding an application, such as VPC and networking, IAM, KMS and load balancers. The feature is
   enabled with the new `cloud_native_config_protection` block in the `rubrik_aws_account` resource, and is accepted
