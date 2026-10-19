@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -52,6 +53,7 @@ func resourceGcpProject() *schema.Resource {
 		ReadContext:   gcpReadProject,
 		UpdateContext: gcpUpdateProject,
 		DeleteContext: gcpDeleteProject,
+		CustomizeDiff: gcpCustomizeDiffProject,
 
 		Description: description(resourceGCPProjectDescription),
 		Schema: map[string]*schema.Schema{
@@ -359,6 +361,50 @@ func gcpDeleteProject(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	return nil
 }
 
+// gcpCustomizeDiffProject validates changes to the GCP project resource.
+func gcpCustomizeDiffProject(ctx context.Context, diff *schema.ResourceDiff, m any) error {
+	tflog.Trace(ctx, "gcpCustomizeDiffProject")
+
+	// Prevent removal of CLOUD_DISCOVERY while protection features are
+	// enabled. RSC accepts the removal request and only rejects it later, in
+	// the task chain that disables the feature, so catch it here instead.
+	if diff.Id() != "" && diff.HasChange(keyFeature) {
+		oldBlocks, newBlocks := diff.GetChange(keyFeature)
+		var oldNames, newNames []string
+		for _, block := range oldBlocks.(*schema.Set).List() {
+			oldNames = append(oldNames, block.(map[string]any)[keyName].(string))
+		}
+		for _, block := range newBlocks.(*schema.Set).List() {
+			newNames = append(newNames, block.(map[string]any)[keyName].(string))
+		}
+		if err := gcpCheckCloudDiscoveryRemoval(oldNames, newNames); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// gcpCheckCloudDiscoveryRemoval returns an error if the CLOUD_DISCOVERY feature
+// is being removed from a project while the new set of features still contains
+// a protection feature. Cloud Discovery is the parent of the protection
+// features and must outlive them.
+func gcpCheckCloudDiscoveryRemoval(oldFeatures, newFeatures []string) error {
+	if !slices.Contains(oldFeatures, core.FeatureCloudDiscovery.Name) ||
+		slices.Contains(newFeatures, core.FeatureCloudDiscovery.Name) {
+		return nil
+	}
+
+	for _, name := range newFeatures {
+		if core.ParseFeatureNoValidation(name).IsProtectionFeature() {
+			return fmt.Errorf("feature %s cannot be removed while the protection feature %s is enabled",
+				core.FeatureCloudDiscovery.Name, name)
+		}
+	}
+
+	return nil
+}
+
 func fromCredentials(d *schema.ResourceData) (gcp.ProjectFunc, error) {
 	credentials := d.Get(keyCredentials).(string)
 	projectID := d.Get(keyProject).(string)
@@ -385,11 +431,11 @@ func gcpFeatureResourceWithPermissionsAndStatus() *schema.Resource {
 			keyName: {
 				Type:     schema.TypeString,
 				Required: true,
-				Description: "RSC feature name. Possible values are `CLOUD_NATIVE_ARCHIVAL`, " +
+				Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
 					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, " +
 					"`GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
 				ValidateFunc: validation.StringInSlice([]string{
-					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
+					"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
 					"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
 					"EXOCOMPUTE", "SERVERS_AND_APPS",
 				}, false),
