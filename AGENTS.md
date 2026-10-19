@@ -61,7 +61,8 @@ implements resource identity and import, and gets a list resource when RSC has a
   wrappers, e.g. `access.Wrap(client).SomeMethod(ctx, ...)`
 - Handle `graphql.ErrNotFound` with `errors.Is`: Read removes the resource from state, Delete ignores it
 - In Create, set the ID in state and in the identity right after the remote create succeeds, before the read-back, so a
-  failed read does not orphan the resource
+  failed read does not orphan the resource. A failed read-back is a warning, and unknown computed values are set to null
+  before saving state. The exception is when the read-back returns the ID, as in `sso_group`
 - Use typed regions (`aws.Region`, `azure.Region`, `gcp.Region`) from the SDK, never `string`
 - Use `github.com/google/uuid` for UUIDs. No custom parsing or formatting
 - Mark credentials `Sensitive: true`. Use `WriteOnly: true` for values RSC needs on create or update but never returns

@@ -13,6 +13,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -152,13 +153,18 @@ func (r *<camelName>Resource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Read back only if RSC fills computed attributes that the create call does
-	// not return. Delete this block when the resource has none. A failure here
-	// is safe: the ID and identity are already saved, so Terraform marks the
-	// resource tainted and replaces it on the next apply instead of leaving an
-	// orphan in RSC.
+	// not return. Delete this block, and the fmt import, when the resource has
+	// none, as the skeleton's own attributes do. The object exists in RSC, so a
+	// failed read-back is a warning, not an error: the resource stays in state
+	// and the next refresh fills the attributes. Computed attributes still
+	// unknown at this point must be set to null or a known value, because
+	// unknown values cannot be saved in state.
 	obj, err := <sdkpkg>.Wrap(polarisClient).<Name>ByID(ctx, id)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read <what> after create", err.Error())
+		res.Diagnostics.AddWarning("Failed to read <what> after create",
+			fmt.Sprintf("The <what> was created but could not be read back: %s", err.Error()))
+		plan.<Computed> = types.StringNull()
+		res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 		return
 	}
 	plan.<Computed> = types.StringValue(obj.<Field>)
@@ -297,10 +303,14 @@ func (r *<camelName>Resource) ImportState(ctx context.Context, req resource.Impo
 
 - **Identity:** `Create`, `Read`, and `Update` all set `res.Identity`. The identity attributes are `RequiredForImport`.
 - **Create persists the ID first:** set the ID in state and in the identity right after the remote create succeeds,
-  before any read-back or other follow-up call. If that call fails, the object is already in state, so Terraform marks
-  it tainted and replaces it on the next apply (through `Delete`) instead of leaving an orphan in RSC. When `Create`
-  needs a read-back to fill computed attributes, do it after the identity is set and write the state again once it
-  succeeds.
+  before any read-back or other follow-up call, so a failure in that call does not orphan the object in RSC. This is how
+  `data_security_policy` and `aws_cnp_account` work. When the read-back is how `Create` learns the ID (`sso_group`,
+  where the create call returns none), there is nothing to save first.
+- **Create read-back:** do it after the identity is set and write the state again once it succeeds. If it fails, report
+  a warning (`aws_cnp_account`, `gcp_cloud_cluster`) rather than an error, and set the computed attributes it would have
+  filled to null before saving state. Terraform rejects unknown values in the state returned from `Create`. An error
+  diagnostic is reserved for a failure that must not leave the resource in state. A resource whose create call returns
+  every attribute needs no read-back (`custom_role`).
 - **Import:** `ImportState` is a single pass-through for both import styles. If the ID is not a plain UUID, parse it in
   `ImportState` and document the format in the `id` attribute description. If the resource has no identity-compatible
   form (a composite ID, for instance), say why in a comment and in the PR notes.
