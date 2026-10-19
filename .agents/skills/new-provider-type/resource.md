@@ -147,6 +147,22 @@ func (r *<camelName>Resource) Create(ctx context.Context, req resource.CreateReq
 
 	identity := <camelName>IdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	// Read back only if RSC fills computed attributes that the create call does
+	// not return. Delete this block when the resource has none. A failure here
+	// is safe: the ID and identity are already saved, so Terraform marks the
+	// resource tainted and replaces it on the next apply instead of leaving an
+	// orphan in RSC.
+	obj, err := <sdkpkg>.Wrap(polarisClient).<Name>ByID(ctx, id)
+	if err != nil {
+		res.Diagnostics.AddError("Failed to read <what> after create", err.Error())
+		return
+	}
+	plan.<Computed> = types.StringValue(obj.<Field>)
+	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
 func (r *<camelName>Resource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -281,9 +297,10 @@ func (r *<camelName>Resource) ImportState(ctx context.Context, req resource.Impo
 
 - **Identity:** `Create`, `Read`, and `Update` all set `res.Identity`. The identity attributes are `RequiredForImport`.
 - **Create persists the ID first:** set the ID in state and in the identity right after the remote create succeeds,
-  before any read-back or other follow-up call. If that call fails, the object still exists in RSC and Terraform can
-  track it, so the next apply does not try to create it again. When `Create` needs a read-back to fill computed
-  attributes, do it after the identity is set and write the state again once it succeeds.
+  before any read-back or other follow-up call. If that call fails, the object is already in state, so Terraform marks
+  it tainted and replaces it on the next apply (through `Delete`) instead of leaving an orphan in RSC. When `Create`
+  needs a read-back to fill computed attributes, do it after the identity is set and write the state again once it
+  succeeds.
 - **Import:** `ImportState` is a single pass-through for both import styles. If the ID is not a plain UUID, parse it in
   `ImportState` and document the format in the `id` attribute description. If the resource has no identity-compatible
   form (a composite ID, for instance), say why in a comment and in the PR notes.
