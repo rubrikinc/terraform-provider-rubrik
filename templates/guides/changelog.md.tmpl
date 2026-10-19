@@ -4,6 +4,11 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.11.1
+* Remove the deprecation of `cluster_security_group_id` and `node_security_group_id` in the `rubrik_aws_exocompute`
+  resource. RSC will continue to support security groups passed in by users, so the fields no longer produce a
+  deprecation warning and do not need to be removed from the configuration. [[docs](../resources/aws_exocompute.md)]
+
 ## v1.11.0
 * Add support for the Cloud Applications feature, `CLOUD_NATIVE_CONFIG_PROTECTION`, which protects the AWS
   configuration surrounding an application, such as VPC and networking, IAM, KMS and load balancers. The feature is
