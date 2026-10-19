@@ -304,7 +304,9 @@ Azure also reports the immutability lock period through the computed `lock_durat
 
 By default RCV creates and manages the encryption key for an archival location, and no configuration is needed. Both
 AWS and Azure additionally accept a customer managed key, in two mutually exclusive forms each. The computed
-`encryption_type` attribute, available on all three resources, reports which mode RSC actually applied.
+`encryption_type` attribute, available on all three resources, reports which mode RSC actually applied. For an AWS
+archival location where RCV manages the key, RSC reports `UNKNOWN_ENCRYPTION_TYPE`, while Azure and GCP report
+`SSE_DEFAULT_PMK`.
 
 On AWS, the `kms_key` block selects client-side encryption with an AWS KMS key:
 

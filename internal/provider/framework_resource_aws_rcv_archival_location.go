@@ -212,7 +212,8 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 			},
 			keyEncryptionType: schema.StringAttribute{
 				Computed: true,
-				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
+				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s. "+
+					"`UNKNOWN_ENCRYPTION_TYPE` is reported when RCV creates and manages the encryption key.",
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorAWS))),
 			},
 			keyLocationTemplate: schema.StringAttribute{
