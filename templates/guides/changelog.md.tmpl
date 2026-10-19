@@ -4,6 +4,11 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.11.1
+* Remove the deprecation of `cluster_security_group_id` and `node_security_group_id` in the `rubrik_aws_exocompute`
+  resource. RSC will continue to support security groups passed in by users, so the fields no longer produce a
+  deprecation warning and do not need to be removed from the configuration. [[docs](../resources/aws_exocompute.md)]
+
 ## v1.11.0
 * Fix a bug in `rubrik_azure_private_container_registry` where updating the resource sent the RSC cloud account ID as
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
