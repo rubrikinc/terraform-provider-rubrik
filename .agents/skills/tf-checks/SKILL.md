@@ -10,8 +10,9 @@ Usage: `tf-checks [package]`. The optional `package` is a Go package path to che
 
 ## Ensure Dependencies are Installed
 
-Ensure that the `staticcheck` tool is available. If it is not installed it can be run or installed with
-`go install honnef.co/go/tools/cmd/staticcheck@v0.7.0`.
+Ensure that the `staticcheck` tool is available. If it is not installed, install it with
+`go install honnef.co/go/tools/cmd/staticcheck@<version>`, where `<version>` is the one pinned in the `Jenkinsfile`, so
+the local run matches CI.
 
 ## Run Checks
 

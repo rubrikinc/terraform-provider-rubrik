@@ -7,9 +7,9 @@ on-demand job, running a health check. Practitioners trigger it from a resource'
 or with `terraform apply -invoke=action.rubrik_<name>.<label>`. Actions need Terraform 1.14 or later, so every action
 is optional for users and must never be required for a configuration to work.
 
-**This provider has no actions yet, and `terraform-plugin-testing` v1.14.0 has no action assertions.** Before adding the
-first one, confirm with the user that an action is the right shape (not a resource, and not a data source), and agree how
-it will be tested. See the testing note below.
+**This provider has no actions yet, and the `terraform-plugin-testing` version in `go.mod` has no action assertions.**
+Before adding the first one, confirm with the user that an action is the right shape (not a resource, and not a data
+source), and agree how it will be tested. See the testing note below.
 
 ## One-time provider wiring (first action only)
 
@@ -151,13 +151,14 @@ func (a *<camelName>Action) Invoke(ctx context.Context, req action.InvokeRequest
 - **Optional interfaces:** `ActionWithValidateConfig`, `ActionWithConfigValidators`, and `ActionWithModifyPlan` for
   plan-time checks.
 - **No `Read` or `Delete`, no identity, no import.**
-- **Example:** `examples/actions/rubrik_<name>/action.tf`. tfplugindocs v0.25.0 renders actions to `docs/actions/`. After
+- **Example:** `examples/actions/rubrik_<name>/action.tf`. tfplugindocs renders actions to `docs/actions/`. After
   `go generate ./...`, check that the page was created.
 
 ## Testing
 
-`terraform-plugin-testing` v1.14.0 does not expose action assertions, so an acceptance test cannot assert that an action
-ran. Until the library is upgraded, split the action so the part worth testing needs no Terraform:
+The `terraform-plugin-testing` version in `go.mod` does not expose action assertions, so an acceptance test cannot assert
+that an action ran. Check whether a newer release adds them. Until the library is upgraded, split the action so the
+part worth testing needs no Terraform:
 
 1. Keep `Invoke` thin: read config, get the client, call one function, send progress.
 2. Put the RSC logic (calling the SDK, waiting, mapping errors) in a function that takes an interface for the SDK call

@@ -7,7 +7,7 @@ RSC GraphQL API, through the Go SDK, as Terraform resources, data sources, and l
 
 - **Module:** `github.com/rubrikinc/terraform-provider-rubrik`
 - **Registry address:** `registry.terraform.io/rubrikinc/rubrik`, resource prefix `rubrik_`
-- **Go version:** 1.26+
+- **Go version:** see `go.mod`
 - **SDK:** `github.com/rubrikinc/rubrik-polaris-sdk-for-go`
 - **Main branch:** `main`
 
@@ -60,6 +60,8 @@ implements resource identity and import, and gets a list resource when RSC has a
 - Get the RSC client with `r.client.polaris()` and report failures as `RSC client error`. Call the SDK through its
   wrappers, e.g. `access.Wrap(client).SomeMethod(ctx, ...)`
 - Handle `graphql.ErrNotFound` with `errors.Is`: Read removes the resource from state, Delete ignores it
+- In Create, set the ID in state and in the identity right after the remote create succeeds, before the read-back, so a
+  failed read does not orphan the resource
 - Use typed regions (`aws.Region`, `azure.Region`, `gcp.Region`) from the SDK, never `string`
 - Use `github.com/google/uuid` for UUIDs. No custom parsing or formatting
 - Mark credentials `Sensitive: true`. Use `WriteOnly: true` for values RSC needs on create or update but never returns
@@ -127,7 +129,7 @@ This mirrors CI. The `tf-checks` skill runs all of it.
 1. `go mod tidy` leaves `go.mod` and `go.sum` unchanged
 2. `gofmt -l .` prints nothing
 3. `go vet -tags=cdm ./...`
-4. `staticcheck -tags=cdm ./...` (v0.7.0)
+4. `staticcheck -tags=cdm ./...`, using the version pinned in the `Jenkinsfile`
 5. `go generate ./...` leaves no diff
 6. `go test ./...`
 

@@ -14,16 +14,16 @@
 
 - [ ] Unit tests added/updated
 - [ ] Acceptance tests added/updated and run (`TF_ACC=1`) against a live RSC deployment
-- [ ] New resources cover create, update, and all three import kinds (`ImportCommandWithID`, `ImportBlockWithID`, `ImportBlockWithResourceIdentity`) <!-- remove if no new resource -->
+- [ ] New resources cover create, update, and all three import kinds (`ImportCommandWithID`, `ImportBlockWithID`, `ImportBlockWithResourceIdentity`)
 - [ ] `go vet`, `staticcheck`, and `gofmt` pass
 - [ ] `go generate ./...` produces no diff
 - [ ] `go test ./...` passes
 
 ## Docs and changelog
 
-- [ ] Examples added/updated under `examples/` <!-- remove if not applicable -->
+- [ ] Examples added/updated under `examples/`
 - [ ] Changelog entry added to `templates/guides/changelog.md.tmpl`
-- [ ] Upgrade guide added/updated <!-- remove if not applicable -->
+- [ ] Upgrade guide added/updated
 
 ## Notes for review
 

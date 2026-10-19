@@ -136,6 +136,9 @@ func (r *<camelName>Resource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
+	// Persist the ID and identity as soon as the remote object exists, before
+	// anything else in Create can fail. Otherwise an error after this point
+	// leaves the object in RSC with nothing in state pointing at it.
 	plan.ID = types.StringValue(id.String())
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
@@ -277,6 +280,10 @@ func (r *<camelName>Resource) ImportState(ctx context.Context, req resource.Impo
 ## Rules the skeleton encodes
 
 - **Identity:** `Create`, `Read`, and `Update` all set `res.Identity`. The identity attributes are `RequiredForImport`.
+- **Create persists the ID first:** set the ID in state and in the identity right after the remote create succeeds,
+  before any read-back or other follow-up call. If that call fails, the object still exists in RSC and Terraform can
+  track it, so the next apply does not try to create it again. When `Create` needs a read-back to fill computed
+  attributes, do it after the identity is set and write the state again once it succeeds.
 - **Import:** `ImportState` is a single pass-through for both import styles. If the ID is not a plain UUID, parse it in
   `ImportState` and document the format in the `id` attribute description. If the resource has no identity-compatible
   form (a composite ID, for instance), say why in a comment and in the PR notes.
