@@ -217,6 +217,15 @@ const gcpPermissionGroupsSnippet = `
 Following is a list of features and their applicable permission groups. These
 are used when specifying the feature.
 
+´CLOUD_DISCOVERY´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
+
+-> **Note:** ´CLOUD_DISCOVERY´ is the read-only parent of the protection
+   features. RSC refuses to remove it from a project while a protection feature
+   is enabled on the project, so it must be removed last. The provider enforces
+   this when planning a change to the ´feature´ blocks of a project.
+
 ´CLOUD_NATIVE_ARCHIVAL´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
