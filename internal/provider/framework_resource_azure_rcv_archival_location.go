@@ -325,9 +325,11 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 							Required:  true,
 							Sensitive: true,
 							WriteOnly: true,
-							Description: "RSA key. Write-only, so it never reaches Terraform state. RSC " +
-								"only accepts the key when the archival location is created, change " +
-								"`version` to replace the archival location with one using a new key.",
+							Description: "RSA private key. Must be an unencrypted PEM-encoded key, in either PKCS#1 " +
+								"or PKCS#8 form, with a size of 2048, 3072 or 4096 bits. DER and base64 encoded " +
+								"keys are not accepted. Write-only, so it never reaches Terraform state. RSC only " +
+								"accepts the key when the archival location is created, change `version` to " +
+								"replace the archival location with one using a new key.",
 							Validators: []validator.String{
 								isNotWhiteSpace(),
 							},
