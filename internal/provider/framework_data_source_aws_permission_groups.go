@@ -190,6 +190,7 @@ func (d *awsPermissionGroupsDataSource) Read(ctx context.Context, req datasource
 	// for the feature, so the result passes their validation. Note, the SDK
 	// will provide this mapping in a future version.
 	supportedGroups := map[string][]core.PermissionGroup{
+		core.FeatureCloudCostReport.Name:     {core.PermissionGroupBasic},
 		core.FeatureCloudDiscovery.Name:      {core.PermissionGroupBasic},
 		core.FeatureCloudNativeArchival.Name: {core.PermissionGroupBasic},
 		core.FeatureCloudNativeConfigProtection.Name: {

@@ -108,3 +108,30 @@ func TestAccAwsPermissionGroupsDataSource(t *testing.T) {
 		}},
 	})
 }
+
+// TestAccAwsPermissionGroupsDataSource_CloudCostReport verifies that the
+// CLOUD_COST_REPORT feature exposes its BASIC permission group, the only one
+// the provider accepts for the feature.
+func TestAccAwsPermissionGroupsDataSource_CloudCostReport(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "rubrik_aws_permission_groups" "ccr" {
+					feature = "CLOUD_COST_REPORT"
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.rubrik_aws_permission_groups.ccr", tfjsonpath.New(keyFeature),
+					knownvalue.StringExact("CLOUD_COST_REPORT")),
+				statecheck.ExpectKnownValue("data.rubrik_aws_permission_groups.ccr", tfjsonpath.New(keyPermissionGroups),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyName:    knownvalue.StringExact("BASIC"),
+							keyVersion: knownvalue.NotNull(),
+						}),
+					})),
+			},
+		}},
+	})
+}

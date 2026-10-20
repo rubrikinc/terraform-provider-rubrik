@@ -15,6 +15,9 @@ description: |-
   Permission Groups
   Following is a list of features and their applicable permission groups. These
   are used when specifying the feature set.
+  CLOUD_COST_REPORT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   CLOUD_DISCOVERY
   BASIC - Represents the basic set of permissions required to onboard the
   feature.
@@ -91,6 +94,10 @@ resources.
 ## Permission Groups
 Following is a list of features and their applicable permission groups. These
 are used when specifying the feature set.
+
+`CLOUD_COST_REPORT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_DISCOVERY`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -236,7 +243,7 @@ data "rubrik_aws_cnp_permissions" "permissions" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `name` (String) RSC feature name. Possible values are `CLOUD_COST_REPORT`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
 - `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 

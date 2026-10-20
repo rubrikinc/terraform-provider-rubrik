@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
@@ -61,6 +62,17 @@ The ´CLOUD_DISCOVERY´ feature enables RSC to discover resources in the AWS
 account without enabling protection. It is currently optional but will become
 required when onboarding protection features. Once onboarded, it cannot be
 removed unless all protection features are removed first.
+
+The ´CLOUD_COST_REPORT´ feature grants RSC the permissions to read the AWS Cost
+and Usage Report of the account, from which the RSC Cloud Cost Report is built.
+RSC enables the feature on its own for any account with a feature which accrues
+AWS spend, so the resource tracks it only when it is declared, and leaves an
+undeclared cost report to RSC. Declare the feature to look up its permissions
+with the ´rubrik_aws_cnp_permissions´ data source and to grant them with the
+´rubrik_aws_cnp_account_attachments´ resource. Once declared, it cannot be
+removed unless all features which accrue AWS spend are removed first. The
+feature is not imported along with the account, and it requires cost reporting
+to be enabled for the RSC account.
 
 -> **Note:** The ´feature´ block is shown as Optional in the schema below for
    technical reasons, but at least one ´feature´ block must be specified. The
@@ -235,8 +247,8 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Required: true,
-							Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, " +
-								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
+							Description: "RSC feature name. Possible values are `CLOUD_COST_REPORT`, " +
+								"`CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
 								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
 								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
 								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
@@ -424,17 +436,17 @@ func (r *awsCnpAccountResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	// RSC enables some features on its own: CLOUD_COST_REPORT is added to any
-	// account carrying a workload feature which accrues AWS spend, regardless of
-	// the feature set passed when onboarding. Such a feature cannot be declared
-	// in the feature block, so tracking it would show up as a diff removing it.
-	// The diff applies, but it silently disables cost reporting for the account,
-	// and it returns the next time the features are onboarded, as RSC adds cost
-	// reporting again. Only the features which can be declared are tracked,
-	// which also keeps import from writing an undeclarable feature into state.
-	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-		return !slices.Contains(awsCnpFeatureNames, feature.Name)
-	})
+	// The feature set is null on import, when nothing has been declared yet.
+	var stateFeatures []core.Feature
+	if !state.Feature.IsNull() {
+		var diags diag.Diagnostics
+		stateFeatures, diags = awsToFeatures(ctx, state.Feature)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+	}
+	accountFeatures := awsCnpTrackedFeatures(account.Features, stateFeatures)
 
 	features := make([]core.Feature, 0, len(accountFeatures))
 	for _, feature := range accountFeatures {
@@ -587,10 +599,7 @@ func (r *awsCnpAccountResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	// Drop the features RSC enabled on its own, see the comment in Read.
-	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-		return !slices.Contains(awsCnpFeatureNames, feature.Name)
-	})
+	accountFeatures := awsCnpTrackedFeatures(account.Features, planFeatures)
 
 	currentFeatures := make([]core.Feature, 0, len(accountFeatures))
 	for _, feature := range accountFeatures {
@@ -777,6 +786,36 @@ func (r *awsCnpAccountResource) ModifyPlan(ctx context.Context, req resource.Mod
 			}
 		}
 	}
+
+	// Prevent removing CLOUD_COST_REPORT while features which accrue AWS spend
+	// are still enabled. RSC keeps cost reporting enabled for as long as any of
+	// them is enabled: it refuses to disable it, and it adds it back when one of
+	// them is onboarded again. The features are the ones RSC gates the disable
+	// on, limited to those which can be declared here.
+	hasCostReport := func(features []core.Feature) bool {
+		return slices.ContainsFunc(features, func(f core.Feature) bool {
+			return f.Equal(core.FeatureCloudCostReport)
+		})
+	}
+	if hasCostReport(stateFeatures) && !hasCostReport(planFeatures) {
+		billableFeatures := []core.Feature{
+			core.FeatureCloudNativeArchival,
+			core.FeatureCloudNativeDynamoDBProtection,
+			core.FeatureCloudNativeProtection,
+			core.FeatureCloudNativeS3Protection,
+			core.FeatureExocompute,
+			core.FeatureRDSProtection,
+		}
+		if slices.ContainsFunc(planFeatures, func(f core.Feature) bool {
+			return slices.ContainsFunc(billableFeatures, f.Equal)
+		}) {
+			res.Diagnostics.AddAttributeError(path.Root(keyFeature),
+				"CLOUD_COST_REPORT cannot be removed while features which accrue AWS spend are enabled",
+				"Remove the CLOUD_NATIVE_ARCHIVAL, CLOUD_NATIVE_DYNAMODB_PROTECTION, CLOUD_NATIVE_PROTECTION, "+
+					"CLOUD_NATIVE_S3_PROTECTION, EXOCOMPUTE and RDS_PROTECTION features first before removing "+
+					"CLOUD_COST_REPORT.")
+		}
+	}
 }
 
 func (r *awsCnpAccountResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
@@ -827,15 +866,15 @@ func (r *awsCnpAccountResource) ImportState(ctx context.Context, req resource.Im
 
 // featuresToRemove returns the features to remove when destroying an account:
 // the declared features tracked in state which RSC still has on the account,
-// plus CLOUD_COST_REPORT when RSC has it on the account.
+// plus CLOUD_COST_REPORT when RSC has it on the account and it is not declared.
 //
 // RSC removes the account once its last feature is removed, and it enables
-// CLOUD_COST_REPORT on its own (see Read) without ever removing it along with
-// the features it was enabled for, so removing only the declared features
-// would leave cost reporting behind, and the account with it. The position of
-// cost reporting in the result carries no meaning: it has no parent and no
-// child features, and the SDK reorders the list before sending it, moving
-// CLOUD_DISCOVERY last.
+// CLOUD_COST_REPORT on its own (see awsCnpTrackedFeatures) without ever
+// removing it along with the features it was enabled for, so removing only the
+// declared features would leave cost reporting behind, and the account with it.
+// The position of cost reporting in the result carries no meaning: it has no
+// parent and no child features, and the SDK reorders the list before sending
+// it, moving CLOUD_DISCOVERY last.
 //
 // Declared features which RSC no longer has, e.g. removed out of band, are
 // dropped. RSC rejects the removal of a feature the account does not have,
@@ -856,7 +895,9 @@ func featuresToRemove(declared []core.Feature, account aws.CloudAccount) []core.
 		_, ok := account.Feature(feature)
 		return !ok
 	})
-	if _, ok := account.Feature(core.FeatureCloudCostReport); ok {
+	_, onAccount := account.Feature(core.FeatureCloudCostReport)
+	_, isDeclared := core.LookupFeature(features, core.FeatureCloudCostReport)
+	if onAccount && !isDeclared {
 		features = append(features, core.FeatureCloudCostReport)
 	}
 

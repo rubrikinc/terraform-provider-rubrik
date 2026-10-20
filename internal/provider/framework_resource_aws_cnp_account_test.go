@@ -22,6 +22,7 @@ package provider
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -462,6 +463,7 @@ func TestFeaturesToRemove(t *testing.T) {
 	cd := core.FeatureCloudDiscovery.WithPermissionGroups(core.PermissionGroupBasic)
 	cnp := core.FeatureCloudNativeProtection.WithPermissionGroups(core.PermissionGroupBasic)
 	ccr := core.FeatureCloudCostReport
+	ccrBasic := core.FeatureCloudCostReport.WithPermissionGroups(core.PermissionGroupBasic)
 
 	// accountWith builds a cloud account holding the specified features, as
 	// returned by RSC.
@@ -524,6 +526,20 @@ func TestFeaturesToRemove(t *testing.T) {
 		name:     "AllDeclaredFeaturesRemovedOutOfBand",
 		declared: []core.Feature{cd, cnp},
 		account:  accountWith(core.FeatureDSPMData),
+	}, {
+		// A declared cost report is removed once, with its permission groups,
+		// and not appended a second time.
+		name:     "DeclaredCostReport",
+		declared: []core.Feature{cnp, ccrBasic},
+		account:  accountWith(cnp, ccr),
+		want:     []core.Feature{cnp, ccrBasic},
+	}, {
+		// A declared cost report which RSC no longer has is dropped like any
+		// other declared feature.
+		name:     "DeclaredCostReportRemovedOutOfBand",
+		declared: []core.Feature{cnp, ccrBasic},
+		account:  accountWith(cnp),
+		want:     []core.Feature{cnp},
 	}}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -775,6 +791,181 @@ func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
 				},
+			},
+		}},
+	})
+}
+
+// TestAccAwsCnpAccountResource_CloudCostReport verifies that CLOUD_COST_REPORT
+// is tracked when declared and left to RSC when it is not. RSC enables the
+// feature on its own for an account with a feature which accrues AWS spend, so
+// the test onboards CLOUD_NATIVE_PROTECTION first without declaring cost
+// reporting, declares it in a second step, and removes it again in a third.
+// Cost reporting requires the REL_ENABLE_CNP_CLOUD_COST_REPORT_AWS feature flag.
+func TestAccAwsCnpAccountResource_CloudCostReport(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("REL_ENABLE_CNP_CLOUD_COST_REPORT_AWS"))
+
+	vars := config.Variables{
+		"credentials":    config.StringVariable(testCredentials(t)),
+		"account_name":   config.StringVariable(testAWSAccountName(t)),
+		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             awsCnpAccountCheckDestroy(t),
+		Steps: []resource.TestStep{{
+			// Onboard without declaring cost reporting. RSC adds the feature on
+			// its own, which must not show up in state.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyFeature),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+							}),
+						}),
+					})),
+			},
+		}, {
+			// A second plan must be empty, the undeclared cost report RSC added
+			// must not produce a diff.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// Declare cost reporting. It is tracked from now on, with the
+			// permission groups RSC reports, and its trust policy is returned.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name              = "CLOUD_COST_REPORT"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyFeature),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_COST_REPORT"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+							}),
+						}),
+						knownvalue.ObjectExact(map[string]knownvalue.Check{
+							keyName: knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
+							keyPermissionGroups: knownvalue.SetExact([]knownvalue.Check{
+								knownvalue.StringExact("BASIC"),
+							}),
+						}),
+					})),
+				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
+					tfjsonpath.New(keyTrustPolicies), knownvalue.SetSizeExact(1)),
+			},
+		}, {
+			// A plan dropping cost reporting while a feature which accrues AWS
+			// spend stays declared is rejected at plan time.
+			Config: `
+				variable "account_name" {
+					type = string
+				}
+				variable "aws_account_id" {
+					type = string
+				}
+				resource "rubrik_aws_cnp_account" "account" {
+					name      = var.account_name
+					native_id = var.aws_account_id
+					regions   = ["us-east-2"]
+
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigVariables: vars,
+			PlanOnly:        true,
+			ExpectError:     regexp.MustCompile(`CLOUD_COST_REPORT cannot be removed while features which accrue AWS\s+spend are enabled`),
+		}, {
+			// Import does not pick up cost reporting, so the import plan is not
+			// empty: it adds the declared feature back. ImportStateVerify is
+			// therefore not used. Instead, verify that the imported state holds
+			// only the feature RSC does not add on its own.
+			ResourceName:    "rubrik_aws_cnp_account.account",
+			ConfigVariables: vars,
+			ImportStateKind: resource.ImportCommandWithID,
+			ImportState:     true,
+			ImportStateCheck: func(states []*terraform.InstanceState) error {
+				if len(states) != 1 {
+					return fmt.Errorf("expected 1 imported state, got %d", len(states))
+				}
+				for key, value := range states[0].Attributes {
+					if strings.HasSuffix(key, ".name") && value == "CLOUD_COST_REPORT" {
+						return fmt.Errorf("imported state tracks CLOUD_COST_REPORT: %s", key)
+					}
+				}
+				return nil
 			},
 		}},
 	})

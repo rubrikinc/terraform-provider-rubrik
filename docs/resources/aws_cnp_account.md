@@ -15,6 +15,17 @@ account without enabling protection. It is currently optional but will become
 required when onboarding protection features. Once onboarded, it cannot be
 removed unless all protection features are removed first.
 
+The `CLOUD_COST_REPORT` feature grants RSC the permissions to read the AWS Cost
+and Usage Report of the account, from which the RSC Cloud Cost Report is built.
+RSC enables the feature on its own for any account with a feature which accrues
+AWS spend, so the resource tracks it only when it is declared, and leaves an
+undeclared cost report to RSC. Declare the feature to look up its permissions
+with the `rubrik_aws_cnp_permissions` data source and to grant them with the
+`rubrik_aws_cnp_account_attachments` resource. Once declared, it cannot be
+removed unless all features which accrue AWS spend are removed first. The
+feature is not imported along with the account, and it requires cost reporting
+to be enabled for the RSC account.
+
 -> **Note:** The `feature` block is shown as Optional in the schema below for
    technical reasons, but at least one `feature` block must be specified. The
    block-style syntax is preserved to remain compatible with existing Terraform
@@ -26,6 +37,10 @@ removed unless all protection features are removed first.
 ## Permission Groups
 Following is a list of features and their applicable permission groups. These
 are used when specifying the feature set.
+
+`CLOUD_COST_REPORT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_DISCOVERY`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -127,6 +142,17 @@ account without enabling protection. It is currently optional but will become
 required when onboarding protection features. Once onboarded, it cannot be
 removed unless all protection features are removed first.
 
+The `CLOUD_COST_REPORT` feature grants RSC the permissions to read the AWS Cost
+and Usage Report of the account, from which the RSC Cloud Cost Report is built.
+RSC enables the feature on its own for any account with a feature which accrues
+AWS spend, so the resource tracks it only when it is declared, and leaves an
+undeclared cost report to RSC. Declare the feature to look up its permissions
+with the `rubrik_aws_cnp_permissions` data source and to grant them with the
+`rubrik_aws_cnp_account_attachments` resource. Once declared, it cannot be
+removed unless all features which accrue AWS spend are removed first. The
+feature is not imported along with the account, and it requires cost reporting
+to be enabled for the RSC account.
+
 -> **Note:** The `feature` block is shown as Optional in the schema below for
    technical reasons, but at least one `feature` block must be specified. The
    block-style syntax is preserved to remain compatible with existing Terraform
@@ -138,6 +164,10 @@ removed unless all protection features are removed first.
 ## Permission Groups
 Following is a list of features and their applicable permission groups. These
 are used when specifying the feature set.
+
+`CLOUD_COST_REPORT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_DISCOVERY`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -323,7 +353,7 @@ resource "rubrik_aws_cnp_account" "role_chained" {
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
+- `name` (String) RSC feature name. Possible values are `CLOUD_COST_REPORT`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and `SERVERS_AND_APPS`.
 - `permission_groups` (Set of String) RSC permission groups for the feature. Possible values are `BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, `EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and `RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is interpreted as all applicable permission groups.
 
 

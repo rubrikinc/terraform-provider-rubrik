@@ -158,11 +158,11 @@ func (r *awsCnpAccountAttachmentsResource) Schema(ctx context.Context, _ resourc
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
-				Description: "RSC features. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_CONFIG_PROTECTION`, `CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
-					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, " +
-					"`EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-					"`SERVERS_AND_APPS`.",
+				Description: "RSC features. Possible values are `CLOUD_COST_REPORT`, `CLOUD_DISCOVERY`, " +
+					"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
+					"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, " +
+					"`CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, `KUBERNETES_PROTECTION`, `RDS_PROTECTION`, " +
+					"`ROLE_CHAINING` and `SERVERS_AND_APPS`.",
 				DeprecationMessage: "Permission groups are now read from the cloud account managed by " +
 					"`rubrik_aws_cnp_account` when artifacts are registered, so the attachments resource no " +
 					"longer needs to track features. This field is retained for backwards compatibility, is " +
@@ -344,14 +344,13 @@ func (r *awsCnpAccountAttachmentsResource) Create(ctx context.Context, req resou
 
 	// The features field is optional and computed. When omitted from the
 	// configuration it's populated from the cloud account's features so the
-	// computed value is known after apply. The features RSC enabled on its own,
-	// e.g. CLOUD_COST_REPORT, are skipped since they cannot be declared in the
-	// features field. See the comment in the Read function of the
-	// rubrik_aws_cnp_account resource.
+	// computed value is known after apply. The features RSC enabled on its own
+	// are skipped, as is cost reporting since nothing has been declared, see
+	// awsCnpTrackedFeatures.
 	if plan.Features.IsUnknown() {
 		featureValues := make([]attr.Value, 0, len(features))
 		for _, feature := range features {
-			if !slices.Contains(awsCnpFeatureNames, feature.Name) {
+			if !slices.Contains(awsCnpFeatureNames, feature.Name) || feature.Equal(core.FeatureCloudCostReport) {
 				continue
 			}
 			featureValues = append(featureValues, types.StringValue(feature.Name))
@@ -410,13 +409,20 @@ func (r *awsCnpAccountAttachmentsResource) Read(ctx context.Context, req resourc
 		return
 	}
 
-	// Skip the features RSC enabled on its own, see the comment in Create.
-	featureValues := make([]attr.Value, 0, len(account.Features))
-	for _, feature := range account.Features {
-		if !slices.Contains(awsCnpFeatureNames, feature.Feature.Name) {
-			continue
+	// The features field is null on import, when nothing has been declared yet.
+	var stateFeatures []core.Feature
+	if !state.Features.IsNull() {
+		var diags diag.Diagnostics
+		stateFeatures, diags = awsAttachmentsToFeatures(ctx, state.Features)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
 		}
-		featureValues = append(featureValues, types.StringValue(feature.Feature.Name))
+	}
+	trackedFeatures := awsCnpTrackedFeatures(account.Features, stateFeatures)
+	featureValues := make([]attr.Value, 0, len(trackedFeatures))
+	for _, feature := range trackedFeatures {
+		featureValues = append(featureValues, types.StringValue(feature.Name))
 	}
 	featureSet, diags := types.SetValue(types.StringType, featureValues)
 	res.Diagnostics.Append(diags...)
