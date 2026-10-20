@@ -155,7 +155,7 @@ Required:
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `key` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) RSA key. Write-only, so it never reaches Terraform state. RSC only accepts the key when the archival location is created, change `version` to replace the archival location with one using a new key.
+- `key` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) RSA private key. Must be an unencrypted PEM-encoded key, in either PKCS#1 or PKCS#8 form, with a size of 2048, 3072 or 4096 bits. DER and base64 encoded keys are not accepted. Write-only, so it never reaches Terraform state. RSC only accepts the key when the archival location is created, change `version` to replace the archival location with one using a new key.
 - `version` (String) Arbitrary value identifying the version of `key`. Write-only arguments produce no difference in the plan on their own, so changing this is what makes a new key take effect.
 
 
