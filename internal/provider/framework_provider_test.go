@@ -76,7 +76,7 @@ func TestPossibleValues(t *testing.T) {
 		{
 			name:   "Empty",
 			values: nil,
-			want:   "",
+			want:   "Possible values are none",
 		},
 		{
 			name:   "One",

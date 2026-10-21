@@ -22,6 +22,8 @@ package provider
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -34,6 +36,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const dataSourceAWSAccountDescription = `
@@ -77,6 +80,11 @@ func (d *awsAccountDataSource) Metadata(ctx context.Context, req datasource.Meta
 func (d *awsAccountDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
 	tflog.Trace(ctx, "awsAccountDataSource.Schema")
 
+	groups := slices.Concat(core.AWSCloudFormationPermissionGroupNames(), core.AWSIAMRolesPermissionGroupNames(),
+		core.AWSManagedPermissionGroupNames())
+	slices.Sort(groups)
+	groups = slices.Compact(groups)
+
 	res.Schema = schema.Schema{
 		Description: description(dataSourceAWSAccountDescription),
 		Attributes: map[string]schema.Attribute{
@@ -117,12 +125,12 @@ func (d *awsAccountDataSource) Schema(ctx context.Context, _ datasource.SchemaRe
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Computed:    true,
-							Description: "RSC feature name.",
+							Description: fmt.Sprintf("RSC feature name. %s.", possibleValues(core.AWSAccountAllowlistNames())),
 						},
 						keyPermissionGroups: schema.SetAttribute{
 							ElementType: types.StringType,
 							Computed:    true,
-							Description: "Permission groups for the RSC feature.",
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s.", possibleValues(groups)),
 						},
 					},
 				},

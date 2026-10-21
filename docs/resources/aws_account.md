@@ -23,7 +23,9 @@ description: |-
   IAM, KMS and load balancers.cloud_native_protection - Enable the Cloud Native Protection feature for
   the account.cloud_native_dynamodb_protection - Enable the Cloud Native DynamoDB
   Protection feature for the account.cloud_native_s3_protection - Enable the Cloud Native S3 Protection feature
-  for the account.cyber_recovery_data_scanning - Enable the Cyber Recovery Data Scanning
+  for the account.cloud_native_uem_key_management - Enable the Cloud Native UEM Key
+  Management feature for the account. Required to register the account's KMS
+  as a key manager in RSC.cyber_recovery_data_scanning - Enable the Cyber Recovery Data Scanning
   feature for the account. Requires the Outpost feature to be enabled, either
   in the same account or in a separate account onboarded before this resource.data_scanning - Enable the Data Scanning feature for the account. Requires
   the Outpost feature to be enabled, either in the same account or in a
@@ -148,6 +150,9 @@ for an account:
     Protection feature for the account.
   * `cloud_native_s3_protection` - Enable the Cloud Native S3 Protection feature
     for the account.
+  * `cloud_native_uem_key_management` - Enable the Cloud Native UEM Key
+    Management feature for the account. Required to register the account's KMS
+    as a key manager in RSC.
   * `cyber_recovery_data_scanning` - Enable the Cyber Recovery Data Scanning
     feature for the account. Requires the Outpost feature to be enabled, either
     in the same account or in a separate account onboarded before this resource.
@@ -387,6 +392,7 @@ resource "rubrik_aws_account" "account2" {
 - `cloud_native_dynamodb_protection` (Block List, Max: 1) Enable the Cloud Native DynamoDB Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_dynamodb_protection))
 - `cloud_native_protection` (Block List, Max: 1) Enable the Cloud Native Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_protection))
 - `cloud_native_s3_protection` (Block List, Max: 1) Enable the Cloud Native S3 Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_s3_protection))
+- `cloud_native_uem_key_management` (Block List, Max: 1) Enable the Cloud Native UEM Key Management feature for the account. Required to register the account's KMS as a key manager in RSC. (see [below for nested schema](#nestedblock--cloud_native_uem_key_management))
 - `cyber_recovery_data_scanning` (Block List, Max: 1) Enable the Cyber Recovery Data Scanning feature for the account. The Cyber Recovery Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--cyber_recovery_data_scanning))
 - `data_scanning` (Block List, Max: 1) Enable the Data Scanning feature for the account. The Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--data_scanning))
 - `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed.
@@ -411,7 +417,7 @@ resource "rubrik_aws_account" "account2" {
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -425,7 +431,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -439,7 +445,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `BASIC_2`, `RECOVERY`, `RECOVERY_2`, `RECOVERY_3` and `RECOVERY_4`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -453,7 +459,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RECOVERY`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -467,7 +473,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RESTORE`, `DOWNLOAD_FILE`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `DOWNLOAD_FILE`, `EXPORT_POWER_OFF`, `EXPORT_POWER_ON` and `RESTORE`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -481,7 +487,21 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `EXPORT` and `RECOVERY`.
+- `regions` (Set of String) Regions the feature will be enabled in.
+
+Read-Only:
+
+- `stack_arn` (String) CloudFormation stack ARN.
+- `status` (String) Status of the feature.
+
+
+<a id="nestedblock--cloud_native_uem_key_management"></a>
+### Nested Schema for `cloud_native_uem_key_management`
+
+Required:
+
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -495,7 +515,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -509,7 +529,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -523,7 +543,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -537,7 +557,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RSC_MANAGED_CLUSTER`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RSC_MANAGED_CLUSTER`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -551,7 +571,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `BASIC`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -565,7 +585,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Outpost feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Outpost feature. Possible value is `BASIC`.
 
 Optional:
 
@@ -583,7 +603,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC`, `RECOVERY`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `BASIC` and `RECOVERY`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:
@@ -597,7 +617,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Role Chaining feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Role Chaining feature. Possible value is `BASIC`.
 
 Read-Only:
 
@@ -610,7 +630,7 @@ Read-Only:
 
 Required:
 
-- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible values are `CLOUD_CLUSTER_ES`.
+- `permission_groups` (Set of String) Permission groups to assign to the feature. Possible value is `CLOUD_CLUSTER_ES`.
 - `regions` (Set of String) Regions the feature will be enabled in.
 
 Read-Only:

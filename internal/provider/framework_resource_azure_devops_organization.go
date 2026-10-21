@@ -286,9 +286,9 @@ func (r *azureDevOpsOrganizationResource) Schema(ctx context.Context, _ resource
 						keyName: schema.StringAttribute{
 							Required: true,
 							Description: fmt.Sprintf("Feature name. %s.",
-								possibleValues([]string{core.FeatureAzureDevOpsRepositoryProtection.Name})),
+								possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 							Validators: []validator.String{
-								stringvalidator.OneOf(core.FeatureAzureDevOpsRepositoryProtection.Name),
+								stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
 							},
 						},
 						keyPermissionGroups: schema.SetAttribute{
@@ -426,7 +426,7 @@ func (r *azureDevOpsOrganizationResource) ModifyPlan(ctx context.Context, req re
 			if feature.Name.IsUnknown() || feature.PermissionGroups.IsNull() || feature.PermissionGroups.IsUnknown() {
 				continue
 			}
-			allowed, ok := azureDevOpsFeaturePermissionGroups[feature.Name.ValueString()]
+			supported, ok := core.LookupFeatureName(core.AzureDevOpsOrganizationFeatures(), feature.Name.ValueString())
 			if !ok {
 				continue
 			}
@@ -434,7 +434,7 @@ func (r *azureDevOpsOrganizationResource) ModifyPlan(ctx context.Context, req re
 			var groups []string
 			res.Diagnostics.Append(feature.PermissionGroups.ElementsAs(ctx, &groups, false)...)
 			for _, group := range groups {
-				if _, valid := allowed[group]; !valid {
+				if !supported.HasPermissionGroup(core.PermissionGroup(group)) {
 					res.Diagnostics.AddAttributeError(path.Root(keyFeature),
 						"Invalid permission group for feature", fmt.Sprintf("permission group %q is not supported by feature %q.", group, feature.Name.ValueString()))
 				}
@@ -807,23 +807,6 @@ func (r *azureDevOpsOrganizationResource) ImportState(ctx context.Context, req r
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), identity.ID)...)
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyDeleteSnapshotsOnDestroy), false)...)
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
-}
-
-// azureDevOpsFeaturePermissionGroups maps each feature to the permission groups
-// it supports. AZURE_DEVOPS_PROTECTION supports only BASIC; the repository and
-// developer-collaboration features additionally support RECOVERY.
-var azureDevOpsFeaturePermissionGroups = map[string]map[string]struct{}{
-	core.FeatureAzureDevOpsProtection.Name: {
-		string(core.PermissionGroupBasic): {},
-	},
-	core.FeatureAzureDevOpsRepositoryProtection.Name: {
-		string(core.PermissionGroupBasic):    {},
-		string(core.PermissionGroupRecovery): {},
-	},
-	core.FeatureAzureDevOpsDeveloperCollaborationProtection.Name: {
-		string(core.PermissionGroupBasic):    {},
-		string(core.PermissionGroupRecovery): {},
-	},
 }
 
 const (

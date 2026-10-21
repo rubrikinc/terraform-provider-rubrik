@@ -82,6 +82,13 @@ var (
 	_ resource.ResourceWithMoveState   = &awsCnpAccountResource{}
 )
 
+// awsCNPExtraPermissionGroups holds the permission groups which cannot be used
+// when onboarding an AWS account. They have been accepted in the past so we
+// still silently allow them.
+var awsCNPExtraPermissionGroups = []string{
+	"EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "SNAPSHOT_PRIVATE_ACCESS", "PRIVATE_ENDPOINT",
+}
+
 type awsCnpAccountResource struct {
 	client *client
 	prefix string
@@ -234,40 +241,27 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
-							Required: true,
-							Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, " +
-								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
-								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
-								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
-								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
-								"`SERVERS_AND_APPS`.",
+							Required:    true,
+							Description: fmt.Sprintf("RSC feature name. %s.", possibleValues(core.AWSIAMRolesFeatureNames())),
 							Validators: []validator.String{
-								stringvalidator.OneOf(awsCnpFeatureNames...),
+								stringvalidator.OneOf(core.AWSIAMRolesFeatureNames()...),
 							},
 						},
 						keyPermissionGroups: schema.SetAttribute{
 							ElementType: types.StringType,
 							Required:    true,
-							Description: "RSC permission groups for the feature. Possible values are " +
-								"`BASIC`, `BASIC_2`, `CLOUD_CLUSTER_ES`, `DOWNLOAD_FILE`, " +
-								"`EXPORT`, `EXPORT_POWER_ON`, `EXPORT_POWER_OFF`, `RECOVERY`, " +
-								"`RECOVERY_2`, `RECOVERY_3`, `RECOVERY_4`, `RESTORE` and " +
-								"`RSC_MANAGED_CLUSTER`. For backwards compatibility, `[]` is " +
-								"interpreted as all applicable permission groups.",
+							Description: fmt.Sprintf("RSC permission groups for the feature. %s. For backwards "+
+								"compatibility, `[]` is interpreted as all applicable permission groups.",
+								possibleValues(core.AWSIAMRolesPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									"BASIC", "BASIC_2", "RECOVERY", "RECOVERY_2", "RECOVERY_3",
-									"RECOVERY_4", "RSC_MANAGED_CLUSTER", "CLOUD_CLUSTER_ES",
-									"EXPORT", "EXPORT_POWER_ON", "EXPORT_POWER_OFF", "RESTORE",
-									"DOWNLOAD_FILE",
-									// The following permission groups cannot be used when onboarding an
-									// AWS account. They have been accepted in the past so we still
-									// silently allow them.
-									"EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "SNAPSHOT_PRIVATE_ACCESS",
-									"PRIVATE_ENDPOINT",
+									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), awsCNPExtraPermissionGroups)...,
 								)),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AWSIAMRolesFeatures(), awsCNPExtraPermissionGroups...),
 					},
 				},
 			},
@@ -433,7 +427,7 @@ func (r *awsCnpAccountResource) Read(ctx context.Context, req resource.ReadReque
 	// reporting again. Only the features which can be declared are tracked,
 	// which also keeps import from writing an undeclarable feature into state.
 	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-		return !slices.Contains(awsCnpFeatureNames, feature.Name)
+		return !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Name)
 	})
 
 	features := make([]core.Feature, 0, len(accountFeatures))
@@ -589,7 +583,7 @@ func (r *awsCnpAccountResource) Update(ctx context.Context, req resource.UpdateR
 
 	// Drop the features RSC enabled on its own, see the comment in Read.
 	accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-		return !slices.Contains(awsCnpFeatureNames, feature.Name)
+		return !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Name)
 	})
 
 	currentFeatures := make([]core.Feature, 0, len(accountFeatures))
@@ -769,8 +763,8 @@ func (r *awsCnpAccountResource) ModifyPlan(ctx context.Context, req resource.Mod
 		})
 	}
 	if hasCloudDiscovery(stateFeatures) && !hasCloudDiscovery(planFeatures) {
-		for _, feature := range core.AllProtectionFeatures(core.CloudVendorAWS) {
-			if slices.ContainsFunc(planFeatures, func(f core.Feature) bool { return f.Name == feature.Name }) {
+		for _, name := range core.CloudVendorProtectionFeatureNames(core.CloudVendorAWS) {
+			if slices.ContainsFunc(planFeatures, func(f core.Feature) bool { return f.Name == name }) {
 				res.Diagnostics.AddAttributeError(path.Root(keyFeature),
 					"CLOUD_DISCOVERY cannot be removed while protection features are enabled",
 					"Remove the protection features first before removing CLOUD_DISCOVERY.")

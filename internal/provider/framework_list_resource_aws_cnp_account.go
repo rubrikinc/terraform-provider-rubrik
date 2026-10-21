@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const listResourceAWSCNPAccountDescription = `
@@ -173,7 +174,7 @@ func (r *awsCnpAccountListResource) List(ctx context.Context, req list.ListReque
 				// accept. See the comment in the Read function of the
 				// rubrik_aws_cnp_account resource.
 				accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-					return !slices.Contains(awsCnpFeatureNames, feature.Name)
+					return !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Name)
 				})
 
 				featureSet, featureDiags := awsFromFeatures(ctx, accountFeatures)
