@@ -5,6 +5,11 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.12.0
+* Add support for the `CLOUD_DISCOVERY` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project` and
+  `rubrik_gcp_permissions` data sources. Cloud Discovery is the read-only parent of the GCP protection features and has
+  the single permission group `BASIC`. It is optional, but when enabled it must outlive the protection features, so the
+  provider rejects a plan that removes it from a project that still has one, and removes it last when the project is
+  destroyed. [[docs](../resources/gcp_project.md)]
 * Fix a bug in `rubrik_azure_private_container_registry` where updating the resource sent the RSC cloud account ID as
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
 * Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry

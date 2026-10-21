@@ -21,6 +21,28 @@ resource "rubrik_gcp_project" "project" {
   project_number = 123456789012
 }
 
+# Cloud Discovery is the read-only parent of the protection features. It is
+# optional, but when it is enabled it must outlive the protection features:
+# RSC refuses to remove it while a protection feature is enabled, so a plan that
+# removes CLOUD_DISCOVERY from a project that still has one is rejected. To
+# disable both, remove the protection features first and Cloud Discovery in a
+# later apply. Cloud Discovery is not available on all RSC accounts.
+resource "rubrik_gcp_project" "cloud_discovery" {
+  project        = "my-discovery-project"
+  project_name   = "My Discovery Project"
+  project_number = 123456789012
+
+  feature {
+    name              = "CLOUD_DISCOVERY"
+    permission_groups = ["BASIC"]
+  }
+
+  feature {
+    name              = "CLOUD_NATIVE_PROTECTION"
+    permission_groups = ["BASIC", "EXPORT_AND_RESTORE"]
+  }
+}
+
 # BigQuery protection. The datasets to protect are in one project, and RSC
 # runs the backup and recovery jobs on a BigQuery slot reservation in a
 # dedicated reservation project. Only one project per RSC account can be the
