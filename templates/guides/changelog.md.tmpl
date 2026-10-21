@@ -4,6 +4,9 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.11.2
+* Update the Go version used to build the provider to 1.26.10.
+
 ## v1.11.1
 * Remove the deprecation of `cluster_security_group_id` and `node_security_group_id` in the `rubrik_aws_exocompute`
   resource. RSC will continue to support security groups passed in by users, so the fields no longer produce a
