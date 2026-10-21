@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -33,14 +34,48 @@ import (
 // awsCnpFeatureNames are the RSC features which can be declared in the AWS IAM
 // roles workflow, i.e. by the rubrik_aws_cnp_account and
 // rubrik_aws_cnp_account_attachments resources. RSC enables additional features
-// on its own, e.g. CLOUD_COST_REPORT, which are not tracked by those resources.
-// See the comment in the Read function of the rubrik_aws_cnp_account resource.
+// on its own, e.g. CLOUDACCOUNTS, which are not tracked by those resources.
+// CLOUD_COST_REPORT is both, see awsCnpTrackedFeatures.
 var awsCnpFeatureNames = []string{
-	core.FeatureCloudDiscovery.Name, core.FeatureCloudNativeArchival.Name, core.FeatureCloudNativeProtection.Name,
-	core.FeatureCloudNativeConfigProtection.Name, core.FeatureCloudNativeDynamoDBProtection.Name,
-	core.FeatureCloudNativeS3Protection.Name,
+	core.FeatureCloudCostReport.Name, core.FeatureCloudDiscovery.Name, core.FeatureCloudNativeArchival.Name,
+	core.FeatureCloudNativeProtection.Name, core.FeatureCloudNativeConfigProtection.Name,
+	core.FeatureCloudNativeDynamoDBProtection.Name, core.FeatureCloudNativeS3Protection.Name,
 	core.FeatureKubernetesProtection.Name, core.FeatureExocompute.Name, core.FeatureRoleChaining.Name,
 	core.FeatureRDSProtection.Name, core.FeatureServerAndApps.Name,
+}
+
+// awsCnpTrackedFeatures returns the features of an AWS cloud account which are
+// tracked by the resources of the AWS IAM roles workflow: the declarable
+// features, with CLOUD_COST_REPORT kept only when it is among the declared
+// features.
+//
+// RSC enables cost reporting on its own for any account carrying a workload
+// feature which accrues AWS spend, regardless of the feature set passed when
+// onboarding, and it never removes cost reporting along with those features.
+// Tracking an undeclared cost report would show up as a diff removing it on
+// every refresh. The diff applies, but it silently disables cost reporting for
+// the account, and RSC adds it back the next time a workload feature is
+// onboarded. So an undeclared cost report is left to RSC, while a declared one
+// is tracked like any other feature. declared is nil when nothing has been
+// declared yet, i.e. on import and when generating configuration from a list
+// resource, in which case cost reporting is never tracked.
+func awsCnpTrackedFeatures(features []aws.Feature, declared []core.Feature) []aws.Feature {
+	costReportDeclared := slices.ContainsFunc(declared, func(feature core.Feature) bool {
+		return feature.Equal(core.FeatureCloudCostReport)
+	})
+
+	tracked := make([]aws.Feature, 0, len(features))
+	for _, feature := range features {
+		if !slices.Contains(awsCnpFeatureNames, feature.Name) {
+			continue
+		}
+		if feature.Equal(core.FeatureCloudCostReport) && !costReportDeclared {
+			continue
+		}
+		tracked = append(tracked, feature)
+	}
+
+	return tracked
 }
 
 func awsFeatureAttrTypes() map[string]attr.Type {

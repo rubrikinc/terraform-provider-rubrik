@@ -121,16 +121,16 @@ func (d *awsArtifactsDataSource) Schema(ctx context.Context, _ datasource.Schema
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Required: true,
-							Description: "RSC feature name. Possible values are `CLOUD_DISCOVERY`, " +
-								"`CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
+							Description: "RSC feature name. Possible values are `CLOUD_COST_REPORT`, " +
+								"`CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_CONFIG_PROTECTION`, " +
 								"`CLOUD_NATIVE_DYNAMODB_PROTECTION`, " +
 								"`CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_S3_PROTECTION`, `EXOCOMPUTE`, " +
 								"`KUBERNETES_PROTECTION`, `RDS_PROTECTION`, `ROLE_CHAINING` and " +
 								"`SERVERS_AND_APPS`.",
 							Validators: []validator.String{
 								stringvalidator.OneOf(
-									"CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION",
-									"CLOUD_NATIVE_CONFIG_PROTECTION",
+									"CLOUD_COST_REPORT", "CLOUD_DISCOVERY", "CLOUD_NATIVE_ARCHIVAL",
+									"CLOUD_NATIVE_PROTECTION", "CLOUD_NATIVE_CONFIG_PROTECTION",
 									"CLOUD_NATIVE_DYNAMODB_PROTECTION", "CLOUD_NATIVE_S3_PROTECTION",
 									"KUBERNETES_PROTECTION", "EXOCOMPUTE", "ROLE_CHAINING",
 									"RDS_PROTECTION", "SERVERS_AND_APPS",

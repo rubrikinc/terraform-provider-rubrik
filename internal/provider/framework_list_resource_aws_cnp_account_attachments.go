@@ -22,7 +22,6 @@ package provider
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -173,17 +172,14 @@ func (r *awsCnpAccountAttachmentsListResource) List(ctx context.Context, req lis
 			}
 
 			if req.IncludeResource {
-				// Skip the features RSC enabled on its own, e.g.
-				// CLOUD_COST_REPORT, since the generated configuration would
-				// otherwise carry a feature the features field does not accept.
-				// See the comment in the Read function of the
-				// rubrik_aws_cnp_account resource.
-				featureValues := make([]attr.Value, 0, len(account.Features))
-				for _, feature := range account.Features {
-					if !slices.Contains(awsCnpFeatureNames, feature.Feature.Name) {
-						continue
-					}
-					featureValues = append(featureValues, types.StringValue(feature.Feature.Name))
+				// Skip the features RSC enabled on its own, since the generated
+				// configuration would otherwise carry a feature the features
+				// field does not accept, or declare a cost report the account
+				// was never configured with, see awsCnpTrackedFeatures.
+				trackedFeatures := awsCnpTrackedFeatures(account.Features, nil)
+				featureValues := make([]attr.Value, 0, len(trackedFeatures))
+				for _, feature := range trackedFeatures {
+					featureValues = append(featureValues, types.StringValue(feature.Name))
 				}
 				featureSet, diags := types.SetValue(types.StringType, featureValues)
 				result.Diagnostics.Append(diags...)

@@ -377,3 +377,67 @@ func TestAccAwsCnpPermissionsDataSource_FrameworkMigration(t *testing.T) {
 		}},
 	})
 }
+
+// TestAccAwsCnpPermissionsDataSource_CloudCostReport verifies that the cost
+// report policy is returned when CLOUD_COST_REPORT is requested along with a
+// feature which accrues AWS spend. Cost reporting requires the
+// REL_ENABLE_CNP_CLOUD_COST_REPORT_AWS feature flag.
+func TestAccAwsCnpPermissionsDataSource_CloudCostReport(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("REL_ENABLE_CNP_CLOUD_COST_REPORT_AWS"))
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			Config: `
+				data "rubrik_aws_cnp_artifacts" "artifacts" {
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name              = "CLOUD_COST_REPORT"
+						permission_groups = ["BASIC"]
+					}
+				}
+
+				data "rubrik_aws_cnp_permissions" "crossaccount" {
+					role_key = "CROSSACCOUNT"
+
+					feature {
+						name              = "CLOUD_NATIVE_PROTECTION"
+						permission_groups = ["BASIC"]
+					}
+					feature {
+						name              = "CLOUD_COST_REPORT"
+						permission_groups = ["BASIC"]
+					}
+				}
+			`,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
+					tfjsonpath.New(keyRoleKeys),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact("CROSSACCOUNT"),
+					})),
+				// RSC adds CLOUDACCOUNTS on its own, the policy order is the one
+				// RSC returns.
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
+					tfjsonpath.New(keyCustomerManagedPolicies),
+					knownvalue.ListPartial(map[int]knownvalue.Check{
+						0: knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyFeature: knownvalue.StringExact("CLOUDACCOUNTS"),
+							keyName:    knownvalue.StringExact("CloudAccountsPolicy"),
+						}),
+						1: knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyFeature: knownvalue.StringExact("CLOUD_COST_REPORT"),
+							keyName:    knownvalue.StringExact("CloudCostReportPolicy"),
+						}),
+						2: knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyFeature: knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
+							keyName:    knownvalue.StringExact("EC2ProtectionPolicy"),
+						}),
+					})),
+			},
+		}},
+	})
+}

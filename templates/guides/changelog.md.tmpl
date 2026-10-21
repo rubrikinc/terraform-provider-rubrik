@@ -5,6 +5,17 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.12.0
+* Add support for the Cloud Cost Report feature, `CLOUD_COST_REPORT`, which grants RSC the permissions to read the AWS
+  Cost and Usage Report of an account, in the `rubrik_aws_cnp_account` and `rubrik_aws_cnp_account_attachments`
+  resources, and the `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions` and `rubrik_aws_permission_groups` data
+  sources. Its permission group is `BASIC`. RSC enables the feature on its own for any account with a feature which
+  accrues AWS spend, so the resources track it only when it is declared, and an undeclared cost report is left to RSC
+  as before. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../resources/aws_cnp_account.md)]
+* Improve the `rubrik_aws_cnp_permissions` data source so that it returns the `CloudCostReportPolicy` policy when the
+  `CLOUD_COST_REPORT` feature is requested, or when RSC adds the feature to the requested feature set. See the
+  [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+* Fix a bug in `rubrik_aws_account` where destroying the resource left the `CLOUD_COST_REPORT` feature, and with it
+  the cloud account, behind in RSC when RSC had enabled cost reporting for the account.
 * Fix a bug in `rubrik_azure_private_container_registry` where updating the resource sent the RSC cloud account ID as
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
 * Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry

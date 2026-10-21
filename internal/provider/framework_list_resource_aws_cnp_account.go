@@ -22,7 +22,6 @@ package provider
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -167,14 +166,11 @@ func (r *awsCnpAccountListResource) List(ctx context.Context, req list.ListReque
 			}
 
 			if req.IncludeResource {
-				// Skip the features RSC enabled on its own, e.g.
-				// CLOUD_COST_REPORT, since the generated configuration would
-				// otherwise carry a feature block the resource schema does not
-				// accept. See the comment in the Read function of the
-				// rubrik_aws_cnp_account resource.
-				accountFeatures := slices.DeleteFunc(slices.Clone(account.Features), func(feature aws.Feature) bool {
-					return !slices.Contains(awsCnpFeatureNames, feature.Name)
-				})
+				// Skip the features RSC enabled on its own, since the generated
+				// configuration would otherwise carry a feature block the
+				// resource schema does not accept, or declare a cost report the
+				// account was never configured with, see awsCnpTrackedFeatures.
+				accountFeatures := awsCnpTrackedFeatures(account.Features, nil)
 
 				featureSet, featureDiags := awsFromFeatures(ctx, accountFeatures)
 				result.Diagnostics.Append(featureDiags...)

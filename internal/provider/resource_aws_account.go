@@ -1048,6 +1048,19 @@ func awsDeleteAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 		}
 	}
 
+	// RSC enables CLOUD_COST_REPORT on its own for any account carrying a
+	// feature which accrues AWS spend, and never removes it along with those
+	// features. It cannot be declared in the resource, so it is removed whenever
+	// RSC has it, after the features it was enabled for and before cloud
+	// discovery. Without this, the account is left behind in RSC with cost
+	// reporting as its only feature.
+	if _, ok := cloudAccount.Feature(core.FeatureCloudCostReport); ok {
+		err = aws.Wrap(client).RemoveAccountWithCFT(ctx, account, []core.Feature{core.FeatureCloudCostReport}, deleteSnapshots)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	// Cloud discovery should always be deleted after all protection features
 	// have been deleted.
 	if _, ok := d.GetOk(keyCloudDiscovery); ok {
