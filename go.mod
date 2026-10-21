@@ -1,6 +1,6 @@
 module github.com/rubrikinc/terraform-provider-rubrik
 
-go 1.26.7
+go 1.26.10
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.3.0
