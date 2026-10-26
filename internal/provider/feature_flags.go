@@ -37,6 +37,10 @@ const (
 	// Cloud Discovery feature.
 	FeatureFlagDiscoveryOnboarding core.FeatureFlagName = "CNP_DISCOVERY_ONBOARDING_ENABLED"
 
+	// FeatureFlagGCPPrivateContainerRegistry gates the private container
+	// registry for GCP Exocompute.
+	FeatureFlagGCPPrivateContainerRegistry core.FeatureFlagName = "REL_ENABLE_GCP_PRIVATE_CONTAINER_REGISTRY"
+
 	// FeatureFlagGCPSQL gates the GCP Cloud SQL protection feature.
 	FeatureFlagGCPSQL core.FeatureFlagName = "CNP_GCP_SQL_ENABLED"
 

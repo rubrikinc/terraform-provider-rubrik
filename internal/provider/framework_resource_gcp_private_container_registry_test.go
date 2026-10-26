@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const gcpPrivateContainerRegistryTmpl = `
@@ -122,7 +121,7 @@ func gcpPCRServiceAccountEmail(t *testing.T) string {
 // Artifact Registry repository in the pcr.registryUrl field. The service account
 // in the GCP credentials is the service account registered with RSC.
 func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagGCPPrivateContainerRegistry)
+	skipUnlessFeatureEnabled(t, FeatureFlagGCPPrivateContainerRegistry)
 
 	testConfig, project := loadGCPTestConfig(t)
 	if project.PCR.RegistryURL == "" {
