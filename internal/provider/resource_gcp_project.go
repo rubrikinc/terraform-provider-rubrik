@@ -372,7 +372,7 @@ func gcpCheckCloudDiscoveryRemoval(oldFeatures, newFeatures []string) error {
 	}
 
 	for _, name := range newFeatures {
-		if core.ParseFeatureNoValidation(name).IsProtectionFeature() {
+		if (core.Feature{Name: name}).IsProtectionFeature() {
 			return fmt.Errorf("feature %s cannot be removed while the protection feature %s is enabled",
 				core.FeatureCloudDiscovery.Name, name)
 		}
