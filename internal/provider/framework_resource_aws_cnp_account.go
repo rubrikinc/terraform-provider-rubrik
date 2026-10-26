@@ -85,8 +85,13 @@ var (
 // awsCNPExtraPermissionGroups holds the permission groups which cannot be used
 // when onboarding an AWS account. They have been accepted in the past so we
 // still silently allow them.
-var awsCNPExtraPermissionGroups = []string{
-	"EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "SNAPSHOT_PRIVATE_ACCESS", "PRIVATE_ENDPOINT",
+var awsCNPExtraPermissionGroups = []core.PermissionGroup{
+	core.PermissionGroupExportAndRestore,
+	core.PermissionGroupFileLevelRecovery,
+	core.PermissionGroupSnapshotPrivateAccess,
+	// PRIVATE_ENDPOINT is a misspelling of PRIVATE_ENDPOINTS which has been
+	// accepted in the past, so it has no SDK constant.
+	core.PermissionGroup("PRIVATE_ENDPOINT"),
 }
 
 type awsCnpAccountResource struct {
@@ -250,12 +255,11 @@ func (r *awsCnpAccountResource) Schema(ctx context.Context, _ resource.SchemaReq
 						keyPermissionGroups: schema.SetAttribute{
 							ElementType: types.StringType,
 							Required:    true,
-							Description: fmt.Sprintf("RSC permission groups for the feature. %s. For backwards "+
-								"compatibility, `[]` is interpreted as all applicable permission groups.",
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
 								possibleValues(core.AWSIAMRolesPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), awsCNPExtraPermissionGroups)...,
+									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), core.PermissionGroupNames(awsCNPExtraPermissionGroups))...,
 								)),
 							},
 						},

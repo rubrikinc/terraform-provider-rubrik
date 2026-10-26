@@ -134,11 +134,11 @@ func validatePermissionGroup(features []core.Feature, name string, extraGroups .
 func checkFeaturePermissionGroups(features []core.Feature, name string, groups []string) error {
 	feature, ok := core.LookupFeatureName(features, name)
 	if !ok {
-		return fmt.Errorf("feature %s is not supported", name)
+		return fmt.Errorf("feature %q is not supported", name)
 	}
 	for _, group := range groups {
 		if !feature.HasPermissionGroup(core.PermissionGroup(group)) {
-			return fmt.Errorf("feature %s does not support permission group %s", name, group)
+			return fmt.Errorf("feature %q does not support permission group %q", name, group)
 		}
 	}
 

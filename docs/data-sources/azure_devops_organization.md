@@ -68,5 +68,5 @@ data "rubrik_azure_devops_organization" "by_id" {
 
 Read-Only:
 
-- `name` (String) Feature name.
+- `name` (String) RSC feature name.
 - `permission_groups` (Set of String) Permission groups enabled for the feature.

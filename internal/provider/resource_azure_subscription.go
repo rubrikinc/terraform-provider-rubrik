@@ -484,7 +484,7 @@ func resourceAzureSubscription() *schema.Resource {
 								Type:         schema.TypeString,
 								ValidateFunc: validatePermissionGroup(core.AzureSubscriptionFeatures(), core.CloudNativeUEMKeyManagement),
 							},
-							Optional: true,
+							Required: true,
 							Description: fmt.Sprintf("Permission groups to assign to the Cloud Native UEM Key Management feature. %s.",
 								possiblePermissionGroups(core.AzureSubscriptionFeatures(), core.CloudNativeUEMKeyManagement)),
 						},

@@ -395,9 +395,12 @@ Read-Only:
 <a id="nestedblock--cloud_native_uem_key_management"></a>
 ### Nested Schema for `cloud_native_uem_key_management`
 
-Optional:
+Required:
 
 - `permission_groups` (Set of String) Permission groups to assign to the Cloud Native UEM Key Management feature. Possible value is `BASIC`.
+
+Optional:
+
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 
 Read-Only:

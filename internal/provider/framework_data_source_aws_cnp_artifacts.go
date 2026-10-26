@@ -131,12 +131,11 @@ func (d *awsArtifactsDataSource) Schema(ctx context.Context, _ datasource.Schema
 						keyPermissionGroups: schema.SetAttribute{
 							ElementType: types.StringType,
 							Required:    true,
-							Description: fmt.Sprintf("RSC permission groups for the feature. %s. For backwards "+
-								"compatibility, `[]` is interpreted as all applicable permission groups.",
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
 								possibleValues(core.AWSIAMRolesPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.ValueStringsAre(stringvalidator.OneOf(
-									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), awsCNPExtraPermissionGroups)...,
+									slices.Concat(core.AWSIAMRolesPermissionGroupNames(), core.PermissionGroupNames(awsCNPExtraPermissionGroups))...,
 								)),
 							},
 						},

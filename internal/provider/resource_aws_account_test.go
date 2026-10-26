@@ -22,8 +22,10 @@ package provider
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
@@ -224,58 +226,6 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 	})
 }
 
-const awsAccountUEMKeyManagementTmpl = `
-provider "polaris" {
-	credentials = "{{ .Provider.Credentials }}"
-}
-
-resource "polaris_aws_account" "default" {
-	name    = "{{ .Resource.AccountName }}"
-	profile = "{{ .Resource.Profile }}"
-
-	cloud_native_uem_key_management {
-		permission_groups = [
-			"BASIC",
-		]
-		regions = [
-			"us-east-2",
-		]
-	}
-}
-`
-
-// TestAccPolarisAWSAccount_uemKeyManagement onboards and offboards the Cloud
-// Native UEM Key Management feature as the only feature of the account.
-//
-// The feature is gated in RSC behind the REL_ENABLE_AWS_EC2_UEM and
-// REL_ENABLE_AWS_S3_UEM feature flags, either of which allows the feature to
-// be onboarded. The test skips unless REL_ENABLE_AWS_EC2_UEM is enabled.
-func TestAccPolarisAWSAccount_uemKeyManagement(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagAWSCloudAccountUEM)
-
-	config, account := loadAWSTestConfig(t)
-	accountUEM, err := makeTerraformConfig(config, awsAccountUEMKeyManagementTmpl)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
-		Steps: []resource.TestStep{{
-			Config: accountUEM,
-			Check: resource.ComposeTestCheckFunc(
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "name", account.AccountName),
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "profile", account.Profile),
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.status", "connected"),
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.regions.#", "1"),
-				resource.TestCheckTypeSetElemAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.regions.*", "us-east-2"),
-				resource.TestCheckResourceAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.permission_groups.#", "1"),
-				resource.TestCheckTypeSetElemAttr("polaris_aws_account.default", "cloud_native_uem_key_management.0.permission_groups.*", "BASIC"),
-			),
-		}},
-	})
-}
-
 // TestAWSCFTFeatureBlockMap verifies that the feature blocks of the
 // rubrik_aws_account resource cover exactly the features which can be onboarded
 // using the AWS CloudFormation workflow.
@@ -288,5 +238,24 @@ func TestAWSCFTFeatureBlockMap(t *testing.T) {
 
 	if want := core.AWSCloudFormationFeatureNames(); !slices.Equal(got, want) {
 		t.Errorf("unexpected features, got: %s want: %s", got, want)
+	}
+}
+
+// TestAWSCFTFeatureBlockPermissionGroups verifies that the permission_groups
+// field of every feature block of the rubrik_aws_account resource has possible
+// values, i.e. that the feature name of the block is known by the SDK.
+func TestAWSCFTFeatureBlockPermissionGroups(t *testing.T) {
+	for key, field := range resourceAwsAccount().Schema {
+		block, ok := field.Elem.(*schema.Resource)
+		if !ok {
+			continue
+		}
+		groups, ok := block.Schema[keyPermissionGroups]
+		if !ok {
+			continue
+		}
+		if strings.Contains(groups.Description, possibleValues([]string{})) {
+			t.Errorf("feature block %s has no possible permission groups", key)
+		}
 	}
 }

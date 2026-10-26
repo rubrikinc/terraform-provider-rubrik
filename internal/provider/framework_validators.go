@@ -159,14 +159,15 @@ func permissionGroupValidator(features []core.Feature, name string, extraGroups 
 // object must have name and permission_groups attributes. An empty set of
 // permission groups, and the extra permission groups, are accepted for any
 // feature. A null or unknown object, name or set passes (nothing to validate
-// yet).
-func featurePermissionGroupsValidator(features []core.Feature, extraGroups ...string) validator.Object {
+// yet), as does a name which isn't found in the features, since the validator
+// of the name attribute reports it.
+func featurePermissionGroupsValidator(features []core.Feature, extraGroups ...core.PermissionGroup) validator.Object {
 	return featurePermissionGroupsObjectValidator{features: features, extraGroups: extraGroups}
 }
 
 type featurePermissionGroupsObjectValidator struct {
 	features    []core.Feature
-	extraGroups []string
+	extraGroups []core.PermissionGroup
 }
 
 func (v featurePermissionGroupsObjectValidator) Description(_ context.Context) string {
@@ -187,6 +188,9 @@ func (v featurePermissionGroupsObjectValidator) ValidateObject(_ context.Context
 	if !ok || name.IsNull() || name.IsUnknown() {
 		return
 	}
+	if _, ok := core.LookupFeatureName(v.features, name.ValueString()); !ok {
+		return
+	}
 	groupSet, ok := attrs[keyPermissionGroups].(types.Set)
 	if !ok || groupSet.IsNull() || groupSet.IsUnknown() {
 		return
@@ -195,7 +199,7 @@ func (v featurePermissionGroupsObjectValidator) ValidateObject(_ context.Context
 	var groups []string
 	for _, elem := range groupSet.Elements() {
 		group, ok := elem.(types.String)
-		if !ok || group.IsNull() || group.IsUnknown() || slices.Contains(v.extraGroups, group.ValueString()) {
+		if !ok || group.IsNull() || group.IsUnknown() || slices.Contains(v.extraGroups, core.PermissionGroup(group.ValueString())) {
 			continue
 		}
 		groups = append(groups, group.ValueString())

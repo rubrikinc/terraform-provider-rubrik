@@ -96,8 +96,8 @@ func dataSourceAzurePermissions() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{keyFeature, keyFeatures},
-				Description: fmt.Sprintf("RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` "+
-					"style. %s.", possibleValues(core.AzureSubscriptionFeatureNames())),
+				Description: fmt.Sprintf("RSC feature to look up permissions for. %s.",
+					possibleValues(core.AzureSubscriptionFeatureNames())),
 				ValidateFunc: validation.StringInSlice(core.AzureSubscriptionFeatureNames(), false),
 			},
 			keyFeatures: {

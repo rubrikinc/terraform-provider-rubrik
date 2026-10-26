@@ -328,6 +328,11 @@ func TestFeaturePermissionGroupsValidator(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "UnknownFeature",
+			value:     feature(core.AzureSQLDBProtection, "BASIC"),
+			expectErr: false,
+		},
+		{
 			name:      "EmptySet",
 			value:     feature(core.RDSProtection),
 			expectErr: false,
@@ -344,7 +349,7 @@ func TestFeaturePermissionGroupsValidator(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v := featurePermissionGroupsValidator(core.AWSIAMRolesFeatures(), "EXPORT_AND_RESTORE")
+			v := featurePermissionGroupsValidator(core.AWSIAMRolesFeatures(), core.PermissionGroupExportAndRestore)
 
 			var res validator.ObjectResponse
 			v.ValidateObject(context.Background(), validator.ObjectRequest{

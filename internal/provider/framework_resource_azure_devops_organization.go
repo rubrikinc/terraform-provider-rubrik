@@ -285,7 +285,7 @@ func (r *azureDevOpsOrganizationResource) Schema(ctx context.Context, _ resource
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Required: true,
-							Description: fmt.Sprintf("Feature name. %s.",
+							Description: fmt.Sprintf("RSC feature name. %s.",
 								possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 							Validators: []validator.String{
 								stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
@@ -294,13 +294,13 @@ func (r *azureDevOpsOrganizationResource) Schema(ctx context.Context, _ resource
 						keyPermissionGroups: schema.SetAttribute{
 							Required:    true,
 							ElementType: types.StringType,
-							Description: fmt.Sprintf("Permission groups to enable for the feature. At least one is "+
-								"required. %s. Re-run the onboarding script against the organization to grant the "+
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s. At least one is "+
+								"required. Re-run the onboarding script against the organization to grant the "+
 								"new permissions before applying a change.",
-								possibleValues(devops.AzureSupportedPermissionGroupNames())),
+								possibleValues(core.AzureDevOpsOrganizationPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.SizeAtLeast(1),
-								setvalidator.ValueStringsAre(stringvalidator.OneOf(devops.AzureSupportedPermissionGroupNames()...)),
+								setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AzureDevOpsOrganizationPermissionGroupNames()...)),
 							},
 						},
 						keyPermissions: schema.StringAttribute{
@@ -312,6 +312,9 @@ func (r *azureDevOpsOrganizationResource) Schema(ctx context.Context, _ resource
 								isNotWhiteSpace(),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AzureDevOpsOrganizationFeatures()),
 					},
 				},
 			},
@@ -414,33 +417,6 @@ func (r *azureDevOpsOrganizationResource) ModifyPlan(ctx context.Context, req re
 				"CUSTOMER_HOST, or RUBRIK_HOST with RCV.")
 	}
 
-	// Check feature specific permission groups.
-	if !plan.Feature.IsNull() && !plan.Feature.IsUnknown() {
-		var features []featureWithPermissionsModel
-		res.Diagnostics.Append(plan.Feature.ElementsAs(ctx, &features, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-
-		for _, feature := range features {
-			if feature.Name.IsUnknown() || feature.PermissionGroups.IsNull() || feature.PermissionGroups.IsUnknown() {
-				continue
-			}
-			supported, ok := core.LookupFeatureName(core.AzureDevOpsOrganizationFeatures(), feature.Name.ValueString())
-			if !ok {
-				continue
-			}
-
-			var groups []string
-			res.Diagnostics.Append(feature.PermissionGroups.ElementsAs(ctx, &groups, false)...)
-			for _, group := range groups {
-				if !supported.HasPermissionGroup(core.PermissionGroup(group)) {
-					res.Diagnostics.AddAttributeError(path.Root(keyFeature),
-						"Invalid permission group for feature", fmt.Sprintf("permission group %q is not supported by feature %q.", group, feature.Name.ValueString()))
-				}
-			}
-		}
-	}
 	if res.Diagnostics.HasError() {
 		return
 	}

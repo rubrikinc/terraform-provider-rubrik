@@ -124,7 +124,7 @@ func cloudFeaturesResource() *schema.Resource {
 						keyName: {
 							Type:        schema.TypeString,
 							Computed:    true,
-							Description: "Feature name.",
+							Description: "RSC feature name.",
 						},
 						keyPermissionGroups: {
 							Type: schema.TypeList,

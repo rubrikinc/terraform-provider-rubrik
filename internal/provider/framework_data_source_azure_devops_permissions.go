@@ -110,7 +110,7 @@ func (d *azureDevOpsPermissionsDataSource) Schema(ctx context.Context, _ datasou
 			},
 			keyFeature: schema.StringAttribute{
 				Required: true,
-				Description: fmt.Sprintf("RSC Azure DevOps feature to look up permissions for. %s.",
+				Description: fmt.Sprintf("RSC feature to look up permissions for. %s.",
 					possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 				Validators: []validator.String{
 					stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
@@ -119,11 +119,11 @@ func (d *azureDevOpsPermissionsDataSource) Schema(ctx context.Context, _ datasou
 			keyPermissionGroups: schema.SetAttribute{
 				Required:    true,
 				ElementType: types.StringType,
-				Description: fmt.Sprintf("Permission groups to look up for the feature. %s.",
-					possibleValues(devops.AzureSupportedPermissionGroupNames())),
+				Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
+					possibleValues(core.AzureDevOpsOrganizationPermissionGroupNames())),
 				Validators: []validator.Set{
 					setvalidator.SizeAtLeast(1),
-					setvalidator.ValueStringsAre(stringvalidator.OneOf(devops.AzureSupportedPermissionGroupNames()...)),
+					setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AzureDevOpsOrganizationPermissionGroupNames()...)),
 				},
 			},
 			keyPermissions: schema.StringAttribute{
@@ -174,14 +174,14 @@ func (d *azureDevOpsPermissionsDataSource) Read(ctx context.Context, req datasou
 		return
 	}
 
+	if err := checkFeaturePermissionGroups(core.AzureDevOpsOrganizationFeatures(), config.Feature.ValueString(), groups); err != nil {
+		res.Diagnostics.AddError("Invalid permission group", err.Error())
+		return
+	}
+
 	feature := core.Feature{Name: config.Feature.ValueString()}
 	for _, group := range groups {
 		feature = feature.WithPermissionGroups(core.PermissionGroup(group))
-	}
-
-	if err := devops.AzureCheckFeature(feature); err != nil {
-		res.Diagnostics.AddError("Unsupported Azure DevOps feature or permission group", err.Error())
-		return
 	}
 
 	perms, err := devops.Wrap(polarisClient).ListPermissions(ctx, []core.Feature{feature})

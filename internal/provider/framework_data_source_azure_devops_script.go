@@ -162,7 +162,7 @@ func (d *azureDevOpsScriptDataSource) Schema(ctx context.Context, _ datasource.S
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Required: true,
-							Description: fmt.Sprintf("Feature name. %s.",
+							Description: fmt.Sprintf("RSC feature name. %s.",
 								possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 							Validators: []validator.String{
 								stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
@@ -171,13 +171,16 @@ func (d *azureDevOpsScriptDataSource) Schema(ctx context.Context, _ datasource.S
 						keyPermissionGroups: schema.SetAttribute{
 							Required:    true,
 							ElementType: types.StringType,
-							Description: fmt.Sprintf("Permission groups to enable for the feature. At least one is "+
-								"required. %s.", possibleValues(devops.AzureSupportedPermissionGroupNames())),
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s. At least one is "+
+								"required.", possibleValues(core.AzureDevOpsOrganizationPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.SizeAtLeast(1),
-								setvalidator.ValueStringsAre(stringvalidator.OneOf(devops.AzureSupportedPermissionGroupNames()...)),
+								setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AzureDevOpsOrganizationPermissionGroupNames()...)),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AzureDevOpsOrganizationFeatures()),
 					},
 				},
 			},

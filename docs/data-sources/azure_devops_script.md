@@ -110,5 +110,5 @@ output "onboarding_powershell_script" {
 
 Required:
 
-- `name` (String) Feature name. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
-- `permission_groups` (Set of String) Permission groups to enable for the feature. At least one is required. Possible values are `BASIC` and `RECOVERY`.
+- `name` (String) RSC feature name. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
+- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC` and `RECOVERY`. At least one is required.

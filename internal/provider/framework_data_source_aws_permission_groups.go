@@ -102,7 +102,7 @@ func (d *awsPermissionGroupsDataSource) Schema(ctx context.Context, _ datasource
 			},
 			keyFeature: schema.StringAttribute{
 				Required: true,
-				Description: fmt.Sprintf("RSC feature name to look up permission groups for. %s.",
+				Description: fmt.Sprintf("RSC feature to look up permission groups for. %s.",
 					possibleValues(core.CloudVendorFeatureNames(core.CloudVendorAWS))),
 				Validators: []validator.String{
 					stringvalidator.OneOf(core.CloudVendorFeatureNames(core.CloudVendorAWS)...),

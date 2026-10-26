@@ -195,8 +195,8 @@ resource "rubrik_azure_devops_organization" "org" {
 
 Required:
 
-- `name` (String) Feature name. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
-- `permission_groups` (Set of String) Permission groups to enable for the feature. At least one is required. Possible values are `BASIC` and `RECOVERY`. Re-run the onboarding script against the organization to grant the new permissions before applying a change.
+- `name` (String) RSC feature name. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
+- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC` and `RECOVERY`. At least one is required. Re-run the onboarding script against the organization to grant the new permissions before applying a change.
 
 Optional:
 
