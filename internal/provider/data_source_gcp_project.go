@@ -212,6 +212,6 @@ func toGCPFeatureResourceWithStatus(feature core.Feature, status core.Status) ma
 	return map[string]any{
 		keyName:             feature.Name,
 		keyPermissionGroups: pgs,
-		keyStatus:           core.FormatStatus(status),
+		keyStatus:           string(status),
 	}
 }

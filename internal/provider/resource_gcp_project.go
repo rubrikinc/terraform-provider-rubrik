@@ -258,7 +258,7 @@ func gcpReadProject(ctx context.Context, d *schema.ResourceData, m any) diag.Dia
 	var cnpBlock []any
 	if cnpFeature, ok := account.Feature(core.FeatureCloudNativeProtection); ok {
 		cnpBlock = append(cnpBlock, map[string]any{
-			keyStatus: core.FormatStatus(cnpFeature.Status),
+			keyStatus: string(cnpFeature.Status),
 		})
 	}
 	if err := d.Set(keyCloudNativeProtection, cnpBlock); err != nil {
@@ -511,7 +511,7 @@ func toGCPFeatureResourceWithPermissionsAndStatus(feature core.Feature, permissi
 		keyName:             feature.Name,
 		keyPermissionGroups: pgs,
 		keyPermissions:      permissions,
-		keyStatus:           core.FormatStatus(status),
+		keyStatus:           string(status),
 	}
 }
 

@@ -265,3 +265,21 @@ resource "rubrik_aws_cnp_account" "account" {
 If the plan fails with an error about a permission group not being supported by a feature, remove the permission group
 from the feature. The permission groups each feature supports are listed in the documentation of the resource or data
 source.
+
+### GCP project feature status
+
+The `status` attribute of the features in the `rubrik_gcp_project` resource and data source, and of the
+`cloud_native_protection` block in the `rubrik_gcp_project` resource, previously held a lower case value, e.g.
+`connected`. It now holds the status as returned by RSC, e.g. `CONNECTED`, which matches the `rubrik_azure_subscription`
+resource:
+
+```terraform
+output "gcp_project_connected" {
+  # Previously: status == "connected"
+  value = one([for f in rubrik_gcp_project.project.feature : f.status if f.name == "CLOUD_NATIVE_PROTECTION"]) == "CONNECTED"
+}
+```
+
+The attribute is computed, so no change to the resource configuration is needed and Terraform does not plan any changes
+for it. If your configuration compares the status to a lower case value, for example in a `precondition` or an output,
+update the comparison to use the upper case value.

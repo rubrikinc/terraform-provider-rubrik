@@ -89,7 +89,7 @@ func TestAccPolarisGCPProject_basic(t *testing.T) {
 				resource.TestCheckResourceAttr("polaris_gcp_project.default", "delete_snapshots_on_destroy", "false"),
 
 				// Cloud Native Protection feature
-				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "connected"),
+				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "CONNECTED"),
 			),
 		}},
 	})
@@ -112,7 +112,7 @@ func TestAccPolarisGCPProject_basic(t *testing.T) {
 				resource.TestCheckResourceAttr("polaris_gcp_project.default", "delete_snapshots_on_destroy", "false"),
 
 				// Cloud Native Protection feature
-				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "connected"),
+				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "CONNECTED"),
 			),
 		}},
 	})
@@ -393,14 +393,14 @@ func TestAccGcpProjectCloudDiscoveryResource(t *testing.T) {
 					"name":                "CLOUD_DISCOVERY",
 					"permissions":         "",
 					"permission_groups.#": "1",
-					"status":              "connected",
+					"status":              "CONNECTED",
 				}),
 				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
 					"%":                   "4",
 					"name":                "CLOUD_NATIVE_PROTECTION",
 					"permissions":         "",
 					"permission_groups.#": "1",
-					"status":              "connected",
+					"status":              "CONNECTED",
 				}),
 			),
 		}, {
@@ -419,7 +419,7 @@ func TestAccGcpProjectCloudDiscoveryResource(t *testing.T) {
 					"name":                "CLOUD_DISCOVERY",
 					"permissions":         "",
 					"permission_groups.#": "1",
-					"status":              "connected",
+					"status":              "CONNECTED",
 				}),
 			),
 		}},
