@@ -28,11 +28,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccAzureDevOpsPermissionsDataSource(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureDevOpsProtection)
+	skipUnlessFeatureEnabled(t, FeatureFlagAzureDevOpsProtection)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,

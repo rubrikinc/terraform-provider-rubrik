@@ -30,11 +30,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccAWSKMSKeyManagerDataSource(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagUnifiedEncryptionManagement)
+	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
@@ -111,7 +110,7 @@ func TestAccAWSKMSKeyManagerDataSource(t *testing.T) {
 }
 
 func TestAccAWSKMSKeyManagerDataSource_OtherCloud(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagUnifiedEncryptionManagement)
+	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
@@ -133,7 +132,7 @@ func TestAccAWSKMSKeyManagerDataSource_OtherCloud(t *testing.T) {
 }
 
 func TestAccAWSKMSKeyManagerDataSource_NotFound(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagUnifiedEncryptionManagement)
+	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,

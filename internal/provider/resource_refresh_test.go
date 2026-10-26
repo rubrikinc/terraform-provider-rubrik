@@ -28,7 +28,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 // refreshAzureSubscriptionTmpl onboards an Azure subscription, looks it up
@@ -160,7 +159,7 @@ func discoveryOnboardingEnabled(t *testing.T) bool {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	return c.flag(ctx, core.FeatureFlagName("CNP_DISCOVERY_ONBOARDING_ENABLED"))
+	return c.flag(ctx, FeatureFlagDiscoveryOnboarding)
 }
 
 func TestAccPolarisAwsAccountRefresh(t *testing.T) {

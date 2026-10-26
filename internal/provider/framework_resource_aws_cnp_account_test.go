@@ -666,7 +666,7 @@ func TestSplitAccountID(t *testing.T) {
 // permission group set. The feature requires LIC_ENABLE_AWS_APP_RESILIENCE to
 // be enabled for the RSC account.
 func TestAccAwsCnpAccountResource_ConfigProtection(t *testing.T) {
-	skipUnlessFeatureEnabled(t, core.FeatureFlagName("LIC_ENABLE_AWS_APP_RESILIENCE"))
+	skipUnlessFeatureEnabled(t, FeatureFlagAWSAppResilience)
 
 	vars := config.Variables{
 		"credentials":    config.StringVariable(testCredentials(t)),
