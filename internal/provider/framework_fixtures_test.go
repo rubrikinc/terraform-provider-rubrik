@@ -274,6 +274,123 @@ func testAuthDomainID(t *testing.T) string {
 	return conf.AuthDomainID
 }
 
+// testAWSKeyManagerID
+func testAWSKeyManagerID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AWSKeyManagerID == "" {
+		t.Skip("AWS key manager fixture not available: awsKeyManagerID not set")
+	}
+
+	return conf.AWSKeyManagerID
+}
+
+// testAWSKeyManagerName
+func testAWSKeyManagerName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AWSKeyManagerName == "" {
+		t.Skip("AWS key manager fixture not available: awsKeyManagerName not set")
+	}
+
+	return conf.AWSKeyManagerName
+}
+
+// testAWSKeyManagerRegion
+func testAWSKeyManagerRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AWSKeyManagerRegion == "" {
+		t.Skip("AWS key manager fixture not available: awsKeyManagerRegion not set")
+	}
+
+	return conf.AWSKeyManagerRegion
+}
+
+// testAzureKeyManagerID
+func testAzureKeyManagerID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AzureKeyManagerID == "" {
+		t.Skip("Azure key manager fixture not available: azureKeyManagerID not set")
+	}
+
+	return conf.AzureKeyManagerID
+}
+
+// testAzureKeyManagerName
+func testAzureKeyManagerName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AzureKeyManagerName == "" {
+		t.Skip("Azure key manager fixture not available: azureKeyManagerName not set")
+	}
+
+	return conf.AzureKeyManagerName
+}
+
+// testAzureKeyManagerRegion
+func testAzureKeyManagerRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.AzureKeyManagerRegion == "" {
+		t.Skip("Azure key manager fixture not available: azureKeyManagerRegion not set")
+	}
+
+	return conf.AzureKeyManagerRegion
+}
+
+// testGCPKeyManagerID
+func testGCPKeyManagerID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerID == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerID not set")
+	}
+
+	return conf.GCPKeyManagerID
+}
+
+// testGCPKeyManagerName
+func testGCPKeyManagerName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerName == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerName not set")
+	}
+
+	return conf.GCPKeyManagerName
+}
+
+// testGCPKeyManagerRegion
+func testGCPKeyManagerRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.GCPKeyManagerRegion == "" {
+		t.Skip("GCP key manager fixture not available: gcpKeyManagerRegion not set")
+	}
+
+	return conf.GCPKeyManagerRegion
+}
+
 // createTestRole creates a custom role via the SDK and registers a cleanup
 // function to delete it. The role will have the VIEW_CLUSTER and
 // VIEW_CLUSTER_REFERENCE permissions on the CLUSTER_ROOT. Returns the role ID.
