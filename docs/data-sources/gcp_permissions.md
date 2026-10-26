@@ -21,6 +21,9 @@ description: |-
   feature.EXPORT_AND_RESTORE - Represents the set of permissions required for export
   and restore operations.FILE_LEVEL_RECOVERY - Represents the set of permissions required for
   file-level recovery operations.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   CLOUD_SQL_PROTECTION
   BASIC - Represents the basic set of permissions required to onboard the
   feature.EXPORT_AND_RESTORE - Represents the set of permissions required for export
@@ -97,6 +100,10 @@ are used when specifying the feature.
     and restore operations.
   * `FILE_LEVEL_RECOVERY` - Represents the set of permissions required for
     file-level recovery operations.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `CLOUD_SQL_PROTECTION`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -177,9 +184,9 @@ data "rubrik_gcp_permissions" "cloud_native_archival" {
 
 ### Optional
 
-- `feature` (String) RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.
-- `features` (Set of String, Deprecated) RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` instead.
-- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC`, `ENCRYPTION`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `AUTOMATED_NETWORKING_SETUP`, `CLOUD_CLUSTER_ES` and `CLOUDSQL`.
+- `feature` (String) RSC feature to look up permissions for. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `CLOUD_SQL_PROTECTION`, `EXOCOMPUTE`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST` and `SERVERS_AND_APPS`.
+- `features` (Set of String, Deprecated) RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `CLOUD_SQL_PROTECTION`, `EXOCOMPUTE`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` instead.
+- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `AUTOMATED_NETWORKING_SETUP`, `BASIC`, `CLOUDSQL`, `CLOUD_CLUSTER_ES`, `ENCRYPTION`, `EXPORT_AND_RESTORE` and `FILE_LEVEL_RECOVERY`.
 
 ### Read-Only
 

@@ -49,6 +49,9 @@ description: |-
   file-level recovery operations.SNAPSHOT_PRIVATE_ACCESS - Represents the set of permissions required for
   private access to disk snapshots.EXPORT_AND_RESTORE_POWER_OFF_VM - Represents the set of permissions
   required for export and restore operations with VM power off capability.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   SERVERS_AND_APPS
   CLOUD_CLUSTER_ES - Represents the basic set of permissions required to
   onboard the feature.SAP_HANA_SS_BASIC - Represents the basic set of permissions required for
@@ -150,6 +153,10 @@ are used when specifying the feature.
   * `EXPORT_AND_RESTORE_POWER_OFF_VM` - Represents the set of permissions
     required for export and restore operations with VM power off capability.
 
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
+
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
     onboard the feature.
@@ -235,9 +242,9 @@ resource "rubrik_azure_subscription" "subscription" {
 
 ### Optional
 
-- `feature` (String) RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. Possible values are `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `SERVERS_AND_APPS` and `EXOCOMPUTE`.
-- `features` (Set of String, Deprecated) RSC features. Possible values are `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `SERVERS_AND_APPS` and `EXOCOMPUTE`. **Deprecated:** use `feature` instead.
-- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `SNAPSHOT_PRIVATE_ACCESS`, `EXPORT_AND_RESTORE_POWER_OFF_VM`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION`, `ENCRYPTION`, `SQL_ARCHIVAL`, `RECOVERY`, `BACKUP_V2`, `SAP_HANA_SS_BASIC`, `SAP_HANA_SS_RECOVERY`, `AUTOMATED_NETWORKING_SETUP` and `CLOUD_CLUSTER_ES`.
+- `feature` (String) RSC feature to look up permissions for. Possible values are `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.
+- `features` (Set of String, Deprecated) RSC features. Possible values are `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` instead.
+- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `AUTOMATED_NETWORKING_SETUP`, `BACKUP_V2`, `BASIC`, `CLOUD_CLUSTER_ES`, `CUSTOMER_MANAGED_BASIC`, `ENCRYPTION`, `EXPORT_AND_RESTORE`, `EXPORT_AND_RESTORE_POWER_OFF_VM`, `FILE_LEVEL_RECOVERY`, `PRIVATE_ENDPOINTS`, `RECOVERY`, `SAP_HANA_SS_BASIC`, `SAP_HANA_SS_RECOVERY`, `SERVICE_ENDPOINT_AUTOMATION`, `SNAPSHOT_PRIVATE_ACCESS` and `SQL_ARCHIVAL`.
 
 ### Read-Only
 

@@ -96,39 +96,20 @@ func dataSourceAzurePermissions() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{keyFeature, keyFeatures},
-				Description: "RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` " +
-					"style. Possible values are `AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, " +
-					"`AZURE_SQL_DB_PROTECTION`, `AZURE_SQL_MI_PROTECTION`, " +
-					"`CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, " +
-					"`CLOUD_NATIVE_BLOB_PROTECTION`, `CLOUD_NATIVE_PROTECTION`, `SERVERS_AND_APPS` and `EXOCOMPUTE`.",
-				ValidateFunc: validation.StringInSlice([]string{
-					"AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION",
-					"AZURE_SQL_DB_PROTECTION", "AZURE_SQL_MI_PROTECTION", "CLOUD_DISCOVERY",
-					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_ARCHIVAL_ENCRYPTION",
-					"CLOUD_NATIVE_BLOB_PROTECTION", "CLOUD_NATIVE_PROTECTION",
-					"EXOCOMPUTE", "SERVERS_AND_APPS",
-				}, false),
+				Description: fmt.Sprintf("RSC feature to look up permissions for. %s.",
+					possibleValues(core.AzureSubscriptionFeatureNames())),
+				ValidateFunc: validation.StringInSlice(core.AzureSubscriptionFeatureNames(), false),
 			},
 			keyFeatures: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION",
-						"AZURE_SQL_DB_PROTECTION", "AZURE_SQL_MI_PROTECTION", "CLOUD_DISCOVERY",
-						"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_ARCHIVAL_ENCRYPTION",
-						"CLOUD_NATIVE_BLOB_PROTECTION", "CLOUD_NATIVE_PROTECTION",
-						"EXOCOMPUTE", "SERVERS_AND_APPS",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.AzureSubscriptionFeatureNames(), false),
 				},
 				MinItems: 1,
 				Optional: true,
-				Description: "RSC features. Possible values are " +
-					"`AZURE_POSTGRES_FLEXIBLE_SERVER_PROTECTION`, `AZURE_SQL_DB_PROTECTION`, " +
-					"`AZURE_SQL_MI_PROTECTION`, `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_ARCHIVAL_ENCRYPTION`, `CLOUD_NATIVE_BLOB_PROTECTION`, " +
-					"`CLOUD_NATIVE_PROTECTION`, `SERVERS_AND_APPS` and `EXOCOMPUTE`. **Deprecated:** " +
-					"use `feature` instead.",
+				Description: fmt.Sprintf("RSC features. %s. **Deprecated:** use `feature` instead.",
+					possibleValues(core.AzureSubscriptionFeatureNames())),
 				Deprecated: "Use `feature` instead",
 			},
 			keyHash: {
@@ -161,27 +142,14 @@ func dataSourceAzurePermissions() *schema.Resource {
 			keyPermissionGroups: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY", "SNAPSHOT_PRIVATE_ACCESS",
-						"EXPORT_AND_RESTORE_POWER_OFF_VM", "PRIVATE_ENDPOINTS", "CUSTOMER_MANAGED_BASIC",
-						"AKS_CUSTOM_PRIVATE_DNS_ZONE", "SERVICE_ENDPOINT_AUTOMATION", "ENCRYPTION", "SQL_ARCHIVAL",
-						"RECOVERY", "BACKUP_V2", "SAP_HANA_SS_BASIC", "SAP_HANA_SS_RECOVERY",
-						"AUTOMATED_NETWORKING_SETUP",
-						// The following permission group is no longer listed in the RSC UI when onboarding
-						// an Azure subscription. It was accepted in the past so we still silently allow it.
-						"CLOUD_CLUSTER_ES",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.AzureSubscriptionPermissionGroupNames(), false),
 				},
 				Optional:      true,
 				ConflictsWith: []string{keyFeatures},
 				RequiredWith:  []string{keyFeature},
-				Description: "Permission groups for the RSC feature. Possible values are `BASIC`, " +
-					"`EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `SNAPSHOT_PRIVATE_ACCESS`, " +
-					"`EXPORT_AND_RESTORE_POWER_OFF_VM`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, " +
-					"`AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION`, `ENCRYPTION`, `SQL_ARCHIVAL`, " +
-					"`RECOVERY`, `BACKUP_V2`, `SAP_HANA_SS_BASIC`, `SAP_HANA_SS_RECOVERY`, " +
-					"`AUTOMATED_NETWORKING_SETUP` and `CLOUD_CLUSTER_ES`.",
+				Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
+					possibleValues(core.AzureSubscriptionPermissionGroupNames())),
 			},
 			keyResourceGroupActions: {
 				Type: schema.TypeList,
@@ -266,6 +234,9 @@ func azurePermissionsRead(ctx context.Context, d *schema.ResourceData, m any) di
 		var permGroups []core.PermissionGroup
 		for _, permGroup := range d.Get(keyPermissionGroups).(*schema.Set).List() {
 			permGroups = append(permGroups, core.PermissionGroup(permGroup.(string)))
+		}
+		if err := checkFeaturePermissionGroups(core.AzureSubscriptionFeatures(), featureName, core.PermissionGroupNames(permGroups)); err != nil {
+			return diag.FromErr(err)
 		}
 		feature := core.Feature{Name: featureName, PermissionGroups: permGroups}
 		perms, groups, err = azure.Wrap(client).ScopedPermissions(ctx, feature)

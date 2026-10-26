@@ -21,9 +21,13 @@
 package provider
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const awsAccountOneRegionTmpl = `
@@ -220,4 +224,38 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 			),
 		}},
 	})
+}
+
+// TestAWSCFTFeatureBlockMap verifies that the feature blocks of the
+// rubrik_aws_account resource cover exactly the features which can be onboarded
+// using the AWS CloudFormation workflow.
+func TestAWSCFTFeatureBlockMap(t *testing.T) {
+	var got []string
+	for _, features := range awsCFTFeatureBlockMap {
+		got = append(got, core.FeatureNames(features)...)
+	}
+	slices.Sort(got)
+
+	if want := core.AWSCloudFormationFeatureNames(); !slices.Equal(got, want) {
+		t.Errorf("unexpected features, got: %s want: %s", got, want)
+	}
+}
+
+// TestAWSCFTFeatureBlockPermissionGroups verifies that the permission_groups
+// field of every feature block of the rubrik_aws_account resource has possible
+// values, i.e. that the feature name of the block is known by the SDK.
+func TestAWSCFTFeatureBlockPermissionGroups(t *testing.T) {
+	for key, field := range resourceAwsAccount().Schema {
+		block, ok := field.Elem.(*schema.Resource)
+		if !ok {
+			continue
+		}
+		groups, ok := block.Schema[keyPermissionGroups]
+		if !ok {
+			continue
+		}
+		if strings.Contains(groups.Description, possibleValues([]string{})) {
+			t.Errorf("feature block %s has no possible permission groups", key)
+		}
+	}
 }

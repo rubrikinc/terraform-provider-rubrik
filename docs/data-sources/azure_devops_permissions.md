@@ -75,8 +75,8 @@ output "permission_group_versions" {
 
 ### Required
 
-- `feature` (String) RSC Azure DevOps feature to look up permissions for. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
-- `permission_groups` (Set of String) Permission groups to look up for the feature. Possible values are `BASIC` and `RECOVERY`.
+- `feature` (String) RSC feature to look up permissions for. Possible value is `AZURE_DEVOPS_REPOSITORY_PROTECTION`.
+- `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `BASIC` and `RECOVERY`.
 
 ### Read-Only
 

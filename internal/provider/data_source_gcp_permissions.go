@@ -76,33 +76,21 @@ func dataSourceGcpPermissions() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{keyFeatures},
-				Description: "RSC feature. Note that the feature must be given in the `EXAMPLE_FEATURE_NAME` style. " +
-					"Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, " +
-					"`CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, " +
-					"`GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
-				ValidateFunc: validation.StringInSlice([]string{
-					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-					"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
-					"EXOCOMPUTE", "SERVERS_AND_APPS",
-				}, false),
+				Description: fmt.Sprintf("RSC feature to look up permissions for. %s.",
+					possibleValues(core.GCPProjectFeatureNames())),
+				ValidateFunc: validation.StringInSlice(core.GCPProjectFeatureNames(), false),
 			},
 			keyFeatures: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-						"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
-						"EXOCOMPUTE", "SERVERS_AND_APPS",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.GCPProjectFeatureNames(), false),
 				},
 				Optional:     true,
 				MinItems:     1,
 				ExactlyOneOf: []string{keyFeature},
-				Description: "RSC features. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, " +
-					"`CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, " +
-					"`GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`. **Deprecated:** use `feature` " +
-					"instead.",
+				Description: fmt.Sprintf("RSC features. %s. **Deprecated:** use `feature` instead.",
+					possibleValues(core.GCPProjectFeatureNames())),
 				Deprecated: "Use `feature` instead",
 			},
 			keyHash: {
@@ -115,18 +103,14 @@ func dataSourceGcpPermissions() *schema.Resource {
 			keyPermissionGroups: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"BASIC", "ENCRYPTION", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY",
-						"AUTOMATED_NETWORKING_SETUP", "CLOUD_CLUSTER_ES", "CLOUDSQL",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.GCPProjectPermissionGroupNames(), false),
 				},
 				Optional:      true,
 				ConflictsWith: []string{keyFeatures},
 				RequiredWith:  []string{keyFeature},
-				Description: "Permission groups for the RSC feature. Possible values are `BASIC`, `ENCRYPTION`, " +
-					"`EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `AUTOMATED_NETWORKING_SETUP`, `CLOUD_CLUSTER_ES` " +
-					"and `CLOUDSQL`.",
+				Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
+					possibleValues(core.GCPProjectPermissionGroupNames())),
 			},
 			keyPermissions: {
 				Type: schema.TypeList,
@@ -181,10 +165,13 @@ func gcpPermissionsRead(ctx context.Context, d *schema.ResourceData, m any) diag
 		for _, group := range d.Get(keyPermissionGroups).(*schema.Set).List() {
 			pgs = append(pgs, core.PermissionGroup(group.(string)))
 		}
+		if err := checkFeaturePermissionGroups(core.GCPProjectFeatures(), feature.(string), core.PermissionGroupNames(pgs)); err != nil {
+			return diag.FromErr(err)
+		}
 		features = append(features, core.Feature{Name: feature.(string), PermissionGroups: pgs})
 	} else {
 		for _, feature := range d.Get(keyFeatures).(*schema.Set).List() {
-			features = append(features, core.ParseFeatureNoValidation(feature.(string)))
+			features = append(features, core.Feature{Name: feature.(string)})
 		}
 	}
 	featurePerms, err := gcp.Wrap(client).FeaturePermissions(ctx, features)

@@ -23,10 +23,14 @@ package provider
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 // isUUID returns a validator that checks if a string value is a valid UUID.
@@ -135,6 +139,74 @@ func (v isFilterTypeForValidator) ValidateString(_ context.Context, req validato
 	res.Diagnostics.AddAttributeError(req.Path, "Filter type in the wrong block", fmt.Sprintf(
 		"%q is an %s condition and cannot be used here. Move it to a %s block.",
 		filterType, resourceType, blockName))
+}
+
+// permissionGroupValidator returns a validator that checks if a string value
+// is one of the permission groups of the feature with the specified name, or
+// one of the extra permission groups. If the feature isn't found in the
+// features, no values are allowed.
+func permissionGroupValidator(features []core.Feature, name string, extraGroups ...core.PermissionGroup) validator.String {
+	var groups []string
+	if feature, ok := core.LookupFeatureName(features, name); ok {
+		groups = core.PermissionGroupNames(slices.Concat(feature.PermissionGroups, extraGroups))
+	}
+
+	return stringvalidator.OneOf(groups...)
+}
+
+// featurePermissionGroupsValidator returns a validator that checks that the
+// permission groups of a feature object are supported by the feature. The
+// object must have name and permission_groups attributes. An empty set of
+// permission groups, and the extra permission groups, are accepted for any
+// feature. A null or unknown object, name or set passes (nothing to validate
+// yet), as does a name which isn't found in the features, since the validator
+// of the name attribute reports it.
+func featurePermissionGroupsValidator(features []core.Feature, extraGroups ...core.PermissionGroup) validator.Object {
+	return featurePermissionGroupsObjectValidator{features: features, extraGroups: extraGroups}
+}
+
+type featurePermissionGroupsObjectValidator struct {
+	features    []core.Feature
+	extraGroups []core.PermissionGroup
+}
+
+func (v featurePermissionGroupsObjectValidator) Description(_ context.Context) string {
+	return "permission groups must be supported by the feature"
+}
+
+func (v featurePermissionGroupsObjectValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v featurePermissionGroupsObjectValidator) ValidateObject(_ context.Context, req validator.ObjectRequest, res *validator.ObjectResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	attrs := req.ConfigValue.Attributes()
+	name, ok := attrs[keyName].(types.String)
+	if !ok || name.IsNull() || name.IsUnknown() {
+		return
+	}
+	if _, ok := core.LookupFeatureName(v.features, name.ValueString()); !ok {
+		return
+	}
+	groupSet, ok := attrs[keyPermissionGroups].(types.Set)
+	if !ok || groupSet.IsNull() || groupSet.IsUnknown() {
+		return
+	}
+
+	var groups []string
+	for _, elem := range groupSet.Elements() {
+		group, ok := elem.(types.String)
+		if !ok || group.IsNull() || group.IsUnknown() || slices.Contains(v.extraGroups, core.PermissionGroup(group.ValueString())) {
+			continue
+		}
+		groups = append(groups, group.ValueString())
+	}
+	if err := checkFeaturePermissionGroups(v.features, name.ValueString(), groups); err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid permission group", err.Error())
+	}
 }
 
 // setMustContain returns a validator that checks a set of strings contains the

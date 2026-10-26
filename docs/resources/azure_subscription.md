@@ -50,6 +50,9 @@ description: |-
   file-level recovery operations.SNAPSHOT_PRIVATE_ACCESS - Represents the set of permissions required for
   private access to disk snapshots.EXPORT_AND_RESTORE_POWER_OFF_VM - Represents the set of permissions
   required for export and restore operations with VM power off capability.
+  CLOUD_NATIVE_UEM_KEY_MANAGEMENT
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
   SERVERS_AND_APPS
   CLOUD_CLUSTER_ES - Represents the basic set of permissions required to
   onboard the feature.SAP_HANA_SS_BASIC - Represents the basic set of permissions required for
@@ -159,6 +162,10 @@ are used when specifying the feature.
     private access to disk snapshots.
   * `EXPORT_AND_RESTORE_POWER_OFF_VM` - Represents the set of permissions
     required for export and restore operations with VM power off capability.
+
+`CLOUD_NATIVE_UEM_KEY_MANAGEMENT`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
 
 `SERVERS_AND_APPS`
   * `CLOUD_CLUSTER_ES` - Represents the basic set of permissions required to
@@ -273,6 +280,7 @@ resource "rubrik_azure_subscription" "subscription" {
 - `cloud_native_archival_encryption` (Block List, Max: 1) Enable the RSC Cloud Native Archival Encryption feature for the Azure subscription. Allows cloud archival locations to be encrypted with customer managed keys. (see [below for nested schema](#nestedblock--cloud_native_archival_encryption))
 - `cloud_native_blob_protection` (Block List, Max: 1) Enable the RSC Cloud Native Protection feature for Azure Blob Storage. Provides protection for Azure Blob Storage through the rules and policies of SLA Domains. (see [below for nested schema](#nestedblock--cloud_native_blob_protection))
 - `cloud_native_protection` (Block List, Max: 1) Enable the RSC Cloud Native Protection feature for the Azure subscription. Provides protection for Azure virtual machines and managed disks through the rules and policies of SLA Domains. (see [below for nested schema](#nestedblock--cloud_native_protection))
+- `cloud_native_uem_key_management` (Block List, Max: 1) Enable the RSC Cloud Native UEM Key Management feature for the Azure subscription. Required to register the subscription's key vaults as key managers in RSC. The feature only grants RSC permission to read the key vaults, the key operations require RSC to be assigned the Key Vault Crypto User role on the key vault. RSC doesn't allow the feature to be removed while a key manager references the subscription. (see [below for nested schema](#nestedblock--cloud_native_uem_key_management))
 - `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed. Default value is `false`.
 - `entra_group_id` (String) Object ID of the Entra ID group used for Entra ID authentication in Exocompute AKS clusters. This is a tenant-level setting shared across all subscriptions in the same tenant.
 - `exocompute` (Block List, Max: 1) Enable the RSC Exocompute feature for the Azure subscription. Provides snapshot indexing, file recovery, storage tiering, and application-consistent protection of Azure objects. (see [below for nested schema](#nestedblock--exocompute))
@@ -295,7 +303,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Cloud Discovery feature. Possible values are `BASIC`.
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Discovery feature. Possible value is `BASIC`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 
 Read-Only:
@@ -373,7 +381,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native Protection feature. Possible values are `BASIC`, `EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `CLOUD_CLUSTER_ES`, `SNAPSHOT_PRIVATE_ACCESS` and `EXPORT_AND_RESTORE_POWER_OFF_VM`.
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native Protection feature. Possible values are `BASIC`, `CLOUD_CLUSTER_ES`, `EXPORT_AND_RESTORE`, `EXPORT_AND_RESTORE_POWER_OFF_VM`, `FILE_LEVEL_RECOVERY` and `SNAPSHOT_PRIVATE_ACCESS`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -382,6 +390,22 @@ Optional:
 Read-Only:
 
 - `status` (String) Status of the Cloud Native Protection feature.
+
+
+<a id="nestedblock--cloud_native_uem_key_management"></a>
+### Nested Schema for `cloud_native_uem_key_management`
+
+Required:
+
+- `permission_groups` (Set of String) Permission groups to assign to the Cloud Native UEM Key Management feature. Possible value is `BASIC`.
+
+Optional:
+
+- `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
+
+Read-Only:
+
+- `status` (String) Status of the Cloud Native UEM Key Management feature.
 
 
 <a id="nestedblock--exocompute"></a>
@@ -393,7 +417,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the Exocompute feature. Possible values are `BASIC`, `PRIVATE_ENDPOINTS`, `CUSTOMER_MANAGED_BASIC`, `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `SERVICE_ENDPOINT_AUTOMATION` and `AUTOMATED_NETWORKING_SETUP`.
+- `permission_groups` (Set of String) Permission groups to assign to the Exocompute feature. Possible values are `AKS_CUSTOM_PRIVATE_DNS_ZONE`, `AUTOMATED_NETWORKING_SETUP`, `BASIC`, `CUSTOMER_MANAGED_BASIC`, `PRIVATE_ENDPOINTS` and `SERVICE_ENDPOINT_AUTOMATION`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -457,7 +481,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the SQL DB Protection feature. Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.
+- `permission_groups` (Set of String) Permission groups to assign to the SQL DB Protection feature. Possible values are `BACKUP_V2`, `BASIC` and `RECOVERY`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 - `resource_group_name` (String) Name of the Azure resource group where RSC places all resources created by the feature. RSC assumes the resource group already exists. Changing this forces the RSC feature to be re-onboarded.
 - `resource_group_region` (String) Region of the Azure resource group. Should be specified in the standard Azure style, e.g. `eastus`. Changing this forces the RSC feature to be re-onboarded.
@@ -481,7 +505,7 @@ Required:
 
 Optional:
 
-- `permission_groups` (Set of String) Permission groups to assign to the SQL MI Protection feature. Possible values are `BASIC`, `RECOVERY` and `BACKUP_V2`.
+- `permission_groups` (Set of String) Permission groups to assign to the SQL MI Protection feature. Possible values are `BACKUP_V2`, `BASIC` and `RECOVERY`.
 - `permissions` (String) Permissions updated signal. When this field changes, the provider will notify RSC that the permissions for the feature has been updated. Use this field with the `rubrik_azure_permissions` data source.
 
 Read-Only:

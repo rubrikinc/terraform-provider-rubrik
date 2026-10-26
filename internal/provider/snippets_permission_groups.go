@@ -70,6 +70,10 @@ are used when specifying the feature set.
   * ´RECOVERY´ - Represents the set of elevated permissions required to perform
     recovery operations.
 
+´CLOUD_NATIVE_UEM_KEY_MANAGEMENT´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
+
 ´EXOCOMPUTE´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the
     feature.
@@ -176,6 +180,10 @@ are used when specifying the feature.
   * ´EXPORT_AND_RESTORE_POWER_OFF_VM´ - Represents the set of permissions
     required for export and restore operations with VM power off capability.
 
+´CLOUD_NATIVE_UEM_KEY_MANAGEMENT´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
+
 ´SERVERS_AND_APPS´
   * ´CLOUD_CLUSTER_ES´ - Represents the basic set of permissions required to
     onboard the feature.
@@ -222,6 +230,10 @@ are used when specifying the feature.
     and restore operations.
   * ´FILE_LEVEL_RECOVERY´ - Represents the set of permissions required for
     file-level recovery operations.
+
+´CLOUD_NATIVE_UEM_KEY_MANAGEMENT´
+  * ´BASIC´ - Represents the basic set of permissions required to onboard the
+    feature.
 
 ´CLOUD_SQL_PROTECTION´
   * ´BASIC´ - Represents the basic set of permissions required to onboard the

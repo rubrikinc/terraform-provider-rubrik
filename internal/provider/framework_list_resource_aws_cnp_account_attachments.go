@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const listResourceAWSCNPAccountAttachmentsDescription = `
@@ -180,7 +181,7 @@ func (r *awsCnpAccountAttachmentsListResource) List(ctx context.Context, req lis
 				// rubrik_aws_cnp_account resource.
 				featureValues := make([]attr.Value, 0, len(account.Features))
 				for _, feature := range account.Features {
-					if !slices.Contains(awsCnpFeatureNames, feature.Feature.Name) {
+					if !slices.Contains(core.AWSIAMRolesFeatureNames(), feature.Feature.Name) {
 						continue
 					}
 					featureValues = append(featureValues, types.StringValue(feature.Feature.Name))

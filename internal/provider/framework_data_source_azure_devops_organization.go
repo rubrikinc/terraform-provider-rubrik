@@ -133,7 +133,7 @@ func (d *azureDevOpsOrganizationDataSource) Schema(ctx context.Context, _ dataso
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Computed:    true,
-							Description: "Feature name.",
+							Description: "RSC feature name.",
 						},
 						keyPermissionGroups: schema.SetAttribute{
 							Computed:    true,

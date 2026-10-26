@@ -24,8 +24,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestIsUUIDValidator(t *testing.T) {
@@ -227,6 +230,137 @@ func TestIsFilterTypeForValidator(t *testing.T) {
 			}
 			if !tc.expectErr && res.Diagnostics.HasError() {
 				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}
+
+func TestPermissionGroupValidator(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		value     basetypes.StringValue
+		expectErr bool
+	}{
+		{
+			name:      "FeatureGroup",
+			value:     basetypes.NewStringValue("RESTORE"),
+			expectErr: false,
+		},
+		{
+			name:      "ExtraGroup",
+			value:     basetypes.NewStringValue("EXPORT_AND_RESTORE"),
+			expectErr: false},
+		{
+			name:      "OtherGroup",
+			value:     basetypes.NewStringValue("RECOVERY"),
+			expectErr: true},
+		{
+			name:      "NullValue",
+			value:     basetypes.NewStringNull(),
+			expectErr: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := permissionGroupValidator(core.AWSCloudFormationFeatures(), core.CloudNativeProtection, core.PermissionGroupExportAndRestore)
+
+			var res validator.StringResponse
+			v.ValidateString(context.Background(), validator.StringRequest{
+				ConfigValue: tc.value,
+			}, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %q, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+
+	t.Run("UnknownFeature", func(t *testing.T) {
+		v := permissionGroupValidator(core.AWSCloudFormationFeatures(), core.CloudSQLProtection)
+
+		var res validator.StringResponse
+		v.ValidateString(context.Background(), validator.StringRequest{
+			ConfigValue: basetypes.NewStringValue("BASIC"),
+		}, &res)
+
+		if !res.Diagnostics.HasError() {
+			t.Error("expected error for unknown feature, got none")
+		}
+	})
+}
+
+func TestFeaturePermissionGroupsValidator(t *testing.T) {
+	attrTypes := map[string]attr.Type{
+		keyName:             types.StringType,
+		keyPermissionGroups: types.SetType{ElemType: types.StringType},
+	}
+	feature := func(name string, groups ...string) types.Object {
+		var elems []attr.Value
+		for _, group := range groups {
+			elems = append(elems, types.StringValue(group))
+		}
+		return types.ObjectValueMust(attrTypes, map[string]attr.Value{
+			keyName:             types.StringValue(name),
+			keyPermissionGroups: types.SetValueMust(types.StringType, elems),
+		})
+	}
+
+	for _, tc := range []struct {
+		name      string
+		value     types.Object
+		expectErr bool
+	}{
+		{
+			name:      "SupportedPair",
+			value:     feature(core.RDSProtection, "BASIC", "RECOVERY"),
+			expectErr: false,
+		},
+		{
+			name:      "UnsupportedPair",
+			value:     feature(core.RDSProtection, "BASIC", "EXPORT"),
+			expectErr: true,
+		},
+		{
+			name:      "ExtraGroup",
+			value:     feature(core.RDSProtection, "BASIC", "EXPORT_AND_RESTORE"),
+			expectErr: false,
+		},
+		{
+			name:      "UnknownFeature",
+			value:     feature(core.AzureSQLDBProtection, "BASIC"),
+			expectErr: false,
+		},
+		{
+			name:      "EmptySet",
+			value:     feature(core.RDSProtection),
+			expectErr: false,
+		},
+		{
+			name:      "NullObject",
+			value:     types.ObjectNull(attrTypes),
+			expectErr: false,
+		},
+		{
+			name:      "UnknownObject",
+			value:     types.ObjectUnknown(attrTypes),
+			expectErr: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := featurePermissionGroupsValidator(core.AWSIAMRolesFeatures(), core.PermissionGroupExportAndRestore)
+
+			var res validator.ObjectResponse
+			v.ValidateObject(context.Background(), validator.ObjectRequest{
+				ConfigValue: tc.value,
+			}, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %s, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %s, got: %s", tc.value, res.Diagnostics.Errors())
 			}
 		})
 	}

@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/devops"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	gqldevops "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/devops"
 )
 
@@ -160,22 +161,26 @@ func (d *azureDevOpsScriptDataSource) Schema(ctx context.Context, _ datasource.S
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
-							Required:    true,
-							Description: "Feature name.",
+							Required: true,
+							Description: fmt.Sprintf("RSC feature name. %s.",
+								possibleValues(core.AzureDevOpsOrganizationFeatureNames())),
 							Validators: []validator.String{
-								isNotWhiteSpace(),
+								stringvalidator.OneOf(core.AzureDevOpsOrganizationFeatureNames()...),
 							},
 						},
 						keyPermissionGroups: schema.SetAttribute{
 							Required:    true,
 							ElementType: types.StringType,
-							Description: fmt.Sprintf("Permission groups to enable for the feature. At least one is "+
-								"required. %s.", possibleValues(devops.AzureSupportedPermissionGroupNames())),
+							Description: fmt.Sprintf("Permission groups for the RSC feature. %s. At least one is "+
+								"required.", possibleValues(core.AzureDevOpsOrganizationPermissionGroupNames())),
 							Validators: []validator.Set{
 								setvalidator.SizeAtLeast(1),
-								setvalidator.ValueStringsAre(stringvalidator.OneOf(devops.AzureSupportedPermissionGroupNames()...)),
+								setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AzureDevOpsOrganizationPermissionGroupNames()...)),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AzureDevOpsOrganizationFeatures()),
 					},
 				},
 			},

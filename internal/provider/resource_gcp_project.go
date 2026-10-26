@@ -52,6 +52,7 @@ func resourceGcpProject() *schema.Resource {
 		ReadContext:   gcpReadProject,
 		UpdateContext: gcpUpdateProject,
 		DeleteContext: gcpDeleteProject,
+		CustomizeDiff: gcpCustomizeDiffProject,
 
 		Description: description(resourceGCPProjectDescription),
 		Schema: map[string]*schema.Schema{
@@ -379,34 +380,61 @@ func fromCredentials(d *schema.ResourceData) (gcp.ProjectFunc, error) {
 	return gcp.Project(projectID, projectNumber), nil
 }
 
+// gcpCustomizeDiffProject returns an error if a configured feature has
+// permission groups which the feature doesn't support.
+func gcpCustomizeDiffProject(ctx context.Context, diff *schema.ResourceDiff, m any) error {
+	tflog.Trace(ctx, "gcpCustomizeDiffProject")
+
+	// Only the configured features are checked, the feature set is computed
+	// and the features read from RSC should not be validated.
+	features := diff.GetRawConfig().GetAttr(keyFeature)
+	if features.IsNull() || !features.IsKnown() {
+		return nil
+	}
+	for it := features.ElementIterator(); it.Next(); {
+		_, feature := it.Element()
+		if !feature.IsKnown() {
+			continue
+		}
+		name := feature.GetAttr(keyName)
+		groups := feature.GetAttr(keyPermissionGroups)
+		if name.IsNull() || !name.IsKnown() || groups.IsNull() || !groups.IsKnown() {
+			continue
+		}
+
+		var groupNames []string
+		for it := groups.ElementIterator(); it.Next(); {
+			if _, group := it.Element(); group.IsKnown() && !group.IsNull() {
+				groupNames = append(groupNames, group.AsString())
+			}
+		}
+		if err := checkFeaturePermissionGroups(core.GCPProjectFeatures(), name.AsString(), groupNames); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func gcpFeatureResourceWithPermissionsAndStatus() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			keyName: {
 				Type:     schema.TypeString,
 				Required: true,
-				Description: "RSC feature name. Possible values are `CLOUD_NATIVE_ARCHIVAL`, " +
-					"`CLOUD_NATIVE_PROTECTION`, `CLOUD_SQL_PROTECTION`, `GCP_BIGQUERY_PROTECTION`, " +
-					"`GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST`, `EXOCOMPUTE` and `SERVERS_AND_APPS`.",
-				ValidateFunc: validation.StringInSlice([]string{
-					"CLOUD_NATIVE_ARCHIVAL", "CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION",
-					"GCP_BIGQUERY_PROTECTION", "GCP_BIGQUERY_RESERVATION", "GCP_SHARED_VPC_HOST",
-					"EXOCOMPUTE", "SERVERS_AND_APPS",
-				}, false),
+				Description: fmt.Sprintf("RSC feature name. %s.",
+					possibleValues(core.GCPProjectFeatureNames())),
+				ValidateFunc: validation.StringInSlice(core.GCPProjectFeatureNames(), false),
 			},
 			keyPermissionGroups: {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"BASIC", "ENCRYPTION", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY",
-						"AUTOMATED_NETWORKING_SETUP", "CLOUD_CLUSTER_ES", "CLOUDSQL",
-					}, false),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringInSlice(core.GCPProjectPermissionGroupNames(), false),
 				},
 				Required: true,
-				Description: "Permission groups for the RSC feature. Possible values are `BASIC`, `ENCRYPTION`, " +
-					"`EXPORT_AND_RESTORE`, `FILE_LEVEL_RECOVERY`, `AUTOMATED_NETWORKING_SETUP`, `CLOUD_CLUSTER_ES` " +
-					"and `CLOUDSQL`.",
+				Description: fmt.Sprintf("Permission groups for the RSC feature. %s.",
+					possibleValues(core.GCPProjectPermissionGroupNames())),
 			},
 			keyPermissions: {
 				Type:     schema.TypeString,

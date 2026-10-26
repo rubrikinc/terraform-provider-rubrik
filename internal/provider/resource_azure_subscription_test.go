@@ -21,10 +21,14 @@
 package provider
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const azureSubscriptionOneRegionTmpl = `
@@ -410,5 +414,39 @@ func TestDiffAzureUserAssignedManagedIdentity(t *testing.T) {
 				t.Errorf("diffAzureUserAssignedManagedIdentity() = %t, want %t", diff, tc.diff)
 			}
 		})
+	}
+}
+
+// TestAzureKeyFeatureMap verifies that the feature blocks of the
+// rubrik_azure_subscription resource cover exactly the features which can be
+// onboarded for an Azure subscription.
+func TestAzureKeyFeatureMap(t *testing.T) {
+	var got []string
+	for _, feature := range azureKeyFeatureMap {
+		got = append(got, feature.feature.Name)
+	}
+	slices.Sort(got)
+
+	if want := core.AzureSubscriptionFeatureNames(); !slices.Equal(got, want) {
+		t.Errorf("unexpected features, got: %s, want: %s", got, want)
+	}
+}
+
+// TestAzureFeatureBlockPermissionGroups verifies that the permission_groups
+// field of every feature block of the rubrik_azure_subscription resource has
+// possible values, i.e. that the feature name of the block is known by the SDK.
+func TestAzureFeatureBlockPermissionGroups(t *testing.T) {
+	for key, field := range resourceAzureSubscription().Schema {
+		block, ok := field.Elem.(*schema.Resource)
+		if !ok {
+			continue
+		}
+		groups, ok := block.Schema[keyPermissionGroups]
+		if !ok {
+			continue
+		}
+		if strings.Contains(groups.Description, possibleValues([]string{})) {
+			t.Errorf("feature block %s has no possible permission groups", key)
+		}
 	}
 }

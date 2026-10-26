@@ -151,6 +151,7 @@ const (
 	keyCloudNativeDynamoDBProtection                = "cloud_native_dynamodb_protection"
 	keyCloudNativeProtection                        = "cloud_native_protection"
 	keyCloudNativeS3Protection                      = "cloud_native_s3_protection"
+	keyCloudNativeUEMKeyManagement                  = "cloud_native_uem_key_management"
 	keyClusterAccess                                = "cluster_access"
 	keyClusterConfig                                = "cluster_config"
 	keyClusterID                                    = "cluster_id"
