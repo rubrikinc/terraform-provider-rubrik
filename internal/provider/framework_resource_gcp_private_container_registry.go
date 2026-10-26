@@ -162,10 +162,12 @@ var (
 	_ resource.Resource                = &gcpPrivateContainerRegistryResource{}
 	_ resource.ResourceWithConfigure   = &gcpPrivateContainerRegistryResource{}
 	_ resource.ResourceWithImportState = &gcpPrivateContainerRegistryResource{}
+	_ resource.ResourceWithMoveState   = &gcpPrivateContainerRegistryResource{}
 )
 
 type gcpPrivateContainerRegistryResource struct {
 	client *client
+	prefix string
 }
 
 type gcpPrivateContainerRegistryResourceModel struct {
@@ -177,13 +179,17 @@ type gcpPrivateContainerRegistryResourceModel struct {
 }
 
 func newGcpPrivateContainerRegistryResource() resource.Resource {
-	return &gcpPrivateContainerRegistryResource{}
+	return &gcpPrivateContainerRegistryResource{prefix: keyRubrik}
+}
+
+func newPolarisGcpPrivateContainerRegistryResource() resource.Resource {
+	return &gcpPrivateContainerRegistryResource{prefix: keyPolaris}
 }
 
 func (r *gcpPrivateContainerRegistryResource) Metadata(ctx context.Context, _ resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "gcpPrivateContainerRegistryResource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyGCPPrivateContainerRegistry
+	res.TypeName = r.prefix + "_" + keyGCPPrivateContainerRegistry
 }
 
 func (r *gcpPrivateContainerRegistryResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -241,6 +247,10 @@ func (r *gcpPrivateContainerRegistryResource) Schema(ctx context.Context, _ reso
 				},
 			},
 		},
+	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_gcp_private_container_registry` instead."
 	}
 }
 
