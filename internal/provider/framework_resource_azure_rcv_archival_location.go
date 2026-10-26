@@ -176,9 +176,9 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 			keyTier: schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: fmt.Sprintf("Storage tier. %s.", possibleValues(gqlarchival.RCVTierValues())),
+				Description: fmt.Sprintf("Storage tier. %s.", possibleValues(gqlarchival.RCVTierValues(core.CloudVendorAzure))),
 				Validators: []validator.String{
-					stringvalidator.OneOf(enumValues(gqlarchival.RCVTierValues())...),
+					stringvalidator.OneOf(enumValues(gqlarchival.RCVTierValues(core.CloudVendorAzure))...),
 				},
 			},
 			keyRedundancy: schema.StringAttribute{

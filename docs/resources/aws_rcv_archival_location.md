@@ -107,12 +107,12 @@ resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
 - `kms_key` (Block List) AWS KMS key used for client-side encryption of the archived data. Conflicts with `customer_provided_key`. When neither is given, RCV creates and manages the encryption key. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
 - `redundancy` (String) Storage redundancy. Possible values are `SINGLE_ZONE`, `MULTI_ZONE` and `MULTI_REGION`. Changing this forces a new resource to be created, the RSC API does not support updating it.
 - `region` (String) AWS region hosting the vault, e.g. `us-east-1`. When left out, the archival location follows the region of the workload being archived. Changing this forces a new resource to be created.
-- `tier` (String) Storage tier. Possible values are `BACKUP` and `ARCHIVE`.
+- `tier` (String) Storage tier. Possible values are `ARCHIVE`, `BACKUP` and `RECOVERY`.
 
 ### Read-Only
 
 - `connection_status` (String) Connection status of the archival location.
-- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `SSE_CPK` and `UEKM_AWS_KMS_BASED`.
+- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `UNKNOWN_ENCRYPTION_TYPE`, `SSE_CPK` and `UEKM_AWS_KMS_BASED`.
 - `id` (String) Archival location ID (UUID).
 - `location_template` (String) Location template. `SPECIFIC_REGION` when `region` is specified, otherwise `SOURCE_REGION`.
 

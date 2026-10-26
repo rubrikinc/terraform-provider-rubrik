@@ -153,12 +153,12 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 				Required: true,
 				Description: fmt.Sprintf("Storage tier. %s. Changing this forces a new resource to be "+
 					"created, the RSC API only supports updating the name.",
-					possibleValues(gqlarchival.RCVTierValues())),
+					possibleValues(gqlarchival.RCVTierValues(core.CloudVendorGCP))),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringvalidator.OneOf(enumValues(gqlarchival.RCVTierValues())...),
+					stringvalidator.OneOf(enumValues(gqlarchival.RCVTierValues(core.CloudVendorGCP))...),
 				},
 			},
 			keyConnectionStatus: schema.StringAttribute{

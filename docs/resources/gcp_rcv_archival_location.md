@@ -68,7 +68,7 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
 
 - `name` (String) Archival location name.
 - `region` (String) GCP region hosting the vault, e.g. `us-west1`. Changing this forces a new resource to be created.
-- `tier` (String) Storage tier. Possible values are `BACKUP` and `ARCHIVE`. Changing this forces a new resource to be created, the RSC API only supports updating the name.
+- `tier` (String) Storage tier. Possible values are `ARCHIVE` and `BACKUP`. Changing this forces a new resource to be created, the RSC API only supports updating the name.
 
 ### Optional
 
