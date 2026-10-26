@@ -159,6 +159,10 @@ func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
 			// The service account ownership token is a write-only attribute.
 			tfversion.SkipBelow(tfversion.Version1_11_0),
 		},
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			gcpPrivateContainerRegistryCheckDestroy(t),
+			gcpProjectCheckDestroy(t),
+		),
 		Steps: []resource.TestStep{{
 			Config:          tfConfig,
 			ConfigVariables: variables(url),

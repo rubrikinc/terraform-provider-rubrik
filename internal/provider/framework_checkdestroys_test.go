@@ -38,6 +38,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	gqltags "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/tags"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/pcr"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/tags"
 )
@@ -157,6 +158,38 @@ func gcpProjectCheckDestroy(t *testing.T) func(*terraform.State) error {
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// gcpPrivateContainerRegistryCheckDestroy verifies that all
+// gcp_private_container_registry resources have been deleted. RSC returns an
+// empty registry URL, and no error, when there is no registry registered for the
+// cloud account.
+func gcpPrivateContainerRegistryCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_private_container_registry" && rs.Type != "rubrik_gcp_private_container_registry" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			registry, err := pcr.Wrap(polarisClient).GCPRegistry(t.Context(), id)
+			if err != nil {
+				return err
+			}
+			if registry.PCRDetails.RegistryURL != "" {
+				return fmt.Errorf("gcp_private_container_registry %s still exists", id)
 			}
 		}
 
