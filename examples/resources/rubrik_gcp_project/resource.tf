@@ -21,12 +21,7 @@ resource "rubrik_gcp_project" "project" {
   project_number = 123456789012
 }
 
-# Cloud Discovery is the read-only parent of the protection features. It is
-# optional, but when it is enabled it must outlive the protection features:
-# RSC refuses to remove it while a protection feature is enabled, so a plan that
-# removes CLOUD_DISCOVERY from a project that still has one is rejected. To
-# disable both, remove the protection features first and Cloud Discovery in a
-# later apply. Cloud Discovery is not available on all RSC accounts.
+# With Cloud Discovery.
 resource "rubrik_gcp_project" "cloud_discovery" {
   project        = "my-discovery-project"
   project_name   = "My Discovery Project"
