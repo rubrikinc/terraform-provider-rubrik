@@ -388,8 +388,8 @@ func TestIsAESKeyValidator(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "SurroundingWhitespace",
-			value:     basetypes.NewStringValue("  " + validKey + "\n"),
+			name:      "TrailingNewline",
+			value:     basetypes.NewStringValue(validKey + "\n"),
 			expectErr: false,
 		},
 		{

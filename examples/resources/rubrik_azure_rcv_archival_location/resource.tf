@@ -21,9 +21,9 @@ resource "rubrik_azure_rcv_archival_location" "key_vault_archive" {
   tier   = "BACKUP"
 
   key_vault_key {
-    key_vault_id = "1a7c4f60-3c8d-4f1e-9a2b-6d5e7f8a9b0c"
-    key_name     = "rcv-archive-key"
-    key_version  = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
+    key_manager_id = "1a7c4f60-3c8d-4f1e-9a2b-6d5e7f8a9b0c"
+    key_name       = "rcv-archive-key"
+    key_version    = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
   }
 }
 

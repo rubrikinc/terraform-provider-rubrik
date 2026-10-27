@@ -86,7 +86,7 @@ func (v isAESKeyValidator) ValidateString(_ context.Context, req validator.Strin
 		return
 	}
 
-	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(req.ConfigValue.ValueString()))
+	key, err := base64.StdEncoding.DecodeString(req.ConfigValue.ValueString())
 	if err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
 			fmt.Sprintf("the key is not valid base64: %s. Generate one with "+

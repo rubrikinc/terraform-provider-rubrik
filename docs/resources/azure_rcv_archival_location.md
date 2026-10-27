@@ -66,9 +66,9 @@ resource "rubrik_azure_rcv_archival_location" "key_vault_archive" {
   tier   = "BACKUP"
 
   key_vault_key {
-    key_vault_id = "1a7c4f60-3c8d-4f1e-9a2b-6d5e7f8a9b0c"
-    key_name     = "rcv-archive-key"
-    key_version  = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
+    key_manager_id = "1a7c4f60-3c8d-4f1e-9a2b-6d5e7f8a9b0c"
+    key_name       = "rcv-archive-key"
+    key_version    = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
   }
 }
 
@@ -127,8 +127,8 @@ resource "rubrik_azure_rcv_archival_location" "rsa_key_archive" {
 
 Required:
 
+- `key_manager_id` (String) KMS key manager ID (UUID).
 - `key_name` (String) Key Vault key name.
-- `key_vault_id` (String) Key Vault ID (UUID).
 - `key_version` (String) Key Vault key version.
 
 

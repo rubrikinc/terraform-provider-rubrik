@@ -276,7 +276,6 @@ const (
 	keyKeyID                                        = "key_id"
 	keyKeyManagerID                                 = "key_manager_id"
 	keyKeyName                                      = "key_name"
-	keyKeyVaultID                                   = "key_vault_id"
 	keyKeyVaultKey                                  = "key_vault_key"
 	keyKeyVersion                                   = "key_version"
 	keyKeyVaultURL                                  = "key_vault_url"

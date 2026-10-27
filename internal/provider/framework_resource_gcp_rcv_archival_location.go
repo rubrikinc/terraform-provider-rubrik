@@ -146,7 +146,7 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					isNotWhiteSpace(),
+					stringvalidator.OneOf(gqlgcp.RCSRegionEnumRegionNames()...),
 				},
 			},
 			keyTier: schema.StringAttribute{
@@ -168,11 +168,17 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 			keyLocationTemplate: schema.StringAttribute{
 				Computed:    true,
 				Description: "Location template, `SPECIFIC_REGION` or `SOURCE_REGION`.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			keyEncryptionType: schema.StringAttribute{
 				Computed: true,
 				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorGCP))),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -281,15 +287,9 @@ func (r *gcpRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 		return
 	}
 
-	targetMapping, err := archival.Wrap(polarisClient).RCVGCPTargetMappingByID(ctx, id)
-	if err != nil {
-		res.Diagnostics.AddError("Failed to read RCV GCP archival location", err.Error())
-		return
-	}
-
+	// Save the ID to state and identity before the read-back so Terraform can
+	// track the archival location even if the read fails.
 	plan.ID = types.StringValue(id.String())
-	updateGCPRCVArchivalLocationModel(&plan, targetMapping)
-
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -297,6 +297,20 @@ func (r *gcpRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 
 	identity := gcpRCVArchivalLocationIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	targetMapping, err := archival.Wrap(polarisClient).RCVGCPTargetMappingByID(ctx, id)
+	if err != nil {
+		res.Diagnostics.AddWarning("Failed to read RCV GCP archival location after create",
+			fmt.Sprintf("The archival location was created successfully but the computed fields could not be "+
+				"populated: %s", err.Error()))
+		updateGCPRCVArchivalLocationModel(&plan, nil)
+	} else {
+		updateGCPRCVArchivalLocationModel(&plan, &targetMapping)
+	}
+	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
 func (r *gcpRCVArchivalLocationResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -330,7 +344,7 @@ func (r *gcpRCVArchivalLocationResource) Read(ctx context.Context, req resource.
 		return
 	}
 
-	updateGCPRCVArchivalLocationModel(&state, targetMapping)
+	updateGCPRCVArchivalLocationModel(&state, &targetMapping)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
@@ -383,7 +397,7 @@ func (r *gcpRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 	}
 
 	plan.ID = state.ID
-	updateGCPRCVArchivalLocationModel(&plan, targetMapping)
+	updateGCPRCVArchivalLocationModel(&plan, &targetMapping)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
@@ -415,11 +429,7 @@ func (r *gcpRCVArchivalLocationResource) Delete(ctx context.Context, req resourc
 		return
 	}
 
-	err = archival.Wrap(polarisClient).DeleteTargetMapping(ctx, id)
-	if errors.Is(err, graphql.ErrNotFound) {
-		return
-	}
-	if err != nil {
+	if err := archival.Wrap(polarisClient).DeleteTargetMapping(ctx, id); err != nil {
 		res.Diagnostics.AddError("Failed to delete RCV GCP archival location", err.Error())
 		return
 	}
@@ -459,22 +469,6 @@ func toGCPRCVKMSKey(ctx context.Context, list types.List) (*gqlarchival.GCPKMSKe
 	}, diags
 }
 
-// updateGCPRCVArchivalLocationModel updates the model with the values read back
-// from RSC.
-func updateGCPRCVArchivalLocationModel(m *gcpRCVArchivalLocationModel, targetMapping gqlarchival.RCVGCPTargetMapping) {
-	m.Name = types.StringValue(targetMapping.Name)
-	m.Tier = types.StringValue(string(targetMapping.TargetTemplate.Tier))
-	m.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
-	m.LocationTemplate = types.StringValue(string(targetMapping.TargetTemplate.LocTemplate))
-	m.EncryptionType = types.StringValue(string(targetMapping.TargetTemplate.EncryptionType))
-
-	if name := targetMapping.TargetTemplate.Region.Name(); name != "" {
-		m.Region = types.StringValue(name)
-	} else {
-		m.Region = types.StringNull()
-	}
-}
-
 // newGCPRCVArchivalLocationModel builds a complete model from a target mapping.
 // The Cloud KMS key is null, the RSC API does not return it.
 func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMapping) gcpRCVArchivalLocationModel {
@@ -482,7 +476,42 @@ func newGCPRCVArchivalLocationModel(targetMapping gqlarchival.RCVGCPTargetMappin
 		ID:     types.StringValue(targetMapping.ID.String()),
 		KMSKey: types.ListNull(gcpRCVKMSKeyType),
 	}
-	updateGCPRCVArchivalLocationModel(&m, targetMapping)
+	updateGCPRCVArchivalLocationModel(&m, &targetMapping)
 
 	return m
+}
+
+// updateAWSRCVArchivalLocationModel updates the model with the values read
+// back from RSC. A nil target mapping means the read-back failed, computed
+// values still unknown are then set to null so the model can be saved to
+// state. Read fills them in on the next refresh.
+func updateGCPRCVArchivalLocationModel(m *gcpRCVArchivalLocationModel, targetMapping *gqlarchival.RCVGCPTargetMapping) {
+	if targetMapping == nil {
+		// Computed.
+		if m.ConnectionStatus.IsUnknown() {
+			m.ConnectionStatus = types.StringNull()
+		}
+		if m.LocationTemplate.IsUnknown() {
+			m.LocationTemplate = types.StringNull()
+		}
+		if m.EncryptionType.IsUnknown() {
+			m.EncryptionType = types.StringNull()
+		}
+
+		return
+	}
+
+	m.Name = types.StringValue(targetMapping.Name)
+	m.Tier = types.StringValue(string(targetMapping.TargetTemplate.Tier))
+	m.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
+	m.LocationTemplate = types.StringValue(string(targetMapping.TargetTemplate.LocTemplate))
+	m.EncryptionType = types.StringValue(string(targetMapping.TargetTemplate.EncryptionType))
+
+	// A source region archival location follows the region of the workload
+	// being archived and has no region of its own.
+	if targetMapping.TargetTemplate.LocTemplate == gqlarchival.LocTemplateSourceRegion {
+		m.Region = types.StringNull()
+	} else {
+		m.Region = types.StringValue(targetMapping.TargetTemplate.Region.Name())
+	}
 }

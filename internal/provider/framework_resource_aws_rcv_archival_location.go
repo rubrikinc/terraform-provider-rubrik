@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
@@ -83,17 +84,16 @@ type awsRCVArchivalLocationResource struct {
 }
 
 type awsRCVArchivalLocationModel struct {
-	ID               types.String `tfsdk:"id"`
-	Name             types.String `tfsdk:"name"`
-	Region           types.String `tfsdk:"region"`
-	Tier             types.String `tfsdk:"tier"`
-	Redundancy       types.String `tfsdk:"redundancy"`
-	ConnectionStatus types.String `tfsdk:"connection_status"`
-	LocationTemplate types.String `tfsdk:"location_template"`
-	EncryptionType   types.String `tfsdk:"encryption_type"`
-	KMSKey           types.List   `tfsdk:"kms_key"`
-
-	CustomerProvidedKey types.List `tfsdk:"customer_provided_key"`
+	ID                  types.String `tfsdk:"id"`
+	Name                types.String `tfsdk:"name"`
+	Region              types.String `tfsdk:"region"`
+	Tier                types.String `tfsdk:"tier"`
+	Redundancy          types.String `tfsdk:"redundancy"`
+	ConnectionStatus    types.String `tfsdk:"connection_status"`
+	LocationTemplate    types.String `tfsdk:"location_template"`
+	EncryptionType      types.String `tfsdk:"encryption_type"`
+	KMSKey              types.List   `tfsdk:"kms_key"`
+	CustomerProvidedKey types.List   `tfsdk:"customer_provided_key"`
 }
 
 type awsRCVKMSKeyModel struct {
@@ -168,13 +168,16 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					isNotWhiteSpace(),
+					stringvalidator.OneOf(gqlaws.RCSRegionEnumRegionNames()...),
 				},
 			},
 			keyTier: schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: fmt.Sprintf("Storage tier. %s.", possibleValues(gqlarchival.RCVTierValues(core.CloudVendorAWS))),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 				Validators: []validator.String{
 					stringvalidator.OneOf(enumValues(gqlarchival.RCVTierValues(core.CloudVendorAWS))...),
 				},
@@ -201,11 +204,17 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 				Computed: true,
 				Description: fmt.Sprintf("Encryption mode RSC applied to the archival location. %s.",
 					possibleValues(gqlarchival.RCVTargetEncryptionTypeValues(core.CloudVendorAWS))),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			keyLocationTemplate: schema.StringAttribute{
 				Computed: true,
 				Description: "Location template. `SPECIFIC_REGION` when `region` is specified, otherwise " +
 					"`SOURCE_REGION`.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -379,15 +388,9 @@ func (r *awsRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 		return
 	}
 
-	targetMapping, err := archival.Wrap(polarisClient).RCVAWSTargetMappingByID(ctx, id)
-	if err != nil {
-		res.Diagnostics.AddError("Failed to read RCV AWS archival location", err.Error())
-		return
-	}
-
+	// Save the ID to state and identity before the read-back so Terraform can
+	// track the archival location even if the read fails.
 	plan.ID = types.StringValue(id.String())
-	updateAWSRCVArchivalLocationModel(&plan, targetMapping)
-
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -395,6 +398,20 @@ func (r *awsRCVArchivalLocationResource) Create(ctx context.Context, req resourc
 
 	identity := awsRCVArchivalLocationIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	targetMapping, err := archival.Wrap(polarisClient).RCVAWSTargetMappingByID(ctx, id)
+	if err != nil {
+		res.Diagnostics.AddWarning("Failed to read RCV AWS archival location after create",
+			fmt.Sprintf("The archival location was created successfully but the computed fields could not be "+
+				"populated: %s", err.Error()))
+		updateAWSRCVArchivalLocationModel(&plan, nil)
+	} else {
+		updateAWSRCVArchivalLocationModel(&plan, &targetMapping)
+	}
+	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
 func (r *awsRCVArchivalLocationResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -428,7 +445,7 @@ func (r *awsRCVArchivalLocationResource) Read(ctx context.Context, req resource.
 		return
 	}
 
-	updateAWSRCVArchivalLocationModel(&state, targetMapping)
+	updateAWSRCVArchivalLocationModel(&state, &targetMapping)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
@@ -482,7 +499,7 @@ func (r *awsRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 	}
 
 	plan.ID = state.ID
-	updateAWSRCVArchivalLocationModel(&plan, targetMapping)
+	updateAWSRCVArchivalLocationModel(&plan, &targetMapping)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
@@ -514,11 +531,7 @@ func (r *awsRCVArchivalLocationResource) Delete(ctx context.Context, req resourc
 		return
 	}
 
-	err = archival.Wrap(polarisClient).DeleteTargetMapping(ctx, id)
-	if errors.Is(err, graphql.ErrNotFound) {
-		return
-	}
-	if err != nil {
+	if err := archival.Wrap(polarisClient).DeleteTargetMapping(ctx, id); err != nil {
 		res.Diagnostics.AddError("Failed to delete RCV AWS archival location", err.Error())
 		return
 	}
@@ -573,26 +586,7 @@ func toAWSRCVCustomerProvidedKey(ctx context.Context, list types.List) (secret.S
 		return "", diags
 	}
 
-	return secret.String(keys[0].Key.ValueString()), diags
-}
-
-// updateAWSRCVArchivalLocationModel updates the model with the values read back
-// from RSC. The KMS key is left untouched, the RSC API does not return it.
-func updateAWSRCVArchivalLocationModel(m *awsRCVArchivalLocationModel, targetMapping gqlarchival.RCVAWSTargetMapping) {
-	m.Name = types.StringValue(targetMapping.Name)
-	m.Tier = types.StringValue(string(targetMapping.TargetTemplate.Tier))
-	m.Redundancy = types.StringValue(string(targetMapping.TargetTemplate.Redundancy))
-	m.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
-	m.LocationTemplate = types.StringValue(string(targetMapping.TargetTemplate.LocTemplate))
-	m.EncryptionType = types.StringValue(string(targetMapping.TargetTemplate.EncryptionType))
-
-	// A source region archival location follows the region of the workload
-	// being archived and has no region of its own.
-	if name := targetMapping.TargetTemplate.Region.Name(); name != "" {
-		m.Region = types.StringValue(name)
-	} else {
-		m.Region = types.StringNull()
-	}
+	return secret.String(strings.TrimSpace(keys[0].Key.ValueString())), diags
 }
 
 // newAWSRCVArchivalLocationModel builds a complete model from a target mapping.
@@ -603,7 +597,52 @@ func newAWSRCVArchivalLocationModel(targetMapping gqlarchival.RCVAWSTargetMappin
 		KMSKey:              types.ListNull(awsRCVKMSKeyType),
 		CustomerProvidedKey: types.ListNull(awsRCVCustomerProvidedKeyType),
 	}
-	updateAWSRCVArchivalLocationModel(&m, targetMapping)
+	updateAWSRCVArchivalLocationModel(&m, &targetMapping)
 
 	return m
+}
+
+// updateAWSRCVArchivalLocationModel updates the model with the values read
+// back from RSC. A nil target mapping means the read-back failed, computed
+// values still unknown are then set to null so the model can be saved to
+// state. Read fills them in on the next refresh. The KMS key and the customer
+// provided key are left untouched, the RSC API does not return them.
+func updateAWSRCVArchivalLocationModel(m *awsRCVArchivalLocationModel, targetMapping *gqlarchival.RCVAWSTargetMapping) {
+	if targetMapping == nil {
+		// Optional + Computed.
+		if m.Tier.IsUnknown() {
+			m.Tier = types.StringNull()
+		}
+		if m.Redundancy.IsUnknown() {
+			m.Redundancy = types.StringNull()
+		}
+
+		// Computed.
+		if m.ConnectionStatus.IsUnknown() {
+			m.ConnectionStatus = types.StringNull()
+		}
+		if m.LocationTemplate.IsUnknown() {
+			m.LocationTemplate = types.StringNull()
+		}
+		if m.EncryptionType.IsUnknown() {
+			m.EncryptionType = types.StringNull()
+		}
+
+		return
+	}
+
+	m.Name = types.StringValue(targetMapping.Name)
+	m.Tier = types.StringValue(string(targetMapping.TargetTemplate.Tier))
+	m.Redundancy = types.StringValue(string(targetMapping.TargetTemplate.Redundancy))
+	m.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
+	m.LocationTemplate = types.StringValue(string(targetMapping.TargetTemplate.LocTemplate))
+	m.EncryptionType = types.StringValue(string(targetMapping.TargetTemplate.EncryptionType))
+
+	// A source region archival location follows the region of the workload
+	// being archived and has no region of its own.
+	if targetMapping.TargetTemplate.LocTemplate == gqlarchival.LocTemplateSourceRegion {
+		m.Region = types.StringNull()
+	} else {
+		m.Region = types.StringValue(targetMapping.TargetTemplate.Region.Name())
+	}
 }
