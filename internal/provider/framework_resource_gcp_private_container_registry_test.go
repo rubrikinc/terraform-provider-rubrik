@@ -90,34 +90,6 @@ resource "rubrik_gcp_private_container_registry" "default" {
 }
 `
 
-// gcpPCRServiceAccountEmail returns the email of the service account in the GCP
-// credentials file. It is the service account registered with RSC, and the one
-// the Google provider mints the ownership token for.
-func gcpPCRServiceAccountEmail(t *testing.T) string {
-	t.Helper()
-
-	credentialsFile := os.Getenv(gcpCredentialsEnv)
-	if credentialsFile == "" {
-		t.Skipf("Environment variable %s not set", gcpCredentialsEnv)
-	}
-
-	buf, err := os.ReadFile(credentialsFile)
-	if err != nil {
-		t.Fatalf("failed to read GCP credentials file: %v", err)
-	}
-	var key struct {
-		ClientEmail string `json:"client_email"`
-	}
-	if err := json.Unmarshal(buf, &key); err != nil {
-		t.Fatalf("failed to parse GCP credentials file: %v", err)
-	}
-	if key.ClientEmail == "" {
-		t.Fatal("GCP credentials file is not a service account key")
-	}
-
-	return key.ClientEmail
-}
-
 // TestAccGcpPrivateContainerRegistryResource verifies that a GCP private
 // container registry can be created, updated and imported.
 //
@@ -144,7 +116,28 @@ func TestAccGcpPrivateContainerRegistryResource(t *testing.T) {
 	url := project.PCR.RegistryURL
 	updatedURL := url + "-updated"
 
-	email := gcpPCRServiceAccountEmail(t)
+	// The service account in the GCP credentials file is the service account
+	// registered with RSC, and the one the Google provider mints the ownership
+	// token for.
+	credentialsFile := os.Getenv(gcpCredentialsEnv)
+	if credentialsFile == "" {
+		t.Skipf("Environment variable %s not set", gcpCredentialsEnv)
+	}
+	buf, err := os.ReadFile(credentialsFile)
+	if err != nil {
+		t.Fatalf("failed to read GCP credentials file: %v", err)
+	}
+	var key struct {
+		ClientEmail string `json:"client_email"`
+	}
+	if err := json.Unmarshal(buf, &key); err != nil {
+		t.Fatalf("failed to parse GCP credentials file: %v", err)
+	}
+	if key.ClientEmail == "" {
+		t.Fatal("GCP credentials file is not a service account key")
+	}
+	email := key.ClientEmail
+
 	variables := func(email, url string) config.Variables {
 		return config.Variables{
 			"service_account_email": config.StringVariable(email),
