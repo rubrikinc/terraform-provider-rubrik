@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -257,7 +258,7 @@ func gcpReadProject(ctx context.Context, d *schema.ResourceData, m any) diag.Dia
 	var cnpBlock []any
 	if cnpFeature, ok := account.Feature(core.FeatureCloudNativeProtection); ok {
 		cnpBlock = append(cnpBlock, map[string]any{
-			keyStatus: core.FormatStatus(cnpFeature.Status),
+			keyStatus: string(cnpFeature.Status),
 		})
 	}
 	if err := d.Set(keyCloudNativeProtection, cnpBlock); err != nil {
@@ -360,6 +361,26 @@ func gcpDeleteProject(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	return nil
 }
 
+// gcpCheckCloudDiscoveryRemoval returns an error if the CLOUD_DISCOVERY feature
+// is being removed from a project while the new set of features still contains
+// a protection feature. Cloud Discovery is the parent of the protection
+// features and must outlive them.
+func gcpCheckCloudDiscoveryRemoval(oldFeatures, newFeatures []string) error {
+	if !slices.Contains(oldFeatures, core.FeatureCloudDiscovery.Name) ||
+		slices.Contains(newFeatures, core.FeatureCloudDiscovery.Name) {
+		return nil
+	}
+
+	for _, name := range newFeatures {
+		if (core.Feature{Name: name}).IsProtectionFeature() {
+			return fmt.Errorf("feature %s cannot be removed while the protection feature %s is enabled",
+				core.FeatureCloudDiscovery.Name, name)
+		}
+	}
+
+	return nil
+}
+
 func fromCredentials(d *schema.ResourceData) (gcp.ProjectFunc, error) {
 	credentials := d.Get(keyCredentials).(string)
 	projectID := d.Get(keyProject).(string)
@@ -380,10 +401,29 @@ func fromCredentials(d *schema.ResourceData) (gcp.ProjectFunc, error) {
 	return gcp.Project(projectID, projectNumber), nil
 }
 
-// gcpCustomizeDiffProject returns an error if a configured feature has
-// permission groups which the feature doesn't support.
+// gcpCustomizeDiffProject validates changes to the GCP project resource. It
+// returns an error if a configured feature has permission groups which the
+// feature doesn't support, or if CLOUD_DISCOVERY is removed while protection
+// features are still enabled.
 func gcpCustomizeDiffProject(ctx context.Context, diff *schema.ResourceDiff, m any) error {
 	tflog.Trace(ctx, "gcpCustomizeDiffProject")
+
+	// Prevent removal of CLOUD_DISCOVERY while protection features are
+	// enabled. RSC accepts the removal request and only rejects it later, in
+	// the task chain that disables the feature, so catch it here instead.
+	if diff.Id() != "" && diff.HasChange(keyFeature) {
+		oldBlocks, newBlocks := diff.GetChange(keyFeature)
+		var oldNames, newNames []string
+		for _, block := range oldBlocks.(*schema.Set).List() {
+			oldNames = append(oldNames, block.(map[string]any)[keyName].(string))
+		}
+		for _, block := range newBlocks.(*schema.Set).List() {
+			newNames = append(newNames, block.(map[string]any)[keyName].(string))
+		}
+		if err := gcpCheckCloudDiscoveryRemoval(oldNames, newNames); err != nil {
+			return err
+		}
+	}
 
 	// Only the configured features are checked, the feature set is computed
 	// and the features read from RSC should not be validated.
@@ -471,7 +511,7 @@ func toGCPFeatureResourceWithPermissionsAndStatus(feature core.Feature, permissi
 		keyName:             feature.Name,
 		keyPermissionGroups: pgs,
 		keyPermissions:      permissions,
-		keyStatus:           core.FormatStatus(status),
+		keyStatus:           string(status),
 	}
 }
 

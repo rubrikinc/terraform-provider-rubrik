@@ -21,10 +21,13 @@
 package provider
 
 import (
+	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 const gcpProjectTmpl = `
@@ -86,7 +89,7 @@ func TestAccPolarisGCPProject_basic(t *testing.T) {
 				resource.TestCheckResourceAttr("polaris_gcp_project.default", "delete_snapshots_on_destroy", "false"),
 
 				// Cloud Native Protection feature
-				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "connected"),
+				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "CONNECTED"),
 			),
 		}},
 	})
@@ -109,7 +112,7 @@ func TestAccPolarisGCPProject_basic(t *testing.T) {
 				resource.TestCheckResourceAttr("polaris_gcp_project.default", "delete_snapshots_on_destroy", "false"),
 
 				// Cloud Native Protection feature
-				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "connected"),
+				resource.TestCheckResourceAttr("polaris_gcp_project.default", "cloud_native_protection.0.status", "CONNECTED"),
 			),
 		}},
 	})
@@ -283,4 +286,195 @@ func TestAccPolarisGCPProject_cloudSQL(t *testing.T) {
 			),
 		}},
 	})
+}
+
+const gcpProjectCloudDiscoveryTmpl = `
+provider "rubrik" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "rubrik_gcp_project" "default" {
+	credentials    = "{{ .Resource.Credentials }}"
+	project        = "{{ .Resource.ProjectID }}"
+	project_name   = "{{ .Resource.ProjectName }}"
+	project_number = {{ .Resource.ProjectNumber }}
+
+	feature {
+		name = "CLOUD_DISCOVERY"
+		permission_groups = [
+			"BASIC",
+		]
+	}
+
+	feature {
+		name = "CLOUD_NATIVE_PROTECTION"
+		permission_groups = [
+			"BASIC",
+		]
+	}
+}
+`
+
+const gcpProjectCloudDiscoveryOnlyTmpl = `
+provider "rubrik" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "rubrik_gcp_project" "default" {
+	credentials    = "{{ .Resource.Credentials }}"
+	project        = "{{ .Resource.ProjectID }}"
+	project_name   = "{{ .Resource.ProjectName }}"
+	project_number = {{ .Resource.ProjectNumber }}
+
+	feature {
+		name = "CLOUD_DISCOVERY"
+		permission_groups = [
+			"BASIC",
+		]
+	}
+}
+`
+
+const gcpProjectProtectionOnlyTmpl = `
+provider "rubrik" {
+	credentials = "{{ .Provider.Credentials }}"
+}
+
+resource "rubrik_gcp_project" "default" {
+	credentials    = "{{ .Resource.Credentials }}"
+	project        = "{{ .Resource.ProjectID }}"
+	project_name   = "{{ .Resource.ProjectName }}"
+	project_number = {{ .Resource.ProjectNumber }}
+
+	feature {
+		name = "CLOUD_NATIVE_PROTECTION"
+		permission_groups = [
+			"BASIC",
+		]
+	}
+}
+`
+
+// TestAccGcpProjectCloudDiscoveryResource verifies that the Cloud Discovery
+// feature can be onboarded together with a protection feature, that the plan
+// refuses to remove Cloud Discovery while the protection feature is enabled,
+// and that removing the protection feature first, then Cloud Discovery, works.
+//
+// The test skips unless the REL_ENABLE_CNP_GCP_CLOUD_DISCOVERY_MODE feature
+// flag is enabled for the RSC account, since RSC rejects the feature without it.
+func TestAccGcpProjectCloudDiscoveryResource(t *testing.T) {
+	skipUnlessFeatureEnabled(t, core.FeatureFlagName("REL_ENABLE_CNP_GCP_CLOUD_DISCOVERY_MODE"))
+
+	config, project := loadGCPTestConfig(t)
+
+	withBoth, err := makeTerraformConfig(config, gcpProjectCloudDiscoveryTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cloudDiscoveryOnly, err := makeTerraformConfig(config, gcpProjectCloudDiscoveryOnlyTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectionOnly, err := makeTerraformConfig(config, gcpProjectProtectionOnlyTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{{
+			// Onboard Cloud Discovery together with a protection feature.
+			Config: withBoth,
+			Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "project", project.ProjectID),
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "feature.#", "2"),
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "CLOUD_DISCOVERY",
+					"permissions":         "",
+					"permission_groups.#": "1",
+					"status":              "CONNECTED",
+				}),
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "CLOUD_NATIVE_PROTECTION",
+					"permissions":         "",
+					"permission_groups.#": "1",
+					"status":              "CONNECTED",
+				}),
+			),
+		}, {
+			// Removing Cloud Discovery while the protection feature remains is
+			// rejected at plan time, before anything is sent to RSC.
+			Config:      protectionOnly,
+			PlanOnly:    true,
+			ExpectError: regexp.MustCompile(`CLOUD_DISCOVERY cannot be removed while the protection feature CLOUD_NATIVE_PROTECTION is enabled`),
+		}, {
+			// Remove the protection feature first, keeping Cloud Discovery.
+			Config: cloudDiscoveryOnly,
+			Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("rubrik_gcp_project.default", "feature.#", "1"),
+				resource.TestCheckTypeSetElemNestedAttrs("rubrik_gcp_project.default", "feature.*", map[string]string{
+					"%":                   "4",
+					"name":                "CLOUD_DISCOVERY",
+					"permissions":         "",
+					"permission_groups.#": "1",
+					"status":              "CONNECTED",
+				}),
+			),
+		}},
+		// Destroy removes the remaining Cloud Discovery feature.
+	})
+}
+
+// TestGcpCheckCloudDiscoveryRemoval verifies the plan-time rule that Cloud
+// Discovery can only be removed from a project once no protection feature is
+// left on it.
+func TestGcpCheckCloudDiscoveryRemoval(t *testing.T) {
+	tests := []struct {
+		name        string
+		oldFeatures []string
+		newFeatures []string
+		wantErr     string
+	}{{
+		name:        "RemoveCloudDiscoveryWithProtectionLeft",
+		oldFeatures: []string{"CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION"},
+		newFeatures: []string{"CLOUD_NATIVE_PROTECTION"},
+		wantErr:     "CLOUD_DISCOVERY cannot be removed while the protection feature CLOUD_NATIVE_PROTECTION is enabled",
+	}, {
+		name:        "RemoveCloudDiscoveryWithCloudSQLLeft",
+		oldFeatures: []string{"CLOUD_DISCOVERY", "CLOUD_SQL_PROTECTION", "EXOCOMPUTE"},
+		newFeatures: []string{"CLOUD_SQL_PROTECTION", "EXOCOMPUTE"},
+		wantErr:     "protection feature CLOUD_SQL_PROTECTION is enabled",
+	}, {
+		name:        "RemoveCloudDiscoveryAndProtectionTogether",
+		oldFeatures: []string{"CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION"},
+		newFeatures: []string{"EXOCOMPUTE"},
+	}, {
+		name:        "RemoveCloudDiscoveryWithOnlyNonProtectionLeft",
+		oldFeatures: []string{"CLOUD_DISCOVERY", "EXOCOMPUTE", "GCP_SHARED_VPC_HOST"},
+		newFeatures: []string{"EXOCOMPUTE", "GCP_SHARED_VPC_HOST"},
+	}, {
+		name:        "KeepCloudDiscovery",
+		oldFeatures: []string{"CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION"},
+		newFeatures: []string{"CLOUD_DISCOVERY"},
+	}, {
+		name:        "CloudDiscoveryNeverPresent",
+		oldFeatures: []string{"CLOUD_NATIVE_PROTECTION"},
+		newFeatures: []string{"CLOUD_NATIVE_PROTECTION", "CLOUD_SQL_PROTECTION"},
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := gcpCheckCloudDiscoveryRemoval(tt.oldFeatures, tt.newFeatures)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("unexpected error: %v", err)
+			case tt.wantErr != "" && err == nil:
+				t.Errorf("expected error containing %q", tt.wantErr)
+			case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+				t.Errorf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
 }

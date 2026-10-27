@@ -21,6 +21,23 @@ resource "rubrik_gcp_project" "project" {
   project_number = 123456789012
 }
 
+# With Cloud Discovery.
+resource "rubrik_gcp_project" "cloud_discovery" {
+  project        = "my-discovery-project"
+  project_name   = "My Discovery Project"
+  project_number = 123456789012
+
+  feature {
+    name              = "CLOUD_DISCOVERY"
+    permission_groups = ["BASIC"]
+  }
+
+  feature {
+    name              = "CLOUD_NATIVE_PROTECTION"
+    permission_groups = ["BASIC", "EXPORT_AND_RESTORE"]
+  }
+}
+
 # BigQuery protection. The datasets to protect are in one project, and RSC
 # runs the backup and recovery jobs on a BigQuery slot reservation in a
 # dedicated reservation project. Only one project per RSC account can be the

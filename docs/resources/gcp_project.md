@@ -10,6 +10,13 @@ description: |-
   Permission Groups
   Following is a list of features and their applicable permission groups. These
   are used when specifying the feature.
+  CLOUD_DISCOVERY
+  BASIC - Represents the basic set of permissions required to onboard the
+  feature.
+  -> Note: CLOUD_DISCOVERY is the read-only parent of the protection
+  features. RSC refuses to remove it from a project while a protection feature
+  is enabled on the project, so it must be removed last. The provider enforces
+  this when planning a change to the feature blocks of a project.
   CLOUD_NATIVE_ARCHIVAL
   BASIC - Represents the basic set of permissions required to onboard the
   feature.ENCRYPTION - Represents the set of permissions required for encryption
@@ -78,6 +85,15 @@ when the Terraform configuration is applied.
 ## Permission Groups
 Following is a list of features and their applicable permission groups. These
 are used when specifying the feature.
+
+`CLOUD_DISCOVERY`
+  * `BASIC` - Represents the basic set of permissions required to onboard the
+    feature.
+
+-> **Note:** `CLOUD_DISCOVERY` is the read-only parent of the protection
+   features. RSC refuses to remove it from a project while a protection feature
+   is enabled on the project, so it must be removed last. The provider enforces
+   this when planning a change to the `feature` blocks of a project.
 
 `CLOUD_NATIVE_ARCHIVAL`
   * `BASIC` - Represents the basic set of permissions required to onboard the
@@ -180,6 +196,23 @@ resource "rubrik_gcp_project" "project" {
   project_number = 123456789012
 }
 
+# With Cloud Discovery.
+resource "rubrik_gcp_project" "cloud_discovery" {
+  project        = "my-discovery-project"
+  project_name   = "My Discovery Project"
+  project_number = 123456789012
+
+  feature {
+    name              = "CLOUD_DISCOVERY"
+    permission_groups = ["BASIC"]
+  }
+
+  feature {
+    name              = "CLOUD_NATIVE_PROTECTION"
+    permission_groups = ["BASIC", "EXPORT_AND_RESTORE"]
+  }
+}
+
 # BigQuery protection. The datasets to protect are in one project, and RSC
 # runs the backup and recovery jobs on a BigQuery slot reservation in a
 # dedicated reservation project. Only one project per RSC account can be the
@@ -242,7 +275,7 @@ Optional:
 
 Required:
 
-- `name` (String) RSC feature name. Possible values are `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `CLOUD_SQL_PROTECTION`, `EXOCOMPUTE`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST` and `SERVERS_AND_APPS`.
+- `name` (String) RSC feature name. Possible values are `CLOUD_DISCOVERY`, `CLOUD_NATIVE_ARCHIVAL`, `CLOUD_NATIVE_PROTECTION`, `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`, `CLOUD_SQL_PROTECTION`, `EXOCOMPUTE`, `GCP_BIGQUERY_PROTECTION`, `GCP_BIGQUERY_RESERVATION`, `GCP_SHARED_VPC_HOST` and `SERVERS_AND_APPS`.
 - `permission_groups` (Set of String) Permission groups for the RSC feature. Possible values are `AUTOMATED_NETWORKING_SETUP`, `BASIC`, `CLOUDSQL`, `CLOUD_CLUSTER_ES`, `ENCRYPTION`, `EXPORT_AND_RESTORE` and `FILE_LEVEL_RECOVERY`.
 
 Optional:
