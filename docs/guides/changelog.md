@@ -14,6 +14,23 @@ page_title: "Changelog"
   of the `cloud_native_protection` block in the `rubrik_gcp_project` resource, now holds the status as returned by RSC,
   e.g. `CONNECTED`, instead of a lower case value, e.g. `connected`. This matches the `rubrik_azure_subscription`
   resource. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+* Add support for the Azure Postgres Flexible Server networking, the Azure SQL private DNS zone, the disk encryption
+  set and the health check virtual machine name prefix to the `optional_config` block in the `rubrik_azure_exocompute`
+  resource, using the new `postgres_subnet_id`, `postgres_private_dns_zone_id`, `sql_private_dns_zone_id`,
+  `disk_encryption_set_id` and `health_check_vm_name_prefix` fields. The `postgres_subnet_id` and
+  `postgres_private_dns_zone_id` fields must be specified together. When one of the new fields is not set, the value in
+  RSC is kept, so a value configured using the RSC UI does not replace the Exocompute configuration. Changing one of
+  the new fields replaces the Exocompute configuration, like the other fields in the `optional_config` block.
+  [[docs](../resources/azure_exocompute.md)]
+* Add support for the `ENCRYPTION` permission group for the Exocompute feature in the `rubrik_azure_subscription`
+  resource and the `rubrik_azure_permission_groups` data source. The group lets RSC list the disk encryption sets in the
+  subscription, and is used together with the `disk_encryption_set_id` field in the `rubrik_azure_exocompute` resource.
+  [[docs](../resources/azure_subscription.md)]
+* Fix a bug in `rubrik_azure_exocompute` where creating the resource failed when a private DNS zone was in a different
+  subscription than the Exocompute VNet, or when the subnet had blocking network security group rules. RSC only
+  reports these as warnings, and the RSC UI lets the user continue past them, so they no longer block creation. All
+  other validation failures, such as a delegated subnet or an invalid private DNS zone, still block creation.
+  [[docs](../resources/azure_exocompute.md)]
 * Fix a bug in `rubrik_azure_private_container_registry` where updating the resource sent the RSC cloud account ID as
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
 * Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry
