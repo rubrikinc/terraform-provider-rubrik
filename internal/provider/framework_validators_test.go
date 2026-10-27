@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -361,6 +362,87 @@ func TestFeaturePermissionGroupsValidator(t *testing.T) {
 			}
 			if !tc.expectErr && res.Diagnostics.HasError() {
 				t.Errorf("expected no error for %s, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}
+
+func TestIsAESKeyValidator(t *testing.T) {
+	// A 32 byte key, as produced by openssl rand -base64 32.
+	validKey := base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
+
+	// The same key wrapped as an ASN.1 OCTET STRING, which is what a DER
+	// encoded key looks like. At 34 bytes it must be rejected, otherwise the
+	// RSC field name would appear to work and then fail on apply.
+	derKey := base64.StdEncoding.EncodeToString(
+		append([]byte{0x04, 0x20}, []byte("0123456789abcdef0123456789abcdef")...))
+
+	tests := []struct {
+		name      string
+		value     basetypes.StringValue
+		expectErr bool
+	}{
+		{
+			name:      "ValidKey",
+			value:     basetypes.NewStringValue(validKey),
+			expectErr: false,
+		},
+		{
+			name:      "TrailingNewline",
+			value:     basetypes.NewStringValue(validKey + "\n"),
+			expectErr: false,
+		},
+		{
+			name:      "DEREncodedKey",
+			value:     basetypes.NewStringValue(derKey),
+			expectErr: true,
+		},
+		{
+			name:      "NotBase64",
+			value:     basetypes.NewStringValue("not base64!"),
+			expectErr: true,
+		},
+		{
+			name:      "TooShort",
+			value:     basetypes.NewStringValue(base64.StdEncoding.EncodeToString([]byte("short"))),
+			expectErr: true,
+		},
+		{
+			name:      "AllZeroes",
+			value:     basetypes.NewStringValue(base64.StdEncoding.EncodeToString(make([]byte, aesKeySize))),
+			expectErr: true,
+		},
+		{
+			name:      "EmptyString",
+			value:     basetypes.NewStringValue(""),
+			expectErr: true,
+		},
+		{
+			name:      "NullValue",
+			value:     basetypes.NewStringNull(),
+			expectErr: false,
+		},
+		{
+			name:      "UnknownValue",
+			value:     basetypes.NewStringUnknown(),
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validator.StringRequest{
+				ConfigValue: tc.value,
+			}
+			var res validator.StringResponse
+
+			isAESKeyValidator{}.ValidateString(context.Background(), req, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %q, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
 			}
 		})
 	}

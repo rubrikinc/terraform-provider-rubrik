@@ -21,7 +21,9 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"strings"
@@ -56,6 +58,53 @@ func (v isUUIDValidator) ValidateString(_ context.Context, req validator.StringR
 	if _, err := uuid.Parse(req.ConfigValue.ValueString()); err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid UUID",
 			fmt.Sprintf("%q is not a valid UUID: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// aesKeySize is the only AES key size RSC accepts, in bytes.
+const aesKeySize = 32
+
+// isAESKey returns a validator that checks if a string value is a base64
+// encoded AES-256 key. It mirrors the RSC server-side check, so a bad key is
+// caught at plan time rather than rejected on apply.
+func isAESKey() validator.String {
+	return isAESKeyValidator{}
+}
+
+type isAESKeyValidator struct{}
+
+func (v isAESKeyValidator) Description(_ context.Context) string {
+	return "value must be a base64 encoded AES-256 key"
+}
+
+func (v isAESKeyValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isAESKeyValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	key, err := base64.StdEncoding.DecodeString(req.ConfigValue.ValueString())
+	if err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
+			fmt.Sprintf("the key is not valid base64: %s. Generate one with "+
+				"`openssl rand -base64 32`.", err))
+		return
+	}
+
+	if len(key) != aesKeySize {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
+			fmt.Sprintf("the key decodes to %d bytes, RSC requires exactly %d. Note that RSC calls "+
+				"this field `encryptionKeyInDer`, but it takes a base64 encoded AES-256 key, not a "+
+				"DER encoded key. Generate one with `openssl rand -base64 32`.", len(key), aesKeySize))
+		return
+	}
+
+	if bytes.Equal(key, make([]byte, len(key))) {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
+			"the key is all zero bytes, which RSC rejects as too weak.")
 	}
 }
 
