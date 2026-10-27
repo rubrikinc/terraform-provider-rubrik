@@ -23,10 +23,16 @@ package provider
 import (
 	"encoding/json"
 	"os"
+	"regexp"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
@@ -112,15 +118,15 @@ func gcpPCRServiceAccountEmail(t *testing.T) string {
 	return key.ClientEmail
 }
 
-// TestAccGcpPrivateContainerRegistryResource_basic verifies that a GCP private
-// container registry can be created, imported and updated.
+// TestAccGcpPrivateContainerRegistryResource verifies that a GCP private
+// container registry can be created, updated and imported.
 //
 // The test skips unless the REL_ENABLE_GCP_PRIVATE_CONTAINER_REGISTRY feature
 // flag is enabled for the RSC account, since RSC rejects the registry without
 // it. It also skips unless the GCP test project file holds the URL of an
 // Artifact Registry repository in the pcr.registryUrl field. The service account
 // in the GCP credentials is the service account registered with RSC.
-func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
+func TestAccGcpPrivateContainerRegistryResource(t *testing.T) {
 	skipUnlessFeatureEnabled(t, FeatureFlagGCPPrivateContainerRegistry)
 
 	testConfig, project := loadGCPTestConfig(t)
@@ -139,7 +145,7 @@ func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
 	updatedURL := url + "-updated"
 
 	email := gcpPCRServiceAccountEmail(t)
-	variables := func(url string) config.Variables {
+	variables := func(email, url string) config.Variables {
 		return config.Variables{
 			"service_account_email": config.StringVariable(email),
 			"url":                   config.StringVariable(url),
@@ -155,38 +161,97 @@ func TestAccGcpPrivateContainerRegistryResource_basic(t *testing.T) {
 			"google": {Source: "hashicorp/google"},
 		},
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			// The service account ownership token is a write-only attribute.
-			tfversion.SkipBelow(tfversion.Version1_11_0),
+			// The service account ownership token is a write-only attribute,
+			// which requires v1.11.0, and resource identity requires v1.12.0.
+			tfversion.SkipBelow(tfversion.Version1_12_0),
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			gcpPrivateContainerRegistryCheckDestroy(t),
 			gcpProjectCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
+			// Verify that an invalid registry URL is rejected at plan time. Steps
+			// that expect an error go first: the final destroy reuses the last
+			// step's configuration, which must be valid.
 			Config:          tfConfig,
-			ConfigVariables: variables(url),
-			Check: resource.ComposeTestCheckFunc(
-				resource.TestCheckResourceAttrPair(name, keyID, "rubrik_gcp_project.default", keyID),
-				resource.TestCheckResourceAttrPair(name, keyCloudAccountID, "rubrik_gcp_project.default", keyID),
-				resource.TestCheckResourceAttr(name, keyServiceAccountEmail, email),
-				resource.TestCheckResourceAttr(name, keyURL, url),
-				// Write-only values are never stored.
-				resource.TestCheckNoResourceAttr(name, keyServiceAccountOwnershipToken),
-			),
+			ConfigVariables: variables(email, "docker.io/my-project/my-repo"),
+			PlanOnly:        true,
+			ExpectError:     regexp.MustCompile(`must be an Artifact Registry repository URL`),
 		}, {
-			Config:                  tfConfig,
-			ConfigVariables:         variables(url),
-			ResourceName:            name,
-			ImportState:             true,
-			ImportStateVerify:       true,
-			ImportStateVerifyIgnore: []string{keyServiceAccountOwnershipToken},
-		}, {
+			// Verify that an invalid service account email is rejected at plan
+			// time.
 			Config:          tfConfig,
-			ConfigVariables: variables(updatedURL),
-			Check: resource.ComposeTestCheckFunc(
-				resource.TestCheckResourceAttr(name, keyServiceAccountEmail, email),
-				resource.TestCheckResourceAttr(name, keyURL, updatedURL),
-			),
+			ConfigVariables: variables("not-an-email", url),
+			PlanOnly:        true,
+			ExpectError:     regexp.MustCompile(`must be a service account email`),
+		}, {
+			// Verify that the resource can be created, and that the write-only
+			// ownership token is not stored.
+			Config:          tfConfig,
+			ConfigVariables: variables(email, url),
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.CompareValuePairs(name, tfjsonpath.New(keyID),
+					"rubrik_gcp_project.default", tfjsonpath.New(keyID), compare.ValuesSame()),
+				statecheck.CompareValuePairs(name, tfjsonpath.New(keyCloudAccountID),
+					"rubrik_gcp_project.default", tfjsonpath.New(keyID), compare.ValuesSame()),
+				statecheck.ExpectKnownValue(name, tfjsonpath.New(keyServiceAccountEmail),
+					knownvalue.StringExact(email)),
+				statecheck.ExpectKnownValue(name, tfjsonpath.New(keyURL), knownvalue.StringExact(url)),
+				statecheck.ExpectKnownValue(name, tfjsonpath.New(keyServiceAccountOwnershipToken),
+					knownvalue.Null()),
+				statecheck.ExpectIdentity(name, map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState(name, tfjsonpath.New(keyID)),
+			},
+		}, {
+			// Verify that the url can be updated in place, and that the ID does
+			// not change.
+			Config:          tfConfig,
+			ConfigVariables: variables(email, updatedURL),
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction(name, plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.CompareValuePairs(name, tfjsonpath.New(keyID),
+					"rubrik_gcp_project.default", tfjsonpath.New(keyID), compare.ValuesSame()),
+				statecheck.ExpectKnownValue(name, tfjsonpath.New(keyURL), knownvalue.StringExact(updatedURL)),
+				statecheck.ExpectIdentityValueMatchesState(name, tfjsonpath.New(keyID)),
+			},
+		}, {
+			// Terraform import.
+			Config:            tfConfig,
+			ConfigVariables:   variables(email, updatedURL),
+			ResourceName:      name,
+			ImportStateKind:   resource.ImportCommandWithID,
+			ImportState:       true,
+			ImportStateVerify: true,
+		}, {
+			// import {} block with id attribute.
+			Config:          tfConfig,
+			ConfigVariables: variables(email, updatedURL),
+			ResourceName:    name,
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// import {} block with identity attribute.
+			Config:          tfConfig,
+			ConfigVariables: variables(email, updatedURL),
+			ResourceName:    name,
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -161,8 +162,8 @@ var (
 var (
 	_ resource.Resource                = &gcpPrivateContainerRegistryResource{}
 	_ resource.ResourceWithConfigure   = &gcpPrivateContainerRegistryResource{}
+	_ resource.ResourceWithIdentity    = &gcpPrivateContainerRegistryResource{}
 	_ resource.ResourceWithImportState = &gcpPrivateContainerRegistryResource{}
-	_ resource.ResourceWithMoveState   = &gcpPrivateContainerRegistryResource{}
 )
 
 type gcpPrivateContainerRegistryResource struct {
@@ -176,6 +177,11 @@ type gcpPrivateContainerRegistryResourceModel struct {
 	ServiceAccountEmail          types.String `tfsdk:"service_account_email"`
 	ServiceAccountOwnershipToken types.String `tfsdk:"service_account_ownership_token"`
 	URL                          types.String `tfsdk:"url"`
+}
+
+// gcpPrivateContainerRegistryIdentityModel is the resource identity.
+type gcpPrivateContainerRegistryIdentityModel struct {
+	ID types.String `tfsdk:"id"`
 }
 
 func newGcpPrivateContainerRegistryResource() resource.Resource {
@@ -254,6 +260,19 @@ func (r *gcpPrivateContainerRegistryResource) Schema(ctx context.Context, _ reso
 	}
 }
 
+func (r *gcpPrivateContainerRegistryResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "gcpPrivateContainerRegistryResource.IdentitySchema")
+
+	res.IdentitySchema = identityschema.Schema{
+		Attributes: map[string]identityschema.Attribute{
+			keyID: identityschema.StringAttribute{
+				RequiredForImport: true,
+				Description:       "RSC cloud account ID (UUID).",
+			},
+		},
+	}
+}
+
 func (r *gcpPrivateContainerRegistryResource) Configure(ctx context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	tflog.Trace(ctx, "gcpPrivateContainerRegistryResource.Configure")
 
@@ -299,6 +318,7 @@ func (r *gcpPrivateContainerRegistryResource) Create(ctx context.Context, req re
 
 	plan.ID = types.StringValue(id.String())
 	res.Diagnostics.Append(res.State.Set(ctx, plan)...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, gcpPrivateContainerRegistryIdentityModel{ID: plan.ID})...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -340,6 +360,7 @@ func (r *gcpPrivateContainerRegistryResource) Read(ctx context.Context, req reso
 		return
 	}
 	res.Diagnostics.Append(res.State.Set(ctx, state)...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, gcpPrivateContainerRegistryIdentityModel{ID: state.ID})...)
 }
 
 func (r *gcpPrivateContainerRegistryResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
@@ -384,6 +405,7 @@ func (r *gcpPrivateContainerRegistryResource) Update(ctx context.Context, req re
 		return
 	}
 	res.Diagnostics.Append(res.State.Set(ctx, state)...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, gcpPrivateContainerRegistryIdentityModel{ID: state.ID})...)
 }
 
 func (r *gcpPrivateContainerRegistryResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
@@ -414,14 +436,9 @@ func (r *gcpPrivateContainerRegistryResource) Delete(ctx context.Context, req re
 func (r *gcpPrivateContainerRegistryResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
 	tflog.Trace(ctx, "gcpPrivateContainerRegistryResource.ImportState")
 
-	id, err := uuid.Parse(req.ID)
-	if err != nil {
-		res.Diagnostics.AddError("Invalid import ID", "expected an RSC cloud account ID (UUID): "+err.Error())
-		return
-	}
-
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), id.String())...)
-	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyCloudAccountID), id.String())...)
+	// Handles both `import { id = "..." }` and `import { identity = { id = "..." } }`.
+	// Read fills in cloud_account_id from the ID.
+	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
 // readRegistry reads the private container registry for the cloud account in
