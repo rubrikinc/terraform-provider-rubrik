@@ -96,15 +96,15 @@ type awsRCVArchivalLocationResource struct {
 }
 
 type awsRCVArchivalLocationModel struct {
-	ID               types.String `tfsdk:"id"`
-	Name             types.String `tfsdk:"name"`
-	Region           types.String `tfsdk:"region"`
-	Tier             types.String `tfsdk:"tier"`
-	Redundancy       types.String `tfsdk:"redundancy"`
-	ConnectionStatus types.String `tfsdk:"connection_status"`
-	LocationTemplate types.String `tfsdk:"location_template"`
-	EncryptionType   types.String `tfsdk:"encryption_type"`
-	KMSKey           types.List   `tfsdk:"kms_key"`
+	ID                  types.String   `tfsdk:"id"`
+	Name                types.String   `tfsdk:"name"`
+	Region              types.String   `tfsdk:"region"`
+	Tier                types.String   `tfsdk:"tier"`
+	Redundancy          types.String   `tfsdk:"redundancy"`
+	ConnectionStatus    types.String   `tfsdk:"connection_status"`
+	LocationTemplate    types.String   `tfsdk:"location_template"`
+	EncryptionType      types.String   `tfsdk:"encryption_type"`
+	KMSKey              types.List     `tfsdk:"kms_key"`
 	CustomerProvidedKey types.List     `tfsdk:"customer_provided_key"`
 	Timeouts            timeouts.Value `tfsdk:"timeouts"`
 }
