@@ -136,7 +136,7 @@ func (r *azureRCVArchivalLocationListResource) List(ctx context.Context, req lis
 	// schema's timeouts attribute.
 	nullTimeouts := timeouts.Value{Object: types.ObjectNull(nil)}
 	if obj, ok := req.ResourceSchema.Type().(types.ObjectType); ok {
-		if t, ok := obj.AttrTypes[keyTimeouts].(types.ObjectType); ok {
+		if t, ok := obj.AttrTypes[keyTimeouts].(timeouts.Type); ok {
 			nullTimeouts = timeouts.Value{Object: types.ObjectNull(t.AttrTypes)}
 		}
 	}
