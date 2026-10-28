@@ -69,11 +69,11 @@ only a region and a tier.
    key instead, and the ´rsa_key´ block selects client-side encryption with an
    RSA key you supply. The two blocks are mutually exclusive.
 
-Changing the key name, the key version or the key vault of the ´key_vault_key´
-block rekeys the archival location in place. The rekey moves the archival
-location to the new key without re-encrypting the archived data. It can take
-several minutes, increase ´timeouts.update´ if it takes longer than the default
-of 20 minutes.
+Changing the key name, the key version or the key manager of the
+´key_vault_key´ block rekeys the archival location in place. The rekey moves
+the archival location to the new key without re-encrypting the archived data.
+It can take several minutes, increase ´timeouts.update´ if it takes longer than
+the default of 20 minutes.
 
 -> **Note:** RSC only supports updating the ´name´, the ´tier´ and the
    ´redundancy´, and rekeying the ´key_vault_key´. Changing any other argument,
@@ -273,7 +273,7 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 				Description: "Azure Key Vault key used for client-side encryption of the archived data. " +
 					"Conflicts with `rsa_key`. When neither is given, RCV creates and manages the " +
 					"encryption key. May be specified at most once. Changing the key name, the key version " +
-					"or the key vault rekeys the archival location in place. Adding or removing the block " +
+					"or the key manager rekeys the archival location in place. Adding or removing the block " +
 					"forces a new resource to be created.",
 				PlanModifiers: []planmodifier.List{
 					requiresReplaceOnAddOrRemove(),
