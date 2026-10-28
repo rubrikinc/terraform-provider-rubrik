@@ -23,12 +23,14 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	listschema "github.com/hashicorp/terraform-plugin-framework/list/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
+	gqlarchival "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/archival"
 )
 
 const listResourceGCPRCVArchivalLocationDescription = `
@@ -115,6 +117,30 @@ func (r *gcpRCVArchivalLocationListResource) List(ctx context.Context, req list.
 		return
 	}
 
+	// The encryption key of an archival location isn't part of the target
+	// mapping, it is listed with the encryption details of the archival groups.
+	// RSC only lists the groups encrypted with a key from a key manager.
+	var encryptionDetails []gqlarchival.ArchivalGroupEncryptionDetails
+	if req.IncludeResource {
+		encryptionDetails, err = archival.Wrap(polarisClient).ArchivalGroupEncryptionDetails(ctx, "")
+		if err != nil {
+			diags.AddError("Failed to list RCV GCP archival location encryption details", err.Error())
+			stream.Results = list.ListResultsStreamDiagnostics(diags)
+			return
+		}
+	}
+
+	// The resource model carries a timeouts.Value whose zero value is a null
+	// object with no attribute types. Setting it against the resource schema
+	// would fail type conversion, so derive a correctly-typed null from the
+	// schema's timeouts attribute.
+	nullTimeouts := timeouts.Value{Object: types.ObjectNull(nil)}
+	if obj, ok := req.ResourceSchema.Type().(types.ObjectType); ok {
+		if t, ok := obj.AttrTypes[keyTimeouts].(timeouts.Type); ok {
+			nullTimeouts = timeouts.Value{Object: types.ObjectNull(t.AttrTypes)}
+		}
+	}
+
 	stream.Results = func(push func(list.ListResult) bool) {
 		for i, targetMapping := range targetMappings {
 			if int64(i) >= req.Limit {
@@ -134,7 +160,22 @@ func (r *gcpRCVArchivalLocationListResource) List(ctx context.Context, req list.
 			}
 
 			if req.IncludeResource {
-				model := newGCPRCVArchivalLocationModel(targetMapping)
+				model := newGCPRCVArchivalLocationModel(targetMapping, nullTimeouts)
+				for _, details := range encryptionDetails {
+					if details.ID != targetMapping.ID || details.KMSKey == nil || details.KMSKey.Key == nil ||
+						details.KMSKey.Key.GCPKMSKey == nil {
+						continue
+					}
+
+					key := []gcpRCVKMSKeyModel{{
+						KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+						KeyName:      types.StringValue(details.KMSKey.Key.GCPKMSKey.KeyName),
+						KeyVersion:   types.StringValue(details.KMSKey.Key.GCPKMSKey.KeyVersion),
+					}}
+					keyList, keyDiags := types.ListValueFrom(ctx, gcpRCVKMSKeyType, key)
+					result.Diagnostics.Append(keyDiags...)
+					model.KMSKey = keyList
+				}
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {
 					push(result)

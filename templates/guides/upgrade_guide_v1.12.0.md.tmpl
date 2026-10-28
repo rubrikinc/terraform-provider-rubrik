@@ -269,7 +269,8 @@ RCV archival locations support the `BACKUP` and `ARCHIVE` tiers. Redundancy is o
 
 What RSC allows you to change after creation differs per cloud, and the resources force a new archival location for
 everything else. AWS supports updating the `name` and the `tier`, Azure the `name`, the `tier` and the `redundancy`,
-and GCP only the `name`.
+and GCP only the `name`. A customer managed KMS key can additionally be rotated in place on all three clouds, see
+[RCV Encryption](#rcv-encryption).
 
 ~> **Note:** Replacing an archival location destroys the existing one. Review the plan before applying a change that
    shows a replacement.
@@ -348,9 +349,24 @@ resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
 }
 ```
 
-RSC only accepts an encryption key when the archival location is created — the update APIs take no encryption field at
-all — so there is no way to rotate a key in place. Changing `version` therefore replaces the archival location rather
-than updating it.
+GCP uses a `kms_key` block with a key manager ID, a key name and a key version. RCV GCP has no other key mode.
+
+A customer managed KMS key, the `kms_key` block on AWS and GCP and the `key_vault_key` block on Azure, can be rotated
+in place. Changing the key ID, or the key name, key version or key manager, rekeys the archival location: RSC moves
+it to the new key without re-encrypting the archived data, and the provider waits for the rekey to complete. It can
+take several minutes, so increase `timeouts.update` if it takes longer than the default of 20 minutes. Adding or
+removing the block replaces the archival location.
+
+RSC only accepts the `customer_provided_key` and `rsa_key` keys when the archival location is created — the update
+APIs take no encryption field for them — so there is no way to rotate those in place. Changing `version` therefore
+replaces the archival location rather than updating it.
+
+RSC never returns these keys, so an imported archival location has no `customer_provided_key` or `rsa_key` block in the
+state. Adding the block to the configuration of an imported archival location which RSC reports as using that kind of
+key, an `encryption_type` of `SSE_CPK` on AWS and `RSA_KEY_BASED` on Azure, updates it in place instead of replacing
+it. The update changes nothing in RSC apart from sending the unchanged settings again, and records the block in the
+state. The provider can't check that the key in the configuration is the one RSC uses, so make sure it is. Adding the
+block to an archival location using any other kind of key replaces it.
 
 ~> **Note:** Write-only arguments are supported in Terraform 1.11 and later.
 
