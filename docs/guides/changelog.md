@@ -39,13 +39,14 @@ page_title: "Changelog"
   RSC. Rubrik Cloud Vault storage is Rubrik owned, so the resource takes a region and a tier but no cloud account ID.
   Encryption defaults to an RCV managed key, with the `kms_key` block selecting client-side encryption and the
   `customer_provided_key` block selecting server-side encryption with a write-only, base64 encoded AES-256 key. The
-  `kms_key` can be rotated in place. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  `kms_key` can be rotated in place, and an imported archival location can be given its `customer_provided_key` without
+  being replaced. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
   [[docs](../resources/aws_rcv_archival_location.md)]
 * New resource added for `rubrik_azure_rcv_archival_location` which creates and manages RCV Azure archival locations
   in RSC. Azure is the only RCV cloud accepting a `source_workload_cloud`, letting an Azure hosted vault archive AWS
   or GCP workloads. A customer managed key is configured with the `key_vault_key` block or the `rsa_key` block, whose
-  key is write-only. The `key_vault_key` can be rotated in place. See the
-  [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  key is write-only. The `key_vault_key` can be rotated in place, and an imported archival location can be given its
+  `rsa_key` without being replaced. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
   [[docs](../resources/azure_rcv_archival_location.md)]
 * New resource added for `rubrik_gcp_rcv_archival_location` which creates and manages RCV GCP archival locations in
   RSC. Encryption defaults to an RCV managed key, with the `kms_key` block selecting client-side encryption with a GCP

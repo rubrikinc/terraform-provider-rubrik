@@ -38,7 +38,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -310,9 +309,12 @@ func (r *azureRCVArchivalLocationResource) Schema(ctx context.Context, _ resourc
 			keyRSAKey: schema.ListNestedBlock{
 				Description: "RSA key used for client-side encryption of the archived data. Conflicts " +
 					"with `key_vault_key`. When neither is given, RCV creates and manages the encryption " +
-					"key. May be specified at most once. Changing this forces a new resource to be created.",
+					"key. May be specified at most once. Changing this forces a new resource to be created, " +
+					"except when adding the block to an imported archival location which already uses an " +
+					"RSA key. RSC never returns the key, so the provider can't check that it is the one in " +
+					"use.",
 				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+					requiresReplaceUnlessImported(gqlarchival.TargetEncryptionRSAKeyBased),
 				},
 				Validators: []validator.List{
 					listvalidator.SizeAtMost(1),

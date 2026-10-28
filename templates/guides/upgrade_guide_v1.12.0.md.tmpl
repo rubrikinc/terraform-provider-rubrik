@@ -361,6 +361,13 @@ RSC only accepts the `customer_provided_key` and `rsa_key` keys when the archiva
 APIs take no encryption field for them — so there is no way to rotate those in place. Changing `version` therefore
 replaces the archival location rather than updating it.
 
+RSC never returns these keys, so an imported archival location has no `customer_provided_key` or `rsa_key` block in the
+state. Adding the block to the configuration of an imported archival location which RSC reports as using that kind of
+key, an `encryption_type` of `SSE_CPK` on AWS and `RSA_KEY_BASED` on Azure, updates it in place instead of replacing
+it. The update changes nothing in RSC apart from sending the unchanged settings again, and records the block in the
+state. The provider can't check that the key in the configuration is the one RSC uses, so make sure it is. Adding the
+block to an archival location using any other kind of key replaces it.
+
 ~> **Note:** Write-only arguments are supported in Terraform 1.11 and later.
 
 ### Listing Archival Locations

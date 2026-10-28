@@ -38,7 +38,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -276,9 +275,11 @@ func (r *awsRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 				Description: "Customer provided AES key used for server-side encryption of the archived " +
 					"data. Conflicts with `kms_key`. When neither is given, RCV creates and manages the " +
 					"encryption key. May be specified at most once. Changing this forces a new resource " +
-					"to be created.",
+					"to be created, except when adding the block to an imported archival location which " +
+					"already uses a customer provided key. RSC never returns the key, so the provider " +
+					"can't check that it is the one in use.",
 				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
+					requiresReplaceUnlessImported(gqlarchival.TargetEncryptionSSECustomerKey),
 				},
 				Validators: []validator.List{
 					listvalidator.SizeAtMost(1),
