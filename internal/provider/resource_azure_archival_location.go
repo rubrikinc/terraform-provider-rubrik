@@ -57,8 +57,29 @@ region must be specified. For ´SOURCE_REGION´, a customer managed key block fo
 each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
+Client-side encryption is enabled by specifying the ´key_vault_key´ block, with a
+key in an Azure key vault registered as a key manager in RSC, see the
+´rubrik_azure_kms_key_manager´ data source. The ´key_vault_key´ block conflicts
+with the customer managed key blocks.
+
+The key vault key has the following requirements, which RSC does not check when
+the archival location is created:
+  * The key vault must be registered as a key manager for a subscription onboarded
+    with the ´cloud_native_uem_key_management´ feature, and RSC must be assigned
+    the Key Vault Crypto User role on the key vault, see the
+    ´rubrik_azure_subscription´ resource.
+  * The user assigned managed identity of the ´cloud_native_archival_encryption´
+    feature must be assigned a key role on the key vault, e.g. the Key Vault
+    Crypto Service Encryption User role.
+  * RSC only lists key vaults in the resource group of the ´cloud_native_archival´
+    feature.
+  * The RSC UI requires an Exocompute mapping covering the key manager's region.
+
 -> **Note:** When using ´SOURCE_REGION´ the Azure storage account isn't created
    until the first protected object is archived.
+
+-> **Note:** RSC does not return the ´key_vault_key´ block, so it is not read back
+   from RSC and cannot be imported.
 `
 
 func resourceAzureArchivalLocation() *schema.Resource {
@@ -93,13 +114,54 @@ func resourceAzureArchivalLocation() *schema.Resource {
 				Description: "Azure storage container name.",
 			},
 			keyCustomerManagedKey: {
-				Type:     schema.TypeSet,
-				Elem:     azureCustomerKeyResource(),
-				Optional: true,
+				Type:          schema.TypeSet,
+				Elem:          azureCustomerKeyResource(),
+				Optional:      true,
+				ConflictsWith: []string{keyKeyVaultKey},
 				Description: "Customer managed storage encryption. For `SPECIFIC_REGION`, a customer managed key " +
 					"block for the specific region must be specified. For `SOURCE_REGION`, a customer managed key " +
 					"block for each source region should be specified, source regions not having a customer managed " +
-					"key block will have its data encrypted with platform managed keys.",
+					"key block will have its data encrypted with platform managed keys. Conflicts with " +
+					"`key_vault_key`.",
+			},
+			keyKeyVaultKey: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keyKeyManagerID: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "KMS key manager ID (UUID).",
+							ValidateFunc: validation.IsUUID,
+						},
+						keyKeyName: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "Key Vault key name.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+						keyKeyVersion: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "Key Vault key version.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+					},
+				},
+				MaxItems:      1,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{keyCustomerManagedKey},
+				Description: "Azure Key Vault key used for client-side encryption of the archived data. The key " +
+					"vault must be registered as a key manager in RSC, see the `rubrik_azure_kms_key_manager` data " +
+					"source. RSC does not check the key manager's region against the archival location's region, " +
+					"but the RSC UI requires an Exocompute mapping covering the key manager's region. Conflicts " +
+					"with `customer_managed_key`. RSC does not return the key, so it is not read back from RSC and " +
+					"cannot be imported. May be specified at most once. Changing this forces a new resource to be " +
+					"created.",
 			},
 			keyLocationTemplate: {
 				Type:     schema.TypeString,
@@ -191,8 +253,7 @@ func azureCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m 
 		storageAccountTags = &tags
 	}
 
-	// Create the Azure cloud native archival location.
-	targetMappingID, err := archival.Wrap(client).CreateAzureStorageSetting(ctx, gqlarchival.CreateAzureStorageSettingParams{
+	createParams := gqlarchival.CreateAzureStorageSettingParams{
 		CloudAccountID:       cloudAccountID,
 		Name:                 d.Get(keyName).(string),
 		NetworkAccessType:    d.Get(keyNetworkAccessType).(string),
@@ -202,7 +263,22 @@ func azureCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m 
 		StorageAccountRegion: azure.RegionFromName(d.Get(keyStorageAccountRegion).(string)).ToRegionEnum(),
 		StorageAccountTags:   storageAccountTags,
 		CMKInfo:              toAzureCustomerManagedKeys(d.Get(keyCustomerManagedKey).(*schema.Set)),
-	})
+	}
+	if keyVaultKey := d.Get(keyKeyVaultKey).([]any); len(keyVaultKey) > 0 {
+		block := keyVaultKey[0].(map[string]any)
+		keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		createParams.KeyVaultKey = &gqlarchival.AzureKeyVaultKey{
+			KeyVaultID: keyManagerID,
+			KeyName:    block[keyKeyName].(string),
+			KeyVersion: block[keyKeyVersion].(string),
+		}
+	}
+
+	// Create the Azure cloud native archival location.
+	targetMappingID, err := archival.Wrap(client).CreateAzureStorageSetting(ctx, createParams)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -247,8 +323,13 @@ func azureReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 	if err := d.Set(keyContainerName, targetTemplate.ContainerNamePrefix); err != nil {
 		return diag.FromErr(err)
 	}
-	if err := d.Set(keyCustomerManagedKey, fromAzureCustomerManagedKeys(cloudNativeCompanion.CMKInfo)); err != nil {
-		return diag.FromErr(err)
+	// RSC keeps customer managed keys given together with a key vault key, even
+	// though they aren't used, so they are only read for a location without a
+	// key vault key.
+	if len(d.Get(keyKeyVaultKey).([]any)) == 0 {
+		if err := d.Set(keyCustomerManagedKey, fromAzureCustomerManagedKeys(cloudNativeCompanion.CMKInfo)); err != nil {
+			return diag.FromErr(err)
+		}
 	}
 	if err := d.Set(keyLocationTemplate, cloudNativeCompanion.LocTemplate); err != nil {
 		return diag.FromErr(err)
