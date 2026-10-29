@@ -418,6 +418,78 @@ archival location created with a customer managed key still imports and reads ba
 reports the mode in use, but the key itself has to be added to the configuration by hand if you want Terraform to
 recreate the archival location with the same key.
 
+### AWS accounts using multiple roles
+
+RSC can onboard an AWS account using the IAM roles workflow with one IAM role per feature, instead of a single
+`CROSSACCOUNT` role carrying the permissions of every feature. Which role mode an account uses is decided by RSC, and
+fixed when the roles of the account are registered with the `rubrik_aws_cnp_account_attachments` resource. The
+`trust_policies` field of the `rubrik_aws_cnp_account` resource always holds the trust policies of the role mode of the
+account.
+
+The `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data sources return the roles and policies of an account
+using a single role, unless they are given the AWS account ID of the account with the new `native_id` field. For an
+account using multiple roles, the data sources then return one role per feature, and the policies of each feature for
+the role of that feature, matching the trust policies of the account:
+```terraform
+locals {
+  features = {
+    CLOUD_DISCOVERY         = ["BASIC"]
+    CLOUD_NATIVE_PROTECTION = ["BASIC"]
+  }
+}
+
+resource "rubrik_aws_cnp_account" "account" {
+  name      = "My Account"
+  native_id = "123456789123"
+  regions   = ["us-east-2"]
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+
+data "rubrik_aws_cnp_artifacts" "artifacts" {
+  native_id = rubrik_aws_cnp_account.account.native_id
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+
+data "rubrik_aws_cnp_permissions" "permissions" {
+  for_each  = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+  native_id = rubrik_aws_cnp_account.account.native_id
+  role_key  = each.key
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+```
+RSC returns an error for a `native_id` of an account which has not been onboarded, so the data sources must depend on
+the `rubrik_aws_cnp_account` resource, as above. Since the role keys of the artifacts data source are then not known
+until the account exists, Terraform cannot plan the roles of a new account: onboard the account first with
+`terraform apply -target=rubrik_aws_cnp_account.account`, then run `terraform apply` again for the rest of the
+configuration. Configurations which build the `feature` blocks of the `rubrik_aws_cnp_account` resource from the
+artifacts data source need to declare the features elsewhere, e.g. in a local value as above, since the data source now
+depends on the account.
+
+Without `native_id`, the data sources behave as before. An account using multiple roles then gets trust policies for
+one role per feature, but roles and policies for a single `CROSSACCOUNT` role, so the roles built from them do not
+match.
+
 ## Significant Changes
 
 ### Permission groups are validated per feature
