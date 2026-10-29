@@ -398,6 +398,40 @@ block to an archival location using any other kind of key replaces it.
 
 ~> **Note:** Write-only arguments are supported in Terraform 1.11 and later.
 
+### Cloud Native Archival Location Encryption
+
+The `rubrik_aws_archival_location`, `rubrik_azure_archival_location` and `rubrik_gcp_archival_location` resources
+support client-side encryption with a key in a key manager registered in RSC, using the new `kms_key` block (AWS and
+GCP) and `key_vault_key` block (Azure). The key manager ID is looked up with the KMS key manager data sources. The key
+can only be given when the archival location is created, so changing it replaces the archival location.
+
+```terraform
+data "rubrik_aws_kms_key_manager" "archival" {
+  name = "archival-key-manager"
+}
+
+resource "rubrik_aws_archival_location" "archival_location" {
+  account_id    = data.rubrik_aws_account.archival.id
+  name          = "my-archival-location"
+  bucket_prefix = "k2m9xq4rtv"
+  region        = "us-east-2"
+
+  kms_key {
+    key_manager_id = data.rubrik_aws_kms_key_manager.archival.id
+    key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+  }
+}
+```
+
+Each block conflicts with the server-side encryption key of the resource, `kms_master_key` for AWS and
+`customer_managed_key` for Azure and GCP. RSC does not return the key, so the block is not read back from RSC and
+cannot be imported.
+
+~> **Note:** RSC does not check the key manager's region against the archival location's region, but the RSC UI
+requires an Exocompute mapping covering the key manager's region. For Azure, the user assigned managed identity of the
+`cloud_native_archival_encryption` feature must be assigned a key role on the key vault, which RSC does not check for a
+key vault using RBAC authorization.
+
 ### Listing Archival Locations
 
 Each of the three resources has a matching list resource, so existing archival locations can be discovered without
@@ -461,3 +495,31 @@ resource.
 The attribute is computed, so no change to the resource configuration is needed and Terraform does not plan any changes
 for it. If your configuration compares the status to a lower case value, for example in a `precondition` or an output,
 update the comparison to use the upper case value.
+
+### The `kms_master_key` field no longer defaults to `aws/s3`
+
+The `kms_master_key` field of the `rubrik_aws_archival_location` resource no longer has a schema default of `aws/s3`.
+The default was only valid for a source region archival location. For a specific region archival location, RSC requires
+a customer managed KMS key and rejects AWS managed keys such as `aws/s3`, because they cannot encrypt data stored
+outside their own region.
+
+The behavior is now:
+* Without `region` (source region), an archival location created without `kms_master_key` and `kms_key` still uses
+  `aws/s3`, the AWS managed S3 key. This is the same default the RSC UI uses.
+* With `region` (specific region), one of `kms_master_key` and `kms_key` must be given. `kms_master_key` must be the
+  ARN or ID of a customer managed key, `aws/s3` and key aliases, `alias/...`, are rejected by RSC.
+* `kms_key` selects client-side encryption and conflicts with `kms_master_key`, which then stays empty in the state.
+
+Existing archival locations are not affected. A state value of `aws/s3` is kept and doesn't cause a diff. A
+configuration with `region` but without `kms_master_key` failed when the archival location was created before this
+change as well, and now fails when the configuration is planned instead:
+
+```terraform
+resource "rubrik_aws_archival_location" "archival_location" {
+  account_id     = data.rubrik_aws_account.archival.id
+  name           = "my-archival-location"
+  bucket_prefix  = "f48wad7flz"
+  region         = "us-east-2"
+  kms_master_key = "arn:aws:kms:us-east-2:123456789012:key/9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+}
+```
