@@ -5,6 +5,12 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.12.0
+* Add support for AWS accounts using multiple roles in the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions`
+  data sources, using the new `native_id` field. Given the AWS account ID of an onboarded account, the data sources
+  return the roles and policies of the role mode of the account, e.g. one role per feature for an account using
+  multiple roles, matching the trust policies of the `rubrik_aws_cnp_account` resource. Without `native_id`, the data
+  sources return the roles and policies of an account using a single role, as before. See the
+  [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../data-sources/aws_cnp_artifacts.md)]
 * Add support for the `CLOUD_DISCOVERY` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project` and
   `rubrik_gcp_permissions` data sources. Cloud Discovery is the read-only parent of the GCP protection features and has
   the single permission group `BASIC`. It is optional, but when enabled it must outlive the protection features, so the
