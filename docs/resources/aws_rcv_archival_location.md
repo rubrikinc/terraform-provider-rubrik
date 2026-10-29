@@ -124,7 +124,7 @@ resource "rubrik_aws_rcv_archival_location" "cpk_archive" {
 ### Read-Only
 
 - `connection_status` (String) Connection status of the archival location.
-- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `UNKNOWN_ENCRYPTION_TYPE`, `SSE_CPK` and `UEKM_AWS_KMS_BASED`.
+- `encryption_type` (String) Encryption mode RSC applied to the archival location. Possible values are `UNKNOWN_ENCRYPTION_TYPE`, `SSE_CPK` and `UEKM_AWS_KMS_BASED`. `UNKNOWN_ENCRYPTION_TYPE` is reported when RCV creates and manages the encryption key.
 - `id` (String) Archival location ID (UUID).
 - `location_template` (String) Location template. `SPECIFIC_REGION` when `region` is specified, otherwise `SOURCE_REGION`.
 
