@@ -251,6 +251,7 @@ data "rubrik_aws_cnp_artifacts" "artifacts" {
 
 - `cloud` (String) AWS cloud type. Possible values are `STANDARD`, `CHINA` and `GOV`. Default value is `STANDARD`.
 - `feature` (Block Set) RSC feature with permission groups. At least one `feature` block must be specified. (see [below for nested schema](#nestedblock--feature))
+- `native_id` (String) AWS account ID of an account onboarded to RSC. When specified, the artifacts are those required by the account, e.g. one role per feature for an account using multiple roles. When not specified, the artifacts are those of an account using a single role. RSC returns an error if the account has not been onboarded.
 
 ### Read-Only
 

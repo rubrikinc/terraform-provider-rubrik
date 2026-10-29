@@ -9,6 +9,12 @@ page_title: "Changelog"
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_project.md)]
+* Add support for AWS accounts using multiple roles in the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions`
+  data sources, using the new `native_id` field. Given the AWS account ID of an onboarded account, the data sources
+  return the roles and policies of the role mode of the account, e.g. one role per feature for an account using
+  multiple roles, matching the trust policies of the `rubrik_aws_cnp_account` resource. Without `native_id`, the data
+  sources return the roles and policies of an account using a single role, as before. See the
+  [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md). [[docs](../data-sources/aws_cnp_artifacts.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources

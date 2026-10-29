@@ -231,6 +231,7 @@ data "rubrik_aws_cnp_permissions" "permissions" {
 - `cloud` (String) AWS cloud type. Possible values are `STANDARD`, `CHINA` and `GOV`. Default value is `STANDARD`.
 - `ec2_recovery_role_path` (String) AWS EC2 recovery role path.
 - `feature` (Block Set) RSC feature with permission groups. At least one `feature` block must be specified. (see [below for nested schema](#nestedblock--feature))
+- `native_id` (String) AWS account ID of an account onboarded to RSC. When specified, the policies are those required by the account, e.g. the policies of each feature are returned for the role of that feature for an account using multiple roles. When not specified, the policies are those of an account using a single role. RSC returns an error if the account has not been onboarded.
 
 ### Read-Only
 
