@@ -5,6 +5,9 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.12.0
+* New resource added for `rubrik_gcp_private_container_registry` which registers a customer-owned Google Artifact
+  Registry as the private container registry for GCP Exocompute. The service account ownership token is write-only
+  and requires Terraform v1.11.0 or later. [[docs](../resources/gcp_private_container_registry.md)]
 * Add support for the `CLOUD_DISCOVERY` feature in the `rubrik_gcp_project` resource and the `rubrik_gcp_project` and
   `rubrik_gcp_permissions` data sources. Cloud Discovery is the read-only parent of the GCP protection features and has
   the single permission group `BASIC`. It is optional, but when enabled it must outlive the protection features, so the
