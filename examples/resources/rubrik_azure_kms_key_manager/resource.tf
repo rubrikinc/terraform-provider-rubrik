@@ -15,8 +15,8 @@ resource "rubrik_azure_rcv_archival_location" "archive" {
   tier   = "BACKUP"
 
   key_vault_key {
-    key_vault_id = rubrik_azure_kms_key_manager.production.id
-    key_name     = "archive-key"
-    key_version  = "56f46ba5741e4883b5e3ac5cb96a0a71"
+    key_manager_id = rubrik_azure_kms_key_manager.production.id
+    key_name       = "archive-key"
+    key_version    = "56f46ba5741e4883b5e3ac5cb96a0a71"
   }
 }
