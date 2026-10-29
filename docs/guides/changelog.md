@@ -5,6 +5,12 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Add support for AWS accounts using multiple roles in the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions`
+  data sources, using the new `native_id` field. Given the AWS account ID, the data sources return the roles and
+  policies of the role mode of the account, e.g. one role per feature for an account using multiple roles, matching
+  the trust policies of the `rubrik_aws_cnp_account` resource. Without `native_id`, the data sources return the roles
+  and policies of an account using a single role, as before. See the [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md).
+  [[docs](../data-sources/aws_cnp_artifacts.md)]
 * Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_archival_location.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
