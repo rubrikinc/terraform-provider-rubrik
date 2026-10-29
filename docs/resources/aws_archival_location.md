@@ -11,8 +11,22 @@ description: |-
   SOURCE_REGION - Store snapshots in the same region to minimize data transfer
   charges. This is the default behaviour when the region field is not specified.SPECIFIC_REGION - Storing snapshots in another region can increase total data
   transfer charges. The region field specifies the region.
+  The archived data is encrypted on the server side with an AWS KMS master key, or
+  on the client side with a KMS key managed by an RSC key manager:
+  kms_master_key - For SOURCE_REGION the key defaults to aws/s3, the AWS
+  managed S3 key, which is the same default the RSC UI uses. For
+  SPECIFIC_REGION the key must be a customer managed key, given as a key ARN
+  or key ID. AWS managed keys, such as aws/s3, and key aliases, alias/...,
+  are rejected for SPECIFIC_REGION, because they cannot encrypt data stored
+  outside their own region.kms_key - Client-side encryption with a KMS key in a key manager registered
+  in RSC, see the rubrik_aws_kms_key_manager data source. Conflicts with
+  kms_master_key.
+  When region is specified, one of kms_master_key and kms_key must be given.
   -> Note: The AWS bucket holding the archived data is not created until the first
   protected object is archived.
+  -> Note: RSC does not return the kms_key block, so it is not read back from
+  RSC and cannot be imported. A location created with kms_key has no
+  kms_master_key.
 ---
 
 # rubrik_aws_archival_location (Resource)
@@ -28,8 +42,26 @@ to be specified:
   * `SPECIFIC_REGION` - Storing snapshots in another region can increase total data
     transfer charges. The `region` field specifies the region.
 
+The archived data is encrypted on the server side with an AWS KMS master key, or
+on the client side with a KMS key managed by an RSC key manager:
+  * `kms_master_key` - For `SOURCE_REGION` the key defaults to `aws/s3`, the AWS
+    managed S3 key, which is the same default the RSC UI uses. For
+    `SPECIFIC_REGION` the key must be a customer managed key, given as a key ARN
+    or key ID. AWS managed keys, such as `aws/s3`, and key aliases, `alias/...`,
+    are rejected for `SPECIFIC_REGION`, because they cannot encrypt data stored
+    outside their own region.
+  * `kms_key` - Client-side encryption with a KMS key in a key manager registered
+    in RSC, see the `rubrik_aws_kms_key_manager` data source. Conflicts with
+    `kms_master_key`.
+
+When `region` is specified, one of `kms_master_key` and `kms_key` must be given.
+
 -> **Note:** The AWS bucket holding the archived data is not created until the first
    protected object is archived.
+
+-> **Note:** RSC does not return the `kms_key` block, so it is not read back from
+   RSC and cannot be imported. A location created with `kms_key` has no
+   `kms_master_key`.
 
 ## Example Usage
 
@@ -38,19 +70,39 @@ data "rubrik_aws_account" "archival" {
   name = "archival-account"
 }
 
-# Source region.
+# Source region. The archived data is encrypted with the AWS managed S3 key,
+# aws/s3, since no key is given.
 resource "rubrik_aws_archival_location" "archival_location" {
   account_id    = data.rubrik_aws_account.archival.id
   name          = "my-archival-location"
   bucket_prefix = "e089osn2qn"
 }
 
-# Specific region.
+# Specific region. A specific region requires a customer managed KMS key, AWS
+# managed keys such as aws/s3 are rejected.
+resource "rubrik_aws_archival_location" "archival_location" {
+  account_id     = data.rubrik_aws_account.archival.id
+  name           = "my-archival-location"
+  bucket_prefix  = "f48wad7flz"
+  region         = "us-east-2"
+  kms_master_key = "arn:aws:kms:us-east-2:123456789012:key/9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+}
+
+# Client-side encryption with a KMS key in a key manager registered in RSC.
+data "rubrik_aws_kms_key_manager" "archival" {
+  name = "archival-key-manager"
+}
+
 resource "rubrik_aws_archival_location" "archival_location" {
   account_id    = data.rubrik_aws_account.archival.id
   name          = "my-archival-location"
-  bucket_prefix = "f48wad7flz"
+  bucket_prefix = "k2m9xq4rtv"
   region        = "us-east-2"
+
+  kms_key {
+    key_manager_id = data.rubrik_aws_kms_key_manager.archival.id
+    key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+  }
 }
 ```
 
@@ -66,7 +118,8 @@ resource "rubrik_aws_archival_location" "archival_location" {
 ### Optional
 
 - `bucket_tags` (Map of String) AWS bucket tags. Each tag will be added to the bucket created by RSC.
-- `kms_master_key` (String, Sensitive) AWS KMS master key alias/ID. Default value is `aws/s3`.
+- `kms_key` (Block List, Max: 1) AWS KMS key used for client-side encryption of the archived data. The key manager must be registered in RSC, see the `rubrik_aws_kms_key_manager` data source. RSC does not check the key manager's region against the archival location's region, but the RSC UI requires an Exocompute mapping covering the key manager's region. Conflicts with `kms_master_key`. RSC does not return the key, so it is not read back from RSC and cannot be imported. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `kms_master_key` (String, Sensitive) AWS KMS master key ARN, ID or alias, used for server-side encryption of the archived data. When `region` is not specified (`SOURCE_REGION`), the key defaults to `aws/s3`, the AWS managed S3 key. When `region` is specified (`SPECIFIC_REGION`), the key must be the ARN or ID of a customer managed key, and one of `kms_master_key` and `kms_key` must be given. Conflicts with `kms_key`.
 - `region` (String) AWS region to store the snapshots in. If not specified, the snapshots will be stored in the same region as the workload. Changing this forces a new resource to be created.
 - `storage_class` (String) AWS bucket storage class. Possible values are `STANDARD`, `STANDARD_IA`, `ONEZONE_IA`, `GLACIER_INSTANT_RETRIEVAL`, `GLACIER_DEEP_ARCHIVE` and `GLACIER_FLEXIBLE_RETRIEVAL`. Default value is `STANDARD_IA`.
 
@@ -75,6 +128,14 @@ resource "rubrik_aws_archival_location" "archival_location" {
 - `connection_status` (String) Connection status of the cloud native archival location.
 - `id` (String) Cloud native archival location ID (UUID).
 - `location_template` (String) Location template. If a region was specified, it will be `SPECIFIC_REGION`, otherwise `SOURCE_REGION`.
+
+<a id="nestedblock--kms_key"></a>
+### Nested Schema for `kms_key`
+
+Required:
+
+- `key_id` (String) KMS key ID.
+- `key_manager_id` (String) KMS key manager ID (UUID).
 
 ## Import
 

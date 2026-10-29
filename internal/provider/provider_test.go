@@ -260,6 +260,20 @@ type testRSCConfig struct {
 	GCPKeyManagerID       string `json:"gcpKeyManagerId"`
 	GCPKeyManagerName     string `json:"gcpKeyManagerName"`
 	GCPKeyManagerRegion   string `json:"gcpKeyManagerRegion"`
+
+	// Optional for acceptance tests, if omitted the tests are skipped. A key
+	// in each key manager above, and the RSC cloud account ID of a cloud
+	// account onboarded with the cloud native archival feature, used to create
+	// client-side encrypted archival locations. For Azure, the subscription
+	// must also have the cloud native archival encryption feature.
+	AWSArchivalCloudAccountID   string `json:"awsArchivalCloudAccountId"`
+	AWSKeyID                    string `json:"awsKeyId"`
+	AzureArchivalCloudAccountID string `json:"azureArchivalCloudAccountId"`
+	AzureKeyName                string `json:"azureKeyName"`
+	AzureKeyVersion             string `json:"azureKeyVersion"`
+	GCPArchivalCloudAccountID   string `json:"gcpArchivalCloudAccountId"`
+	GCPKeyName                  string `json:"gcpKeyName"`
+	GCPKeyVersion               string `json:"gcpKeyVersion"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default

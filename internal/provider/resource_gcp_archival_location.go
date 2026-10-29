@@ -56,8 +56,18 @@ region must be specified. For ´SOURCE_REGION´, a customer managed key block fo
 each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
+Client-side encryption is enabled by specifying the ´kms_key´ block, with a Cloud
+KMS key in a key manager registered in RSC, see the ´rubrik_gcp_kms_key_manager´
+data source. The ´kms_key´ block conflicts with the customer managed key blocks.
+RSC does not check the key manager's region against the archival location's
+region, but the RSC UI requires an Exocompute mapping covering the key manager's
+region.
+
 -> **Note:** When using ´SOURCE_REGION´ the GCP bucket isn't created until the
    first protected object is archived.
+
+-> **Note:** RSC does not return the ´kms_key´ block, so it is not read back from
+   RSC and cannot be imported.
 `
 
 func resourceGcpArchivalLocation() *schema.Resource {
@@ -103,13 +113,52 @@ func resourceGcpArchivalLocation() *schema.Resource {
 				Description: "Connection status of the cloud native archival location.",
 			},
 			keyCustomerManagedKey: {
-				Type:     schema.TypeSet,
-				Elem:     gcpCustomerKeyResource(),
-				Optional: true,
+				Type:          schema.TypeSet,
+				Elem:          gcpCustomerKeyResource(),
+				Optional:      true,
+				ConflictsWith: []string{keyKMSKey},
 				Description: "Customer managed storage encryption. For `SPECIFIC_REGION`, a customer managed key " +
 					"block for the specific region must be specified. For `SOURCE_REGION`, a customer managed key " +
 					"block for each source region should be specified, source regions not having a customer managed " +
-					"key block will have its data encrypted with platform managed keys.",
+					"key block will have its data encrypted with platform managed keys. Conflicts with `kms_key`.",
+			},
+			keyKMSKey: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keyKeyManagerID: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "KMS key manager ID (UUID).",
+							ValidateFunc: validation.IsUUID,
+						},
+						keyKeyName: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "Cloud KMS crypto key name.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+						keyKeyVersion: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "Cloud KMS crypto key version.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+					},
+				},
+				MaxItems:      1,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{keyCustomerManagedKey},
+				Description: "GCP Cloud KMS key used for client-side encryption of the archived data. The key " +
+					"manager must be registered in RSC, see the `rubrik_gcp_kms_key_manager` data source. RSC does " +
+					"not check the key manager's region against the archival location's region, but the RSC UI " +
+					"requires an Exocompute mapping covering the key manager's region. Conflicts with " +
+					"`customer_managed_key`. RSC does not return the key, so it is not read back from RSC and cannot " +
+					"be imported. May be specified at most once. Changing this forces a new resource to be created.",
 			},
 			keyLocationTemplate: {
 				Type:     schema.TypeString,
@@ -167,8 +216,7 @@ func gcpCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		bucketLabels = &labels
 	}
 
-	// Create the GCP cloud native archival location.
-	targetMappingID, err := archival.Wrap(client).CreateGCPStorageSetting(ctx, gqlarchival.CreateGCPStorageSettingParams{
+	createParams := gqlarchival.CreateGCPStorageSettingParams{
 		CloudAccountID: cloudAccountID,
 		Name:           d.Get(keyName).(string),
 		BucketPrefix:   d.Get(keyBucketPrefix).(string),
@@ -176,7 +224,22 @@ func gcpCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		BucketLabels:   bucketLabels,
 		CMKInfo:        toGCPCustomerManagedKeys(d.Get(keyCustomerManagedKey).(*schema.Set)),
 		StorageClass:   toGCPStorageClass(d.Get(keyStorageClass).(string)),
-	})
+	}
+	if kmsKey := d.Get(keyKMSKey).([]any); len(kmsKey) > 0 {
+		block := kmsKey[0].(map[string]any)
+		keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		createParams.KMSKey = &gqlarchival.GCPKMSKey{
+			KeyManagerID: keyManagerID,
+			KeyName:      block[keyKeyName].(string),
+			KeyVersion:   block[keyKeyVersion].(string),
+		}
+	}
+
+	// Create the GCP cloud native archival location.
+	targetMappingID, err := archival.Wrap(client).CreateGCPStorageSetting(ctx, createParams)
 	if err != nil {
 		return diag.FromErr(err)
 	}

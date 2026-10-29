@@ -74,6 +74,17 @@ page_title: "Changelog"
 * Add Terraform search support for the RCV archival location resources. Enables `terraform query` to discover RCV
   archival locations in RSC, including those not managed by Terraform.
   [[docs](../list-resources/aws_rcv_archival_location.md)]
+* Add support for client-side encryption with a KMS key in the `rubrik_aws_archival_location` resource, using the new
+  `kms_key` block. The key is identified by an RSC key manager ID and a key ID, and conflicts with `kms_master_key`.
+  See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../resources/aws_archival_location.md)]
+* Add support for client-side encryption with a Key Vault key in the `rubrik_azure_archival_location` resource, using
+  the new `key_vault_key` block. The key is identified by an RSC key manager ID, a key name and a key version, and
+  conflicts with `customer_managed_key`. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  [[docs](../resources/azure_archival_location.md)]
+* Add support for client-side encryption with a Cloud KMS key in the `rubrik_gcp_archival_location` resource, using
+  the new `kms_key` block. The key is identified by an RSC key manager ID, a crypto key name and a key version, and
+  conflicts with `customer_managed_key`. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+  [[docs](../resources/gcp_archival_location.md)]
 * Add support for the `CLOUD_NATIVE_UEM_KEY_MANAGEMENT` feature in the `rubrik_aws_account`,
   `rubrik_aws_cnp_account`, `rubrik_aws_cnp_account_attachments`, `rubrik_azure_subscription` and `rubrik_gcp_project`
   resources and the `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and
@@ -85,6 +96,11 @@ page_title: "Changelog"
   `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and `rubrik_gcp_permissions` data
   sources. Permission groups which aren't supported by the feature they are given for are now rejected when the
   configuration is planned. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+* Improve the validation of the `kms_master_key` field in the `rubrik_aws_archival_location` resource. The field no
+  longer has a schema default of `aws/s3`. A source region archival location created without a key still uses
+  `aws/s3`, the same default as the RSC UI, but a specific region archival location now requires `kms_master_key` or
+  `kms_key` when the configuration is planned, since RSC requires a customer managed key for a specific region. See the
+  [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../resources/aws_archival_location.md)]
 
 ## v1.11.2
 * Update the Go version used to build the provider to 1.26.10.
