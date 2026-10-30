@@ -21,8 +21,8 @@ description: |-
   KMS key in a key manager registered in RSC, see the rubrik_gcp_kms_key_manager
   data source. The kms_key block conflicts with the customer managed key blocks.
   RSC does not check the key manager's region against the archival location's
-  region, but the RSC UI requires an Exocompute mapping covering the key manager's
-  region.
+  region. Exocompute performs the encryption, so Exocompute must be configured for
+  the key manager's cloud account in the key manager's region.
   -> Note: When using SOURCE_REGION the GCP bucket isn't created until the
   first protected object is archived.
   -> Note: RSC does not return the kms_key block, so it is not read back from
@@ -53,8 +53,8 @@ Client-side encryption is enabled by specifying the `kms_key` block, with a Clou
 KMS key in a key manager registered in RSC, see the `rubrik_gcp_kms_key_manager`
 data source. The `kms_key` block conflicts with the customer managed key blocks.
 RSC does not check the key manager's region against the archival location's
-region, but the RSC UI requires an Exocompute mapping covering the key manager's
-region.
+region. Exocompute performs the encryption, so Exocompute must be configured for
+the key manager's cloud account in the key manager's region.
 
 -> **Note:** When using `SOURCE_REGION` the GCP bucket isn't created until the
    first protected object is archived.
@@ -115,7 +115,7 @@ resource "rubrik_gcp_archival_location" "archival_location" {
 
 - `bucket_labels` (Map of String) GCP bucket labels. Each label will be added to the GCP bucket created by RSC.
 - `customer_managed_key` (Block Set) Customer managed storage encryption. For `SPECIFIC_REGION`, a customer managed key block for the specific region must be specified. For `SOURCE_REGION`, a customer managed key block for each source region should be specified, source regions not having a customer managed key block will have its data encrypted with platform managed keys. Conflicts with `kms_key`. (see [below for nested schema](#nestedblock--customer_managed_key))
-- `kms_key` (Block List, Max: 1) GCP Cloud KMS key used for client-side encryption of the archived data. The key manager must be registered in RSC, see the `rubrik_gcp_kms_key_manager` data source. RSC does not check the key manager's region against the archival location's region, but the RSC UI requires an Exocompute mapping covering the key manager's region. Conflicts with `customer_managed_key`. RSC does not return the key, so it is not read back from RSC and cannot be imported. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `kms_key` (Block List, Max: 1) GCP Cloud KMS key used for client-side encryption of the archived data. The key manager must be registered in RSC, see the `rubrik_gcp_kms_key_manager` data source. RSC does not check the key manager's region against the archival location's region. Exocompute performs the encryption, so Exocompute must be configured for the key manager's cloud account in the key manager's region. Conflicts with `customer_managed_key`. RSC does not return the key, so it is not read back from RSC and cannot be imported. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
 - `region` (String) GCP region to store the snapshots in (`SPECIFIC_REGION`). If not specified, the snapshots will be stored in the same region as the workload (`SOURCE_REGION`). Changing this forces a new resource to be created.
 - `storage_class` (String) AWS bucket storage class. Possible values are `ARCHIVE`, `COLDLINE`, `NEARLINE`, `STANDARD` and `DURABLE_REDUCED_AVAILABILITY`. Default value is `STANDARD`.
 

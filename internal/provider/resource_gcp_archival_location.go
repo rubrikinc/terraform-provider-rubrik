@@ -60,8 +60,8 @@ Client-side encryption is enabled by specifying the ´kms_key´ block, with a Cl
 KMS key in a key manager registered in RSC, see the ´rubrik_gcp_kms_key_manager´
 data source. The ´kms_key´ block conflicts with the customer managed key blocks.
 RSC does not check the key manager's region against the archival location's
-region, but the RSC UI requires an Exocompute mapping covering the key manager's
-region.
+region. Exocompute performs the encryption, so Exocompute must be configured for
+the key manager's cloud account in the key manager's region.
 
 -> **Note:** When using ´SOURCE_REGION´ the GCP bucket isn't created until the
    first protected object is archived.
@@ -155,10 +155,11 @@ func resourceGcpArchivalLocation() *schema.Resource {
 				ConflictsWith: []string{keyCustomerManagedKey},
 				Description: "GCP Cloud KMS key used for client-side encryption of the archived data. The key " +
 					"manager must be registered in RSC, see the `rubrik_gcp_kms_key_manager` data source. RSC does " +
-					"not check the key manager's region against the archival location's region, but the RSC UI " +
-					"requires an Exocompute mapping covering the key manager's region. Conflicts with " +
-					"`customer_managed_key`. RSC does not return the key, so it is not read back from RSC and cannot " +
-					"be imported. May be specified at most once. Changing this forces a new resource to be created.",
+					"not check the key manager's region against the archival location's region. Exocompute performs " +
+					"the encryption, so Exocompute must be configured for the key manager's cloud account in the " +
+					"key manager's region. Conflicts with `customer_managed_key`. RSC does not return the key, so it " +
+					"is not read back from RSC and cannot be imported. May be specified at most once. Changing this " +
+					"forces a new resource to be created.",
 			},
 			keyLocationTemplate: {
 				Type:     schema.TypeString,

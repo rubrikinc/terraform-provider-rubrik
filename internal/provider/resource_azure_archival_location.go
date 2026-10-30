@@ -65,15 +65,12 @@ with the customer managed key blocks.
 The key vault key has the following requirements, which RSC does not check when
 the archival location is created:
   * The key vault must be registered as a key manager for a subscription onboarded
-    with the ´cloud_native_uem_key_management´ feature, and RSC must be assigned
-    the Key Vault Crypto User role on the key vault, see the
+    with the ´cloud_native_uem_key_management´ feature, see the
     ´rubrik_azure_subscription´ resource.
-  * The user assigned managed identity of the ´cloud_native_archival_encryption´
-    feature must be assigned a key role on the key vault, e.g. the Key Vault
-    Crypto Service Encryption User role.
-  * RSC only lists key vaults in the resource group of the ´cloud_native_archival´
-    feature.
-  * The RSC UI requires an Exocompute mapping covering the key manager's region.
+  * The service principal of the key manager's subscription must be assigned the
+    Key Vault Crypto User role on the key vault.
+  * Exocompute performs the encryption, so the key manager's subscription must be
+    mapped to Exocompute in the key vault's region.
 
 -> **Note:** When using ´SOURCE_REGION´ the Azure storage account isn't created
    until the first protected object is archived.
@@ -157,11 +154,11 @@ func resourceAzureArchivalLocation() *schema.Resource {
 				ConflictsWith: []string{keyCustomerManagedKey},
 				Description: "Azure Key Vault key used for client-side encryption of the archived data. The key " +
 					"vault must be registered as a key manager in RSC, see the `rubrik_azure_kms_key_manager` data " +
-					"source. RSC does not check the key manager's region against the archival location's region, " +
-					"but the RSC UI requires an Exocompute mapping covering the key manager's region. Conflicts " +
-					"with `customer_managed_key`. RSC does not return the key, so it is not read back from RSC and " +
-					"cannot be imported. May be specified at most once. Changing this forces a new resource to be " +
-					"created.",
+					"source. RSC does not check the key manager's region against the archival location's region. " +
+					"Exocompute performs the encryption, so the key manager's subscription must be mapped to " +
+					"Exocompute in the key vault's region. Conflicts with `customer_managed_key`. RSC does not " +
+					"return the key, so it is not read back from RSC and cannot be imported. May be specified at " +
+					"most once. Changing this forces a new resource to be created.",
 			},
 			keyLocationTemplate: {
 				Type:     schema.TypeString,

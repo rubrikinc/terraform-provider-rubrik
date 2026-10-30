@@ -145,10 +145,11 @@ func resourceAwsArchivalLocation() *schema.Resource {
 				ConflictsWith: []string{keyKMSMasterKey},
 				Description: "AWS KMS key used for client-side encryption of the archived data. The key manager " +
 					"must be registered in RSC, see the `rubrik_aws_kms_key_manager` data source. RSC does not " +
-					"check the key manager's region against the archival location's region, but the RSC UI " +
-					"requires an Exocompute mapping covering the key manager's region. Conflicts with " +
-					"`kms_master_key`. RSC does not return the key, so it is not read back from RSC and cannot be " +
-					"imported. May be specified at most once. Changing this forces a new resource to be created.",
+					"check the key manager's region against the archival location's region. Exocompute performs " +
+					"the encryption, so Exocompute must be configured for the key manager's cloud account in the " +
+					"key manager's region. Conflicts with `kms_master_key`. RSC does not return the key, so it is " +
+					"not read back from RSC and cannot be imported. May be specified at most once. Changing this " +
+					"forces a new resource to be created.",
 			},
 			keyKMSMasterKey: {
 				Type:          schema.TypeString,

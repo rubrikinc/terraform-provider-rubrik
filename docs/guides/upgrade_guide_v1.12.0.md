@@ -427,10 +427,10 @@ Each block conflicts with the server-side encryption key of the resource, `kms_m
 `customer_managed_key` for Azure and GCP. RSC does not return the key, so the block is not read back from RSC and
 cannot be imported.
 
-~> **Note:** RSC does not check the key manager's region against the archival location's region, but the RSC UI
-requires an Exocompute mapping covering the key manager's region. For Azure, the user assigned managed identity of the
-`cloud_native_archival_encryption` feature must be assigned a key role on the key vault, which RSC does not check for a
-key vault using RBAC authorization.
+~> **Note:** RSC does not check the key manager's region against the archival location's region. Exocompute performs
+the encryption, so Exocompute must be configured for, or for Azure mapped to, the key manager's cloud account in the key
+manager's region. For Azure, the service principal of the key manager's subscription must be assigned the Key Vault
+Crypto User role on the key vault.
 
 ### Listing Archival Locations
 
