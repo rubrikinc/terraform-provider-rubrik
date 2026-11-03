@@ -131,6 +131,32 @@ type testAWSAccount struct {
 			AvailabilityZone string `json:"availabilityZone"`
 		} `json:"subnets"`
 	} `json:"exocompute"`
+
+	// RCV is optional in the test configuration file. The RCV archival location
+	// acceptance tests skip when the section is absent, since RCV must be
+	// entitled for the RSC account. Region is the AWS region of the RCV archival
+	// locations, e.g. us-east-2.
+	RCV struct {
+		Region string `json:"region"`
+	} `json:"rcv"`
+
+	// Archival is optional in the test configuration file. The cloud native
+	// archival location acceptance tests skip when the section is absent. Region
+	// is the AWS region the account is onboarded in, and the region of the
+	// client-side encrypted archival locations.
+	Archival struct {
+		Region string `json:"region"`
+	} `json:"archival"`
+
+	// KMS is optional in the test configuration file. The client-side encryption
+	// acceptance tests skip when the section is absent. KeyIDs are the IDs of two
+	// pre-existing KMS keys in Region, using the default key policy, so the role
+	// created by the tests can use them. The second key is used to rekey archival
+	// locations. The tests never create or delete keys.
+	KMS struct {
+		Region string   `json:"region"`
+		KeyIDs []string `json:"keyIds"`
+	} `json:"kms"`
 }
 
 // loadAWSTestConfig loads an AWS test configuration using the default
@@ -148,6 +174,13 @@ func loadAWSTestConfig(t *testing.T) (testConfig, testAWSAccount) {
 	}
 
 	return config, account
+}
+
+// testKMSKey holds a pre-existing key, and its version, in an Azure key vault
+// or a GCP key ring.
+type testKMSKey struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 // testAzureSubscription holds information about an Azure subscription used in
@@ -188,6 +221,40 @@ type testAzureSubscription struct {
 		ManagedIdentityRegion      string   `json:"managedIdentityRegion"`
 	} `json:"postgresFlexibleServer"`
 
+	// RCV is optional in the test configuration file. The RCV archival location
+	// acceptance tests skip when the section is absent, since RCV must be
+	// entitled for the RSC account. Region is the Azure region of the RCV
+	// archival locations, e.g. eastus2.
+	RCV struct {
+		Region string `json:"region"`
+	} `json:"rcv"`
+
+	// Archival is optional in the test configuration file. The cloud native
+	// archival location acceptance tests skip when the section is absent. Region
+	// is the Azure region the Cloud Native Archival feature is onboarded in, and
+	// the region of the archival locations. ResourceGroup is a pre-existing
+	// resource group for the feature.
+	Archival struct {
+		Region        string `json:"region"`
+		ResourceGroup struct {
+			Name   string `json:"name"`
+			Region string `json:"region"`
+		} `json:"resourceGroup"`
+	} `json:"archival"`
+
+	// KMS is optional in the test configuration file. The client-side encryption
+	// acceptance tests skip when the section is absent. Keys are two pre-existing
+	// keys, or two versions of one key, in the pre-existing key vault VaultName in
+	// Region. The key vault must use Azure RBAC, and the service principal of the
+	// subscription must be assigned the Key Vault Crypto User role on it. The
+	// second key is used to rekey archival locations. The tests never create or
+	// delete keys.
+	KMS struct {
+		Region    string       `json:"region"`
+		VaultName string       `json:"vaultName"`
+		Keys      []testKMSKey `json:"keys"`
+	} `json:"kms"`
+
 	VMName string `json:"vmName"`
 }
 
@@ -226,6 +293,33 @@ type testGCPProject struct {
 	PCR struct {
 		RegistryURL string `json:"registryUrl"`
 	} `json:"pcr"`
+
+	// RCV is optional in the test configuration file. The RCV archival location
+	// acceptance tests skip when the section is absent, since RCV must be
+	// entitled for the RSC account. Region is the GCP region of the RCV archival
+	// locations, e.g. us-west1.
+	RCV struct {
+		Region string `json:"region"`
+	} `json:"rcv"`
+
+	// Archival is optional in the test configuration file. The cloud native
+	// archival location acceptance tests skip when the section is absent. Region
+	// is the GCP region of the specific region archival locations.
+	Archival struct {
+		Region string `json:"region"`
+	} `json:"archival"`
+
+	// KMS is optional in the test configuration file. The client-side encryption
+	// acceptance tests skip when the section is absent. Keys are two pre-existing
+	// keys, or two versions of one key, in the pre-existing key ring KeyRing in
+	// Region. Key rings can't be deleted in GCP, so the tests never create one.
+	// The second key is used to rekey archival locations. The tests never create
+	// or delete keys.
+	KMS struct {
+		Region  string       `json:"region"`
+		KeyRing string       `json:"keyRing"`
+		Keys    []testKMSKey `json:"keys"`
+	} `json:"kms"`
 }
 
 // loadGCPTestConfig loads a GCP test configuration using the default
@@ -253,33 +347,6 @@ type testRSCConfig struct {
 	// Optional for acceptance tests, if omitted the tests are skipped.
 	AuthDomainID    string `json:"authDomainId"`
 	NewSSOGroupName string `json:"newSsoGroupName"`
-
-	// Optional for acceptance tests, if omitted the tests are skipped. Key
-	// managers can only be registered in the RSC UI, so these must refer to
-	// pre-existing key managers.
-	AWSKeyManagerID       string `json:"awsKeyManagerId"`
-	AWSKeyManagerName     string `json:"awsKeyManagerName"`
-	AWSKeyManagerRegion   string `json:"awsKeyManagerRegion"`
-	AzureKeyManagerID     string `json:"azureKeyManagerId"`
-	AzureKeyManagerName   string `json:"azureKeyManagerName"`
-	AzureKeyManagerRegion string `json:"azureKeyManagerRegion"`
-	GCPKeyManagerID       string `json:"gcpKeyManagerId"`
-	GCPKeyManagerName     string `json:"gcpKeyManagerName"`
-	GCPKeyManagerRegion   string `json:"gcpKeyManagerRegion"`
-
-	// Optional for acceptance tests, if omitted the tests are skipped. A key
-	// in each key manager above, and the RSC cloud account ID of a cloud
-	// account onboarded with the cloud native archival feature, used to create
-	// client-side encrypted archival locations. For Azure, the subscription
-	// must also have the cloud native archival encryption feature.
-	AWSArchivalCloudAccountID   string `json:"awsArchivalCloudAccountId"`
-	AWSKeyID                    string `json:"awsKeyId"`
-	AzureArchivalCloudAccountID string `json:"azureArchivalCloudAccountId"`
-	AzureKeyName                string `json:"azureKeyName"`
-	AzureKeyVersion             string `json:"azureKeyVersion"`
-	GCPArchivalCloudAccountID   string `json:"gcpArchivalCloudAccountId"`
-	GCPKeyName                  string `json:"gcpKeyName"`
-	GCPKeyVersion               string `json:"gcpKeyVersion"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default
