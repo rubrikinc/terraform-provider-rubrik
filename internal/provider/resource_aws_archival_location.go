@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -63,17 +64,25 @@ on the client side with a KMS key managed by an RSC key manager:
     are rejected for ´SPECIFIC_REGION´, because they cannot encrypt data stored
     outside their own region.
   * ´kms_key´ - Client-side encryption with a KMS key in a key manager registered
-    in RSC, see the ´rubrik_aws_kms_key_manager´ data source. Conflicts with
-    ´kms_master_key´.
+    in RSC. Conflicts with ´kms_master_key´.
 
 When ´region´ is specified, one of ´kms_master_key´ and ´kms_key´ must be given.
 
+Register the key manager for ´kms_key´ with the ´rubrik_aws_kms_key_manager´
+resource, or look up an existing one with the ´rubrik_aws_kms_key_manager´ data
+source. Exocompute performs the encryption, so Exocompute must be configured for
+the key manager's cloud account in the key manager's region. RSC does not check
+the key manager's region against the archival location's region. A location
+created with ´kms_key´ has no ´kms_master_key´.
+
+Changing the key ID of the ´kms_key´ block rekeys the archival location in
+place, without re-encrypting the archived data. The rekey can take several
+minutes, increase ´timeouts.update´ if it takes longer than the default of 20
+minutes. Changing the key manager, or adding or removing the block, replaces the
+archival location.
+
 -> **Note:** The AWS bucket holding the archived data is not created until the first
    protected object is archived.
-
--> **Note:** RSC does not return the ´kms_key´ block, so it is not read back from
-   RSC and cannot be imported. A location created with ´kms_key´ has no
-   ´kms_master_key´.
 `
 
 func resourceAwsArchivalLocation() *schema.Resource {
@@ -133,7 +142,6 @@ func resourceAwsArchivalLocation() *schema.Resource {
 						keyKeyID: {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     true,
 							Description:  "KMS key ID.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
@@ -143,13 +151,10 @@ func resourceAwsArchivalLocation() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{keyKMSMasterKey},
-				Description: "AWS KMS key used for client-side encryption of the archived data. The key manager " +
-					"must be registered in RSC, see the `rubrik_aws_kms_key_manager` data source. RSC does not " +
-					"check the key manager's region against the archival location's region. Exocompute performs " +
-					"the encryption, so Exocompute must be configured for the key manager's cloud account in the " +
-					"key manager's region. Conflicts with `kms_master_key`. RSC does not return the key, so it is " +
-					"not read back from RSC and cannot be imported. May be specified at most once. Changing this " +
-					"forces a new resource to be created.",
+				Description: "AWS KMS key used for client-side encryption of the archived data. Conflicts with " +
+					"`kms_master_key`. May be specified at most once. Changing the key ID rekeys the archival " +
+					"location in place. Changing the key manager, or adding or removing the block, forces a new " +
+					"resource to be created.",
 			},
 			keyKMSMasterKey: {
 				Type:          schema.TypeString,
@@ -199,6 +204,9 @@ func resourceAwsArchivalLocation() *schema.Resource {
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Timeouts: &schema.ResourceTimeout{
+			Update: schema.DefaultTimeout(20 * time.Minute),
 		},
 	}
 }
@@ -288,12 +296,6 @@ func awsReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m any)
 	if err := d.Set(keyConnectionStatus, targetMapping.ConnectionStatus.Status); err != nil {
 		return diag.FromErr(err)
 	}
-	// RSC only returns the KMS master key of a server-side encrypted location.
-	if len(d.Get(keyKMSKey).([]any)) == 0 {
-		if err := d.Set(keyKMSMasterKey, targetTemplate.KMSMasterKey); err != nil {
-			return diag.FromErr(err)
-		}
-	}
 	if err := d.Set(keyLocationTemplate, targetTemplate.LocTemplate); err != nil {
 		return diag.FromErr(err)
 	}
@@ -310,6 +312,30 @@ func awsReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m any)
 		return diag.FromErr(err)
 	}
 
+	// RSC only lists the groups encrypted with a key from a key manager.
+	// A group which isn't listed has no such key, and the kms_key block is
+	// left as it is.
+	details, err := archival.Wrap(client).ArchivalGroupEncryptionDetailsByID(ctx, targetMappingID)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		return diag.FromErr(err)
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AWSKMSKey != nil {
+		kmsKey := []any{map[string]any{
+			keyKeyManagerID: details.KMSKey.KeyManagerID,
+			keyKeyID:        details.KMSKey.Key.AWSKMSKey.KeyID,
+		}}
+		if err := d.Set(keyKMSKey, kmsKey); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// RSC only returns the KMS master key of a server-side encrypted location.
+	if len(d.Get(keyKMSKey).([]any)) == 0 {
+		if err := d.Set(keyKMSMasterKey, targetTemplate.KMSMasterKey); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return nil
 }
 
@@ -324,6 +350,28 @@ func awsUpdateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 	targetMappingID, err := uuid.Parse(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
+	}
+
+	// The rekey runs before the update, a failed rekey then leaves the other
+	// arguments unchanged. Adding or removing the key replaces the archival
+	// location, so a change here is always a change to the existing key.
+	if d.HasChange(keyKMSKey) {
+		if kmsKey := d.Get(keyKMSKey).([]any); len(kmsKey) > 0 {
+			block := kmsKey[0].(map[string]any)
+			keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			err = archival.Wrap(client).RekeyMasterKey(ctx, targetMappingID, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				AWSKMSKey: &gqlarchival.AWSKMSKey{
+					KeyManagerID: keyManagerID,
+					KeyID:        block[keyKeyID].(string),
+				},
+			})
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
 	}
 
 	bucketTags := toAWSBucketTags(d.Get(keyBucketTags).(map[string]any))

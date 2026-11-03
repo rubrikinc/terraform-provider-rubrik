@@ -19,14 +19,21 @@ description: |-
   or key ID. AWS managed keys, such as aws/s3, and key aliases, alias/...,
   are rejected for SPECIFIC_REGION, because they cannot encrypt data stored
   outside their own region.kms_key - Client-side encryption with a KMS key in a key manager registered
-  in RSC, see the rubrik_aws_kms_key_manager data source. Conflicts with
-  kms_master_key.
+  in RSC. Conflicts with kms_master_key.
   When region is specified, one of kms_master_key and kms_key must be given.
+  Register the key manager for kms_key with the rubrik_aws_kms_key_manager
+  resource, or look up an existing one with the rubrik_aws_kms_key_manager data
+  source. Exocompute performs the encryption, so Exocompute must be configured for
+  the key manager's cloud account in the key manager's region. RSC does not check
+  the key manager's region against the archival location's region. A location
+  created with kms_key has no kms_master_key.
+  Changing the key ID of the kms_key block rekeys the archival location in
+  place, without re-encrypting the archived data. The rekey can take several
+  minutes, increase timeouts.update if it takes longer than the default of 20
+  minutes. Changing the key manager, or adding or removing the block, replaces the
+  archival location.
   -> Note: The AWS bucket holding the archived data is not created until the first
   protected object is archived.
-  -> Note: RSC does not return the kms_key block, so it is not read back from
-  RSC and cannot be imported. A location created with kms_key has no
-  kms_master_key.
 ---
 
 # rubrik_aws_archival_location (Resource)
@@ -51,17 +58,25 @@ on the client side with a KMS key managed by an RSC key manager:
     are rejected for `SPECIFIC_REGION`, because they cannot encrypt data stored
     outside their own region.
   * `kms_key` - Client-side encryption with a KMS key in a key manager registered
-    in RSC, see the `rubrik_aws_kms_key_manager` data source. Conflicts with
-    `kms_master_key`.
+    in RSC. Conflicts with `kms_master_key`.
 
 When `region` is specified, one of `kms_master_key` and `kms_key` must be given.
 
+Register the key manager for `kms_key` with the `rubrik_aws_kms_key_manager`
+resource, or look up an existing one with the `rubrik_aws_kms_key_manager` data
+source. Exocompute performs the encryption, so Exocompute must be configured for
+the key manager's cloud account in the key manager's region. RSC does not check
+the key manager's region against the archival location's region. A location
+created with `kms_key` has no `kms_master_key`.
+
+Changing the key ID of the `kms_key` block rekeys the archival location in
+place, without re-encrypting the archived data. The rekey can take several
+minutes, increase `timeouts.update` if it takes longer than the default of 20
+minutes. Changing the key manager, or adding or removing the block, replaces the
+archival location.
+
 -> **Note:** The AWS bucket holding the archived data is not created until the first
    protected object is archived.
-
--> **Note:** RSC does not return the `kms_key` block, so it is not read back from
-   RSC and cannot be imported. A location created with `kms_key` has no
-   `kms_master_key`.
 
 ## Example Usage
 
@@ -118,10 +133,11 @@ resource "rubrik_aws_archival_location" "archival_location" {
 ### Optional
 
 - `bucket_tags` (Map of String) AWS bucket tags. Each tag will be added to the bucket created by RSC.
-- `kms_key` (Block List, Max: 1) AWS KMS key used for client-side encryption of the archived data. The key manager must be registered in RSC, see the `rubrik_aws_kms_key_manager` data source. RSC does not check the key manager's region against the archival location's region. Exocompute performs the encryption, so Exocompute must be configured for the key manager's cloud account in the key manager's region. Conflicts with `kms_master_key`. RSC does not return the key, so it is not read back from RSC and cannot be imported. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
+- `kms_key` (Block List, Max: 1) AWS KMS key used for client-side encryption of the archived data. Conflicts with `kms_master_key`. May be specified at most once. Changing the key ID rekeys the archival location in place. Changing the key manager, or adding or removing the block, forces a new resource to be created. (see [below for nested schema](#nestedblock--kms_key))
 - `kms_master_key` (String, Sensitive) AWS KMS master key ARN, ID or alias, used for server-side encryption of the archived data. When `region` is not specified (`SOURCE_REGION`), the key defaults to `aws/s3`, the AWS managed S3 key. When `region` is specified (`SPECIFIC_REGION`), the key must be the ARN or ID of a customer managed key, and one of `kms_master_key` and `kms_key` must be given. Conflicts with `kms_key`.
 - `region` (String) AWS region to store the snapshots in. If not specified, the snapshots will be stored in the same region as the workload. Changing this forces a new resource to be created.
 - `storage_class` (String) AWS bucket storage class. Possible values are `STANDARD`, `STANDARD_IA`, `ONEZONE_IA`, `GLACIER_INSTANT_RETRIEVAL`, `GLACIER_DEEP_ARCHIVE` and `GLACIER_FLEXIBLE_RETRIEVAL`. Default value is `STANDARD_IA`.
+- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
@@ -136,6 +152,14 @@ Required:
 
 - `key_id` (String) KMS key ID.
 - `key_manager_id` (String) KMS key manager ID (UUID).
+
+
+<a id="nestedblock--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `update` (String)
 
 ## Import
 

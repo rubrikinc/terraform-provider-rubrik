@@ -18,9 +18,10 @@ description: |-
   each source region should be specified, source regions not having a customer
   managed key block will have its data encrypted with platform managed keys.
   Client-side encryption is enabled by specifying the key_vault_key block, with a
-  key in an Azure key vault registered as a key manager in RSC, see the
-  rubrik_azure_kms_key_manager data source. The key_vault_key block conflicts
-  with the customer managed key blocks.
+  key in an Azure key vault registered as a key manager in RSC. Register the key
+  manager with the rubrik_azure_kms_key_manager resource, or look up an existing
+  one with the rubrik_azure_kms_key_manager data source. The key_vault_key
+  block conflicts with the customer managed key blocks.
   The key vault key has the following requirements, which RSC does not check when
   the archival location is created:
   The key vault must be registered as a key manager for a subscription onboarded
@@ -28,10 +29,13 @@ description: |-
   rubrik_azure_subscription resource.The service principal of the key manager's subscription must be assigned the
   Key Vault Crypto User role on the key vault.Exocompute performs the encryption, so the key manager's subscription must be
   mapped to Exocompute in the key vault's region.
+  Changing the key name or the key version of the key_vault_key block rekeys the
+  archival location in place, without re-encrypting the archived data. The rekey
+  can take several minutes, increase timeouts.update if it takes longer than the
+  default of 20 minutes. Changing the key manager, or adding or removing the
+  block, replaces the archival location.
   -> Note: When using SOURCE_REGION the Azure storage account isn't created
   until the first protected object is archived.
-  -> Note: RSC does not return the key_vault_key block, so it is not read back
-  from RSC and cannot be imported.
 ---
 
 # rubrik_azure_archival_location (Resource)
@@ -55,9 +59,10 @@ each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the `key_vault_key` block, with a
-key in an Azure key vault registered as a key manager in RSC, see the
-`rubrik_azure_kms_key_manager` data source. The `key_vault_key` block conflicts
-with the customer managed key blocks.
+key in an Azure key vault registered as a key manager in RSC. Register the key
+manager with the `rubrik_azure_kms_key_manager` resource, or look up an existing
+one with the `rubrik_azure_kms_key_manager` data source. The `key_vault_key`
+block conflicts with the customer managed key blocks.
 
 The key vault key has the following requirements, which RSC does not check when
 the archival location is created:
@@ -69,11 +74,14 @@ the archival location is created:
   * Exocompute performs the encryption, so the key manager's subscription must be
     mapped to Exocompute in the key vault's region.
 
+Changing the key name or the key version of the `key_vault_key` block rekeys the
+archival location in place, without re-encrypting the archived data. The rekey
+can take several minutes, increase `timeouts.update` if it takes longer than the
+default of 20 minutes. Changing the key manager, or adding or removing the
+block, replaces the archival location.
+
 -> **Note:** When using `SOURCE_REGION` the Azure storage account isn't created
    until the first protected object is archived.
-
--> **Note:** RSC does not return the `key_vault_key` block, so it is not read back
-   from RSC and cannot be imported.
 
 ## Example Usage
 
@@ -141,12 +149,13 @@ resource "rubrik_azure_archival_location" "archival_location" {
 ### Optional
 
 - `customer_managed_key` (Block Set) Customer managed storage encryption. For `SPECIFIC_REGION`, a customer managed key block for the specific region must be specified. For `SOURCE_REGION`, a customer managed key block for each source region should be specified, source regions not having a customer managed key block will have its data encrypted with platform managed keys. Conflicts with `key_vault_key`. (see [below for nested schema](#nestedblock--customer_managed_key))
-- `key_vault_key` (Block List, Max: 1) Azure Key Vault key used for client-side encryption of the archived data. The key vault must be registered as a key manager in RSC, see the `rubrik_azure_kms_key_manager` data source. RSC does not check the key manager's region against the archival location's region. Exocompute performs the encryption, so the key manager's subscription must be mapped to Exocompute in the key vault's region. Conflicts with `customer_managed_key`. RSC does not return the key, so it is not read back from RSC and cannot be imported. May be specified at most once. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
+- `key_vault_key` (Block List, Max: 1) Azure Key Vault key used for client-side encryption of the archived data. Conflicts with `customer_managed_key`. May be specified at most once. Changing the key name or the key version rekeys the archival location in place. Changing the key manager, or adding or removing the block, forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
 - `network_access_type` (String) Azure storage account network access type. Possible values are `PRIVATE`, `PUBLIC` and `SELECTED_NETWORKS`.
 - `redundancy` (String) Azure storage redundancy. Possible values are `GRS`, `GZRS`, `LRS`, `RA_GRS`, `RA_GZRS` and `ZRS`. Default value is `LRS`. Changing this forces a new resource to be created.
 - `storage_account_region` (String) Azure region to store the snapshots in. If not specified, the snapshots will be stored in the same region as the workload. Changing this forces a new resource to be created.
 - `storage_account_tags` (Map of String) Azure storage account tags. Each tag will be added to the storage account created by RSC.
 - `storage_tier` (String) Azure storage tier. Possible values are `COOL` and `HOT`. Default value is `COOL`.
+- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
@@ -173,6 +182,14 @@ Required:
 - `key_manager_id` (String) KMS key manager ID (UUID).
 - `key_name` (String) Key Vault key name.
 - `key_version` (String) Key Vault key version.
+
+
+<a id="nestedblock--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `update` (String)
 
 ## Import
 

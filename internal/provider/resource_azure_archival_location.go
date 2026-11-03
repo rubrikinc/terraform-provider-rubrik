@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -58,9 +59,10 @@ each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the ´key_vault_key´ block, with a
-key in an Azure key vault registered as a key manager in RSC, see the
-´rubrik_azure_kms_key_manager´ data source. The ´key_vault_key´ block conflicts
-with the customer managed key blocks.
+key in an Azure key vault registered as a key manager in RSC. Register the key
+manager with the ´rubrik_azure_kms_key_manager´ resource, or look up an existing
+one with the ´rubrik_azure_kms_key_manager´ data source. The ´key_vault_key´
+block conflicts with the customer managed key blocks.
 
 The key vault key has the following requirements, which RSC does not check when
 the archival location is created:
@@ -72,11 +74,14 @@ the archival location is created:
   * Exocompute performs the encryption, so the key manager's subscription must be
     mapped to Exocompute in the key vault's region.
 
+Changing the key name or the key version of the ´key_vault_key´ block rekeys the
+archival location in place, without re-encrypting the archived data. The rekey
+can take several minutes, increase ´timeouts.update´ if it takes longer than the
+default of 20 minutes. Changing the key manager, or adding or removing the
+block, replaces the archival location.
+
 -> **Note:** When using ´SOURCE_REGION´ the Azure storage account isn't created
    until the first protected object is archived.
-
--> **Note:** RSC does not return the ´key_vault_key´ block, so it is not read back
-   from RSC and cannot be imported.
 `
 
 func resourceAzureArchivalLocation() *schema.Resource {
@@ -135,14 +140,12 @@ func resourceAzureArchivalLocation() *schema.Resource {
 						keyKeyName: {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     true,
 							Description:  "Key Vault key name.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
 						keyKeyVersion: {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     true,
 							Description:  "Key Vault key version.",
 							ValidateFunc: validation.StringIsNotWhiteSpace,
 						},
@@ -152,13 +155,10 @@ func resourceAzureArchivalLocation() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{keyCustomerManagedKey},
-				Description: "Azure Key Vault key used for client-side encryption of the archived data. The key " +
-					"vault must be registered as a key manager in RSC, see the `rubrik_azure_kms_key_manager` data " +
-					"source. RSC does not check the key manager's region against the archival location's region. " +
-					"Exocompute performs the encryption, so the key manager's subscription must be mapped to " +
-					"Exocompute in the key vault's region. Conflicts with `customer_managed_key`. RSC does not " +
-					"return the key, so it is not read back from RSC and cannot be imported. May be specified at " +
-					"most once. Changing this forces a new resource to be created.",
+				Description: "Azure Key Vault key used for client-side encryption of the archived data. Conflicts " +
+					"with `customer_managed_key`. May be specified at most once. Changing the key name or the key " +
+					"version rekeys the archival location in place. Changing the key manager, or adding or removing " +
+					"the block, forces a new resource to be created.",
 			},
 			keyLocationTemplate: {
 				Type:     schema.TypeString,
@@ -228,6 +228,9 @@ func resourceAzureArchivalLocation() *schema.Resource {
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Timeouts: &schema.ResourceTimeout{
+			Update: schema.DefaultTimeout(20 * time.Minute),
 		},
 	}
 }
@@ -320,14 +323,6 @@ func azureReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 	if err := d.Set(keyContainerName, targetTemplate.ContainerNamePrefix); err != nil {
 		return diag.FromErr(err)
 	}
-	// RSC keeps customer managed keys given together with a key vault key, even
-	// though they aren't used, so they are only read for a location without a
-	// key vault key.
-	if len(d.Get(keyKeyVaultKey).([]any)) == 0 {
-		if err := d.Set(keyCustomerManagedKey, fromAzureCustomerManagedKeys(cloudNativeCompanion.CMKInfo)); err != nil {
-			return diag.FromErr(err)
-		}
-	}
 	if err := d.Set(keyLocationTemplate, cloudNativeCompanion.LocTemplate); err != nil {
 		return diag.FromErr(err)
 	}
@@ -353,6 +348,33 @@ func azureReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		return diag.FromErr(err)
 	}
 
+	// RSC only lists the groups encrypted with a key from a key manager.
+	// A group which isn't listed has no such key, and the key_vault_key
+	// block is left as it is.
+	details, err := archival.Wrap(client).ArchivalGroupEncryptionDetailsByID(ctx, targetMappingID)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		return diag.FromErr(err)
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
+		keyVaultKey := []any{map[string]any{
+			keyKeyManagerID: details.KMSKey.KeyManagerID,
+			keyKeyName:      details.KMSKey.Key.AzureKey.KeyName,
+			keyKeyVersion:   details.KMSKey.Key.AzureKey.KeyVersion,
+		}}
+		if err := d.Set(keyKeyVaultKey, keyVaultKey); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// RSC keeps customer managed keys given together with a key vault key,
+	// even though they aren't used, so they are only read for a location
+	// without a key vault key.
+	if len(d.Get(keyKeyVaultKey).([]any)) == 0 {
+		if err := d.Set(keyCustomerManagedKey, fromAzureCustomerManagedKeys(cloudNativeCompanion.CMKInfo)); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return nil
 }
 
@@ -367,6 +389,29 @@ func azureUpdateArchivalLocation(ctx context.Context, d *schema.ResourceData, m 
 	targetMappingID, err := uuid.Parse(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
+	}
+
+	// The rekey runs before the update, a failed rekey then leaves the other
+	// arguments unchanged. Adding or removing the key replaces the archival
+	// location, so a change here is always a change to the existing key.
+	if d.HasChange(keyKeyVaultKey) {
+		if keyVaultKey := d.Get(keyKeyVaultKey).([]any); len(keyVaultKey) > 0 {
+			block := keyVaultKey[0].(map[string]any)
+			keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			err = archival.Wrap(client).RekeyMasterKey(ctx, targetMappingID, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				AzureKeyVaultKey: &gqlarchival.AzureKeyVaultKey{
+					KeyVaultID: keyManagerID,
+					KeyName:    block[keyKeyName].(string),
+					KeyVersion: block[keyKeyVersion].(string),
+				},
+			})
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
 	}
 
 	// Update the Azure cloud native archival location. Note, the API doesn't

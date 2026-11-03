@@ -402,8 +402,11 @@ block to an archival location using any other kind of key replaces it.
 
 The `rubrik_aws_archival_location`, `rubrik_azure_archival_location` and `rubrik_gcp_archival_location` resources
 support client-side encryption with a key in a key manager registered in RSC, using the new `kms_key` block (AWS and
-GCP) and `key_vault_key` block (Azure). The key manager ID is looked up with the KMS key manager data sources. The key
-can only be given when the archival location is created, so changing it replaces the archival location.
+GCP) and `key_vault_key` block (Azure). Register the key manager with the KMS key manager resources, or look up an
+existing one with the KMS key manager data sources. Changing the key ID, or the key name or key version, rekeys the
+archival location in place: RSC moves it to the new key without re-encrypting the archived data, and the provider waits
+for the rekey to complete. It can take several minutes, so increase `timeouts.update` if it takes longer than the
+default of 20 minutes. Changing the key manager, or adding or removing the block, replaces the archival location.
 
 ```terraform
 data "rubrik_aws_kms_key_manager" "archival" {
@@ -424,8 +427,8 @@ resource "rubrik_aws_archival_location" "archival_location" {
 ```
 
 Each block conflicts with the server-side encryption key of the resource, `kms_master_key` for AWS and
-`customer_managed_key` for Azure and GCP. RSC does not return the key, so the block is not read back from RSC and
-cannot be imported.
+`customer_managed_key` for Azure and GCP. The block is read back from RSC, so an imported archival location gets its
+key in the state.
 
 ~> **Note:** RSC does not check the key manager's region against the archival location's region. Exocompute performs
 the encryption, so Exocompute must be configured for, or for Azure mapped to, the key manager's cloud account in the key
