@@ -266,6 +266,16 @@ type testRSCConfig struct {
 	GCPKeyManagerID       string `json:"gcpKeyManagerId"`
 	GCPKeyManagerName     string `json:"gcpKeyManagerName"`
 	GCPKeyManagerRegion   string `json:"gcpKeyManagerRegion"`
+
+	// Optional for acceptance tests, if omitted the tests are skipped. RSC
+	// cloud account IDs of two AWS accounts onboarded with the
+	// CLOUD_NATIVE_CONFIG_PROTECTION feature, including the RECOVERY
+	// permission groups, in a connected state and in the same region. An
+	// application can only be created in a connected account, so these must
+	// refer to pre-existing cloud accounts.
+	CloudApplicationAccountID       string `json:"cloudApplicationAccountId"`
+	CloudApplicationTargetAccountID string `json:"cloudApplicationTargetAccountId"`
+	CloudApplicationRegion          string `json:"cloudApplicationRegion"`
 }
 
 // loadRSCTestConfig loads an RSC test configuration using the default

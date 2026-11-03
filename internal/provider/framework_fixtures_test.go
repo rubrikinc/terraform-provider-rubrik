@@ -56,6 +56,24 @@ func testAWSAccountName(t *testing.T) string {
 	return conf.AccountName
 }
 
+// testCloudApplicationAccounts returns the RSC cloud account IDs of the source
+// and target AWS accounts, and their region, for cloud native application
+// tests. The test is skipped if the accounts are not set in the RSC test
+// configuration.
+func testCloudApplicationAccounts(t *testing.T) (string, string, string) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadRSCTestConfig(t)
+	if conf.CloudApplicationAccountID == "" || conf.CloudApplicationTargetAccountID == "" ||
+		conf.CloudApplicationRegion == "" {
+		t.Skip("cloud application fixture not available: cloudApplicationAccountId, " +
+			"cloudApplicationTargetAccountId or cloudApplicationRegion not set")
+	}
+
+	return conf.CloudApplicationAccountID, conf.CloudApplicationTargetAccountID, conf.CloudApplicationRegion
+}
+
 // testAWSProfile returns the AWS profile from the AWS test configuration.
 func testAWSProfile(t *testing.T) string {
 	t.Helper()
