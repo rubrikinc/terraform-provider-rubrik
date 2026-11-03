@@ -47,14 +47,6 @@ type testArchivalLocation struct {
 	Bucket       string `json:"bucket"`
 }
 
-// testDataCenterArchivalLocation is the per-subtest view passed to a
-// Terraform template, pairing the cluster with one archival location.
-type testDataCenterArchivalLocation struct {
-	ClusterUUID uuid.UUID
-	ClusterIP   string
-	testArchivalLocation
-}
-
 // loadDataCenterTestConfig loads a Data Center (CDM) test configuration
 // using the default environment variables.
 func loadDataCenterTestConfig(t *testing.T) (testConfig, testDataCenter) {
