@@ -84,6 +84,68 @@ func TestIsUUIDValidator(t *testing.T) {
 	}
 }
 
+func TestIsRFC3339Validator(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     basetypes.StringValue
+		expectErr bool
+	}{
+		{
+			name:      "UTC",
+			value:     basetypes.NewStringValue("2025-01-01T00:00:00Z"),
+			expectErr: false,
+		},
+		{
+			name:      "OffsetAndFraction",
+			value:     basetypes.NewStringValue("2025-06-30T12:34:56.789+02:00"),
+			expectErr: false,
+		},
+		{
+			name:      "DateOnly",
+			value:     basetypes.NewStringValue("2025-01-01"),
+			expectErr: true,
+		},
+		{
+			name:      "MissingZone",
+			value:     basetypes.NewStringValue("2025-01-01T00:00:00"),
+			expectErr: true,
+		},
+		{
+			name:      "EmptyString",
+			value:     basetypes.NewStringValue(""),
+			expectErr: true,
+		},
+		{
+			name:      "NullValue",
+			value:     basetypes.NewStringNull(),
+			expectErr: false,
+		},
+		{
+			name:      "UnknownValue",
+			value:     basetypes.NewStringUnknown(),
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validator.StringRequest{
+				ConfigValue: tc.value,
+			}
+			var res validator.StringResponse
+
+			isRFC3339Validator{}.ValidateString(context.Background(), req, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %q, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}
+
 func TestIsNotWhiteSpaceValidator(t *testing.T) {
 	tests := []struct {
 		name      string
