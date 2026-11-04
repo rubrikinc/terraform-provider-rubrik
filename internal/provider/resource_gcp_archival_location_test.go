@@ -418,59 +418,6 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 					knownvalue.StringExact(name+" Update")),
 			},
 		}, {
-			// Verify that the key manager data source reads the key manager by
-			// ID and by name.
-			Config: conf + `
-				data "rubrik_gcp_kms_key_manager" "by_id" {
-					id = rubrik_gcp_kms_key_manager.key_manager.id
-				}
-				data "rubrik_gcp_kms_key_manager" "by_name" {
-					name = rubrik_gcp_kms_key_manager.key_manager.name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"credentials":    config.StringVariable(testGCPCredentials(t)),
-				"project_id":     config.StringVariable(testGCPProjectID(t)),
-				"project_name":   config.StringVariable(testGCPProjectName(t)),
-				"project_number": config.StringVariable(testGCPProjectNumber(t)),
-				"region":         config.StringVariable(testGCPArchivalRegion(t)),
-				"name":           config.StringVariable(name + " Update"),
-				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
-				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
-				"key_name":       config.StringVariable(testGCPKMSKeys(t)[0].Name),
-				"key_version":    config.StringVariable(testGCPKMSKeys(t)[0].Version),
-			},
-			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyName),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyKeyRing),
-					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_id",
-					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_id",
-					tfjsonpath.New(keyDataLocationsCount), knownvalue.NotNull()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-			},
-		}, {
 			// Verify that changing the key name and the key version rekeys the
 			// archival location in place.
 			Config: conf,

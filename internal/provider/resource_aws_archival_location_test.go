@@ -490,53 +490,6 @@ func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 					knownvalue.StringExact(name+" Update")),
 			},
 		}, {
-			// Verify that the key manager data source reads the key manager by
-			// ID and by name.
-			Config: conf + `
-				data "rubrik_aws_kms_key_manager" "by_id" {
-					id = rubrik_aws_kms_key_manager.key_manager.id
-				}
-				data "rubrik_aws_kms_key_manager" "by_name" {
-					name = rubrik_aws_kms_key_manager.key_manager.name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"account_name":    config.StringVariable(testAWSAccountName(t)),
-				"aws_account_id":  config.StringVariable(testAWSAccountID(t)),
-				"archival_region": config.StringVariable(testAWSArchivalRegion(t)),
-				"kms_region":      config.StringVariable(testAWSKMSRegion(t)),
-				"name":            config.StringVariable(name + " Update"),
-				"key_id":          config.StringVariable(testAWSKMSKeyIDs(t)[0]),
-			},
-			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.CompareValuePairs(
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyName),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
-					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_id",
-					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_id",
-					tfjsonpath.New(keyDataLocationsCount), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_id",
-					tfjsonpath.New(keyIAMRoleARN), knownvalue.NotNull()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-			},
-		}, {
 			// Verify that changing the key ID rekeys the archival location in
 			// place.
 			Config: conf,

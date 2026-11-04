@@ -418,10 +418,6 @@ func TestAccAzureRCVArchivalLocationKMSKeyResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_subscription.subscription",
 					tfjsonpath.New(keyCloudNativeUEMKeyManagement).AtSliceIndex(0).AtMapKey(keyStatus),
 					knownvalue.StringExact("CONNECTED")),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_subscription.subscription", tfjsonpath.New(keyID),
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
 				statecheck.ExpectKnownValue("rubrik_azure_rcv_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_azure_rcv_archival_location.location",

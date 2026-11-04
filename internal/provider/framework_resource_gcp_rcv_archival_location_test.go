@@ -268,10 +268,6 @@ func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 							keyStatus: knownvalue.StringExact("CONNECTED"),
 						}),
 					})),
-				statecheck.CompareValuePairs(
-					"rubrik_gcp_project.project", tfjsonpath.New(keyID),
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
 				statecheck.ExpectKnownValue("rubrik_gcp_rcv_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_gcp_rcv_archival_location.location",

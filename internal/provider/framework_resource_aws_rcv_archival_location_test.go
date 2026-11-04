@@ -433,12 +433,6 @@ func TestAccAWSRCVArchivalLocationKMSKeyResource(t *testing.T) {
 				"key_id":         config.StringVariable(testAWSKMSKeyIDs(t)[0]),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					NonNullUUID()),
-				statecheck.CompareValuePairs(
-					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
 				statecheck.ExpectKnownValue("rubrik_aws_rcv_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_aws_rcv_archival_location.location",

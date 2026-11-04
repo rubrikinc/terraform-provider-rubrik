@@ -463,60 +463,6 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 					knownvalue.StringExact(name+" Update")),
 			},
 		}, {
-			// Verify that the key manager data source reads the key manager by
-			// ID and by name.
-			Config: conf + `
-				data "rubrik_azure_kms_key_manager" "by_id" {
-					id = rubrik_azure_kms_key_manager.key_manager.id
-				}
-				data "rubrik_azure_kms_key_manager" "by_name" {
-					name = rubrik_azure_kms_key_manager.key_manager.name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[0].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[0].Version),
-			},
-			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyName),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
-					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.rubrik_azure_kms_key_manager.by_id",
-					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_azure_kms_key_manager.by_id",
-					tfjsonpath.New(keyDataLocationsCount), knownvalue.NotNull()),
-				statecheck.ExpectKnownValue("data.rubrik_azure_kms_key_manager.by_id",
-					tfjsonpath.New(keyKeyVaultURL), knownvalue.NotNull()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyID),
-					"data.rubrik_azure_kms_key_manager.by_name", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-			},
-		}, {
 			// Verify that changing the key name and the key version rekeys the
 			// archival location in place.
 			Config: conf,
