@@ -38,6 +38,8 @@ page_title: "Changelog"
   the Azure app ID, and where the resource was read back as an AWS registry after creation.
 * Fix a bug in `rubrik_aws_private_container_registry` and `rubrik_azure_private_container_registry` where a registry
   removed outside of Terraform was not detected, leaving the resource in state with empty values.
+* Fix a bug in the `rubrik_gcp_archival_location` data source where reading an archival location crashed the provider
+  when setting the `connection_status` and `region` fields. [[docs](../data-sources/gcp_archival_location.md)]
 * New resource added for `rubrik_aws_rcv_archival_location` which creates and manages RCV AWS archival locations in
   RSC. Rubrik Cloud Vault storage is Rubrik owned, so the resource takes a region and a tier but no cloud account ID.
   Encryption defaults to an RCV managed key, with the `kms_key` block selecting client-side encryption and the
