@@ -543,7 +543,7 @@ func (r *awsRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			err := archival.Wrap(polarisClient).RekeyRCVAWSMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+			err := archival.Wrap(polarisClient).RekeyMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
 				AWSKMSKey: kmsKey,
 			})
 			if err != nil {

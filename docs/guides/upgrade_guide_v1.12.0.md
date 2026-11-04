@@ -398,6 +398,43 @@ block to an archival location using any other kind of key replaces it.
 
 ~> **Note:** Write-only arguments are supported in Terraform 1.11 and later.
 
+### Cloud Native Archival Location Encryption
+
+The `rubrik_aws_archival_location`, `rubrik_azure_archival_location` and `rubrik_gcp_archival_location` resources
+support client-side encryption with a key in a key manager registered in RSC, using the new `kms_key` block (AWS and
+GCP) and `key_vault_key` block (Azure). Register the key manager with the KMS key manager resources, or look up an
+existing one with the KMS key manager data sources. Changing the key ID, or the key name or key version, rekeys the
+archival location in place: RSC moves it to the new key without re-encrypting the archived data, and the provider waits
+for the rekey to complete. It can take several minutes, so increase `timeouts.update` if it takes longer than the
+default of 20 minutes. Changing the key manager, or adding or removing the block, replaces the archival location.
+
+```terraform
+data "rubrik_aws_kms_key_manager" "archival" {
+  name = "archival-key-manager"
+}
+
+resource "rubrik_aws_archival_location" "archival_location" {
+  account_id    = data.rubrik_aws_account.archival.id
+  name          = "my-archival-location"
+  bucket_prefix = "k2m9xq4rtv"
+  region        = "us-east-2"
+
+  kms_key {
+    key_manager_id = data.rubrik_aws_kms_key_manager.archival.id
+    key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+  }
+}
+```
+
+Each block conflicts with the server-side encryption key of the resource, `kms_master_key` for AWS and
+`customer_managed_key` for Azure and GCP. The block is read back from RSC, so an imported archival location gets its
+key in the state.
+
+~> **Note:** RSC does not check the key manager's region against the archival location's region. Exocompute performs
+the encryption, so Exocompute must be configured for, or for Azure mapped to, the key manager's cloud account in the key
+manager's region. For Azure, the service principal of the key manager's subscription must be assigned the Key Vault
+Crypto User role on the key vault.
+
 ### Listing Archival Locations
 
 Each of the three resources has a matching list resource, so existing archival locations can be discovered without
@@ -461,3 +498,31 @@ resource.
 The attribute is computed, so no change to the resource configuration is needed and Terraform does not plan any changes
 for it. If your configuration compares the status to a lower case value, for example in a `precondition` or an output,
 update the comparison to use the upper case value.
+
+### The `kms_master_key` field no longer defaults to `aws/s3`
+
+The `kms_master_key` field of the `rubrik_aws_archival_location` resource no longer has a schema default of `aws/s3`.
+The default was only valid for a source region archival location. For a specific region archival location, RSC requires
+a customer managed KMS key and rejects AWS managed keys such as `aws/s3`, because they cannot encrypt data stored
+outside their own region.
+
+The behavior is now:
+* Without `region` (source region), an archival location created without `kms_master_key` and `kms_key` still uses
+  `aws/s3`, the AWS managed S3 key. This is the same default the RSC UI uses.
+* With `region` (specific region), one of `kms_master_key` and `kms_key` must be given. `kms_master_key` must be the
+  ARN or ID of a customer managed key, `aws/s3` and key aliases, `alias/...`, are rejected by RSC.
+* `kms_key` selects client-side encryption and conflicts with `kms_master_key`, which then stays empty in the state.
+
+Existing archival locations are not affected. A state value of `aws/s3` is kept and doesn't cause a diff. A
+configuration with `region` but without `kms_master_key` failed when the archival location was created before this
+change as well, and now fails when the configuration is planned instead:
+
+```terraform
+resource "rubrik_aws_archival_location" "archival_location" {
+  account_id     = data.rubrik_aws_account.archival.id
+  name           = "my-archival-location"
+  bucket_prefix  = "f48wad7flz"
+  region         = "us-east-2"
+  kms_master_key = "arn:aws:kms:us-east-2:123456789012:key/9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
+}
+```

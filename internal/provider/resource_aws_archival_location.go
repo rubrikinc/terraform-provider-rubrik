@@ -23,7 +23,9 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -53,6 +55,32 @@ to be specified:
   * ´SPECIFIC_REGION´ - Storing snapshots in another region can increase total data
     transfer charges. The ´region´ field specifies the region.
 
+The archived data is encrypted on the server side with an AWS KMS master key, or
+on the client side with a KMS key managed by an RSC key manager:
+  * ´kms_master_key´ - For ´SOURCE_REGION´ the key defaults to ´aws/s3´, the AWS
+    managed S3 key, which is the same default the RSC UI uses. For
+    ´SPECIFIC_REGION´ the key must be a customer managed key, given as a key ARN
+    or key ID. AWS managed keys, such as ´aws/s3´, and key aliases, ´alias/...´,
+    are rejected for ´SPECIFIC_REGION´, because they cannot encrypt data stored
+    outside their own region.
+  * ´kms_key´ - Client-side encryption with a KMS key in a key manager registered
+    in RSC. Conflicts with ´kms_master_key´.
+
+When ´region´ is specified, one of ´kms_master_key´ and ´kms_key´ must be given.
+
+Register the key manager for ´kms_key´ with the ´rubrik_aws_kms_key_manager´
+resource, or look up an existing one with the ´rubrik_aws_kms_key_manager´ data
+source. Exocompute performs the encryption, so Exocompute must be configured for
+the key manager's cloud account in the key manager's region. RSC does not check
+the key manager's region against the archival location's region. A location
+created with ´kms_key´ has no ´kms_master_key´.
+
+Changing the key ID of the ´kms_key´ block rekeys the archival location in
+place, without re-encrypting the archived data. The rekey can take several
+minutes, increase ´timeouts.update´ if it takes longer than the default of 20
+minutes. Changing the key manager, or adding or removing the block, replaces the
+archival location.
+
 -> **Note:** The AWS bucket holding the archived data is not created until the first
    protected object is archived.
 `
@@ -63,6 +91,7 @@ func resourceAwsArchivalLocation() *schema.Resource {
 		ReadContext:   awsReadArchivalLocation,
 		UpdateContext: awsUpdateArchivalLocation,
 		DeleteContext: awsDeleteArchivalLocation,
+		CustomizeDiff: awsCustomizeDiffArchivalLocation,
 
 		Description: description(resourceAWSArchivalLocationDescription),
 		Schema: map[string]*schema.Schema{
@@ -99,12 +128,45 @@ func resourceAwsArchivalLocation() *schema.Resource {
 				Computed:    true,
 				Description: "Connection status of the cloud native archival location.",
 			},
+			keyKMSKey: {
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keyKeyManagerID: {
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							Description:  "KMS key manager ID (UUID).",
+							ValidateFunc: validation.IsUUID,
+						},
+						keyKeyID: {
+							Type:         schema.TypeString,
+							Required:     true,
+							Description:  "KMS key ID.",
+							ValidateFunc: validation.StringIsNotWhiteSpace,
+						},
+					},
+				},
+				MaxItems:      1,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{keyKMSMasterKey},
+				Description: "AWS KMS key used for client-side encryption of the archived data. Conflicts with " +
+					"`kms_master_key`. May be specified at most once. Changing the key ID rekeys the archival " +
+					"location in place. Changing the key manager, or adding or removing the block, forces a new " +
+					"resource to be created.",
+			},
 			keyKMSMasterKey: {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Sensitive:    true,
-				Default:      "aws/s3",
-				Description:  "AWS KMS master key alias/ID. Default value is `aws/s3`.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				Computed:      true,
+				Sensitive:     true,
+				ConflictsWith: []string{keyKMSKey},
+				Description: "AWS KMS master key ARN, ID or alias, used for server-side encryption of the archived " +
+					"data. When `region` is not specified (`SOURCE_REGION`), the key defaults to `aws/s3`, the AWS " +
+					"managed S3 key. When `region` is specified (`SPECIFIC_REGION`), the key must be the ARN or ID " +
+					"of a customer managed key, and one of `kms_master_key` and `kms_key` must be given. Conflicts " +
+					"with `kms_key`.",
 				ValidateFunc: validation.StringIsNotWhiteSpace,
 			},
 			keyLocationTemplate: {
@@ -143,6 +205,9 @@ func resourceAwsArchivalLocation() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		Timeouts: &schema.ResourceTimeout{
+			Update: schema.DefaultTimeout(20 * time.Minute),
+		},
 	}
 }
 
@@ -159,8 +224,7 @@ func awsCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		return diag.FromErr(err)
 	}
 
-	// Create the AWS cloud native archival location.
-	targetMappingID, err := archival.Wrap(client).CreateAWSStorageSetting(ctx, gqlarchival.CreateAWSStorageSettingParams{
+	createParams := gqlarchival.CreateAWSStorageSettingParams{
 		CloudAccountID: cloudAccountID,
 		Name:           d.Get(keyName).(string),
 		BucketPrefix:   d.Get(keyBucketPrefix).(string),
@@ -168,7 +232,27 @@ func awsCreateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		Region:         aws.RegionFromName(d.Get(keyRegion).(string)).ToRegionEnum(),
 		KmsMasterKey:   d.Get(keyKMSMasterKey).(string),
 		BucketTags:     toAWSBucketTags(d.Get(keyBucketTags).(map[string]any)),
-	})
+	}
+
+	// A KMS key selects client-side encryption, otherwise a source region
+	// location without a KMS master key falls back to the AWS managed S3 key,
+	// like the RSC UI does. RSC rejects a create request without a key.
+	if kmsKey := d.Get(keyKMSKey).([]any); len(kmsKey) > 0 {
+		block := kmsKey[0].(map[string]any)
+		keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		createParams.KMSKey = &gqlarchival.AWSKMSKey{
+			KeyManagerID: keyManagerID,
+			KeyID:        block[keyKeyID].(string),
+		}
+	} else if createParams.KmsMasterKey == "" && d.Get(keyRegion).(string) == "" {
+		createParams.KmsMasterKey = "aws/s3"
+	}
+
+	// Create the AWS cloud native archival location.
+	targetMappingID, err := archival.Wrap(client).CreateAWSStorageSetting(ctx, createParams)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -212,9 +296,6 @@ func awsReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m any)
 	if err := d.Set(keyConnectionStatus, targetMapping.ConnectionStatus.Status); err != nil {
 		return diag.FromErr(err)
 	}
-	if err := d.Set(keyKMSMasterKey, targetTemplate.KMSMasterKey); err != nil {
-		return diag.FromErr(err)
-	}
 	if err := d.Set(keyLocationTemplate, targetTemplate.LocTemplate); err != nil {
 		return diag.FromErr(err)
 	}
@@ -229,6 +310,30 @@ func awsReadArchivalLocation(ctx context.Context, d *schema.ResourceData, m any)
 	}
 	if err := d.Set(keyBucketTags, fromAWSBucketTags(targetTemplate.BucketTags)); err != nil {
 		return diag.FromErr(err)
+	}
+
+	// RSC only lists the groups encrypted with a key from a key manager.
+	// A group which isn't listed has no such key, and the kms_key block is
+	// left as it is.
+	details, err := archival.Wrap(client).ArchivalGroupEncryptionDetailsByID(ctx, targetMappingID)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		return diag.FromErr(err)
+	}
+	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AWSKMSKey != nil {
+		kmsKey := []any{map[string]any{
+			keyKeyManagerID: details.KMSKey.KeyManagerID,
+			keyKeyID:        details.KMSKey.Key.AWSKMSKey.KeyID,
+		}}
+		if err := d.Set(keyKMSKey, kmsKey); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// RSC only returns the KMS master key of a server-side encrypted location.
+	if len(d.Get(keyKMSKey).([]any)) == 0 {
+		if err := d.Set(keyKMSMasterKey, targetTemplate.KMSMasterKey); err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	return nil
@@ -247,17 +352,44 @@ func awsUpdateArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 		return diag.FromErr(err)
 	}
 
+	// The rekey runs before the update, a failed rekey then leaves the other
+	// arguments unchanged. Adding or removing the key replaces the archival
+	// location, so a change here is always a change to the existing key.
+	if d.HasChange(keyKMSKey) {
+		if kmsKey := d.Get(keyKMSKey).([]any); len(kmsKey) > 0 {
+			block := kmsKey[0].(map[string]any)
+			keyManagerID, err := uuid.Parse(block[keyKeyManagerID].(string))
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			err = archival.Wrap(client).RekeyMasterKey(ctx, targetMappingID, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+				AWSKMSKey: &gqlarchival.AWSKMSKey{
+					KeyManagerID: keyManagerID,
+					KeyID:        block[keyKeyID].(string),
+				},
+			})
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
 	bucketTags := toAWSBucketTags(d.Get(keyBucketTags).(map[string]any))
+	updateParams := gqlarchival.UpdateAWSStorageSettingParams{
+		Name:                d.Get(keyName).(string),
+		StorageClass:        d.Get(keyStorageClass).(string),
+		DeleteAllBucketTags: bucketTags == nil,
+		BucketTags:          bucketTags,
+	}
+
+	// RSC rejects a KMS master key for a client-side encrypted location.
+	if len(d.Get(keyKMSKey).([]any)) == 0 {
+		updateParams.KmsMasterKey = d.Get(keyKMSMasterKey).(string)
+	}
 
 	// Update the AWS cloud native archival location. Note, the API doesn't
 	// support updating all arguments.
-	err = archival.Wrap(client).UpdateAWSStorageSetting(ctx, targetMappingID, gqlarchival.UpdateAWSStorageSettingParams{
-		Name:                d.Get(keyName).(string),
-		StorageClass:        d.Get(keyStorageClass).(string),
-		KmsMasterKey:        d.Get(keyKMSMasterKey).(string),
-		DeleteAllBucketTags: bucketTags == nil,
-		BucketTags:          bucketTags,
-	})
+	err = archival.Wrap(client).UpdateAWSStorageSetting(ctx, targetMappingID, updateParams)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -281,6 +413,40 @@ func awsDeleteArchivalLocation(ctx context.Context, d *schema.ResourceData, m an
 	// Delete the AWS cloud native archival location.
 	if err := archival.Wrap(client).DeleteTargetMapping(ctx, targetMappingID); err != nil {
 		return diag.FromErr(err)
+	}
+
+	return nil
+}
+
+// awsCustomizeDiffArchivalLocation validates changes to the AWS archival
+// location resource. A specific region location needs a customer managed key,
+// so it gets no default KMS master key.
+func awsCustomizeDiffArchivalLocation(ctx context.Context, diff *schema.ResourceDiff, m any) error {
+	tflog.Trace(ctx, "awsCustomizeDiffArchivalLocation")
+
+	// Only a new archival location is checked. The KMS master key of an
+	// existing location is computed, and the region forces a new resource.
+	if diff.Id() != "" {
+		return nil
+	}
+
+	// Values unknown during plan are checked again when the plan is applied.
+	config := diff.GetRawConfig()
+	if config.IsNull() || !config.IsKnown() {
+		return nil
+	}
+	region := config.GetAttr(keyRegion)
+	kmsMasterKey := config.GetAttr(keyKMSMasterKey)
+	kmsKey := config.GetAttr(keyKMSKey)
+	if !region.IsKnown() || !kmsMasterKey.IsKnown() || !kmsKey.IsKnown() {
+		return nil
+	}
+	if region.IsNull() || region.AsString() == "" {
+		return nil
+	}
+	if (kmsMasterKey.IsNull() || kmsMasterKey.AsString() == "") && (kmsKey.IsNull() || kmsKey.LengthInt() == 0) {
+		return fmt.Errorf("one of %s and %s must be specified when %s is specified, the KMS master key must be a "+
+			"customer managed key", keyKMSMasterKey, keyKMSKey, keyRegion)
 	}
 
 	return nil

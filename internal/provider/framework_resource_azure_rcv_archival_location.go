@@ -577,7 +577,7 @@ func (r *azureRCVArchivalLocationResource) Update(ctx context.Context, req resou
 			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			err := archival.Wrap(polarisClient).RekeyRCVAzureMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+			err := archival.Wrap(polarisClient).RekeyMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
 				AzureKeyVaultKey: keyVaultKey,
 			})
 			if err != nil {
