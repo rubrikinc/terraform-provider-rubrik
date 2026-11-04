@@ -35,7 +35,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
-	gqlcloudnative "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudnative"
+	gqlcloudapp "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudapp"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/aws"
 )
 
@@ -109,35 +110,35 @@ func TestAWSCloudNativeApplicationConversion(t *testing.T) {
 		}),
 	}
 
-	var tags []gqlcloudnative.Tag
+	var tags []core.Tag
 	var arns, excludedARNs []string
-	var services gqlcloudnative.AWSServices
+	var services gqlcloudapp.AWSServices
 	if diags := model.toAWSCloudNativeApplicationParams(ctx, &tags, &arns, &excludedARNs, &services); diags.HasError() {
 		t.Fatal(diags)
 	}
-	wantTags := []gqlcloudnative.Tag{{Key: "Application", Value: "web"}, {Key: "Version", Value: "1.0"}}
+	wantTags := []core.Tag{{Key: "Application", Value: "web"}, {Key: "Version", Value: "1.0"}}
 	if !slices.Equal(tags, wantTags) {
 		t.Errorf("invalid tags: %v", tags)
 	}
 	if len(arns) != 1 || len(excludedARNs) != 0 {
 		t.Errorf("invalid ARNs: %v %v", arns, excludedARNs)
 	}
-	if services != (gqlcloudnative.AWSServices{EC2: true, Lambda: true, Secrets: true}) {
+	if services != (gqlcloudapp.AWSServices{EC2: true, Lambda: true, Secrets: true}) {
 		t.Errorf("invalid services: %+v", services)
 	}
 
-	app := gqlcloudnative.Application{
+	app := gqlcloudapp.Application{
 		ID:                   uuid.MustParse("c7ec46ba-d419-4a9d-88e2-26665e1479db"),
 		Name:                 "my-application",
 		CloudAccountID:       uuid.MustParse("22bf439e-9922-486e-a32c-ae9009987924"),
 		TargetCloudAccountID: uuid.MustParse("ce09d0e4-d0a5-4201-9db2-97f0b6644514"),
-		Region:               aws.RegionUsEast1,
-		MatchingTags:         tags,
+		MatchingTags:         gqlcloudapp.MatchingTags{Tags: tags},
 		ResourceARNs:         arns,
-		Services:             services,
-		RefreshStatus:        gqlcloudnative.RefreshStatusSuccess,
-		ProtectionStatus:     gqlcloudnative.ProtectionStatusUnprotected,
+		ServiceConfig:        gqlcloudapp.NewServiceConfig(services),
+		RefreshStatus:        gqlcloudapp.RefreshStatusSuccess,
+		ProtectionStatus:     gqlcloudapp.ProtectionStatusUnprotected,
 	}
+	app.Region.Region.AWSRegion = aws.RegionUsEast1.ToRegionEnum()
 	got := awsCloudNativeApplicationModel{
 		MatchingTags:         types.MapNull(types.StringType),
 		ResourceARNs:         types.SetNull(types.StringType),
@@ -352,6 +353,13 @@ func TestAccAwsCloudNativeApplicationResource(t *testing.T) {
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
+			ImportStateVerifyIgnore: []string{
+				// Both are updated by RSC in the background, e.g., when the
+				// application refresh finishes, so they can change between the
+				// apply and the import.
+				keyRefreshStatus,
+				keyProtectionStatus,
+			},
 		}, {
 			// import {} block with id attribute.
 			ResourceName:    "rubrik_aws_cloud_native_application.app",

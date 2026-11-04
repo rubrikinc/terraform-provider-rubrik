@@ -29,7 +29,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudnative"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
 )
 
 const listResourceAWSCloudNativeApplicationDescription = `
@@ -102,7 +102,7 @@ func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req li
 		return
 	}
 
-	api := cloudnative.Wrap(polarisClient)
+	api := cloudapp.Wrap(polarisClient)
 	refs, err := api.ListAWSApplications(ctx, config.Name.ValueString())
 	if err != nil {
 		diags.AddError("Failed to list cloud native applications", err.Error())
