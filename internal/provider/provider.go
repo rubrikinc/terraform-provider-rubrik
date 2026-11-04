@@ -118,7 +118,6 @@ func Provider() *schema.Provider {
 			keyPolarisGCPArchivalLocation:         dataSourceGcpArchivalLocation(),
 			keyPolarisGCPPermissions:              dataSourceGcpPermissions(),
 			keyPolarisGCPProject:                  dataSourceGcpProject(),
-			keyPolarisNCDArchivalLocation:         dataSourceNCDArchivalLocation(),
 			keyPolarisSnapshot:                    dataSourceSnapshot(),
 			keyPolarisSLADomain:                   dataSourceSLADomain(),
 			keyPolarisSLASourceCluster:            dataSourceSLASourceCluster(),
