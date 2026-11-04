@@ -5,6 +5,8 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/gcp_archival_location.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
