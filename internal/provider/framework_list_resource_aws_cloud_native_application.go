@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
+	gqlcloudapp "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudapp"
 )
 
 const listResourceAWSCloudNativeApplicationDescription = `
@@ -138,9 +139,11 @@ func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req li
 			}
 
 			if req.IncludeResource {
-				// The list doesn't always hold the resource lists while an
-				// application refreshes, so read each application in full.
-				app, err := api.ApplicationByID(ctx, ref.ID)
+				// The list doesn't hold the resource selection lists, so read
+				// each application in full. The ID comes from the list, so the
+				// application is known not to be deleted and the existence
+				// check of the API's ApplicationByID isn't needed.
+				app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, ref.ID)
 				if err != nil {
 					result.Diagnostics.AddError("Failed to read cloud native application", err.Error())
 					push(result)

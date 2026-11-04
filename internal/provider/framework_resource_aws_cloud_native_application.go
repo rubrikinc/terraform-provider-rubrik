@@ -440,7 +440,8 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 		return
 	}
 
-	app, err := api.ApplicationByID(ctx, id)
+	// The application was just created, so it's known not to be deleted.
+	app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, id)
 	if err != nil {
 		res.Diagnostics.AddWarning("Failed to read cloud native application after create",
 			fmt.Sprintf("The cloud native application was created but could not be read back: %s", err.Error()))
@@ -553,7 +554,8 @@ func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req reso
 	plan.ID = state.ID
 	plan.RefreshStatus = types.StringNull()
 	plan.ProtectionStatus = types.StringNull()
-	app, err := api.ApplicationByID(ctx, id)
+	// The application was just updated, so it's known not to be deleted.
+	app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, id)
 	if err != nil {
 		res.Diagnostics.AddWarning("Failed to read cloud native application after update",
 			fmt.Sprintf("The cloud native application was updated but could not be read back: %s", err.Error()))
