@@ -64,6 +64,7 @@ const (
 	keyAWSAccount                                   = "aws_account"
 	keyAWSAccountManaged                            = "aws_account_managed"
 	keyAWSAccountManagedStack                       = "aws_account_managed_stack"
+	keyAWSArchivalLocation                          = "aws_archival_location"
 	keyAWSCNPAccount                                = "aws_cnp_account"
 	keyAWSCNPAccountAttachments                     = "aws_cnp_account_attachments"
 	keyAWSCNPArtifacts                              = "aws_cnp_artifacts"

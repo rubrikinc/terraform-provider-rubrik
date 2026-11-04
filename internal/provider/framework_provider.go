@@ -180,6 +180,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 	return []func() datasource.DataSource{
 		newAwsAccountDataSource,
 		newPolarisAwsAccountDataSource,
+		newAwsArchivalLocationDataSource,
+		newPolarisAwsArchivalLocationDataSource,
 		newAwsArtifactsDataSource,
 		newPolarisAwsArtifactsDataSource,
 		newAwsPermissionGroupsDataSource,

@@ -88,6 +88,7 @@ page_title: "Changelog"
   `rubrik_aws_cnp_artifacts`, `rubrik_aws_cnp_permissions`, `rubrik_azure_permissions` and `rubrik_gcp_permissions` data
   sources. Permission groups which aren't supported by the feature they are given for are now rejected when the
   configuration is planned. See the [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md).
+* Migrate the `rubrik_aws_archival_location` data source to the Terraform Plugin Framework. [[docs](../data-sources/aws_archival_location.md)]
 
 ## v1.11.2
 * Update the Go version used to build the provider to 1.26.10.
