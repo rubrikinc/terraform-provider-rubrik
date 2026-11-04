@@ -121,7 +121,6 @@ func Provider() *schema.Provider {
 			keyPolarisNCDArchivalLocation:         dataSourceNCDArchivalLocation(),
 			keyPolarisSnapshot:                    dataSourceSnapshot(),
 			keyPolarisSLADomain:                   dataSourceSLADomain(),
-			keyPolarisSLASourceCluster:            dataSourceSLASourceCluster(),
 			keyPolarisTagRule:                     dataSourceTagRule(),
 		}),
 
