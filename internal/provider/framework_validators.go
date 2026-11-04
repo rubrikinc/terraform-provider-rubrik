@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -58,6 +59,33 @@ func (v isUUIDValidator) ValidateString(_ context.Context, req validator.StringR
 	if _, err := uuid.Parse(req.ConfigValue.ValueString()); err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid UUID",
 			fmt.Sprintf("%q is not a valid UUID: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// isRFC3339 returns a validator that checks if a string value is an RFC 3339
+// timestamp, e.g. 2025-01-01T00:00:00Z.
+func isRFC3339() validator.String {
+	return isRFC3339Validator{}
+}
+
+type isRFC3339Validator struct{}
+
+func (v isRFC3339Validator) Description(_ context.Context) string {
+	return "value must be a valid RFC 3339 timestamp"
+}
+
+func (v isRFC3339Validator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isRFC3339Validator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if _, err := time.Parse(time.RFC3339, req.ConfigValue.ValueString()); err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid Timestamp",
+			fmt.Sprintf("%q is not a valid RFC 3339 timestamp: %s", req.ConfigValue.ValueString(), err))
 	}
 }
 
