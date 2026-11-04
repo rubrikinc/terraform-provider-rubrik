@@ -233,6 +233,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisAzureKeyManagerDataSource,
 		newGCPKeyManagerDataSource,
 		newPolarisGCPKeyManagerDataSource,
+		newNCDArchivalLocationDataSource,
+		newPolarisNCDArchivalLocationDataSource,
 		newObjectDataSource,
 		newPolarisObjectDataSource,
 		newObjectsDataSource,
