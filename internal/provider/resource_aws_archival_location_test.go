@@ -32,12 +32,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccAWSArchivalLocationWorkflow onboards the AWS account with the Cloud
+// TestAccAWSArchivalLocationResource onboards the AWS account with the Cloud
 // Native Archival feature, creates a source region archival location encrypted
 // with the AWS managed S3 key, updates and imports it, and reads it with the
 // data source. A specific region archival location needs a customer managed
-// key, which the client-side encryption workflow below covers instead.
-func TestAccAWSArchivalLocationWorkflow(t *testing.T) {
+// key, which TestAccAWSArchivalLocationKMSKeyResource covers instead.
+func TestAccAWSArchivalLocationResource(t *testing.T) {
 	skipUnlessAWSArchivalDefined(t)
 
 	name := testUniqueName(t)
@@ -109,7 +109,7 @@ func TestAccAWSArchivalLocationWorkflow(t *testing.T) {
 		}
 
 		resource "aws_iam_role_policy_attachment" "crossaccount" {
-			count      = length(aws_iam_policy.crossaccount)
+			count      = length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
 			role       = aws_iam_role.crossaccount.name
 			policy_arn = aws_iam_policy.crossaccount[count.index].arn
 		}
@@ -131,7 +131,7 @@ func TestAccAWSArchivalLocationWorkflow(t *testing.T) {
 		}
 
 		resource "rubrik_aws_archival_location" "location" {
-			account_id    = rubrik_aws_cnp_account.account.account_id
+			account_id    = rubrik_aws_cnp_account.account.id
 			name          = var.name
 			bucket_prefix = "tf-acc-archival"
 			storage_class = var.storage_class
@@ -301,11 +301,11 @@ func TestAccAWSArchivalLocationWorkflow(t *testing.T) {
 	})
 }
 
-// TestAccAWSArchivalLocationKMSWorkflow onboards the AWS account with the Cloud
-// Native Archival and UEM key management features, registers a key manager,
-// creates a client-side encrypted archival location, renames it and imports
-// it.
-func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
+// TestAccAWSArchivalLocationKMSKeyResource onboards the AWS account with the
+// Cloud Native Archival and UEM key management features, registers a key
+// manager, creates a client-side encrypted archival location, renames it,
+// rekeys it and imports it.
+func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessAWSArchivalDefined(t)
 	skipUnlessAWSKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
@@ -383,7 +383,7 @@ func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
 		}
 
 		resource "aws_iam_role_policy_attachment" "crossaccount" {
-			count      = length(aws_iam_policy.crossaccount)
+			count      = length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
 			role       = aws_iam_role.crossaccount.name
 			policy_arn = aws_iam_policy.crossaccount[count.index].arn
 		}
@@ -406,12 +406,14 @@ func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
 
 		resource "rubrik_aws_kms_key_manager" "key_manager" {
 			name             = var.name
-			cloud_account_id = rubrik_aws_cnp_account_attachments.attachments.account_id
+			cloud_account_id = rubrik_aws_cnp_account.account.id
 			region           = var.kms_region
+
+			depends_on = [rubrik_aws_cnp_account_attachments.attachments]
 		}
 
 		resource "rubrik_aws_archival_location" "location" {
-			account_id    = rubrik_aws_cnp_account.account.account_id
+			account_id    = rubrik_aws_cnp_account.account.id
 			name          = var.name
 			bucket_prefix = "tf-acc-kms"
 			region        = var.archival_region
@@ -420,6 +422,8 @@ func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
 				key_manager_id = rubrik_aws_kms_key_manager.key_manager.id
 				key_id         = var.key_id
 			}
+
+			depends_on = [rubrik_aws_cnp_account_attachments.attachments]
 		}
 	`
 
@@ -533,10 +537,30 @@ func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
 					compare.ValuesSame()),
 			},
 		}, {
-			// Terraform import. RSC does not return the kms_key block, so it can't be
-			// imported. Without kms_key in state, Read sets kms_master_key, the
-			// server-side encryption key, from RSC, which differs from the original
-			// state of a client-side encrypted location.
+			// Verify that changing the key ID rekeys the archival location in
+			// place.
+			Config: conf,
+			ConfigVariables: config.Variables{
+				"account_name":    config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id":  config.StringVariable(testAWSAccountID(t)),
+				"archival_region": config.StringVariable(testAWSArchivalRegion(t)),
+				"kms_region":      config.StringVariable(testAWSKMSRegion(t)),
+				"name":            config.StringVariable(name + " Update"),
+				"key_id":          config.StringVariable(testAWSKMSKeyIDs(t)[1]),
+			},
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_aws_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_aws_archival_location.location",
+					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyID),
+					knownvalue.StringExact(testAWSKMSKeyIDs(t)[1])),
+			},
+		}, {
+			// Terraform import, verifying that the KMS key is read back.
 			ResourceName: "rubrik_aws_archival_location.location",
 			ConfigVariables: config.Variables{
 				"account_name":    config.StringVariable(testAWSAccountName(t)),
@@ -544,12 +568,30 @@ func TestAccAWSArchivalLocationKMSWorkflow(t *testing.T) {
 				"archival_region": config.StringVariable(testAWSArchivalRegion(t)),
 				"kms_region":      config.StringVariable(testAWSKMSRegion(t)),
 				"name":            config.StringVariable(name + " Update"),
-				"key_id":          config.StringVariable(testAWSKMSKeyIDs(t)[0]),
+				"key_id":          config.StringVariable(testAWSKMSKeyIDs(t)[1]),
 			},
-			ImportStateKind:         resource.ImportCommandWithID,
-			ImportState:             true,
-			ImportStateVerify:       true,
-			ImportStateVerifyIgnore: []string{keyKMSKey, keyKMSMasterKey},
+			ImportStateKind:   resource.ImportCommandWithID,
+			ImportState:       true,
+			ImportStateVerify: true,
+		}, {
+			// import {} block with id attribute. The resource has no identity,
+			// so it can't be imported with an identity.
+			ResourceName: "rubrik_aws_archival_location.location",
+			ConfigVariables: config.Variables{
+				"account_name":    config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id":  config.StringVariable(testAWSAccountID(t)),
+				"archival_region": config.StringVariable(testAWSArchivalRegion(t)),
+				"kms_region":      config.StringVariable(testAWSKMSRegion(t)),
+				"name":            config.StringVariable(name + " Update"),
+				"key_id":          config.StringVariable(testAWSKMSKeyIDs(t)[1]),
+			},
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

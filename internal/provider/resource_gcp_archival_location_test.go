@@ -32,10 +32,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccGCPArchivalLocationWorkflow onboards the GCP project with the Cloud
+// TestAccGCPArchivalLocationResource onboards the GCP project with the Cloud
 // Native Archival feature, creates a specific region archival location,
 // updates and imports it, and reads it with the data source.
-func TestAccGCPArchivalLocationWorkflow(t *testing.T) {
+func TestAccGCPArchivalLocationResource(t *testing.T) {
 	skipUnlessGCPArchivalDefined(t)
 
 	name := testUniqueName(t)
@@ -76,6 +76,12 @@ func TestAccGCPArchivalLocationWorkflow(t *testing.T) {
 			feature {
 				name              = "CLOUD_NATIVE_ARCHIVAL"
 				permission_groups = ["BASIC"]
+			}
+
+			# The organization name can't be read back for a project without a
+			# protection feature.
+			lifecycle {
+				ignore_changes = [organization_name]
 			}
 		}
 
@@ -261,11 +267,11 @@ func TestAccGCPArchivalLocationWorkflow(t *testing.T) {
 	})
 }
 
-// TestAccGCPArchivalLocationKMSWorkflow onboards the GCP project with the Cloud
-// Native Archival and UEM key management features, registers a key manager,
-// creates a client-side encrypted archival location, renames it and imports
-// it.
-func TestAccGCPArchivalLocationKMSWorkflow(t *testing.T) {
+// TestAccGCPArchivalLocationKMSKeyResource onboards the GCP project with the
+// Cloud Native Archival and UEM key management features, registers a key
+// manager, creates a client-side encrypted archival location, renames it,
+// rekeys it and imports it.
+func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessGCPArchivalDefined(t)
 	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
@@ -318,6 +324,12 @@ func TestAccGCPArchivalLocationKMSWorkflow(t *testing.T) {
 			feature {
 				name              = "CLOUD_NATIVE_UEM_KEY_MANAGEMENT"
 				permission_groups = ["BASIC"]
+			}
+
+			# The organization name can't be read back for a project without a
+			# protection feature.
+			lifecycle {
+				ignore_changes = [organization_name]
 			}
 		}
 
@@ -459,8 +471,37 @@ func TestAccGCPArchivalLocationKMSWorkflow(t *testing.T) {
 					compare.ValuesSame()),
 			},
 		}, {
-			// Terraform import. The KMS key can't be imported, RSC does not
-			// return it.
+			// Verify that changing the key name and the key version rekeys the
+			// archival location in place.
+			Config: conf,
+			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"region":         config.StringVariable(testGCPArchivalRegion(t)),
+				"name":           config.StringVariable(name + " Update"),
+				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
+				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
+				"key_name":       config.StringVariable(testGCPKMSKeys(t)[1].Name),
+				"key_version":    config.StringVariable(testGCPKMSKeys(t)[1].Version),
+			},
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_gcp_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyName),
+					knownvalue.StringExact(testGCPKMSKeys(t)[1].Name)),
+				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyVersion),
+					knownvalue.StringExact(testGCPKMSKeys(t)[1].Version)),
+			},
+		}, {
+			// Terraform import, verifying that the KMS key is read back.
 			ResourceName: "rubrik_gcp_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
@@ -471,13 +512,35 @@ func TestAccGCPArchivalLocationKMSWorkflow(t *testing.T) {
 				"name":           config.StringVariable(name + " Update"),
 				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
 				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
-				"key_name":       config.StringVariable(testGCPKMSKeys(t)[0].Name),
-				"key_version":    config.StringVariable(testGCPKMSKeys(t)[0].Version),
+				"key_name":       config.StringVariable(testGCPKMSKeys(t)[1].Name),
+				"key_version":    config.StringVariable(testGCPKMSKeys(t)[1].Version),
 			},
-			ImportStateKind:         resource.ImportCommandWithID,
-			ImportState:             true,
-			ImportStateVerify:       true,
-			ImportStateVerifyIgnore: []string{keyKMSKey},
+			ImportStateKind:   resource.ImportCommandWithID,
+			ImportState:       true,
+			ImportStateVerify: true,
+		}, {
+			// import {} block with id attribute. The resource has no identity,
+			// so it can't be imported with an identity.
+			ResourceName: "rubrik_gcp_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"region":         config.StringVariable(testGCPArchivalRegion(t)),
+				"name":           config.StringVariable(name + " Update"),
+				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
+				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
+				"key_name":       config.StringVariable(testGCPKMSKeys(t)[1].Name),
+				"key_version":    config.StringVariable(testGCPKMSKeys(t)[1].Version),
+			},
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

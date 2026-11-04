@@ -68,12 +68,6 @@ func TestAccGCPRCVArchivalLocationListResource(t *testing.T) {
 			// location.
 			Query: true,
 			Config: `
-				variable "name" {
-					type = string
-				}
-				variable "region" {
-					type = string
-				}
 				provider "rubrik" {}
 
 				list "rubrik_gcp_rcv_archival_location" "filtered" {

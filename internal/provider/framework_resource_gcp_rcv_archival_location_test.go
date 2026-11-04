@@ -73,7 +73,7 @@ func TestAccGCPRCVArchivalLocationResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_gcp_rcv_archival_location.location",
 					tfjsonpath.New(keyLocationTemplate), knownvalue.StringExact("SPECIFIC_REGION")),
 				statecheck.ExpectKnownValue("rubrik_gcp_rcv_archival_location.location", tfjsonpath.New(keyKMSKey),
-					knownvalue.Null()),
+					knownvalue.ListSizeExact(0)),
 				statecheck.ExpectIdentity("rubrik_gcp_rcv_archival_location.location", map[string]knownvalue.Check{
 					keyID: NonNullUUID(),
 				}),
@@ -154,10 +154,11 @@ func TestAccGCPRCVArchivalLocationResource(t *testing.T) {
 	})
 }
 
-// TestAccGCPRCVArchivalLocationWorkflow onboards the GCP project with the UEM
-// key management feature, registers a key manager, creates an RCV GCP archival
-// location encrypted with the first key and rekeys it to the second key.
-func TestAccGCPRCVArchivalLocationWorkflow(t *testing.T) {
+// TestAccGCPRCVArchivalLocationKMSKeyResource onboards the GCP project with the
+// UEM key management feature, registers a key manager, creates an RCV GCP
+// archival location encrypted with the first key and rekeys it to the second
+// key.
+func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessGCPRCVDefined(t)
 	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
@@ -206,6 +207,12 @@ func TestAccGCPRCVArchivalLocationWorkflow(t *testing.T) {
 			feature {
 				name              = "CLOUD_NATIVE_UEM_KEY_MANAGEMENT"
 				permission_groups = ["BASIC"]
+			}
+
+			# The organization name can't be read back for a project without a
+			# protection feature.
+			lifecycle {
+				ignore_changes = [organization_name]
 			}
 		}
 

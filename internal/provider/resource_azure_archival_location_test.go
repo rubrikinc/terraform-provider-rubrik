@@ -34,10 +34,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccAzureArchivalLocationWorkflow onboards the Azure subscription with the
+// TestAccAzureArchivalLocationResource onboards the Azure subscription with the
 // Cloud Native Archival feature, creates a specific region archival location,
 // updates and imports it, and reads it with the data source.
-func TestAccAzureArchivalLocationWorkflow(t *testing.T) {
+func TestAccAzureArchivalLocationResource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
@@ -119,7 +119,8 @@ func TestAccAzureArchivalLocationWorkflow(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the subscription can be onboarded with the Cloud
 			// Native Archival feature and that an archival location can be
-			// created.
+			// created. The storage account tags are set by the update, since
+			// RSC doesn't store tags given on create.
 			Config: conf,
 			ConfigVariables: config.Variables{
 				"credentials":                 config.StringVariable(testAzureCredentials(t)),
@@ -132,9 +133,7 @@ func TestAccAzureArchivalLocationWorkflow(t *testing.T) {
 				"name":                        config.StringVariable(name),
 				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
 				"storage_tier":                config.StringVariable("COOL"),
-				"storage_account_tags": config.MapVariable(map[string]config.Variable{
-					"environment": config.StringVariable("test"),
-				}),
+				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_subscription.subscription",
@@ -155,9 +154,7 @@ func TestAccAzureArchivalLocationWorkflow(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyStorageTier), knownvalue.StringExact("COOL")),
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
-					tfjsonpath.New(keyStorageAccountTags), knownvalue.MapExact(map[string]knownvalue.Check{
-						"environment": knownvalue.StringExact("test"),
-					})),
+					tfjsonpath.New(keyStorageAccountTags), knownvalue.Null()),
 			},
 		}, {
 			// Verify that the name, the storage tier and the storage account
@@ -294,11 +291,11 @@ func TestAccAzureArchivalLocationWorkflow(t *testing.T) {
 	})
 }
 
-// TestAccAzureArchivalLocationKMSWorkflow onboards the Azure subscription with
-// the Cloud Native Archival and UEM key management features, registers a key
-// manager, creates a client-side encrypted archival location, renames it and
-// imports it.
-func TestAccAzureArchivalLocationKMSWorkflow(t *testing.T) {
+// TestAccAzureArchivalLocationKMSKeyResource onboards the Azure subscription
+// with the Cloud Native Archival and UEM key management features, registers a
+// key manager, creates a client-side encrypted archival location, renames it,
+// rekeys it and imports it.
+func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 	skipUnlessAzureKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
@@ -520,8 +517,40 @@ func TestAccAzureArchivalLocationKMSWorkflow(t *testing.T) {
 					compare.ValuesSame()),
 			},
 		}, {
-			// Terraform import. The key vault key can't be imported, RSC does
-			// not return it.
+			// Verify that changing the key name and the key version rekeys the
+			// archival location in place.
+			Config: conf,
+			ConfigVariables: config.Variables{
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+				"name":                        config.StringVariable(name + " Update"),
+				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
+				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
+				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			},
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyName),
+					knownvalue.StringExact(testAzureKMSKeys(t)[1].Name)),
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyVersion),
+					knownvalue.StringExact(testAzureKMSKeys(t)[1].Version)),
+			},
+		}, {
+			// Terraform import, verifying that the key vault key is read back.
 			ResourceName: "rubrik_azure_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":                 config.StringVariable(testAzureCredentials(t)),
@@ -535,13 +564,38 @@ func TestAccAzureArchivalLocationKMSWorkflow(t *testing.T) {
 				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
 				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
 				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[0].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[0].Version),
+				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
 			},
-			ImportStateKind:         resource.ImportCommandWithID,
-			ImportState:             true,
-			ImportStateVerify:       true,
-			ImportStateVerifyIgnore: []string{keyKeyVaultKey},
+			ImportStateKind:   resource.ImportCommandWithID,
+			ImportState:       true,
+			ImportStateVerify: true,
+		}, {
+			// import {} block with id attribute. The resource has no identity,
+			// so it can't be imported with an identity.
+			ResourceName: "rubrik_azure_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+				"name":                        config.StringVariable(name + " Update"),
+				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
+				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
+				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			},
+			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
 		}},
 	})
 }

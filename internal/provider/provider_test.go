@@ -132,27 +132,20 @@ type testAWSAccount struct {
 		} `json:"subnets"`
 	} `json:"exocompute"`
 
-	// RCV is optional in the test configuration file. The RCV archival location
-	// acceptance tests skip when the section is absent, since RCV must be
-	// entitled for the RSC account. Region is the AWS region of the RCV archival
-	// locations, e.g. us-east-2.
+	// RCV is optional. Region is the AWS region for RCV archival locations,
+	// e.g. us-east-2. RCV must be entitled for the RSC account.
 	RCV struct {
 		Region string `json:"region"`
 	} `json:"rcv"`
 
-	// Archival is optional in the test configuration file. The cloud native
-	// archival location acceptance tests skip when the section is absent. Region
-	// is the AWS region the account is onboarded in, and the region of the
-	// client-side encrypted archival locations.
+	// Archival is optional. Region is the AWS region for cloud native archival
+	// locations.
 	Archival struct {
 		Region string `json:"region"`
 	} `json:"archival"`
 
-	// KMS is optional in the test configuration file. The client-side encryption
-	// acceptance tests skip when the section is absent. KeyIDs are the IDs of two
-	// pre-existing KMS keys in Region, using the default key policy, so the role
-	// created by the tests can use them. The second key is used to rekey archival
-	// locations. The tests never create or delete keys.
+	// KMS is optional. KeyIDs are the IDs of two pre-existing KMS keys in
+	// Region. The keys must use the default key policy.
 	KMS struct {
 		Region string   `json:"region"`
 		KeyIDs []string `json:"keyIds"`
@@ -208,10 +201,9 @@ type testAzureSubscription struct {
 		SubnetID            string   `json:"subnetId"`
 	} `json:"exocompute"`
 
-	// PostgresFlexibleServer is optional in the test configuration file. The
-	// acceptance test using it skips when the section is absent, since the
-	// feature needs a pre-existing user-assigned managed identity in the
-	// feature's resource group.
+	// PostgresFlexibleServer is optional. ManagedIdentityName and
+	// ManagedIdentityPrincipalID identify a pre-existing user-assigned managed
+	// identity in the resource group, located in ManagedIdentityRegion.
 	PostgresFlexibleServer struct {
 		Regions                    []string `json:"regions"`
 		ResourceGroupName          string   `json:"resourceGroupName"`
@@ -221,34 +213,26 @@ type testAzureSubscription struct {
 		ManagedIdentityRegion      string   `json:"managedIdentityRegion"`
 	} `json:"postgresFlexibleServer"`
 
-	// RCV is optional in the test configuration file. The RCV archival location
-	// acceptance tests skip when the section is absent, since RCV must be
-	// entitled for the RSC account. Region is the Azure region of the RCV
-	// archival locations, e.g. eastus2.
+	// RCV is optional. Region is the Azure region for RCV archival locations,
+	// e.g. eastus2. RCV must be entitled for the RSC account.
 	RCV struct {
 		Region string `json:"region"`
 	} `json:"rcv"`
 
-	// Archival is optional in the test configuration file. The cloud native
-	// archival location acceptance tests skip when the section is absent. Region
-	// is the Azure region the Cloud Native Archival feature is onboarded in, and
-	// the region of the archival locations. ResourceGroup is a pre-existing
-	// resource group for the feature.
+	// Archival is optional. Regions are the Azure regions for the Cloud Native
+	// Archival feature. ResourceGroupName and ResourceGroupRegion are the
+	// resource group for the feature. The section uses the same format as the
+	// Go SDK test configuration.
 	Archival struct {
-		Region        string `json:"region"`
-		ResourceGroup struct {
-			Name   string `json:"name"`
-			Region string `json:"region"`
-		} `json:"resourceGroup"`
+		Regions             []string `json:"regions"`
+		ResourceGroupName   string   `json:"resourceGroupName"`
+		ResourceGroupRegion string   `json:"resourceGroupRegion"`
 	} `json:"archival"`
 
-	// KMS is optional in the test configuration file. The client-side encryption
-	// acceptance tests skip when the section is absent. Keys are two pre-existing
-	// keys, or two versions of one key, in the pre-existing key vault VaultName in
-	// Region. The key vault must use Azure RBAC, and the service principal of the
-	// subscription must be assigned the Key Vault Crypto User role on it. The
-	// second key is used to rekey archival locations. The tests never create or
-	// delete keys.
+	// KMS is optional. Keys are two pre-existing keys, or two versions of one
+	// key, in the pre-existing key vault VaultName in Region. The key vault
+	// must use Azure RBAC, and the service principal must be assigned the Key
+	// Vault Crypto User role on it.
 	KMS struct {
 		Region    string       `json:"region"`
 		VaultName string       `json:"vaultName"`
@@ -294,27 +278,21 @@ type testGCPProject struct {
 		RegistryURL string `json:"registryUrl"`
 	} `json:"pcr"`
 
-	// RCV is optional in the test configuration file. The RCV archival location
-	// acceptance tests skip when the section is absent, since RCV must be
-	// entitled for the RSC account. Region is the GCP region of the RCV archival
-	// locations, e.g. us-west1.
+	// RCV is optional. Region is the GCP region for RCV archival locations,
+	// e.g. us-west1. RCV must be entitled for the RSC account.
 	RCV struct {
 		Region string `json:"region"`
 	} `json:"rcv"`
 
-	// Archival is optional in the test configuration file. The cloud native
-	// archival location acceptance tests skip when the section is absent. Region
-	// is the GCP region of the specific region archival locations.
+	// Archival is optional. Region is the GCP region for cloud native archival
+	// locations.
 	Archival struct {
 		Region string `json:"region"`
 	} `json:"archival"`
 
-	// KMS is optional in the test configuration file. The client-side encryption
-	// acceptance tests skip when the section is absent. Keys are two pre-existing
-	// keys, or two versions of one key, in the pre-existing key ring KeyRing in
-	// Region. Key rings can't be deleted in GCP, so the tests never create one.
-	// The second key is used to rekey archival locations. The tests never create
-	// or delete keys.
+	// KMS is optional. Keys are two pre-existing keys, or two versions of one
+	// key, in the key ring KeyRing in Region. The key ring must be pre-existing,
+	// since key rings can't be deleted in GCP.
 	KMS struct {
 		Region  string       `json:"region"`
 		KeyRing string       `json:"keyRing"`

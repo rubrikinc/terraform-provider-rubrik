@@ -344,18 +344,18 @@ func testAzureRCVRegion(t *testing.T) string {
 	return conf.RCV.Region
 }
 
-// testAzureArchivalRegion returns the archival region from the Azure test
-// configuration. The test is skipped if the value is not set.
+// testAzureArchivalRegion returns the first archival region from the Azure test
+// configuration. The test is skipped if no region is set.
 func testAzureArchivalRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
 	_, conf := loadAzureTestConfig(t)
-	if conf.Archival.Region == "" {
-		t.Skip("Azure archival fixture not available: archival.region not set")
+	if len(conf.Archival.Regions) == 0 {
+		t.Skip("Azure archival fixture not available: archival.regions not set")
 	}
 
-	return conf.Archival.Region
+	return conf.Archival.Regions[0]
 }
 
 // testAzureArchivalResourceGroupName returns the archival resource group name
@@ -366,11 +366,11 @@ func testAzureArchivalResourceGroupName(t *testing.T) string {
 	skipUnlessAcceptanceTest(t)
 
 	_, conf := loadAzureTestConfig(t)
-	if conf.Archival.ResourceGroup.Name == "" {
-		t.Skip("Azure archival fixture not available: archival.resourceGroup.name not set")
+	if conf.Archival.ResourceGroupName == "" {
+		t.Skip("Azure archival fixture not available: archival.resourceGroupName not set")
 	}
 
-	return conf.Archival.ResourceGroup.Name
+	return conf.Archival.ResourceGroupName
 }
 
 // testAzureArchivalResourceGroupRegion returns the archival resource group
@@ -381,11 +381,11 @@ func testAzureArchivalResourceGroupRegion(t *testing.T) string {
 	skipUnlessAcceptanceTest(t)
 
 	_, conf := loadAzureTestConfig(t)
-	if conf.Archival.ResourceGroup.Region == "" {
-		t.Skip("Azure archival fixture not available: archival.resourceGroup.region not set")
+	if conf.Archival.ResourceGroupRegion == "" {
+		t.Skip("Azure archival fixture not available: archival.resourceGroupRegion not set")
 	}
 
-	return conf.Archival.ResourceGroup.Region
+	return conf.Archival.ResourceGroupRegion
 }
 
 // testAzureKMSRegion returns the KMS region from the Azure test configuration.

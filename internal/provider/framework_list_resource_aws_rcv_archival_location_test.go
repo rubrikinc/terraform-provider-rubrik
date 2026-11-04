@@ -67,12 +67,6 @@ func TestAccAWSRCVArchivalLocationListResource(t *testing.T) {
 			// location.
 			Query: true,
 			Config: `
-				variable "name" {
-					type = string
-				}
-				variable "region" {
-					type = string
-				}
 				provider "rubrik" {}
 
 				list "rubrik_aws_rcv_archival_location" "filtered" {
