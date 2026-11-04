@@ -4,6 +4,10 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/gcp_archival_location.md)]
+
 ## v1.12.0
 * New resource added for `rubrik_gcp_private_container_registry` which registers a customer-owned Google Artifact
   Registry as the private container registry for GCP Exocompute. The service account ownership token is write-only
