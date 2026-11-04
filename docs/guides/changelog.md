@@ -4,6 +4,11 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
+  now optional and computed, so the permission groups returned by RSC are available when the field is not specified.
+  [[docs](../data-sources/gcp_permissions.md)]
+
 ## v1.12.0
 * New resource added for `rubrik_gcp_private_container_registry` which registers a customer-owned Google Artifact
   Registry as the private container registry for GCP Exocompute. The service account ownership token is write-only
