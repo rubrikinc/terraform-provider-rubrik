@@ -186,6 +186,7 @@ const (
 	keyCyberRecoveryDataScanning                    = "cyber_recovery_data_scanning"
 	keyDataAction                                   = "data_action"
 	keyDataActions                                  = "data_actions"
+	keyDataCenterAWSAccount                         = "data_center_aws_account"
 	keyDataScanning                                 = "data_scanning"
 	keyDataSecurityPolicy                           = "data_security_policy"
 	keyDate                                         = "date"
