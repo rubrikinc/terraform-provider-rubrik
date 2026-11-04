@@ -564,3 +564,12 @@ func diffGCPFeatureResource(d *schema.ResourceData) ([]core.Feature, []core.Feat
 
 	return addSlice, removeSlice, permSlice
 }
+
+func fromGCPFeatureResource(block map[string]any) core.Feature {
+	var pgs []core.PermissionGroup
+	for _, pg := range block[keyPermissionGroups].(*schema.Set).List() {
+		pgs = append(pgs, core.PermissionGroup(pg.(string)))
+	}
+
+	return core.Feature{Name: block[keyName].(string), PermissionGroups: pgs}
+}

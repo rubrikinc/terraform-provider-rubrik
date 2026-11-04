@@ -246,6 +246,7 @@ const (
 	keyGCPCustomLabels                              = "gcp_custom_labels"
 	keyGCPPermissions                               = "gcp_permissions"
 	keyGCPPrivateContainerRegistry                  = "gcp_private_container_registry"
+	keyGCPProject                                   = "gcp_project"
 	keyGlobal                                       = "global"
 	keyGroupName                                    = "group_name"
 	keyHash                                         = "hash"
