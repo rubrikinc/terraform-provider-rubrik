@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -105,6 +106,33 @@ func (v isAESKeyValidator) ValidateString(_ context.Context, req validator.Strin
 	if bytes.Equal(key, make([]byte, len(key))) {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
 			"the key is all zero bytes, which RSC rejects as too weak.")
+	}
+}
+
+// isInt64 returns a validator that checks if a string value is a base 10
+// integer which fits in an int64, as strconv.ParseInt requires.
+func isInt64() validator.String {
+	return isInt64Validator{}
+}
+
+type isInt64Validator struct{}
+
+func (v isInt64Validator) Description(_ context.Context) string {
+	return "value must be an integer which fits in 64 bits"
+}
+
+func (v isInt64Validator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isInt64Validator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if _, err := strconv.ParseInt(req.ConfigValue.ValueString(), 10, 64); err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid Integer",
+			fmt.Sprintf("%q is not an integer which fits in 64 bits: %s", req.ConfigValue.ValueString(), err))
 	}
 }
 

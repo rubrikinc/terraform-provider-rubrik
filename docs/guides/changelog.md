@@ -9,6 +9,22 @@ page_title: "Changelog"
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_project.md)]
+* Migrate the `rubrik_gcp_project` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_gcp_project` with a `moved` block. The Plugin Framework has no computed
+  blocks, so only the block in use is populated: with `feature` blocks the `cloud_native_protection` block is empty, and
+  with the deprecated `cloud_native_protection` block the `feature` set is empty. For a configuration using the
+  deprecated block, the first plan after upgrading shows the `feature` set being emptied. Applying it only updates the
+  state, the features in RSC are left as they are. When switching from the deprecated block to `feature` blocks, the
+  features in RSC are compared with the configured ones, so features already enabled aren't added again and features
+  not configured are removed. The plan can't show the removal, so it warns about the features that will be removed.
+  Empty strings stored by the SDKv2 resource for unset fields are upgraded to null once, in a new schema version. The
+  SDKv2 resource stored an empty `organization_name` the same way whether it was left out or set to `""`, so a
+  configuration setting `organization_name = ""` shows a one-time update from null to `""`. Applying it only updates
+  the state. [[docs](../resources/gcp_project.md)]
+* Fix a bug in the `rubrik_gcp_project` resource where upgrading state from schema version 1 read the status of the
+  Exocompute feature instead of the Cloud Native Protection feature, and failed for a project without Exocompute.
+* Fix a bug in the `rubrik_gcp_project` resource where removing `credentials` from the configuration made every
+  apply fail, trying to set the service account with an empty key.
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
