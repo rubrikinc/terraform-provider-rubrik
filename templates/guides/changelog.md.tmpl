@@ -11,6 +11,10 @@ page_title: "Changelog"
   import by identity, and state can be moved from `polaris_gcp_archival_location` with a `moved` block. When no region
   is specified the `region` field is now null instead of an empty string, and when no bucket labels are specified the
   `bucket_labels` field is null instead of an empty map. [[docs](../resources/gcp_archival_location.md)]
+* Migrate the `rubrik_gcp_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_gcp_exocompute` with a `moved` block. Unset `host_project_id`,
+  `region`, `subnet_name` and `vpc_name` fields in the `regional_config` block are now null instead of empty strings.
+  [[docs](../resources/gcp_exocompute.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
