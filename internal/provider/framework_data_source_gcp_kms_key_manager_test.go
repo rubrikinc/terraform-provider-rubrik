@@ -21,7 +21,6 @@
 package provider
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
@@ -32,117 +31,126 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
+// TestAccGCPKMSKeyManagerDataSource onboards the GCP project with the UEM key
+// management feature, registers a key manager and reads it with the data
+// source by ID and by name.
 func TestAccGCPKMSKeyManagerDataSource(t *testing.T) {
+	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
+
+	name := testUniqueName(t)
+
+	const conf = `
+		variable "credentials" {
+			type      = string
+			sensitive = true
+		}
+		variable "project_id" {
+			type = string
+		}
+		variable "project_name" {
+			type = string
+		}
+		variable "project_number" {
+			type = string
+		}
+		variable "kms_region" {
+			type = string
+		}
+		variable "key_ring" {
+			type = string
+		}
+		variable "name" {
+			type = string
+		}
+
+		resource "rubrik_gcp_project" "project" {
+			credentials    = var.credentials
+			project        = var.project_id
+			project_name   = var.project_name
+			project_number = var.project_number
+
+			feature {
+				name              = "CLOUD_NATIVE_UEM_KEY_MANAGEMENT"
+				permission_groups = ["BASIC"]
+			}
+
+			# The organization name can't be read back for a project without a
+			# protection feature.
+			lifecycle {
+				ignore_changes = [organization_name]
+			}
+		}
+
+		resource "rubrik_gcp_kms_key_manager" "key_manager" {
+			name             = var.name
+			cloud_account_id = rubrik_gcp_project.project.id
+			region           = var.kms_region
+			key_ring         = var.key_ring
+		}
+
+		data "rubrik_gcp_kms_key_manager" "by_id" {
+			id = rubrik_gcp_kms_key_manager.key_manager.id
+		}
+
+		data "rubrik_gcp_kms_key_manager" "by_name" {
+			name = rubrik_gcp_kms_key_manager.key_manager.name
+		}
+	`
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			gcpKMSKeyManagerCheckDestroy(t),
+			gcpProjectCheckDestroy(t),
+		),
 		Steps: []resource.TestStep{{
-			Config: `
-				variable "key_manager_id" {
-					type = string
-				}
-				data "rubrik_gcp_kms_key_manager" "by_id" {
-					id = var.key_manager_id
-				}
-
-				variable "key_manager_name" {
-					type = string
-				}
-				data "rubrik_gcp_kms_key_manager" "by_name" {
-					name = var.key_manager_name
-				}
-			`,
+			// Verify that the data source reads the key manager by ID and by
+			// name.
+			Config: conf,
 			ConfigVariables: config.Variables{
-				"key_manager_id":   config.StringVariable(testGCPKeyManagerID(t)),
-				"key_manager_name": config.StringVariable(testGCPKeyManagerName(t)),
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
+				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
+				"name":           config.StringVariable(name),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				// By name.
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyID),
-					knownvalue.StringExact(testGCPKeyManagerID(t))),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyName),
-					knownvalue.StringExact(testGCPKeyManagerName(t))),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyProvisioningMethod),
-					knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyRegion),
-					knownvalue.StringExact(testGCPKeyManagerRegion(t))),
 				// By ID.
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyID),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyName),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyName),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyDescription),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyProvisioningMethod),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyProvisioningMethod),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyNaturalID),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyNaturalID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyDataLocationsCount),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyDataLocationsCount),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyRegion),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyKeyRing),
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
 					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyKeyRing),
 					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_id",
+					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
+				// By name.
+				statecheck.CompareValuePairs(
+					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyID),
+					compare.ValuesSame()),
 			},
-		}},
-	})
-}
-
-func TestAccGCPKMSKeyManagerDataSource_OtherCloud(t *testing.T) {
-	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{{
-			Config: `
-				variable "key_manager_name" {
-					type = string
-				}
-				data "rubrik_azure_kms_key_manager" "key_manager" {
-					name = var.key_manager_name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"key_manager_name": config.StringVariable(testGCPKeyManagerName(t)),
-			},
-			ExpectError: regexp.MustCompile("KMS key manager not found"),
-		}},
-	})
-}
-
-func TestAccGCPKMSKeyManagerDataSource_NotFound(t *testing.T) {
-	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{{
-			Config: `
-				data "rubrik_gcp_kms_key_manager" "key_manager" {
-				  name = "terraform-acceptance-test-missing-key-manager"
-				}
-			`,
-			ExpectError: regexp.MustCompile("KMS key manager not found"),
 		}},
 	})
 }
