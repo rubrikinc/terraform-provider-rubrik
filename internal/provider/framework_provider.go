@@ -160,6 +160,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisGcpCloudClusterResource,
 		newGcpCustomLabelsResource,
 		newPolarisGcpCustomLabelsResource,
+		newGcpExocomputeResource,
+		newPolarisGcpExocomputeResource,
 		newGCPKeyManagerResource,
 		newPolarisGCPKeyManagerResource,
 		newGCPRCVArchivalLocationResource,

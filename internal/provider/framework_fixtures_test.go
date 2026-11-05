@@ -759,3 +759,45 @@ func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
 }
+
+// testGCPExocomputeRegion returns the Exocompute region from the GCP test
+// configuration. The test is skipped if the value is not set.
+func testGCPExocomputeRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.Exocompute.Region == "" {
+		t.Skip("GCP Exocompute fixture not available: exocompute.region not set")
+	}
+
+	return conf.Exocompute.Region
+}
+
+// testGCPExocomputeSubnetName returns the Exocompute subnet name from the GCP
+// test configuration. The test is skipped if the value is not set.
+func testGCPExocomputeSubnetName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.Exocompute.SubnetName == "" {
+		t.Skip("GCP Exocompute fixture not available: exocompute.subnetName not set")
+	}
+
+	return conf.Exocompute.SubnetName
+}
+
+// testGCPExocomputeVPCName returns the Exocompute VPC network name from the
+// GCP test configuration. The test is skipped if the value is not set.
+func testGCPExocomputeVPCName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.Exocompute.VPCName == "" {
+		t.Skip("GCP Exocompute fixture not available: exocompute.vpcNetworkName not set")
+	}
+
+	return conf.Exocompute.VPCName
+}
