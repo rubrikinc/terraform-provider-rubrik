@@ -24,7 +24,7 @@ resource "rubrik_azure_archival_location" "archival_location" {
 
 # Client-side encryption with a key in a key vault registered as a key manager
 # in RSC.
-data "rubrik_azure_kms_key_manager" "archival" {
+data "rubrik_azure_key_manager" "archival" {
   name = "archival-key-vault"
 }
 
@@ -34,7 +34,7 @@ resource "rubrik_azure_archival_location" "archival_location" {
   storage_account_name_prefix = "archival"
 
   key_vault_key {
-    key_manager_id = data.rubrik_azure_kms_key_manager.archival.id
+    key_manager_id = data.rubrik_azure_key_manager.archival.id
     key_name       = "my-archival-key"
     key_version    = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
   }

@@ -32,9 +32,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccAzureKMSKeyManagerResource onboards the Azure subscription with the
+// TestAccAzureKeyManagerResource onboards the Azure subscription with the
 // UEM key management feature, registers a key manager, updates and imports it.
-func TestAccAzureKMSKeyManagerResource(t *testing.T) {
+func TestAccAzureKeyManagerResource(t *testing.T) {
 	skipUnlessAzureKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
@@ -84,7 +84,7 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 			depends_on = [rubrik_azure_service_principal.service_principal]
 		}
 
-		resource "rubrik_azure_kms_key_manager" "key_manager" {
+		resource "rubrik_azure_key_manager" "key_manager" {
 			name             = var.name
 			description      = var.description
 			cloud_account_id = rubrik_azure_subscription.subscription.id
@@ -96,7 +96,7 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			azureKMSKeyManagerCheckDestroy(t),
+			azureKeyManagerCheckDestroy(t),
 			azureSubscriptionCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -114,24 +114,24 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 				"description":       config.StringVariable("Test key manager."),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name)),
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager",
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager",
 					tfjsonpath.New(keyDescription), knownvalue.StringExact("Test key manager.")),
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyRegion),
 					knownvalue.StringExact(testAzureKMSRegion(t))),
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager",
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager",
 					tfjsonpath.New(keyVaultName), knownvalue.StringExact(testAzureKMSVaultName(t))),
 				statecheck.CompareValuePairs(
 					"rubrik_azure_subscription.subscription", tfjsonpath.New(keyID),
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("rubrik_azure_kms_key_manager.key_manager", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_azure_key_manager.key_manager", map[string]knownvalue.Check{
 					keyID: NonNullUUID(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_kms_key_manager.key_manager",
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_key_manager.key_manager",
 					tfjsonpath.New(keyID)),
 			},
 		}, {
@@ -149,21 +149,21 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 			},
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
-					plancheck.ExpectResourceAction("rubrik_azure_kms_key_manager.key_manager",
+					plancheck.ExpectResourceAction("rubrik_azure_key_manager.key_manager",
 						plancheck.ResourceActionUpdate),
 				},
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name+" Update")),
-				statecheck.ExpectKnownValue("rubrik_azure_kms_key_manager.key_manager",
+				statecheck.ExpectKnownValue("rubrik_azure_key_manager.key_manager",
 					tfjsonpath.New(keyDescription), knownvalue.StringExact("Updated test key manager.")),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_kms_key_manager.key_manager",
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_key_manager.key_manager",
 					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import.
-			ResourceName: "rubrik_azure_kms_key_manager.key_manager",
+			ResourceName: "rubrik_azure_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":       config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain":     config.StringVariable(testAzureTenantDomain(t)),
@@ -179,7 +179,7 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName: "rubrik_azure_kms_key_manager.key_manager",
+			ResourceName: "rubrik_azure_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":       config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain":     config.StringVariable(testAzureTenantDomain(t)),
@@ -199,7 +199,7 @@ func TestAccAzureKMSKeyManagerResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName: "rubrik_azure_kms_key_manager.key_manager",
+			ResourceName: "rubrik_azure_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":       config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain":     config.StringVariable(testAzureTenantDomain(t)),

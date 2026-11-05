@@ -32,9 +32,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccGCPKMSKeyManagerResource onboards the GCP project with the UEM key
+// TestAccGCPKeyManagerResource onboards the GCP project with the UEM key
 // management feature, registers a key manager, updates and imports it.
-func TestAccGCPKMSKeyManagerResource(t *testing.T) {
+func TestAccGCPKeyManagerResource(t *testing.T) {
 	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
@@ -85,7 +85,7 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 			}
 		}
 
-		resource "rubrik_gcp_kms_key_manager" "key_manager" {
+		resource "rubrik_gcp_key_manager" "key_manager" {
 			name             = var.name
 			description      = var.description
 			cloud_account_id = rubrik_gcp_project.project.id
@@ -97,7 +97,7 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			gcpKMSKeyManagerCheckDestroy(t),
+			gcpKeyManagerCheckDestroy(t),
 			gcpProjectCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -114,24 +114,24 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 				"description":    config.StringVariable("Test key manager."),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyID),
 					NonNullUUID()),
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name)),
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Test key manager.")),
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyRegion),
 					knownvalue.StringExact(testGCPKMSRegion(t))),
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
 					knownvalue.StringExact(testGCPKMSKeyRing(t))),
 				statecheck.CompareValuePairs(
 					"rubrik_gcp_project.project", tfjsonpath.New(keyID),
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("rubrik_gcp_kms_key_manager.key_manager", map[string]knownvalue.Check{
+				statecheck.ExpectIdentity("rubrik_gcp_key_manager.key_manager", map[string]knownvalue.Check{
 					keyID: NonNullUUID(),
 				}),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_kms_key_manager.key_manager",
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_key_manager.key_manager",
 					tfjsonpath.New(keyID)),
 			},
 		}, {
@@ -149,21 +149,21 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 			},
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
-					plancheck.ExpectResourceAction("rubrik_gcp_kms_key_manager.key_manager",
+					plancheck.ExpectResourceAction("rubrik_gcp_key_manager.key_manager",
 						plancheck.ResourceActionUpdate),
 				},
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyName),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name+" Update")),
-				statecheck.ExpectKnownValue("rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
+				statecheck.ExpectKnownValue("rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyDescription),
 					knownvalue.StringExact("Updated test key manager.")),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_kms_key_manager.key_manager",
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_key_manager.key_manager",
 					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import.
-			ResourceName: "rubrik_gcp_kms_key_manager.key_manager",
+			ResourceName: "rubrik_gcp_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
 				"project_id":     config.StringVariable(testGCPProjectID(t)),
@@ -179,7 +179,7 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
-			ResourceName: "rubrik_gcp_kms_key_manager.key_manager",
+			ResourceName: "rubrik_gcp_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
 				"project_id":     config.StringVariable(testGCPProjectID(t)),
@@ -199,7 +199,7 @@ func TestAccGCPKMSKeyManagerResource(t *testing.T) {
 			},
 		}, {
 			// import {} block with identity attribute.
-			ResourceName: "rubrik_gcp_kms_key_manager.key_manager",
+			ResourceName: "rubrik_gcp_key_manager.key_manager",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
 				"project_id":     config.StringVariable(testGCPProjectID(t)),

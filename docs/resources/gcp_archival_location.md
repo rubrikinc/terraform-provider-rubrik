@@ -19,8 +19,8 @@ description: |-
   managed key block will have its data encrypted with platform managed keys.
   Client-side encryption is enabled by specifying the kms_key block, with a Cloud
   KMS key in a key manager registered in RSC. Register the key manager with the
-  rubrik_gcp_kms_key_manager resource, or look up an existing one with the
-  rubrik_gcp_kms_key_manager data source. The kms_key block conflicts with the
+  rubrik_gcp_key_manager resource, or look up an existing one with the
+  rubrik_gcp_key_manager data source. The kms_key block conflicts with the
   customer managed key blocks. Exocompute performs the encryption, so Exocompute
   must be configured for the key manager's cloud account in the key manager's
   region. RSC does not check the key manager's region against the archival
@@ -56,8 +56,8 @@ managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the `kms_key` block, with a Cloud
 KMS key in a key manager registered in RSC. Register the key manager with the
-`rubrik_gcp_kms_key_manager` resource, or look up an existing one with the
-`rubrik_gcp_kms_key_manager` data source. The `kms_key` block conflicts with the
+`rubrik_gcp_key_manager` resource, or look up an existing one with the
+`rubrik_gcp_key_manager` data source. The `kms_key` block conflicts with the
 customer managed key blocks. Exocompute performs the encryption, so Exocompute
 must be configured for the key manager's cloud account in the key manager's
 region. RSC does not check the key manager's region against the archival
@@ -95,7 +95,7 @@ resource "rubrik_gcp_archival_location" "archival_location" {
 }
 
 # Client-side encryption with a Cloud KMS key in a key manager registered in RSC.
-data "rubrik_gcp_kms_key_manager" "archival" {
+data "rubrik_gcp_key_manager" "archival" {
   name = "archival-key-ring"
 }
 
@@ -105,7 +105,7 @@ resource "rubrik_gcp_archival_location" "archival_location" {
   bucket_prefix    = "my-bucket-prefix"
 
   kms_key {
-    key_manager_id = data.rubrik_gcp_kms_key_manager.archival.id
+    key_manager_id = data.rubrik_gcp_key_manager.archival.id
     key_name       = "my-archival-key"
     key_version    = "1"
   }
@@ -151,7 +151,7 @@ Required:
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Cloud KMS crypto key name.
 - `key_version` (String) Cloud KMS crypto key version.
 

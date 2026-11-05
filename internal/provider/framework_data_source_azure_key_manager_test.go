@@ -31,10 +31,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccAzureKMSKeyManagerDataSource onboards the Azure subscription with the
+// TestAccAzureKeyManagerDataSource onboards the Azure subscription with the
 // UEM key management feature, registers a key manager and reads it with the
 // data source by ID and by name.
-func TestAccAzureKMSKeyManagerDataSource(t *testing.T) {
+func TestAccAzureKeyManagerDataSource(t *testing.T) {
 	skipUnlessAzureKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
@@ -81,26 +81,26 @@ func TestAccAzureKMSKeyManagerDataSource(t *testing.T) {
 			depends_on = [rubrik_azure_service_principal.service_principal]
 		}
 
-		resource "rubrik_azure_kms_key_manager" "key_manager" {
+		resource "rubrik_azure_key_manager" "key_manager" {
 			name             = var.name
 			cloud_account_id = rubrik_azure_subscription.subscription.id
 			region           = var.kms_region
 			vault_name       = var.vault_name
 		}
 
-		data "rubrik_azure_kms_key_manager" "by_id" {
-			id = rubrik_azure_kms_key_manager.key_manager.id
+		data "rubrik_azure_key_manager" "by_id" {
+			id = rubrik_azure_key_manager.key_manager.id
 		}
 
-		data "rubrik_azure_kms_key_manager" "by_name" {
-			name = rubrik_azure_kms_key_manager.key_manager.name
+		data "rubrik_azure_key_manager" "by_name" {
+			name = rubrik_azure_key_manager.key_manager.name
 		}
 	`
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			azureKMSKeyManagerCheckDestroy(t),
+			azureKeyManagerCheckDestroy(t),
 			azureSubscriptionCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -119,33 +119,33 @@ func TestAccAzureKMSKeyManagerDataSource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By ID.
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyID),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_azure_key_manager.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyName),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyName),
+					"data.rubrik_azure_key_manager.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyDescription),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyDescription),
+					"data.rubrik_azure_key_manager.by_id", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"data.rubrik_azure_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					"data.rubrik_azure_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyRegion),
+					"data.rubrik_azure_key_manager.by_id", tfjsonpath.New(keyRegion),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.rubrik_azure_kms_key_manager.by_id",
+				statecheck.ExpectKnownValue("data.rubrik_azure_key_manager.by_id",
 					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_azure_kms_key_manager.by_id",
+				statecheck.ExpectKnownValue("data.rubrik_azure_key_manager.by_id",
 					tfjsonpath.New(keyKeyVaultURL), knownvalue.NotNull()),
 				// By name.
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_azure_kms_key_manager.by_name", tfjsonpath.New(keyID),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_azure_key_manager.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 			},
 		}},

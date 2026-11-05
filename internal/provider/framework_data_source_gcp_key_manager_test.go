@@ -31,10 +31,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccGCPKMSKeyManagerDataSource onboards the GCP project with the UEM key
+// TestAccGCPKeyManagerDataSource onboards the GCP project with the UEM key
 // management feature, registers a key manager and reads it with the data
 // source by ID and by name.
-func TestAccGCPKMSKeyManagerDataSource(t *testing.T) {
+func TestAccGCPKeyManagerDataSource(t *testing.T) {
 	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
@@ -82,26 +82,26 @@ func TestAccGCPKMSKeyManagerDataSource(t *testing.T) {
 			}
 		}
 
-		resource "rubrik_gcp_kms_key_manager" "key_manager" {
+		resource "rubrik_gcp_key_manager" "key_manager" {
 			name             = var.name
 			cloud_account_id = rubrik_gcp_project.project.id
 			region           = var.kms_region
 			key_ring         = var.key_ring
 		}
 
-		data "rubrik_gcp_kms_key_manager" "by_id" {
-			id = rubrik_gcp_kms_key_manager.key_manager.id
+		data "rubrik_gcp_key_manager" "by_id" {
+			id = rubrik_gcp_key_manager.key_manager.id
 		}
 
-		data "rubrik_gcp_kms_key_manager" "by_name" {
-			name = rubrik_gcp_kms_key_manager.key_manager.name
+		data "rubrik_gcp_key_manager" "by_name" {
+			name = rubrik_gcp_key_manager.key_manager.name
 		}
 	`
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			gcpKMSKeyManagerCheckDestroy(t),
+			gcpKeyManagerCheckDestroy(t),
 			gcpProjectCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -120,35 +120,35 @@ func TestAccGCPKMSKeyManagerDataSource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By ID.
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyID),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyName),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyName),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyDescription),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyDescription),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyRegion),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyRegion),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
-					"data.rubrik_gcp_kms_key_manager.by_id", tfjsonpath.New(keyKeyRing),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyKeyRing),
+					"data.rubrik_gcp_key_manager.by_id", tfjsonpath.New(keyKeyRing),
 					compare.ValuesSame()),
-				statecheck.ExpectKnownValue("data.rubrik_gcp_kms_key_manager.by_id",
+				statecheck.ExpectKnownValue("data.rubrik_gcp_key_manager.by_id",
 					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
 				// By name.
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					"data.rubrik_gcp_kms_key_manager.by_name", tfjsonpath.New(keyID),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_gcp_key_manager.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 			},
 		}},

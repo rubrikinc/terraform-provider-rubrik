@@ -58,7 +58,7 @@ only a region and a tier.
 
 Encryption defaults to a key created and managed by RCV. The ´kms_key´ block
 selects client-side encryption with a GCP Cloud KMS key instead. The key manager
-must already be registered in RSC, see the ´rubrik_gcp_kms_key_manager´ data
+must already be registered in RSC, see the ´rubrik_gcp_key_manager´ data
 source.
 
 Changing the key name, the key version or the key manager of the ´kms_key´ block
@@ -220,7 +220,7 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 					Attributes: map[string]schema.Attribute{
 						keyKeyManagerID: schema.StringAttribute{
 							Required:    true,
-							Description: "KMS key manager ID (UUID).",
+							Description: "RSC key manager ID (UUID).",
 							Validators: []validator.String{
 								isUUID(),
 							},

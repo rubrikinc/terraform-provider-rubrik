@@ -18,9 +18,9 @@ description: |-
   each source region should be specified, source regions not having a customer
   managed key block will have its data encrypted with platform managed keys.
   Client-side encryption is enabled by specifying the key_vault_key block, with a
-  key in an Azure key vault registered as a key manager in RSC. Register the key
-  manager with the rubrik_azure_kms_key_manager resource, or look up an existing
-  one with the rubrik_azure_kms_key_manager data source. The key_vault_key
+  key in an Azure Key Vault registered as a key manager in RSC. Register the key
+  manager with the rubrik_azure_key_manager resource, or look up an existing
+  one with the rubrik_azure_key_manager data source. The key_vault_key
   block conflicts with the customer managed key blocks.
   The key vault key has the following requirements, which RSC does not check when
   the archival location is created:
@@ -59,9 +59,9 @@ each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the `key_vault_key` block, with a
-key in an Azure key vault registered as a key manager in RSC. Register the key
-manager with the `rubrik_azure_kms_key_manager` resource, or look up an existing
-one with the `rubrik_azure_kms_key_manager` data source. The `key_vault_key`
+key in an Azure Key Vault registered as a key manager in RSC. Register the key
+manager with the `rubrik_azure_key_manager` resource, or look up an existing
+one with the `rubrik_azure_key_manager` data source. The `key_vault_key`
 block conflicts with the customer managed key blocks.
 
 The key vault key has the following requirements, which RSC does not check when
@@ -112,7 +112,7 @@ resource "rubrik_azure_archival_location" "archival_location" {
 
 # Client-side encryption with a key in a key vault registered as a key manager
 # in RSC.
-data "rubrik_azure_kms_key_manager" "archival" {
+data "rubrik_azure_key_manager" "archival" {
   name = "archival-key-vault"
 }
 
@@ -122,7 +122,7 @@ resource "rubrik_azure_archival_location" "archival_location" {
   storage_account_name_prefix = "archival"
 
   key_vault_key {
-    key_manager_id = data.rubrik_azure_kms_key_manager.archival.id
+    key_manager_id = data.rubrik_azure_key_manager.archival.id
     key_name       = "my-archival-key"
     key_version    = "4f0a1b2c3d4e5f60718293a4b5c6d7e8"
   }
@@ -179,7 +179,7 @@ Required:
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Key Vault key name.
 - `key_version` (String) Key Vault key version.
 

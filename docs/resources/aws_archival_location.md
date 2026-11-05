@@ -21,8 +21,8 @@ description: |-
   outside their own region.kms_key - Client-side encryption with a KMS key in a key manager registered
   in RSC. Conflicts with kms_master_key.
   When region is specified, one of kms_master_key and kms_key must be given.
-  Register the key manager for kms_key with the rubrik_aws_kms_key_manager
-  resource, or look up an existing one with the rubrik_aws_kms_key_manager data
+  Register the key manager for kms_key with the rubrik_aws_key_manager
+  resource, or look up an existing one with the rubrik_aws_key_manager data
   source. Exocompute performs the encryption, so Exocompute must be configured for
   the key manager's cloud account in the key manager's region. RSC does not check
   the key manager's region against the archival location's region. A location
@@ -62,8 +62,8 @@ on the client side with a KMS key managed by an RSC key manager:
 
 When `region` is specified, one of `kms_master_key` and `kms_key` must be given.
 
-Register the key manager for `kms_key` with the `rubrik_aws_kms_key_manager`
-resource, or look up an existing one with the `rubrik_aws_kms_key_manager` data
+Register the key manager for `kms_key` with the `rubrik_aws_key_manager`
+resource, or look up an existing one with the `rubrik_aws_key_manager` data
 source. Exocompute performs the encryption, so Exocompute must be configured for
 the key manager's cloud account in the key manager's region. RSC does not check
 the key manager's region against the archival location's region. A location
@@ -104,7 +104,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
 }
 
 # Client-side encryption with a KMS key in a key manager registered in RSC.
-data "rubrik_aws_kms_key_manager" "archival" {
+data "rubrik_aws_key_manager" "archival" {
   name = "archival-key-manager"
 }
 
@@ -115,7 +115,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
   region        = "us-east-2"
 
   kms_key {
-    key_manager_id = data.rubrik_aws_kms_key_manager.archival.id
+    key_manager_id = data.rubrik_aws_key_manager.archival.id
     key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
   }
 }
@@ -151,7 +151,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
 Required:
 
 - `key_id` (String) KMS key ID.
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 
 
 <a id="nestedblock--timeouts"></a>

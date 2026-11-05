@@ -1,6 +1,6 @@
 # Register a GCP Cloud KMS key manager for a GCP project onboarded with the
 # CLOUD_NATIVE_UEM_KEY_MANAGEMENT feature.
-resource "rubrik_gcp_kms_key_manager" "production" {
+resource "rubrik_gcp_key_manager" "production" {
   name             = "Production GCP KMS"
   description      = "Keys for the RCV archival locations."
   cloud_account_id = "f8c9c2a0-f02e-494d-bba9-0d4906917b8c"
@@ -15,7 +15,7 @@ resource "rubrik_gcp_rcv_archival_location" "archive" {
   tier   = "BACKUP"
 
   kms_key {
-    key_manager_id = rubrik_gcp_kms_key_manager.production.id
+    key_manager_id = rubrik_gcp_key_manager.production.id
     key_name       = "archive-key"
     key_version    = "1"
   }

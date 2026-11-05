@@ -40,8 +40,8 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/kms"
 )
 
-const resourceAWSKMSKeyManagerDescription = `
-The ´rubrik_aws_kms_key_manager´ resource is used to register an AWS KMS key
+const resourceAWSKeyManagerDescription = `
+The ´rubrik_aws_key_manager´ resource is used to register an AWS KMS key
 manager in RSC.
 
 A key manager is a stored connection profile giving RSC access to a customer
@@ -58,17 +58,17 @@ the key manager by, alongside the ID of the key itself, which comes from AWS.
 `
 
 var (
-	_ resource.Resource                = &awsKMSKeyManagerResource{}
-	_ resource.ResourceWithIdentity    = &awsKMSKeyManagerResource{}
-	_ resource.ResourceWithImportState = &awsKMSKeyManagerResource{}
+	_ resource.Resource                = &awsKeyManagerResource{}
+	_ resource.ResourceWithIdentity    = &awsKeyManagerResource{}
+	_ resource.ResourceWithImportState = &awsKeyManagerResource{}
 )
 
-type awsKMSKeyManagerResource struct {
+type awsKeyManagerResource struct {
 	client *client
 	prefix string
 }
 
-type awsResourceKMSKeyManagerModel struct {
+type awsResourceKeyManagerModel struct {
 	ID                types.String `tfsdk:"id"`
 	Name              types.String `tfsdk:"name"`
 	Description       types.String `tfsdk:"description"`
@@ -78,29 +78,29 @@ type awsResourceKMSKeyManagerModel struct {
 	KMSRegionEndpoint types.String `tfsdk:"kms_region_endpoint"`
 }
 
-type awsKMSKeyManagerIdentityModel struct {
+type awsKeyManagerIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-func newAWSKMSKeyManagerResource() resource.Resource {
-	return &awsKMSKeyManagerResource{prefix: keyRubrik}
+func newAWSKeyManagerResource() resource.Resource {
+	return &awsKeyManagerResource{prefix: keyRubrik}
 }
 
-func newPolarisAWSKMSKeyManagerResource() resource.Resource {
-	return &awsKMSKeyManagerResource{prefix: keyPolaris}
+func newPolarisAWSKeyManagerResource() resource.Resource {
+	return &awsKeyManagerResource{prefix: keyPolaris}
 }
 
-func (r *awsKMSKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Metadata")
+func (r *awsKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Metadata")
 
-	res.TypeName = r.prefix + "_" + keyAWSKMSKeyManager
+	res.TypeName = r.prefix + "_" + keyAWSKeyManager
 }
 
-func (r *awsKMSKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Schema")
+func (r *awsKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Schema")
 
 	res.Schema = schema.Schema{
-		Description: description(resourceAWSKMSKeyManagerDescription),
+		Description: description(resourceAWSKeyManagerDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -166,12 +166,12 @@ func (r *awsKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Schema
 	}
 
 	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use the `rubrik_aws_kms_key_manager` resource instead."
+		res.Schema.DeprecationMessage = "use the `rubrik_aws_key_manager` resource instead."
 	}
 }
 
-func (r *awsKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.IdentitySchema")
+func (r *awsKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.IdentitySchema")
 
 	res.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
@@ -183,8 +183,8 @@ func (r *awsKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resourc
 	}
 }
 
-func (r *awsKMSKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Configure")
+func (r *awsKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -192,10 +192,10 @@ func (r *awsKMSKeyManagerResource) Configure(ctx context.Context, req resource.C
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *awsKMSKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Create")
+func (r *awsKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Create")
 
-	var plan awsResourceKMSKeyManagerModel
+	var plan awsResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -223,7 +223,7 @@ func (r *awsKMSKeyManagerResource) Create(ctx context.Context, req resource.Crea
 		KMSRegionEndpoint: plan.KMSRegionEndpoint.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to create AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to create AWS key manager", err.Error())
 		return
 	}
 
@@ -237,25 +237,25 @@ func (r *awsKMSKeyManagerResource) Create(ctx context.Context, req resource.Crea
 
 	keyManager, err := kms.Wrap(polarisClient).AWSKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
-	updateAWSKMSKeyManagerModel(&plan, keyManager)
+	updateAWSKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := awsKMSKeyManagerIdentityModel{ID: plan.ID}
+	identity := awsKeyManagerIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *awsKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Read")
+func (r *awsKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Read")
 
-	var state awsResourceKMSKeyManagerModel
+	var state awsResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -279,25 +279,25 @@ func (r *awsKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
-	updateAWSKMSKeyManagerModel(&state, keyManager)
+	updateAWSKeyManagerModel(&state, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := awsKMSKeyManagerIdentityModel{ID: state.ID}
+	identity := awsKeyManagerIdentityModel{ID: state.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *awsKMSKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Update")
+func (r *awsKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Update")
 
-	var plan awsResourceKMSKeyManagerModel
+	var plan awsResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -322,25 +322,25 @@ func (r *awsKMSKeyManagerResource) Update(ctx context.Context, req resource.Upda
 		KMSRegionEndpoint: plan.KMSRegionEndpoint.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to update AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to update AWS key manager", err.Error())
 		return
 	}
 
 	keyManager, err := kms.Wrap(polarisClient).AWSKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
-	updateAWSKMSKeyManagerModel(&plan, keyManager)
+	updateAWSKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
-func (r *awsKMSKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.Delete")
+func (r *awsKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.Delete")
 
-	var state awsResourceKMSKeyManagerModel
+	var state awsResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -363,19 +363,19 @@ func (r *awsKMSKeyManagerResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to delete AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to delete AWS key manager", err.Error())
 		return
 	}
 }
 
-func (r *awsKMSKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
-	tflog.Trace(ctx, "awsKMSKeyManagerResource.ImportState")
+func (r *awsKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "awsKeyManagerResource.ImportState")
 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
-// updateAWSKMSKeyManagerModel updates the model with the values read from RSC.
-func updateAWSKMSKeyManagerModel(m *awsResourceKMSKeyManagerModel, keyManager gqlkms.KeyManager) {
+// updateAWSKeyManagerModel updates the model with the values read from RSC.
+func updateAWSKeyManagerModel(m *awsResourceKeyManagerModel, keyManager gqlkms.KeyManager) {
 	m.ID = types.StringValue(keyManager.KeyVaultInfo.ID.String())
 	m.Name = types.StringValue(keyManager.Name)
 	m.Description = types.StringValue(keyManager.Description)

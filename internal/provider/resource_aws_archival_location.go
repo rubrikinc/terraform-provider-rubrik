@@ -68,8 +68,8 @@ on the client side with a KMS key managed by an RSC key manager:
 
 When ´region´ is specified, one of ´kms_master_key´ and ´kms_key´ must be given.
 
-Register the key manager for ´kms_key´ with the ´rubrik_aws_kms_key_manager´
-resource, or look up an existing one with the ´rubrik_aws_kms_key_manager´ data
+Register the key manager for ´kms_key´ with the ´rubrik_aws_key_manager´
+resource, or look up an existing one with the ´rubrik_aws_key_manager´ data
 source. Exocompute performs the encryption, so Exocompute must be configured for
 the key manager's cloud account in the key manager's region. RSC does not check
 the key manager's region against the archival location's region. A location
@@ -136,7 +136,7 @@ func resourceAwsArchivalLocation() *schema.Resource {
 							Type:         schema.TypeString,
 							Required:     true,
 							ForceNew:     true,
-							Description:  "KMS key manager ID (UUID).",
+							Description:  "RSC key manager ID (UUID).",
 							ValidateFunc: validation.IsUUID,
 						},
 						keyKeyID: {

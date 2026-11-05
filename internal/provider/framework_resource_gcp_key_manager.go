@@ -40,8 +40,8 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/kms"
 )
 
-const resourceGCPKMSKeyManagerDescription = `
-The ´rubrik_gcp_kms_key_manager´ resource is used to register a GCP Cloud KMS
+const resourceGCPKeyManagerDescription = `
+The ´rubrik_gcp_key_manager´ resource is used to register a GCP Cloud KMS
 key manager in RSC.
 
 A key manager is a stored connection profile giving RSC access to a customer
@@ -59,17 +59,17 @@ from GCP.
 `
 
 var (
-	_ resource.Resource                = &gcpKMSKeyManagerResource{}
-	_ resource.ResourceWithIdentity    = &gcpKMSKeyManagerResource{}
-	_ resource.ResourceWithImportState = &gcpKMSKeyManagerResource{}
+	_ resource.Resource                = &gcpKeyManagerResource{}
+	_ resource.ResourceWithIdentity    = &gcpKeyManagerResource{}
+	_ resource.ResourceWithImportState = &gcpKeyManagerResource{}
 )
 
-type gcpKMSKeyManagerResource struct {
+type gcpKeyManagerResource struct {
 	client *client
 	prefix string
 }
 
-type gcpResourceKMSKeyManagerModel struct {
+type gcpResourceKeyManagerModel struct {
 	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
 	Description    types.String `tfsdk:"description"`
@@ -78,29 +78,29 @@ type gcpResourceKMSKeyManagerModel struct {
 	KeyRing        types.String `tfsdk:"key_ring"`
 }
 
-type gcpKMSKeyManagerIdentityModel struct {
+type gcpKeyManagerIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-func newGCPKMSKeyManagerResource() resource.Resource {
-	return &gcpKMSKeyManagerResource{prefix: keyRubrik}
+func newGCPKeyManagerResource() resource.Resource {
+	return &gcpKeyManagerResource{prefix: keyRubrik}
 }
 
-func newPolarisGCPKMSKeyManagerResource() resource.Resource {
-	return &gcpKMSKeyManagerResource{prefix: keyPolaris}
+func newPolarisGCPKeyManagerResource() resource.Resource {
+	return &gcpKeyManagerResource{prefix: keyPolaris}
 }
 
-func (r *gcpKMSKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Metadata")
+func (r *gcpKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Metadata")
 
-	res.TypeName = r.prefix + "_" + keyGCPKMSKeyManager
+	res.TypeName = r.prefix + "_" + keyGCPKeyManager
 }
 
-func (r *gcpKMSKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Schema")
+func (r *gcpKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Schema")
 
 	res.Schema = schema.Schema{
-		Description: description(resourceGCPKMSKeyManagerDescription),
+		Description: description(resourceGCPKeyManagerDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -161,12 +161,12 @@ func (r *gcpKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Schema
 	}
 
 	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use the `rubrik_gcp_kms_key_manager` resource instead."
+		res.Schema.DeprecationMessage = "use the `rubrik_gcp_key_manager` resource instead."
 	}
 }
 
-func (r *gcpKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.IdentitySchema")
+func (r *gcpKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.IdentitySchema")
 
 	res.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
@@ -178,8 +178,8 @@ func (r *gcpKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resourc
 	}
 }
 
-func (r *gcpKMSKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Configure")
+func (r *gcpKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -187,10 +187,10 @@ func (r *gcpKMSKeyManagerResource) Configure(ctx context.Context, req resource.C
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *gcpKMSKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Create")
+func (r *gcpKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Create")
 
-	var plan gcpResourceKMSKeyManagerModel
+	var plan gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -235,21 +235,21 @@ func (r *gcpKMSKeyManagerResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	updateGCPKMSKeyManagerModel(&plan, keyManager)
+	updateGCPKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := gcpKMSKeyManagerIdentityModel{ID: plan.ID}
+	identity := gcpKeyManagerIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *gcpKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Read")
+func (r *gcpKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Read")
 
-	var state gcpResourceKMSKeyManagerModel
+	var state gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -277,21 +277,21 @@ func (r *gcpKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	updateGCPKMSKeyManagerModel(&state, keyManager)
+	updateGCPKeyManagerModel(&state, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := gcpKMSKeyManagerIdentityModel{ID: state.ID}
+	identity := gcpKeyManagerIdentityModel{ID: state.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *gcpKMSKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Update")
+func (r *gcpKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Update")
 
-	var plan gcpResourceKMSKeyManagerModel
+	var plan gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -324,15 +324,15 @@ func (r *gcpKMSKeyManagerResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	updateGCPKMSKeyManagerModel(&plan, keyManager)
+	updateGCPKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
-func (r *gcpKMSKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.Delete")
+func (r *gcpKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Delete")
 
-	var state gcpResourceKMSKeyManagerModel
+	var state gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -360,14 +360,14 @@ func (r *gcpKMSKeyManagerResource) Delete(ctx context.Context, req resource.Dele
 	}
 }
 
-func (r *gcpKMSKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
-	tflog.Trace(ctx, "gcpKMSKeyManagerResource.ImportState")
+func (r *gcpKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.ImportState")
 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
-// updateGCPKMSKeyManagerModel updates the model with the values read from RSC.
-func updateGCPKMSKeyManagerModel(m *gcpResourceKMSKeyManagerModel, keyManager gqlkms.KeyManager) {
+// updateGCPKeyManagerModel updates the model with the values read from RSC.
+func updateGCPKeyManagerModel(m *gcpResourceKeyManagerModel, keyManager gqlkms.KeyManager) {
 	m.ID = types.StringValue(keyManager.KeyVaultInfo.ID.String())
 	m.Name = types.StringValue(keyManager.Name)
 	m.Description = types.StringValue(keyManager.Description)

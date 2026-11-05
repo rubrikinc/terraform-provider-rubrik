@@ -42,9 +42,9 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/kms"
 )
 
-const resourceAzureKMSKeyManagerDescription = `
-The ´rubrik_azure_kms_key_manager´ resource is used to register an Azure key
-vault key manager in RSC.
+const resourceAzureKeyManagerDescription = `
+The ´rubrik_azure_key_manager´ resource is used to register an Azure Key
+Vault key manager in RSC.
 
 A key manager is a stored connection profile giving RSC access to a customer
 owned key management service. RSC takes the credentials from the cloud account,
@@ -61,17 +61,17 @@ from Azure.
 `
 
 var (
-	_ resource.Resource                = &azureKMSKeyManagerResource{}
-	_ resource.ResourceWithIdentity    = &azureKMSKeyManagerResource{}
-	_ resource.ResourceWithImportState = &azureKMSKeyManagerResource{}
+	_ resource.Resource                = &azureKeyManagerResource{}
+	_ resource.ResourceWithIdentity    = &azureKeyManagerResource{}
+	_ resource.ResourceWithImportState = &azureKeyManagerResource{}
 )
 
-type azureKMSKeyManagerResource struct {
+type azureKeyManagerResource struct {
 	client *client
 	prefix string
 }
 
-type azureResourceKMSKeyManagerModel struct {
+type azureResourceKeyManagerModel struct {
 	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
 	Description    types.String `tfsdk:"description"`
@@ -80,29 +80,29 @@ type azureResourceKMSKeyManagerModel struct {
 	VaultName      types.String `tfsdk:"vault_name"`
 }
 
-type azureKMSKeyManagerIdentityModel struct {
+type azureKeyManagerIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-func newAzureKMSKeyManagerResource() resource.Resource {
-	return &azureKMSKeyManagerResource{prefix: keyRubrik}
+func newAzureKeyManagerResource() resource.Resource {
+	return &azureKeyManagerResource{prefix: keyRubrik}
 }
 
-func newPolarisAzureKMSKeyManagerResource() resource.Resource {
-	return &azureKMSKeyManagerResource{prefix: keyPolaris}
+func newPolarisAzureKeyManagerResource() resource.Resource {
+	return &azureKeyManagerResource{prefix: keyPolaris}
 }
 
-func (r *azureKMSKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Metadata")
+func (r *azureKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Metadata")
 
-	res.TypeName = r.prefix + "_" + keyAzureKMSKeyManager
+	res.TypeName = r.prefix + "_" + keyAzureKeyManager
 }
 
-func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Schema")
+func (r *azureKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Schema")
 
 	res.Schema = schema.Schema{
-		Description: description(resourceAzureKMSKeyManagerDescription),
+		Description: description(resourceAzureKeyManagerDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -163,12 +163,12 @@ func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Sche
 	}
 
 	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use the `rubrik_azure_kms_key_manager` resource instead."
+		res.Schema.DeprecationMessage = "use the `rubrik_azure_key_manager` resource instead."
 	}
 }
 
-func (r *azureKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.IdentitySchema")
+func (r *azureKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.IdentitySchema")
 
 	res.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
@@ -180,8 +180,8 @@ func (r *azureKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resou
 	}
 }
 
-func (r *azureKMSKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Configure")
+func (r *azureKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -189,10 +189,10 @@ func (r *azureKMSKeyManagerResource) Configure(ctx context.Context, req resource
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *azureKMSKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Create")
+func (r *azureKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Create")
 
-	var plan azureResourceKMSKeyManagerModel
+	var plan azureResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -237,21 +237,21 @@ func (r *azureKMSKeyManagerResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&plan, keyManager)
+	updateAzureKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := azureKMSKeyManagerIdentityModel{ID: plan.ID}
+	identity := azureKeyManagerIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *azureKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Read")
+func (r *azureKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Read")
 
-	var state azureResourceKMSKeyManagerModel
+	var state azureResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -279,21 +279,21 @@ func (r *azureKMSKeyManagerResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&state, keyManager)
+	updateAzureKeyManagerModel(&state, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := azureKMSKeyManagerIdentityModel{ID: state.ID}
+	identity := azureKeyManagerIdentityModel{ID: state.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *azureKMSKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Update")
+func (r *azureKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Update")
 
-	var plan azureResourceKMSKeyManagerModel
+	var plan azureResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -326,15 +326,15 @@ func (r *azureKMSKeyManagerResource) Update(ctx context.Context, req resource.Up
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&plan, keyManager)
+	updateAzureKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
-func (r *azureKMSKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Delete")
+func (r *azureKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.Delete")
 
-	var state azureResourceKMSKeyManagerModel
+	var state azureResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -362,16 +362,16 @@ func (r *azureKMSKeyManagerResource) Delete(ctx context.Context, req resource.De
 	}
 }
 
-func (r *azureKMSKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.ImportState")
+func (r *azureKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "azureKeyManagerResource.ImportState")
 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
-// updateAzureKMSKeyManagerModel updates the model with the values read from
+// updateAzureKeyManagerModel updates the model with the values read from
 // RSC. The key vault name is taken from the key vault URL, as the first label of
 // the host name.
-func updateAzureKMSKeyManagerModel(m *azureResourceKMSKeyManagerModel, keyManager gqlkms.KeyManager) {
+func updateAzureKeyManagerModel(m *azureResourceKeyManagerModel, keyManager gqlkms.KeyManager) {
 	m.ID = types.StringValue(keyManager.KeyVaultInfo.ID.String())
 	m.Name = types.StringValue(keyManager.Name)
 	m.Description = types.StringValue(keyManager.Description)

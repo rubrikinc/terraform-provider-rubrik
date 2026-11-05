@@ -10,7 +10,7 @@ description: |-
   only a region and a tier.
   Encryption defaults to a key created and managed by RCV. The kms_key block
   selects client-side encryption with a GCP Cloud KMS key instead. The key manager
-  must already be registered in RSC, see the rubrik_gcp_kms_key_manager data
+  must already be registered in RSC, see the rubrik_gcp_key_manager data
   source.
   Changing the key name, the key version or the key manager of the kms_key block
   rekeys the archival location in place. The rekey moves the archival location to
@@ -33,7 +33,7 @@ only a region and a tier.
 
 Encryption defaults to a key created and managed by RCV. The `kms_key` block
 selects client-side encryption with a GCP Cloud KMS key instead. The key manager
-must already be registered in RSC, see the `rubrik_gcp_kms_key_manager` data
+must already be registered in RSC, see the `rubrik_gcp_key_manager` data
 source.
 
 Changing the key name, the key version or the key manager of the `kms_key` block
@@ -57,7 +57,7 @@ resource "rubrik_gcp_rcv_archival_location" "archive" {
 
 # Client-side encryption with a customer managed Cloud KMS key. The key manager
 # must already be registered in RSC.
-data "rubrik_gcp_kms_key_manager" "production" {
+data "rubrik_gcp_key_manager" "production" {
   name = "Production GCP Cloud KMS"
 }
 
@@ -67,7 +67,7 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
   tier   = "BACKUP"
 
   kms_key {
-    key_manager_id = data.rubrik_gcp_kms_key_manager.production.id
+    key_manager_id = data.rubrik_gcp_key_manager.production.id
     key_name       = "rcv-archive-key"
     key_version    = "1"
   }
@@ -100,7 +100,7 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Cloud KMS crypto key name.
 - `key_version` (String) Cloud KMS crypto key version.
 
