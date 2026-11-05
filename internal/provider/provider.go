@@ -97,7 +97,6 @@ func Provider() *schema.Provider {
 			keyPolarisGCPArchivalLocation:                resourceGcpArchivalLocation(),
 			keyPolarisGCPExocompute:                      resourceGcpExocompute(),
 			keyPolarisGCPProject:                         resourceGcpProject(),
-			keyPolarisGCPServiceAccount:                  resourceGcpServiceAccount(),
 			keyPolarisRefresh:                            resourceRefresh(),
 			keyPolarisSLADomain:                          resourceSLADomain(),
 			keyPolarisSLADomainAssignment:                resourceSLADomainAssignment(),
@@ -199,6 +198,11 @@ func (c *client) flag(ctx context.Context, name core.FeatureFlagName) bool {
 }
 
 func (c *client) polaris() (*polaris.Client, error) {
+	// The client is nil when the Framework calls a resource, e.g. a state
+	// upgrader, before the provider has been configured.
+	if c == nil {
+		return nil, errors.New("RSC functionality has not been configured: the provider has not been configured")
+	}
 	if c.polarisClient == nil {
 		err := errors.New("RSC functionality has not been configured")
 		if c.polarisErr != nil {

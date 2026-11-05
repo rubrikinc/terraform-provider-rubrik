@@ -4,6 +4,14 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_service_account` resource to the Terraform Plugin Framework. State can be moved from
+  `polaris_gcp_service_account` with a `moved` block. The resource still has no import, since RSC doesn't return the
+  service account key. [[docs](../resources/gcp_service_account.md)]
+* Fix the documentation of the `rubrik_gcp_service_account` resource, which said that the `name` field sets the name of
+  the service account in RSC. Since v1.10.0, RSC always uses the client email of the service account key as the name,
+  and the `name` field is not sent to RSC. [[docs](../resources/gcp_service_account.md)]
+
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
   of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the
