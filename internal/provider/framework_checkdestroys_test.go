@@ -34,6 +34,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/gcp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
@@ -95,6 +96,38 @@ func awsCnpAccountCheckDestroy(t *testing.T) func(*terraform.State) error {
 			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// awsCloudApplicationCheckDestroy verifies that all
+// aws_cloud_application resources have been deleted.
+func awsCloudApplicationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_cloud_application" && rs.Type != "rubrik_aws_cloud_application" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			// RSC deletes an application by archiving it, which ApplicationByID
+			// reports as not found.
+			_, err = cloudapp.Wrap(polarisClient).ApplicationByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("aws_cloud_application %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err

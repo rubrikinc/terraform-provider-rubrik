@@ -330,6 +330,52 @@ func testAWSKMSKeyIDs(t *testing.T) []string {
 	return conf.KMS.KeyIDs
 }
 
+// testAWSCloudApplicationTargetAccountID returns the ID of the AWS account
+// used as the target of cloud applications, from the crossAccountId field of
+// the AWS test configuration. The test is skipped if the value is not set.
+func testAWSCloudApplicationTargetAccountID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAWSTestConfig(t)
+	if conf.CrossAccountID == "" {
+		t.Skip("AWS cloud application target fixture not available: crossAccountId not set")
+	}
+
+	return conf.CrossAccountID
+}
+
+// testAWSCloudApplicationTargetAccountName returns the name of the AWS account
+// used as the target of cloud applications, from the crossAccountName field of
+// the AWS test configuration. The test is skipped if the value is not set.
+func testAWSCloudApplicationTargetAccountName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAWSTestConfig(t)
+	if conf.CrossAccountName == "" {
+		t.Skip("AWS cloud application target fixture not available: crossAccountName not set")
+	}
+
+	return conf.CrossAccountName
+}
+
+// testAWSCloudApplicationTargetRole returns the ARN of the IAM role assumed to
+// manage the AWS account used as the target of cloud applications, from the
+// crossAccountRole field of the AWS test configuration. The test is skipped if
+// the value is not set.
+func testAWSCloudApplicationTargetRole(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAWSTestConfig(t)
+	if conf.CrossAccountRole == "" {
+		t.Skip("AWS cloud application target fixture not available: crossAccountRole not set")
+	}
+
+	return conf.CrossAccountRole
+}
+
 // testAzureRCVRegion returns the RCV region from the Azure test configuration.
 // The test is skipped if the value is not set.
 func testAzureRCVRegion(t *testing.T) string {
