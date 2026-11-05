@@ -243,6 +243,7 @@ const (
 	keyGcpCloudCluster                              = "gcp_cloud_cluster"
 	keyGCPCustomLabels                              = "gcp_custom_labels"
 	keyGCPPrivateContainerRegistry                  = "gcp_private_container_registry"
+	keyGCPProject                                   = "gcp_project"
 	keyGlobal                                       = "global"
 	keyGroupName                                    = "group_name"
 	keyHash                                         = "hash"
