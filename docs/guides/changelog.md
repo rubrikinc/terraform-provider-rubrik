@@ -4,6 +4,14 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_archival_location` resource to the Terraform Plugin Framework. The resource now supports
+  import by identity, and state can be moved from `polaris_gcp_archival_location` with a `moved` block. When no region
+  is specified the `region` field is now null instead of an empty string, and when no bucket labels are specified the
+  `bucket_labels` field is null instead of an empty map. [[docs](../resources/gcp_archival_location.md)]
+* Fix a bug in the `rubrik_gcp_archival_location` resource where the `storage_class` field was described as the AWS
+  bucket storage class.
+
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
   of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the

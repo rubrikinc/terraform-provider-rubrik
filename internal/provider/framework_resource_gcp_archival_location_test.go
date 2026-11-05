@@ -23,6 +23,7 @@ package provider
 import (
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -30,12 +31,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
-// TestAccGCPArchivalLocationResource onboards the GCP project with the Cloud
+// TestAccGcpArchivalLocationResource onboards the GCP project with the Cloud
 // Native Archival feature, creates a specific region archival location,
-// updates and imports it, and reads it with the data source.
-func TestAccGCPArchivalLocationResource(t *testing.T) {
+// updates and imports it, reads it with the data source, and removes the bucket
+// labels with an empty map.
+func TestAccGcpArchivalLocationResource(t *testing.T) {
 	skipUnlessGCPArchivalDefined(t)
 
 	name := testUniqueName(t)
@@ -127,6 +130,11 @@ func TestAccGCPArchivalLocationResource(t *testing.T) {
 					})),
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyID)),
 				statecheck.CompareValuePairs(
 					"rubrik_gcp_project.project", tfjsonpath.New(keyID),
 					"rubrik_gcp_archival_location.location", tfjsonpath.New(keyCloudAccountID),
@@ -170,6 +178,11 @@ func TestAccGCPArchivalLocationResource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name+" Update")),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyID)),
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyStorageClass),
 					knownvalue.StringExact("NEARLINE")),
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyBucketLabels),
@@ -240,8 +253,7 @@ func TestAccGCPArchivalLocationResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			// import {} block with id attribute. The resource has no identity,
-			// so it can't be imported with an identity.
+			// import {} block with id attribute.
 			ResourceName: "rubrik_gcp_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
@@ -263,15 +275,67 @@ func TestAccGCPArchivalLocationResource(t *testing.T) {
 					plancheck.ExpectEmptyPlan(),
 				},
 			},
+		}, {
+			// import {} block with identity.
+			ResourceName: "rubrik_gcp_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"region":         config.StringVariable(testGCPArchivalRegion(t)),
+				"name":           config.StringVariable(name + " Update"),
+				"storage_class":  config.StringVariable("NEARLINE"),
+				"bucket_labels": config.MapVariable(map[string]config.Variable{
+					"environment": config.StringVariable("test"),
+					"owner":       config.StringVariable("terraform"),
+				}),
+			},
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// Verify that configuring an empty map removes the bucket labels and
+			// that the empty map is kept in state, not read back as null, so the
+			// plan after the apply is empty. Last, since an import can't tell an
+			// empty map from no labels.
+			Config: conf,
+			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"region":         config.StringVariable(testGCPArchivalRegion(t)),
+				"name":           config.StringVariable(name + " Update"),
+				"storage_class":  config.StringVariable("NEARLINE"),
+				"bucket_labels":  config.MapVariable(map[string]config.Variable{}),
+			},
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_gcp_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+				PostApplyPostRefresh: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyBucketLabels),
+					knownvalue.MapExact(map[string]knownvalue.Check{})),
+			},
 		}},
 	})
 }
 
-// TestAccGCPArchivalLocationKMSKeyResource onboards the GCP project with the
+// TestAccGcpArchivalLocationKMSKeyResource onboards the GCP project with the
 // Cloud Native Archival and UEM key management features, registers a key
 // manager, creates a client-side encrypted archival location, renames it,
 // rekeys it and imports it.
-func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
+func TestAccGcpArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessGCPArchivalDefined(t)
 	skipUnlessGCPKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
@@ -380,6 +444,11 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyID)),
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
 					tfjsonpath.New(keyLocationTemplate), knownvalue.StringExact("SPECIFIC_REGION")),
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
@@ -416,6 +485,11 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name+" Update")),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that changing the key name and the key version rekeys the
@@ -446,6 +520,11 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
 					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyVersion),
 					knownvalue.StringExact(testGCPKMSKeys(t)[1].Version)),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import, verifying that the KMS key is read back.
@@ -466,8 +545,7 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			// import {} block with id attribute. The resource has no identity,
-			// so it can't be imported with an identity.
+			// import {} block with id attribute.
 			ResourceName: "rubrik_gcp_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":    config.StringVariable(testGCPCredentials(t)),
@@ -487,6 +565,158 @@ func TestAccGCPArchivalLocationKMSKeyResource(t *testing.T) {
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
 				},
+			},
+		}, {
+			// import {} block with identity.
+			ResourceName: "rubrik_gcp_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":    config.StringVariable(testGCPCredentials(t)),
+				"project_id":     config.StringVariable(testGCPProjectID(t)),
+				"project_name":   config.StringVariable(testGCPProjectName(t)),
+				"project_number": config.StringVariable(testGCPProjectNumber(t)),
+				"region":         config.StringVariable(testGCPArchivalRegion(t)),
+				"name":           config.StringVariable(name + " Update"),
+				"kms_region":     config.StringVariable(testGCPKMSRegion(t)),
+				"key_ring":       config.StringVariable(testGCPKMSKeyRing(t)),
+				"key_name":       config.StringVariable(testGCPKMSKeys(t)[1].Name),
+				"key_version":    config.StringVariable(testGCPKMSKeys(t)[1].Version),
+			},
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}},
+	})
+}
+
+// TestAccGcpArchivalLocationResource_MoveState verifies that state from a
+// polaris_gcp_archival_location resource created by the rubrikinc/polaris
+// provider can be moved to a rubrik_gcp_archival_location resource using the
+// moved {} block. The source region archival location has no region and no
+// labels, which the SDKv2 provider stores as an empty string and an empty map.
+func TestAccGcpArchivalLocationResource_MoveState(t *testing.T) {
+	skipUnlessGCPArchivalDefined(t)
+
+	vars := config.Variables{
+		"rsc_credentials": config.StringVariable(testCredentials(t)),
+		"credentials":     config.StringVariable(testGCPCredentials(t)),
+		"project_id":      config.StringVariable(testGCPProjectID(t)),
+		"project_name":    config.StringVariable(testGCPProjectName(t)),
+		"project_number":  config.StringVariable(testGCPProjectNumber(t)),
+		"name":            config.StringVariable(testUniqueName(t)),
+	}
+
+	// The project stays with the polaris provider, so the polaris name can't
+	// also be served by the provider under test.
+	const project = `
+		variable "rsc_credentials" {
+			type      = string
+			sensitive = true
+		}
+		variable "credentials" {
+			type      = string
+			sensitive = true
+		}
+		variable "project_id" {
+			type = string
+		}
+		variable "project_name" {
+			type = string
+		}
+		variable "project_number" {
+			type = string
+		}
+		variable "name" {
+			type = string
+		}
+
+		provider "polaris" {
+			credentials = var.rsc_credentials
+		}
+
+		resource "polaris_gcp_project" "project" {
+			credentials    = var.credentials
+			project        = var.project_id
+			project_name   = var.project_name
+			project_number = var.project_number
+
+			feature {
+				name              = "CLOUD_NATIVE_ARCHIVAL"
+				permission_groups = ["BASIC"]
+			}
+
+			lifecycle {
+				ignore_changes = [organization_name]
+			}
+		}
+	`
+
+	polarisProvider := map[string]resource.ExternalProvider{
+		"polaris": {
+			Source:            "rubrikinc/polaris",
+			VersionConstraint: "1.11.2",
+		},
+	}
+
+	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_8_0),
+		},
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			gcpArchivalLocationCheckDestroy(t),
+			gcpProjectCheckDestroy(t),
+		),
+		Steps: []resource.TestStep{{
+			// Create the archival location with the polaris provider.
+			ExternalProviders: polarisProvider,
+			Config: project + `
+				resource "polaris_gcp_archival_location" "location" {
+					cloud_account_id = polaris_gcp_project.project.id
+					name             = var.name
+					bucket_prefix    = "tf-acc-move"
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("polaris_gcp_archival_location.location", tfjsonpath.New(keyID),
+					NonNullUUID()),
+			},
+		}, {
+			// Verify that the move gives an empty plan, then apply to save the
+			// moved state, without it destroy can fail on the dependencies.
+			ExternalProviders: polarisProvider,
+			ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
+				"rubrik": newMuxedProviderServer,
+			},
+			Config: project + `
+				moved {
+					from = polaris_gcp_archival_location.location
+					to   = rubrik_gcp_archival_location.location
+				}
+
+				resource "rubrik_gcp_archival_location" "location" {
+					cloud_account_id = polaris_gcp_project.project.id
+					name             = var.name
+					bucket_prefix    = "tf-acc-move"
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location", tfjsonpath.New(keyRegion),
+					knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_gcp_archival_location.location",
+					tfjsonpath.New(keyLocationTemplate), knownvalue.StringExact("SOURCE_REGION")),
+				statecheck.ExpectIdentity("rubrik_gcp_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
 			},
 		}},
 	})

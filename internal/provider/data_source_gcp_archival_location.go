@@ -31,6 +31,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
 	gqlarchival "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/archival"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/gcp"
 )
 
 const dataSourceGCPArchivalLocationDescription = `
@@ -175,4 +177,61 @@ func gcpArchivalLocationRead(ctx context.Context, d *schema.ResourceData, m any)
 
 	d.SetId(targetMapping.ID.String())
 	return nil
+}
+
+// gcpCustomerKeyResource returns the schema for a GCP customer managed key
+// resource.
+func gcpCustomerKeyResource() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			keyName: {
+				Type:         schema.TypeString,
+				Required:     true,
+				Description:  "Key name.",
+				ValidateFunc: validation.StringIsNotWhiteSpace,
+			},
+			keyRegion: {
+				Type:         schema.TypeString,
+				Required:     true,
+				Description:  "The region in which the key will be used.",
+				ValidateFunc: validation.StringInSlice(gcp.AllRegionNames(), false),
+			},
+			keyRingName: {
+				Type:         schema.TypeString,
+				Required:     true,
+				Description:  "Key ring name.",
+				ValidateFunc: validation.StringIsNotWhiteSpace,
+			},
+		},
+	}
+}
+
+// fromGCPCustomerManagedKeys converts to the customer managed keys field type
+// from a slice of GCP customer keys.
+func fromGCPCustomerManagedKeys(customerKeys []gqlarchival.GCPCustomerKey) *schema.Set {
+	keys := &schema.Set{F: schema.HashResource(gcpCustomerKeyResource())}
+	for _, key := range customerKeys {
+		keys.Add(map[string]any{
+			keyName:     key.Name,
+			keyRingName: key.RingName,
+			keyRegion:   key.Region.Name(),
+		})
+	}
+
+	return keys
+}
+
+// fromGCPBucketLabels converts to the bucket labels field type from the GCP
+// tags type.
+func fromGCPBucketLabels(tags []core.Tag) map[string]any {
+	bucketLabels := make(map[string]any, len(tags))
+	for _, tag := range tags {
+		bucketLabels[tag.Key] = tag.Value
+	}
+
+	return bucketLabels
+}
+
+func fromGCPStorageClass(storageClass string) string {
+	return strings.TrimSuffix(storageClass, "_GCP")
 }
