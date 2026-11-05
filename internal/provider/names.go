@@ -68,7 +68,7 @@ const (
 	keyAWSCNPAccountAttachments                     = "aws_cnp_account_attachments"
 	keyAWSCNPArtifacts                              = "aws_cnp_artifacts"
 	keyAWSCNPPermissions                            = "aws_cnp_permissions"
-	keyAWSCloudNativeApplication                    = "aws_cloud_native_application"
+	keyAWSCloudApplication                          = "aws_cloud_application"
 	keyAWSCrossAccount                              = "aws_cross_account"
 	keyAWSCustomTags                                = "aws_custom_tags"
 	keyAWSDynamoDBConfig                            = "aws_dynamodb_config"

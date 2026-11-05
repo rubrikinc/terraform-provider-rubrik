@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -54,11 +55,10 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/aws"
 )
 
-const resourceAWSCloudNativeApplicationDescription = `
-The ´rubrik_aws_cloud_native_application´ resource manages an AWS cloud native application, shown as a Cloud
-Application in the RSC UI. An application groups the resources of one AWS account and region, so that their
-configuration can be protected by an SLA Domain with the ´AWS_CONFIG_OBJECT_TYPE´ object type, and recovered to the
-target account.
+const resourceAWSCloudApplicationDescription = `
+The ´rubrik_aws_cloud_application´ resource manages an AWS Cloud Application. An application groups the resources of
+one AWS account and region, so that their configuration can be protected by an SLA Domain with the
+´AWS_CONFIG_OBJECT_TYPE´ object type, and recovered to the target account.
 
 The AWS account must be onboarded with the ´CLOUD_NATIVE_CONFIG_PROTECTION´ feature in the application region, for
 example using the ´rubrik_aws_cnp_account´ and ´rubrik_aws_cnp_account_attachments´ resources, and the feature must be
@@ -82,17 +82,17 @@ Assign the SLA Domain with the ´rubrik_sla_domain_assignment´ resource, using 
    the target of an application.
 `
 
-// awsCloudNativeApplicationNameRegexp matches the application names accepted
+// awsCloudApplicationNameRegexp matches the application names accepted
 // by RSC.
-var awsCloudNativeApplicationNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var awsCloudApplicationNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
-// defaultAWSCloudNativeApplicationDeleteTimeout is the default time to wait
+// defaultAWSCloudApplicationDeleteTimeout is the default time to wait
 // for the config snapshots of an application to be deleted.
-const defaultAWSCloudNativeApplicationDeleteTimeout = 20 * time.Minute
+const defaultAWSCloudApplicationDeleteTimeout = 20 * time.Minute
 
-// awsCloudNativeApplicationServices maps the service names of the services
+// awsCloudApplicationServices maps the service names of the services
 // attribute to the RSC service flags.
-var awsCloudNativeApplicationServices = map[string]func(*gqlcloudapp.AWSServices) *bool{
+var awsCloudApplicationServices = map[string]func(*gqlcloudapp.AWSServices) *bool{
 	"EC2":             func(s *gqlcloudapp.AWSServices) *bool { return &s.EC2 },
 	"ECR":             func(s *gqlcloudapp.AWSServices) *bool { return &s.ECR },
 	"ECS":             func(s *gqlcloudapp.AWSServices) *bool { return &s.ECS },
@@ -106,21 +106,22 @@ var awsCloudNativeApplicationServices = map[string]func(*gqlcloudapp.AWSServices
 }
 
 var (
-	_ resource.Resource                   = &awsCloudNativeApplicationResource{}
-	_ resource.ResourceWithConfigure      = &awsCloudNativeApplicationResource{}
-	_ resource.ResourceWithIdentity       = &awsCloudNativeApplicationResource{}
-	_ resource.ResourceWithImportState    = &awsCloudNativeApplicationResource{}
-	_ resource.ResourceWithModifyPlan     = &awsCloudNativeApplicationResource{}
-	_ resource.ResourceWithValidateConfig = &awsCloudNativeApplicationResource{}
+	_ resource.Resource                   = &awsCloudApplicationResource{}
+	_ resource.ResourceWithConfigure      = &awsCloudApplicationResource{}
+	_ resource.ResourceWithIdentity       = &awsCloudApplicationResource{}
+	_ resource.ResourceWithImportState    = &awsCloudApplicationResource{}
+	_ resource.ResourceWithModifyPlan     = &awsCloudApplicationResource{}
+	_ resource.ResourceWithValidateConfig = &awsCloudApplicationResource{}
 )
 
-type awsCloudNativeApplicationResource struct {
+type awsCloudApplicationResource struct {
 	client *client
+	prefix string
 }
 
-// awsCloudNativeApplicationModel is the resource state. Field order follows
+// awsCloudApplicationModel is the resource state. Field order follows
 // the schema.
-type awsCloudNativeApplicationModel struct {
+type awsCloudApplicationModel struct {
 	ID                       types.String   `tfsdk:"id"`
 	Name                     types.String   `tfsdk:"name"`
 	CloudAccountID           types.String   `tfsdk:"cloud_account_id"`
@@ -136,39 +137,37 @@ type awsCloudNativeApplicationModel struct {
 	Timeouts                 timeouts.Value `tfsdk:"timeouts"`
 }
 
-// awsCloudNativeApplicationIdentityModel is the resource identity, shared with
+// awsCloudApplicationIdentityModel is the resource identity, shared with
 // the list resource.
-type awsCloudNativeApplicationIdentityModel struct {
+type awsCloudApplicationIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-func newAWSCloudNativeApplicationResource() resource.Resource {
-	return &awsCloudNativeApplicationResource{}
+func newAWSCloudApplicationResource() resource.Resource {
+	return &awsCloudApplicationResource{prefix: keyRubrik}
 }
 
-func (r *awsCloudNativeApplicationResource) Metadata(ctx context.Context, _ resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Metadata")
-
-	res.TypeName = keyRubrik + "_" + keyAWSCloudNativeApplication
+func newPolarisAWSCloudApplicationResource() resource.Resource {
+	return &awsCloudApplicationResource{prefix: keyPolaris}
 }
 
-func (r *awsCloudNativeApplicationResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Schema")
+func (r *awsCloudApplicationResource) Metadata(ctx context.Context, _ resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Metadata")
 
-	services := slices.Sorted(func(yield func(string) bool) {
-		for name := range awsCloudNativeApplicationServices {
-			if !yield(name) {
-				return
-			}
-		}
-	})
+	res.TypeName = r.prefix + "_" + keyAWSCloudApplication
+}
+
+func (r *awsCloudApplicationResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Schema")
+
+	services := slices.Sorted(maps.Keys(awsCloudApplicationServices))
 	serviceValues := make([]attr.Value, 0, len(services))
 	for _, name := range services {
 		serviceValues = append(serviceValues, types.StringValue(name))
 	}
 
 	res.Schema = schema.Schema{
-		Description: description(resourceAWSCloudNativeApplicationDescription),
+		Description: description(resourceAWSCloudApplicationDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -183,7 +182,7 @@ func (r *awsCloudNativeApplicationResource) Schema(ctx context.Context, _ resour
 					"1024 characters.",
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 1024),
-					stringvalidator.RegexMatches(awsCloudNativeApplicationNameRegexp,
+					stringvalidator.RegexMatches(awsCloudApplicationNameRegexp,
 						"must consist of letters, digits, `-` and `_`"),
 				},
 			},
@@ -206,7 +205,7 @@ func (r *awsCloudNativeApplicationResource) Schema(ctx context.Context, _ resour
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringvalidator.OneOf(aws.AllRegionNames()...),
+					stringvalidator.OneOf(aws.RegionEnumRegionNames()...),
 				},
 			},
 			keyTargetCloudAccountID: schema.StringAttribute{
@@ -271,14 +270,10 @@ func (r *awsCloudNativeApplicationResource) Schema(ctx context.Context, _ resour
 					"Not Protect with its snapshots expiring immediately, and destroy waits for the snapshots to be " +
 					"gone. The snapshots of the workloads in the application are not affected. Default is `false`.",
 			},
-			// RSC changes this on its own, so it isn't kept from the state on
-			// update: Update reads the current value back.
 			keyRefreshStatus: schema.StringAttribute{
 				Computed:    true,
 				Description: "Status of the last refresh of the application resources.",
 			},
-			// RSC changes this on its own, so it isn't kept from the state on
-			// update: Update reads the current value back.
 			keyProtectionStatus: schema.StringAttribute{
 				Computed:    true,
 				Description: "Protection status of the application.",
@@ -287,14 +282,18 @@ func (r *awsCloudNativeApplicationResource) Schema(ctx context.Context, _ resour
 				Delete: true,
 				DeleteDescription: fmt.Sprintf("How long to wait for the config snapshots to be deleted when "+
 					"`delete_snapshots_on_destroy` is `true`. Default is `%s`.",
-					defaultAWSCloudNativeApplicationDeleteTimeout),
+					defaultAWSCloudApplicationDeleteTimeout),
 			}),
 		},
 	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use `rubrik_aws_cloud_application` instead."
+	}
 }
 
-func (r *awsCloudNativeApplicationResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.IdentitySchema")
+func (r *awsCloudApplicationResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.IdentitySchema")
 
 	res.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
@@ -306,8 +305,8 @@ func (r *awsCloudNativeApplicationResource) IdentitySchema(ctx context.Context, 
 	}
 }
 
-func (r *awsCloudNativeApplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Configure")
+func (r *awsCloudApplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -315,23 +314,23 @@ func (r *awsCloudNativeApplicationResource) Configure(ctx context.Context, req r
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *awsCloudNativeApplicationResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, res *resource.ValidateConfigResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.ValidateConfig")
+func (r *awsCloudApplicationResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, res *resource.ValidateConfigResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.ValidateConfig")
 
-	var config awsCloudNativeApplicationModel
+	var config awsCloudApplicationModel
 	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	res.Diagnostics.Append(validateAWSCloudNativeApplication(config)...)
+	res.Diagnostics.Append(validateAWSCloudApplication(config)...)
 }
 
-// validateAWSCloudNativeApplication checks the plan-time rules of the
+// validateAWSCloudApplication checks the plan-time rules of the
 // resource: at least one matching tag or resource ARN, and a target account
 // which differs from the source account. The RSC UI enforces the second rule,
 // RSC itself doesn't. Unknown values are skipped.
-func validateAWSCloudNativeApplication(config awsCloudNativeApplicationModel) diag.Diagnostics {
+func validateAWSCloudApplication(config awsCloudApplicationModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	if !config.MatchingTags.IsUnknown() && !config.ResourceARNs.IsUnknown() &&
@@ -349,15 +348,15 @@ func validateAWSCloudNativeApplication(config awsCloudNativeApplicationModel) di
 	return diags
 }
 
-func (r *awsCloudNativeApplicationResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, res *resource.ModifyPlanResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.ModifyPlan")
+func (r *awsCloudApplicationResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, res *resource.ModifyPlanResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.ModifyPlan")
 
 	// Nothing to check on create and destroy.
 	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
 		return
 	}
 
-	var state, plan awsCloudNativeApplicationModel
+	var state, plan awsCloudApplicationModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
@@ -374,10 +373,10 @@ func (r *awsCloudNativeApplicationResource) ModifyPlan(ctx context.Context, req 
 	}
 }
 
-func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Create")
+func (r *awsCloudApplicationResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Create")
 
-	var plan awsCloudNativeApplicationModel
+	var plan awsCloudApplicationModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -399,9 +398,10 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 		res.Diagnostics.AddError("Invalid target cloud account ID", err.Error())
 		return
 	}
-	region := aws.RegionFromAny(plan.Region.ValueString())
+	region := aws.RegionFromName(plan.Region.ValueString())
 	if region == aws.RegionUnknown {
-		res.Diagnostics.AddError("Invalid region", fmt.Sprintf("Unknown AWS region: %q", plan.Region.ValueString()))
+		res.Diagnostics.AddAttributeError(path.Root(keyRegion), "Invalid region",
+			"The region is not a known AWS region name: "+plan.Region.ValueString())
 		return
 	}
 
@@ -412,7 +412,7 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 		Region:               region.ToRegionEnum(),
 	}
 	var services gqlcloudapp.AWSServices
-	res.Diagnostics.Append(plan.toAWSCloudNativeApplicationParams(ctx, &params.MatchingTags, &params.ResourceARNs,
+	res.Diagnostics.Append(plan.toAWSCloudApplicationParams(ctx, &params.MatchingTags, &params.ResourceARNs,
 		&params.ExcludedResourceARNs, &services)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -422,7 +422,7 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 	api := cloudapp.Wrap(polarisClient)
 	id, err := api.CreateAWSApplication(ctx, params)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to create cloud native application", err.Error())
+		res.Diagnostics.AddError("Failed to create cloud application", err.Error())
 		return
 	}
 
@@ -435,7 +435,7 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 	if res.Diagnostics.HasError() {
 		return
 	}
-	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudNativeApplicationIdentityModel{ID: plan.ID})...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudApplicationIdentityModel{ID: plan.ID})...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -443,8 +443,8 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 	// The application was just created, so it's known not to be deleted.
 	app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, id)
 	if err != nil {
-		res.Diagnostics.AddWarning("Failed to read cloud native application after create",
-			fmt.Sprintf("The cloud native application was created but could not be read back: %s", err.Error()))
+		res.Diagnostics.AddWarning("Failed to read cloud application after create",
+			fmt.Sprintf("The cloud application was created but could not be read back: %s", err.Error()))
 		return
 	}
 	plan.RefreshStatus = types.StringValue(string(app.RefreshStatus))
@@ -452,10 +452,10 @@ func (r *awsCloudNativeApplicationResource) Create(ctx context.Context, req reso
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
-func (r *awsCloudNativeApplicationResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Read")
+func (r *awsCloudApplicationResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Read")
 
-	var state awsCloudNativeApplicationModel
+	var state awsCloudApplicationModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -469,7 +469,7 @@ func (r *awsCloudNativeApplicationResource) Read(ctx context.Context, req resour
 
 	id, err := uuid.Parse(state.ID.ValueString())
 	if err != nil {
-		res.Diagnostics.AddError("Invalid cloud native application ID", err.Error())
+		res.Diagnostics.AddError("Invalid cloud application ID", err.Error())
 		return
 	}
 
@@ -479,11 +479,11 @@ func (r *awsCloudNativeApplicationResource) Read(ctx context.Context, req resour
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read cloud native application", err.Error())
+		res.Diagnostics.AddError("Failed to read cloud application", err.Error())
 		return
 	}
 
-	res.Diagnostics.Append(state.fromAWSCloudNativeApplication(app)...)
+	res.Diagnostics.Append(state.fromAWSCloudApplication(app)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -491,13 +491,13 @@ func (r *awsCloudNativeApplicationResource) Read(ctx context.Context, req resour
 	if res.Diagnostics.HasError() {
 		return
 	}
-	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudNativeApplicationIdentityModel{ID: state.ID})...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudApplicationIdentityModel{ID: state.ID})...)
 }
 
-func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Update")
+func (r *awsCloudApplicationResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Update")
 
-	var plan, state awsCloudNativeApplicationModel
+	var plan, state awsCloudApplicationModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
@@ -512,7 +512,7 @@ func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req reso
 
 	id, err := uuid.Parse(state.ID.ValueString())
 	if err != nil {
-		res.Diagnostics.AddError("Invalid cloud native application ID", err.Error())
+		res.Diagnostics.AddError("Invalid cloud application ID", err.Error())
 		return
 	}
 	targetCloudAccountID, err := uuid.Parse(plan.TargetCloudAccountID.ValueString())
@@ -540,14 +540,14 @@ func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req reso
 		TargetCloudAccountID: targetCloudAccountID,
 	}
 	var services gqlcloudapp.AWSServices
-	res.Diagnostics.Append(plan.toAWSCloudNativeApplicationParams(ctx, &params.MatchingTags, &params.ResourceARNs,
+	res.Diagnostics.Append(plan.toAWSCloudApplicationParams(ctx, &params.MatchingTags, &params.ResourceARNs,
 		&params.ExcludedResourceARNs, &services)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 	params.ServiceConfig = gqlcloudapp.NewServiceConfig(services)
 	if err := api.UpdateAWSApplication(ctx, id, params); err != nil {
-		res.Diagnostics.AddError("Failed to update cloud native application", err.Error())
+		res.Diagnostics.AddError("Failed to update cloud application", err.Error())
 		return
 	}
 
@@ -557,8 +557,8 @@ func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req reso
 	// The application was just updated, so it's known not to be deleted.
 	app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, id)
 	if err != nil {
-		res.Diagnostics.AddWarning("Failed to read cloud native application after update",
-			fmt.Sprintf("The cloud native application was updated but could not be read back: %s", err.Error()))
+		res.Diagnostics.AddWarning("Failed to read cloud application after update",
+			fmt.Sprintf("The cloud application was updated but could not be read back: %s", err.Error()))
 	} else {
 		plan.RefreshStatus = types.StringValue(string(app.RefreshStatus))
 		plan.ProtectionStatus = types.StringValue(string(app.ProtectionStatus))
@@ -567,13 +567,13 @@ func (r *awsCloudNativeApplicationResource) Update(ctx context.Context, req reso
 	if res.Diagnostics.HasError() {
 		return
 	}
-	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudNativeApplicationIdentityModel{ID: plan.ID})...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, awsCloudApplicationIdentityModel{ID: plan.ID})...)
 }
 
-func (r *awsCloudNativeApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.Delete")
+func (r *awsCloudApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.Delete")
 
-	var state awsCloudNativeApplicationModel
+	var state awsCloudApplicationModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -587,11 +587,11 @@ func (r *awsCloudNativeApplicationResource) Delete(ctx context.Context, req reso
 
 	id, err := uuid.Parse(state.ID.ValueString())
 	if err != nil {
-		res.Diagnostics.AddError("Invalid cloud native application ID", err.Error())
+		res.Diagnostics.AddError("Invalid cloud application ID", err.Error())
 		return
 	}
 
-	timeout, diags := state.Timeouts.Delete(ctx, defaultAWSCloudNativeApplicationDeleteTimeout)
+	timeout, diags := state.Timeouts.Delete(ctx, defaultAWSCloudApplicationDeleteTimeout)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -610,33 +610,27 @@ func (r *awsCloudNativeApplicationResource) Delete(ctx context.Context, req reso
 			detail += fmt.Sprintf("\n\nSet %q to true and apply before destroying the application, or wait for "+
 				"the snapshots to expire.", keyDeleteSnapshotsOnDestroy)
 		}
-		res.Diagnostics.AddError("Failed to delete cloud native application", detail)
+		res.Diagnostics.AddError("Failed to delete cloud application", detail)
 		return
 	}
 }
 
-func (r *awsCloudNativeApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationResource.ImportState")
+func (r *awsCloudApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationResource.ImportState")
 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyDeleteSnapshotsOnDestroy), false)...)
 }
 
-// toAWSCloudNativeApplicationParams converts the resource selection and the
+// toAWSCloudApplicationParams converts the resource selection and the
 // services of the model to their SDK form. Shared by Create and Update, and
 // unit tested on its own.
-func (m awsCloudNativeApplicationModel) toAWSCloudNativeApplicationParams(ctx context.Context, tags *[]core.Tag, arns, excludedARNs *[]string, services *gqlcloudapp.AWSServices) diag.Diagnostics {
+func (m awsCloudApplicationModel) toAWSCloudApplicationParams(ctx context.Context, tags *[]core.Tag, arns, excludedARNs *[]string, services *gqlcloudapp.AWSServices) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	var tagMap map[string]string
 	diags.Append(m.MatchingTags.ElementsAs(ctx, &tagMap, false)...)
-	for _, key := range slices.Sorted(func(yield func(string) bool) {
-		for key := range tagMap {
-			if !yield(key) {
-				return
-			}
-		}
-	}) {
+	for _, key := range slices.Sorted(maps.Keys(tagMap)) {
 		*tags = append(*tags, core.Tag{Key: key, Value: tagMap[key]})
 	}
 
@@ -646,7 +640,7 @@ func (m awsCloudNativeApplicationModel) toAWSCloudNativeApplicationParams(ctx co
 	var serviceNames []string
 	diags.Append(m.Services.ElementsAs(ctx, &serviceNames, false)...)
 	for _, name := range serviceNames {
-		if flag, ok := awsCloudNativeApplicationServices[name]; ok {
+		if flag, ok := awsCloudApplicationServices[name]; ok {
 			*flag(services) = true
 		}
 	}
@@ -654,11 +648,11 @@ func (m awsCloudNativeApplicationModel) toAWSCloudNativeApplicationParams(ctx co
 	return diags
 }
 
-// fromAWSCloudNativeApplication updates the model from the application read
+// fromAWSCloudApplication updates the model from the application read
 // from RSC. Shared by Read and the list resource, and unit tested on its own.
 // Optional collections RSC returns empty are kept null when the model holds
 // null, so an unset attribute doesn't show drift.
-func (m *awsCloudNativeApplicationModel) fromAWSCloudNativeApplication(app gqlcloudapp.Application) diag.Diagnostics {
+func (m *awsCloudApplicationModel) fromAWSCloudApplication(app gqlcloudapp.Application) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	m.ID = types.StringValue(app.ID.String())
@@ -693,8 +687,8 @@ func (m *awsCloudNativeApplicationModel) fromAWSCloudNativeApplication(app gqlcl
 		diags.Append(d...)
 	}
 
-	services := make([]attr.Value, 0, len(awsCloudNativeApplicationServices))
-	for name, flag := range awsCloudNativeApplicationServices {
+	services := make([]attr.Value, 0, len(awsCloudApplicationServices))
+	for name, flag := range awsCloudApplicationServices {
 		if *flag(&app.ServiceConfig.CloudConfig.AWS) {
 			services = append(services, types.StringValue(name))
 		}

@@ -131,7 +131,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisAwsAccountManagedResource,
 		newAwsAccountManagedStackResource,
 		newPolarisAwsAccountManagedStackResource,
-		newAWSCloudNativeApplicationResource,
+		newAWSCloudApplicationResource,
+		newPolarisAWSCloudApplicationResource,
 		newAwsCnpAccountResource,
 		newPolarisAwsCnpAccountResource,
 		newAwsCnpAccountAttachmentsResource,
@@ -237,7 +238,8 @@ func (p *FrameworkProvider) ListResources(ctx context.Context) []func() list.Lis
 	tflog.Trace(ctx, "FrameworkProvider.ListResources")
 
 	return []func() list.ListResource{
-		newAWSCloudNativeApplicationListResource,
+		newAWSCloudApplicationListResource,
+		newPolarisAWSCloudApplicationListResource,
 		newAwsCnpAccountListResource,
 		newPolarisAwsCnpAccountListResource,
 		newAwsCnpAccountAttachmentsListResource,

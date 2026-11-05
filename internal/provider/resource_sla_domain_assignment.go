@@ -47,9 +47,9 @@ const resourceSLADomainAssignmentDescription = `
 The ´rubrik_sla_domain_assignment´ resource is used to assign SLA domains to
 objects.
 
-To protect an AWS cloud native application, assign an SLA Domain with the
+To protect an AWS cloud application, assign an SLA Domain with the
 ´AWS_CONFIG_OBJECT_TYPE´ object type, using the ´id´ of the
-´rubrik_aws_cloud_native_application´ resource as the object ID.
+´rubrik_aws_cloud_application´ resource as the object ID.
 
 When an object is removed from the ´rubrik_sla_domain_assignment´ resource, it
 will inherit the SLA Domain of its parent object. If there is no parent object

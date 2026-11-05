@@ -5,11 +5,11 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.12.0
-* New resource added for `rubrik_aws_cloud_native_application` which manages an AWS cloud native application, shown
-  as a Cloud Application in the RSC UI, grouping the resources of one AWS account and region by tags and ARNs so that
-  their configuration can be protected by an SLA Domain with the `AWS_CONFIG_OBJECT_TYPE` object type. The application
-  ID is used as the object ID in the `rubrik_sla_domain_assignment` resource. The resource comes with a list resource.
-  [[docs](../resources/aws_cloud_native_application.md)]
+* New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
+  of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the
+  `AWS_CONFIG_OBJECT_TYPE` object type. The application ID is used as the object ID in the
+  `rubrik_sla_domain_assignment` resource. The resource comes with a list resource.
+  [[docs](../resources/aws_cloud_application.md)]
 * New resource added for `rubrik_gcp_private_container_registry` which registers a customer-owned Google Artifact
   Registry as the private container registry for GCP Exocompute. The service account ownership token is write-only
   and requires Terraform v1.11.0 or later. [[docs](../resources/gcp_private_container_registry.md)]

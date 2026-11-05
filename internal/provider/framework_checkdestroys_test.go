@@ -106,15 +106,15 @@ func awsCnpAccountCheckDestroy(t *testing.T) func(*terraform.State) error {
 	}
 }
 
-// awsCloudNativeApplicationCheckDestroy verifies that all
-// aws_cloud_native_application resources have been deleted.
-func awsCloudNativeApplicationCheckDestroy(t *testing.T) func(*terraform.State) error {
+// awsCloudApplicationCheckDestroy verifies that all
+// aws_cloud_application resources have been deleted.
+func awsCloudApplicationCheckDestroy(t *testing.T) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
 	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "rubrik_aws_cloud_native_application" {
+			if rs.Type != "polaris_aws_cloud_application" && rs.Type != "rubrik_aws_cloud_application" {
 				continue
 			}
 
@@ -127,7 +127,7 @@ func awsCloudNativeApplicationCheckDestroy(t *testing.T) func(*terraform.State) 
 			// reports as not found.
 			_, err = cloudapp.Wrap(polarisClient).ApplicationByID(t.Context(), id)
 			if err == nil {
-				return fmt.Errorf("aws_cloud_native_application %s still exists", id)
+				return fmt.Errorf("aws_cloud_application %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err

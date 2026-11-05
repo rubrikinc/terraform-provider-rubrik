@@ -33,41 +33,45 @@ import (
 	gqlcloudapp "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudapp"
 )
 
-const listResourceAWSCloudNativeApplicationDescription = `
-The ´rubrik_aws_cloud_native_application´ list resource lists the AWS cloud native applications in RSC, shown as
-Cloud Applications in the RSC UI.
+const listResourceAWSCloudApplicationDescription = `
+The ´rubrik_aws_cloud_application´ list resource lists the AWS Cloud Applications in RSC.
 `
 
 var (
-	_ list.ListResource              = &awsCloudNativeApplicationListResource{}
-	_ list.ListResourceWithConfigure = &awsCloudNativeApplicationListResource{}
+	_ list.ListResource              = &awsCloudApplicationListResource{}
+	_ list.ListResourceWithConfigure = &awsCloudApplicationListResource{}
 )
 
-type awsCloudNativeApplicationListResource struct {
+type awsCloudApplicationListResource struct {
 	client *client
+	prefix string
 }
 
-// awsCloudNativeApplicationListConfigModel holds the optional filters of the
+// awsCloudApplicationListConfigModel holds the optional filters of the
 // list block.
-type awsCloudNativeApplicationListConfigModel struct {
+type awsCloudApplicationListConfigModel struct {
 	Name types.String `tfsdk:"name"`
 }
 
-func newAWSCloudNativeApplicationListResource() list.ListResource {
-	return &awsCloudNativeApplicationListResource{}
+func newAWSCloudApplicationListResource() list.ListResource {
+	return &awsCloudApplicationListResource{prefix: keyRubrik}
 }
 
-func (r *awsCloudNativeApplicationListResource) Metadata(ctx context.Context, _ resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationListResource.Metadata")
-
-	res.TypeName = keyRubrik + "_" + keyAWSCloudNativeApplication
+func newPolarisAWSCloudApplicationListResource() list.ListResource {
+	return &awsCloudApplicationListResource{prefix: keyPolaris}
 }
 
-func (r *awsCloudNativeApplicationListResource) ListResourceConfigSchema(ctx context.Context, _ list.ListResourceSchemaRequest, res *list.ListResourceSchemaResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationListResource.ListResourceConfigSchema")
+func (r *awsCloudApplicationListResource) Metadata(ctx context.Context, _ resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationListResource.Metadata")
+
+	res.TypeName = r.prefix + "_" + keyAWSCloudApplication
+}
+
+func (r *awsCloudApplicationListResource) ListResourceConfigSchema(ctx context.Context, _ list.ListResourceSchemaRequest, res *list.ListResourceSchemaResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationListResource.ListResourceConfigSchema")
 
 	res.Schema = listschema.Schema{
-		Description: description(listResourceAWSCloudNativeApplicationDescription),
+		Description: description(listResourceAWSCloudApplicationDescription),
 		Attributes: map[string]listschema.Attribute{
 			keyName: listschema.StringAttribute{
 				Optional:    true,
@@ -75,10 +79,14 @@ func (r *awsCloudNativeApplicationListResource) ListResourceConfigSchema(ctx con
 			},
 		},
 	}
+
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_aws_cloud_application` list resource instead."
+	}
 }
 
-func (r *awsCloudNativeApplicationListResource) Configure(ctx context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationListResource.Configure")
+func (r *awsCloudApplicationListResource) Configure(ctx context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "awsCloudApplicationListResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -86,10 +94,10 @@ func (r *awsCloudNativeApplicationListResource) Configure(ctx context.Context, r
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req list.ListRequest, stream *list.ListResultsStream) {
-	tflog.Trace(ctx, "awsCloudNativeApplicationListResource.List")
+func (r *awsCloudApplicationListResource) List(ctx context.Context, req list.ListRequest, stream *list.ListResultsStream) {
+	tflog.Trace(ctx, "awsCloudApplicationListResource.List")
 
-	var config awsCloudNativeApplicationListConfigModel
+	var config awsCloudApplicationListConfigModel
 	diags := req.Config.Get(ctx, &config)
 	if diags.HasError() {
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
@@ -106,7 +114,7 @@ func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req li
 	api := cloudapp.Wrap(polarisClient)
 	refs, err := api.ListAWSApplications(ctx, config.Name.ValueString())
 	if err != nil {
-		diags.AddError("Failed to list cloud native applications", err.Error())
+		diags.AddError("Failed to list cloud applications", err.Error())
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
 	}
@@ -131,7 +139,7 @@ func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req li
 			result := req.NewListResult(ctx)
 			result.DisplayName = ref.Name
 
-			identity := awsCloudNativeApplicationIdentityModel{ID: types.StringValue(ref.ID.String())}
+			identity := awsCloudApplicationIdentityModel{ID: types.StringValue(ref.ID.String())}
 			result.Diagnostics.Append(result.Identity.Set(ctx, identity)...)
 			if result.Diagnostics.HasError() {
 				push(result)
@@ -145,17 +153,17 @@ func (r *awsCloudNativeApplicationListResource) List(ctx context.Context, req li
 				// check of the API's ApplicationByID isn't needed.
 				app, err := gqlcloudapp.ApplicationByID(ctx, polarisClient.GQL, ref.ID)
 				if err != nil {
-					result.Diagnostics.AddError("Failed to read cloud native application", err.Error())
+					result.Diagnostics.AddError("Failed to read cloud application", err.Error())
 					push(result)
 					return
 				}
-				model := awsCloudNativeApplicationModel{
+				model := awsCloudApplicationModel{
 					MatchingTags:         types.MapNull(types.StringType),
 					ResourceARNs:         types.SetNull(types.StringType),
 					ExcludedResourceARNs: types.SetNull(types.StringType),
 					Timeouts:             nullTimeouts,
 				}
-				result.Diagnostics.Append(model.fromAWSCloudNativeApplication(app)...)
+				result.Diagnostics.Append(model.fromAWSCloudApplication(app)...)
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {
 					push(result)
