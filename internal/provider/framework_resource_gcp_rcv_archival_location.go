@@ -441,7 +441,7 @@ func (r *gcpRCVArchivalLocationResource) Update(ctx context.Context, req resourc
 			rekeyCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			err := archival.Wrap(polarisClient).RekeyRCVGCPMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
+			err := archival.Wrap(polarisClient).RekeyMasterKey(rekeyCtx, id, gqlarchival.RekeyArchivalGroupMasterKeyParams{
 				GCPKMSKey: kmsKey,
 			})
 			if err != nil {

@@ -109,7 +109,7 @@ func (d *roleTemplateDataSource) Schema(ctx context.Context, _ datasource.Schema
 		},
 		Blocks: map[string]schema.Block{
 			keyPermission: schema.SetNestedBlock{
-				Description: "Role permission.",
+				Description: "Role template permission.",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						keyOperation: schema.StringAttribute{

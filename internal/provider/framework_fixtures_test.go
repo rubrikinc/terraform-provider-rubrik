@@ -292,121 +292,230 @@ func testAuthDomainID(t *testing.T) string {
 	return conf.AuthDomainID
 }
 
-// testAWSKeyManagerID
-func testAWSKeyManagerID(t *testing.T) string {
+// testAWSRCVRegion returns the RCV region from the AWS test configuration. The
+// test is skipped if the value is not set.
+func testAWSRCVRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AWSKeyManagerID == "" {
-		t.Skip("AWS key manager fixture not available: awsKeyManagerID not set")
+	_, conf := loadAWSTestConfig(t)
+	if conf.RCV.Region == "" {
+		t.Skip("AWS RCV fixture not available: rcv.region not set")
 	}
 
-	return conf.AWSKeyManagerID
+	return conf.RCV.Region
 }
 
-// testAWSKeyManagerName
-func testAWSKeyManagerName(t *testing.T) string {
+// testAWSArchivalRegion returns the archival region from the AWS test
+// configuration. The test is skipped if the value is not set.
+func testAWSArchivalRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AWSKeyManagerName == "" {
-		t.Skip("AWS key manager fixture not available: awsKeyManagerName not set")
+	_, conf := loadAWSTestConfig(t)
+	if conf.Archival.Region == "" {
+		t.Skip("AWS archival fixture not available: archival.region not set")
 	}
 
-	return conf.AWSKeyManagerName
+	return conf.Archival.Region
 }
 
-// testAWSKeyManagerRegion
-func testAWSKeyManagerRegion(t *testing.T) string {
+// testAWSKMSRegion returns the KMS region from the AWS test configuration. The
+// test is skipped if the value is not set.
+func testAWSKMSRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AWSKeyManagerRegion == "" {
-		t.Skip("AWS key manager fixture not available: awsKeyManagerRegion not set")
+	_, conf := loadAWSTestConfig(t)
+	if conf.KMS.Region == "" {
+		t.Skip("AWS KMS fixture not available: kms.region not set")
 	}
 
-	return conf.AWSKeyManagerRegion
+	return conf.KMS.Region
 }
 
-// testAzureKeyManagerID
-func testAzureKeyManagerID(t *testing.T) string {
+// testAWSKMSKeyIDs returns the KMS key IDs from the AWS test configuration.
+// The test is skipped if fewer than two keys are set.
+func testAWSKMSKeyIDs(t *testing.T) []string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AzureKeyManagerID == "" {
-		t.Skip("Azure key manager fixture not available: azureKeyManagerID not set")
+	_, conf := loadAWSTestConfig(t)
+	if len(conf.KMS.KeyIDs) < 2 {
+		t.Skip("AWS KMS fixture not available: kms.keyIds must hold two keys")
 	}
 
-	return conf.AzureKeyManagerID
+	return conf.KMS.KeyIDs
 }
 
-// testAzureKeyManagerName
-func testAzureKeyManagerName(t *testing.T) string {
+// testAzureRCVRegion returns the RCV region from the Azure test configuration.
+// The test is skipped if the value is not set.
+func testAzureRCVRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AzureKeyManagerName == "" {
-		t.Skip("Azure key manager fixture not available: azureKeyManagerName not set")
+	_, conf := loadAzureTestConfig(t)
+	if conf.RCV.Region == "" {
+		t.Skip("Azure RCV fixture not available: rcv.region not set")
 	}
 
-	return conf.AzureKeyManagerName
+	return conf.RCV.Region
 }
 
-// testAzureKeyManagerRegion
-func testAzureKeyManagerRegion(t *testing.T) string {
+// testAzureArchivalRegion returns the first archival region from the Azure test
+// configuration. The test is skipped if no region is set.
+func testAzureArchivalRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.AzureKeyManagerRegion == "" {
-		t.Skip("Azure key manager fixture not available: azureKeyManagerRegion not set")
+	_, conf := loadAzureTestConfig(t)
+	if len(conf.Archival.Regions) == 0 {
+		t.Skip("Azure archival fixture not available: archival.regions not set")
 	}
 
-	return conf.AzureKeyManagerRegion
+	return conf.Archival.Regions[0]
 }
 
-// testGCPKeyManagerID
-func testGCPKeyManagerID(t *testing.T) string {
+// testAzureArchivalResourceGroupName returns the archival resource group name
+// from the Azure test configuration. The test is skipped if the value is not
+// set.
+func testAzureArchivalResourceGroupName(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.GCPKeyManagerID == "" {
-		t.Skip("GCP key manager fixture not available: gcpKeyManagerID not set")
+	_, conf := loadAzureTestConfig(t)
+	if conf.Archival.ResourceGroupName == "" {
+		t.Skip("Azure archival fixture not available: archival.resourceGroupName not set")
 	}
 
-	return conf.GCPKeyManagerID
+	return conf.Archival.ResourceGroupName
 }
 
-// testGCPKeyManagerName
-func testGCPKeyManagerName(t *testing.T) string {
+// testAzureArchivalResourceGroupRegion returns the archival resource group
+// region from the Azure test configuration. The test is skipped if the value
+// is not set.
+func testAzureArchivalResourceGroupRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.GCPKeyManagerName == "" {
-		t.Skip("GCP key manager fixture not available: gcpKeyManagerName not set")
+	_, conf := loadAzureTestConfig(t)
+	if conf.Archival.ResourceGroupRegion == "" {
+		t.Skip("Azure archival fixture not available: archival.resourceGroupRegion not set")
 	}
 
-	return conf.GCPKeyManagerName
+	return conf.Archival.ResourceGroupRegion
 }
 
-// testGCPKeyManagerRegion
-func testGCPKeyManagerRegion(t *testing.T) string {
+// testAzureKMSRegion returns the KMS region from the Azure test configuration.
+// The test is skipped if the value is not set.
+func testAzureKMSRegion(t *testing.T) string {
 	t.Helper()
 	skipUnlessAcceptanceTest(t)
 
-	_, conf := loadRSCTestConfig(t)
-	if conf.GCPKeyManagerRegion == "" {
-		t.Skip("GCP key manager fixture not available: gcpKeyManagerRegion not set")
+	_, conf := loadAzureTestConfig(t)
+	if conf.KMS.Region == "" {
+		t.Skip("Azure KMS fixture not available: kms.region not set")
 	}
 
-	return conf.GCPKeyManagerRegion
+	return conf.KMS.Region
+}
+
+// testAzureKMSVaultName returns the key vault name from the Azure test
+// configuration. The test is skipped if the value is not set.
+func testAzureKMSVaultName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if conf.KMS.VaultName == "" {
+		t.Skip("Azure KMS fixture not available: kms.vaultName not set")
+	}
+
+	return conf.KMS.VaultName
+}
+
+// testAzureKMSKeys returns the key vault keys from the Azure test
+// configuration. The test is skipped if fewer than two keys are set.
+func testAzureKMSKeys(t *testing.T) []testKMSKey {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if len(conf.KMS.Keys) < 2 {
+		t.Skip("Azure KMS fixture not available: kms.keys must hold two keys")
+	}
+
+	return conf.KMS.Keys
+}
+
+// testGCPRCVRegion returns the RCV region from the GCP test configuration. The
+// test is skipped if the value is not set.
+func testGCPRCVRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.RCV.Region == "" {
+		t.Skip("GCP RCV fixture not available: rcv.region not set")
+	}
+
+	return conf.RCV.Region
+}
+
+// testGCPArchivalRegion returns the archival region from the GCP test
+// configuration. The test is skipped if the value is not set.
+func testGCPArchivalRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.Archival.Region == "" {
+		t.Skip("GCP archival fixture not available: archival.region not set")
+	}
+
+	return conf.Archival.Region
+}
+
+// testGCPKMSRegion returns the KMS region from the GCP test configuration. The
+// test is skipped if the value is not set.
+func testGCPKMSRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.KMS.Region == "" {
+		t.Skip("GCP KMS fixture not available: kms.region not set")
+	}
+
+	return conf.KMS.Region
+}
+
+// testGCPKMSKeyRing returns the key ring from the GCP test configuration. The
+// test is skipped if the value is not set.
+func testGCPKMSKeyRing(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if conf.KMS.KeyRing == "" {
+		t.Skip("GCP KMS fixture not available: kms.keyRing not set")
+	}
+
+	return conf.KMS.KeyRing
+}
+
+// testGCPKMSKeys returns the Cloud KMS keys from the GCP test configuration.
+// The test is skipped if fewer than two keys are set.
+func testGCPKMSKeys(t *testing.T) []testKMSKey {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadGCPTestConfig(t)
+	if len(conf.KMS.Keys) < 2 {
+		t.Skip("GCP KMS fixture not available: kms.keys must hold two keys")
+	}
+
+	return conf.KMS.Keys
 }
 
 // createTestRole creates a custom role via the SDK and registers a cleanup
@@ -516,6 +625,94 @@ func skipUnlessSSOGroupDefined(t *testing.T) {
 
 	testAuthDomainID(t)
 	testSSOGroupName(t)
+}
+
+// skipUnlessAWSRCVDefined skips the test if fixtures required for
+// AWS RCV tests, the rcv section of TEST_AWSACCOUNT_FILE, are not set.
+func skipUnlessAWSRCVDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAWSRCVRegion(t)
+}
+
+// skipUnlessAWSArchivalDefined skips the test if fixtures required for
+// AWS Archival tests, the archival section of TEST_AWSACCOUNT_FILE, are not set.
+func skipUnlessAWSArchivalDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAWSArchivalRegion(t)
+}
+
+// skipUnlessAWSKMSDefined skips the test if fixtures required for
+// AWS KMS tests, the kms section of TEST_AWSACCOUNT_FILE, are not set.
+func skipUnlessAWSKMSDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAWSKMSRegion(t)
+	testAWSKMSKeyIDs(t)
+}
+
+// skipUnlessAzureRCVDefined skips the test if fixtures required for
+// Azure RCV tests, the rcv section of TEST_AZURESUBSCRIPTION_FILE, are not set.
+func skipUnlessAzureRCVDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAzureRCVRegion(t)
+}
+
+// skipUnlessAzureArchivalDefined skips the test if fixtures required for
+// Azure Archival tests, the archival section of TEST_AZURESUBSCRIPTION_FILE, are not set.
+func skipUnlessAzureArchivalDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAzureArchivalRegion(t)
+	testAzureArchivalResourceGroupName(t)
+	testAzureArchivalResourceGroupRegion(t)
+}
+
+// skipUnlessAzureKMSDefined skips the test if fixtures required for
+// Azure KMS tests, the kms section of TEST_AZURESUBSCRIPTION_FILE, are not set.
+func skipUnlessAzureKMSDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testAzureKMSRegion(t)
+	testAzureKMSVaultName(t)
+	testAzureKMSKeys(t)
+}
+
+// skipUnlessGCPRCVDefined skips the test if fixtures required for
+// GCP RCV tests, the rcv section of TEST_GCPPROJECT_FILE, are not set.
+func skipUnlessGCPRCVDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testGCPRCVRegion(t)
+}
+
+// skipUnlessGCPArchivalDefined skips the test if fixtures required for
+// GCP Archival tests, the archival section of TEST_GCPPROJECT_FILE, are not set.
+func skipUnlessGCPArchivalDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testGCPArchivalRegion(t)
+}
+
+// skipUnlessGCPKMSDefined skips the test if fixtures required for
+// GCP KMS tests, the kms section of TEST_GCPPROJECT_FILE, are not set.
+func skipUnlessGCPKMSDefined(t *testing.T) {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	testGCPKMSRegion(t)
+	testGCPKMSKeyRing(t)
+	testGCPKMSKeys(t)
 }
 
 // skipUnlessFeatureEnabled skips the test if the specified feature is not

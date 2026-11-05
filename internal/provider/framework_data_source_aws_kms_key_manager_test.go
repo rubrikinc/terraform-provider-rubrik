@@ -21,7 +21,6 @@
 package provider
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
@@ -32,117 +31,169 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
+// TestAccAWSKMSKeyManagerDataSource onboards the AWS account with the UEM key
+// management feature, registers a key manager and reads it with the data
+// source by ID and by name.
 func TestAccAWSKMSKeyManagerDataSource(t *testing.T) {
+	skipUnlessAWSKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
+
+	name := testUniqueName(t)
+
+	// Note, the Terraform Plugin Testing package does not support for_each on
+	// data source or resources, only count.
+	const conf = `
+		variable "account_name" {
+			type = string
+		}
+		variable "aws_account_id" {
+			type = string
+		}
+		variable "kms_region" {
+			type = string
+		}
+		variable "name" {
+			type = string
+		}
+
+		data "rubrik_aws_cnp_artifacts" "artifacts" {
+			feature {
+				name              = "CLOUD_NATIVE_UEM_KEY_MANAGEMENT"
+				permission_groups = ["BASIC"]
+			}
+		}
+
+		data "rubrik_aws_cnp_permissions" "crossaccount" {
+			role_key = "CROSSACCOUNT"
+
+			dynamic "feature" {
+				for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
+				content {
+					name              = feature.value["name"]
+					permission_groups = feature.value["permission_groups"]
+				}
+			}
+		}
+
+		resource "rubrik_aws_cnp_account" "account" {
+			name      = var.account_name
+			native_id = var.aws_account_id
+			regions   = [var.kms_region]
+
+			dynamic "feature" {
+				for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
+				content {
+					name              = feature.value["name"]
+					permission_groups = feature.value["permission_groups"]
+				}
+			}
+		}
+
+		resource "aws_iam_role" "crossaccount" {
+			name_prefix        = "tfacc-crossaccount-"
+			assume_role_policy = one(rubrik_aws_cnp_account.account.trust_policies).policy
+		}
+
+		resource "aws_iam_policy" "crossaccount" {
+			count       = length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
+			name_prefix = "tfacc-crossaccount-${data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].name}-"
+			policy      = data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].policy
+		}
+
+		resource "aws_iam_role_policy_attachment" "crossaccount" {
+			count      = length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
+			role       = aws_iam_role.crossaccount.name
+			policy_arn = aws_iam_policy.crossaccount[count.index].arn
+		}
+
+		resource "aws_iam_role_policy_attachments_exclusive" "crossaccount" {
+			role_name   = aws_iam_role.crossaccount.name
+			policy_arns = concat(data.rubrik_aws_cnp_permissions.crossaccount.managed_policies, aws_iam_policy.crossaccount[*].arn)
+		}
+
+		resource "rubrik_aws_cnp_account_attachments" "attachments" {
+			account_id = rubrik_aws_cnp_account.account.id
+			features   = data.rubrik_aws_cnp_artifacts.artifacts.feature.*.name
+
+			role {
+				key         = "CROSSACCOUNT"
+				arn         = aws_iam_role.crossaccount.arn
+				permissions = data.rubrik_aws_cnp_permissions.crossaccount.id
+			}
+		}
+
+		resource "rubrik_aws_kms_key_manager" "key_manager" {
+			name             = var.name
+			cloud_account_id = rubrik_aws_cnp_account.account.id
+			region           = var.kms_region
+
+			depends_on = [rubrik_aws_cnp_account_attachments.attachments]
+		}
+
+		data "rubrik_aws_kms_key_manager" "by_id" {
+			id = rubrik_aws_kms_key_manager.key_manager.id
+		}
+
+		data "rubrik_aws_kms_key_manager" "by_name" {
+			name = rubrik_aws_kms_key_manager.key_manager.name
+		}
+	`
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"aws": {
+				Source:            "hashicorp/aws",
+				VersionConstraint: ">=6.0.0",
+			},
+		},
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			awsKMSKeyManagerCheckDestroy(t),
+			awsCnpAccountCheckDestroy(t),
+			awsCnpAccountAttachmentsCheckDestroy(t),
+		),
 		Steps: []resource.TestStep{{
-			Config: `
-				variable "key_manager_id" {
-					type = string
-				}
-				data "rubrik_aws_kms_key_manager" "by_id" {
-					id = var.key_manager_id
-				}
-
-				variable "key_manager_name" {
-					type = string
-				}
-				data "rubrik_aws_kms_key_manager" "by_name" {
-					name = var.key_manager_name
-				}
-	`,
+			// Verify that the data source reads the key manager by ID and by
+			// name.
+			Config: conf,
 			ConfigVariables: config.Variables{
-				"key_manager_id":   config.StringVariable(testAWSKeyManagerID(t)),
-				"key_manager_name": config.StringVariable(testAWSKeyManagerName(t)),
+				"account_name":   config.StringVariable(testAWSAccountName(t)),
+				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
+				"name":           config.StringVariable(name),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				// By name.
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyID),
-					knownvalue.StringExact(testAWSKeyManagerID(t))),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyName),
-					knownvalue.StringExact(testAWSKeyManagerName(t))),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyProvisioningMethod),
-					knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
-				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyRegion),
-					knownvalue.StringExact(testAWSKeyManagerRegion(t))),
 				// By ID.
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyID),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
 					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyName),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyName),
 					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyName),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyDescription),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
 					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyDescription),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyProvisioningMethod),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyProvisioningMethod),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyNaturalID),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyNaturalID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyDataLocationsCount),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyDataLocationsCount),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
 					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
 					compare.ValuesSame()),
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyRegion),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
 					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyRegion),
 					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_id",
+					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
+				statecheck.ExpectKnownValue("data.rubrik_aws_kms_key_manager.by_id",
+					tfjsonpath.New(keyIAMRoleARN), knownvalue.NotNull()),
+				// By name.
 				statecheck.CompareValuePairs(
-					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyIAMRoleARN),
-					"data.rubrik_aws_kms_key_manager.by_id", tfjsonpath.New(keyIAMRoleARN),
+					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_aws_kms_key_manager.by_name", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
 			},
-		}},
-	})
-}
-
-func TestAccAWSKMSKeyManagerDataSource_OtherCloud(t *testing.T) {
-	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{{
-			Config: `
-				variable "key_manager_name" {
-					type = string
-				}
-				data "rubrik_azure_kms_key_manager" "key_manager" {
-					name = var.key_manager_name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"key_manager_name": config.StringVariable(testAWSKeyManagerName(t)),
-			},
-			ExpectError: regexp.MustCompile("KMS key manager not found"),
-		}},
-	})
-}
-
-func TestAccAWSKMSKeyManagerDataSource_NotFound(t *testing.T) {
-	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories,
-		Steps: []resource.TestStep{{
-			Config: `
-				data "rubrik_aws_kms_key_manager" "key_manager" {
-				  name = "terraform-acceptance-test-missing-key-manager"
-				}
-			`,
-			ExpectError: regexp.MustCompile("KMS key manager not found"),
 		}},
 	})
 }

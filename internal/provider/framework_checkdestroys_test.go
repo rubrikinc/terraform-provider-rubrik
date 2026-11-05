@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/access"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/archival"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
@@ -39,6 +40,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	gqltags "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/tags"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/kms"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/pcr"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/sla"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/tags"
@@ -158,6 +160,276 @@ func awsCnpAccountAttachmentsCheckDestroy(t *testing.T) func(*terraform.State) e
 			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account_attachments %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// awsRCVArchivalLocationCheckDestroy verifies that all aws_rcv_archival_location
+// resources have been deleted.
+func awsRCVArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_rcv_archival_location" && rs.Type != "rubrik_aws_rcv_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).RCVAWSTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("aws_rcv_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// azureRCVArchivalLocationCheckDestroy verifies that all
+// azure_rcv_archival_location resources have been deleted.
+func azureRCVArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_rcv_archival_location" && rs.Type != "rubrik_azure_rcv_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).RCVAzureTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure_rcv_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// gcpRCVArchivalLocationCheckDestroy verifies that all gcp_rcv_archival_location
+// resources have been deleted.
+func gcpRCVArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_rcv_archival_location" && rs.Type != "rubrik_gcp_rcv_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).RCVGCPTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("gcp_rcv_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// awsArchivalLocationCheckDestroy verifies that all aws_archival_location
+// resources have been deleted.
+func awsArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_archival_location" && rs.Type != "rubrik_aws_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).AWSTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("aws_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// azureArchivalLocationCheckDestroy verifies that all azure_archival_location
+// resources have been deleted.
+func azureArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_archival_location" && rs.Type != "rubrik_azure_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).AzureTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// gcpArchivalLocationCheckDestroy verifies that all gcp_archival_location
+// resources have been deleted.
+func gcpArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_archival_location" && rs.Type != "rubrik_gcp_archival_location" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).GCPTargetMappingByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("gcp_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// awsKMSKeyManagerCheckDestroy verifies that all aws_kms_key_manager resources
+// have been deleted.
+func awsKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_kms_key_manager" && rs.Type != "rubrik_aws_kms_key_manager" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = kms.Wrap(polarisClient).AWSKeyManagerByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("aws_kms_key_manager %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// azureKMSKeyManagerCheckDestroy verifies that all azure_kms_key_manager
+// resources have been deleted.
+func azureKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_kms_key_manager" && rs.Type != "rubrik_azure_kms_key_manager" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = kms.Wrap(polarisClient).AzureKeyManagerByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure_kms_key_manager %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// gcpKMSKeyManagerCheckDestroy verifies that all gcp_kms_key_manager resources
+// have been deleted.
+func gcpKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_kms_key_manager" && rs.Type != "rubrik_gcp_kms_key_manager" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = kms.Wrap(polarisClient).GCPKeyManagerByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("gcp_kms_key_manager %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
