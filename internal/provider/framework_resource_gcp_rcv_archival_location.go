@@ -220,7 +220,7 @@ func (r *gcpRCVArchivalLocationResource) Schema(ctx context.Context, _ resource.
 					Attributes: map[string]schema.Attribute{
 						keyKeyManagerID: schema.StringAttribute{
 							Required:    true,
-							Description: "KMS key manager ID (UUID).",
+							Description: "RSC key manager ID (UUID).",
 							Validators: []validator.String{
 								isUUID(),
 							},

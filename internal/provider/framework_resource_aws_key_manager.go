@@ -223,7 +223,7 @@ func (r *awsKeyManagerResource) Create(ctx context.Context, req resource.CreateR
 		KMSRegionEndpoint: plan.KMSRegionEndpoint.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to create AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to create AWS key manager", err.Error())
 		return
 	}
 
@@ -237,7 +237,7 @@ func (r *awsKeyManagerResource) Create(ctx context.Context, req resource.CreateR
 
 	keyManager, err := kms.Wrap(polarisClient).AWSKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
@@ -279,7 +279,7 @@ func (r *awsKeyManagerResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
@@ -322,13 +322,13 @@ func (r *awsKeyManagerResource) Update(ctx context.Context, req resource.UpdateR
 		KMSRegionEndpoint: plan.KMSRegionEndpoint.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to update AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to update AWS key manager", err.Error())
 		return
 	}
 
 	keyManager, err := kms.Wrap(polarisClient).AWSKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read AWS key manager", err.Error())
 		return
 	}
 
@@ -363,7 +363,7 @@ func (r *awsKeyManagerResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to delete AWS KMS key manager", err.Error())
+		res.Diagnostics.AddError("Failed to delete AWS key manager", err.Error())
 		return
 	}
 }

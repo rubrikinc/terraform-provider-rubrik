@@ -18,7 +18,7 @@ description: |-
   each source region should be specified, source regions not having a customer
   managed key block will have its data encrypted with platform managed keys.
   Client-side encryption is enabled by specifying the key_vault_key block, with a
-  key in an Azure key vault registered as a key manager in RSC. Register the key
+  key in an Azure Key Vault registered as a key manager in RSC. Register the key
   manager with the rubrik_azure_key_manager resource, or look up an existing
   one with the rubrik_azure_key_manager data source. The key_vault_key
   block conflicts with the customer managed key blocks.
@@ -59,7 +59,7 @@ each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the `key_vault_key` block, with a
-key in an Azure key vault registered as a key manager in RSC. Register the key
+key in an Azure Key Vault registered as a key manager in RSC. Register the key
 manager with the `rubrik_azure_key_manager` resource, or look up an existing
 one with the `rubrik_azure_key_manager` data source. The `key_vault_key`
 block conflicts with the customer managed key blocks.
@@ -179,7 +179,7 @@ Required:
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Key Vault key name.
 - `key_version` (String) Key Vault key version.
 

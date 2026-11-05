@@ -143,7 +143,7 @@ resource "rubrik_azure_rcv_archival_location" "rsa_key_archive" {
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Key Vault key name.
 - `key_version` (String) Key Vault key version.
 

@@ -59,7 +59,7 @@ each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the ´key_vault_key´ block, with a
-key in an Azure key vault registered as a key manager in RSC. Register the key
+key in an Azure Key Vault registered as a key manager in RSC. Register the key
 manager with the ´rubrik_azure_key_manager´ resource, or look up an existing
 one with the ´rubrik_azure_key_manager´ data source. The ´key_vault_key´
 block conflicts with the customer managed key blocks.
@@ -134,7 +134,7 @@ func resourceAzureArchivalLocation() *schema.Resource {
 							Type:         schema.TypeString,
 							Required:     true,
 							ForceNew:     true,
-							Description:  "KMS key manager ID (UUID).",
+							Description:  "RSC key manager ID (UUID).",
 							ValidateFunc: validation.IsUUID,
 						},
 						keyKeyName: {

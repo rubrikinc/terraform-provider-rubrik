@@ -100,7 +100,7 @@ resource "rubrik_gcp_rcv_archival_location" "kms_archive" {
 
 Required:
 
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 - `key_name` (String) Cloud KMS crypto key name.
 - `key_version` (String) Cloud KMS crypto key version.
 

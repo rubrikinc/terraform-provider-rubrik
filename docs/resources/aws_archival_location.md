@@ -151,7 +151,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
 Required:
 
 - `key_id` (String) KMS key ID.
-- `key_manager_id` (String) KMS key manager ID (UUID).
+- `key_manager_id` (String) RSC key manager ID (UUID).
 
 
 <a id="nestedblock--timeouts"></a>

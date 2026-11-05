@@ -136,7 +136,7 @@ func resourceGcpArchivalLocation() *schema.Resource {
 							Type:         schema.TypeString,
 							Required:     true,
 							ForceNew:     true,
-							Description:  "KMS key manager ID (UUID).",
+							Description:  "RSC key manager ID (UUID).",
 							ValidateFunc: validation.IsUUID,
 						},
 						keyKeyName: {
