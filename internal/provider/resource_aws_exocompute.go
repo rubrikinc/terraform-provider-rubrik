@@ -484,17 +484,7 @@ func exocomputeRunHealthCheck(ctx context.Context, client *polaris.Client, cloud
 		}}
 	}
 
-	// The context deadline is the deadline of the resource operation. Stop
-	// waiting a minute before it, or halfway to it if less than two minutes
-	// remain, to leave time to read back the configuration.
-	waitCtx := ctx
-	if deadline, ok := ctx.Deadline(); ok {
-		remaining := time.Until(deadline)
-		var cancel context.CancelFunc
-		waitCtx, cancel = context.WithTimeout(ctx, max(remaining-time.Minute, remaining/2))
-		defer cancel()
-	}
-	status, err := exocompute.Wrap(client).WaitForHealthCheck(waitCtx, cloudVendor, configID, jobID)
+	status, err := exocompute.Wrap(client).WaitForHealthCheck(ctx, cloudVendor, configID, jobID)
 	if err != nil {
 		return diag.Diagnostics{{
 			Severity: diag.Warning,
