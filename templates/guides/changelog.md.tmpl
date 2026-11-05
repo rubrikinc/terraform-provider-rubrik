@@ -123,6 +123,11 @@ page_title: "Changelog"
   e.g. `GermanyWestCentral` instead of `germanywestcentral`. This caused `terraform plan` to fail during refresh. The
   region is now matched case-insensitively, and the `region` field of the `vm_config` block is used if the region
   reported by RSC still can't be parsed. [[docs](../resources/azure_cloud_cluster.md)]
+* Migrate the `rubrik_sla_domain_assignment` resource to the Terraform Plugin Framework. The `sla_domain_id`,
+  `existing_snapshot_retention` and `apply_changes_to_non_policy_snapshots` rules are now reported when the
+  configuration is planned, and not when it is applied. State can be moved from `polaris_sla_domain_assignment` with a
+  moved block. The resource has no resource identity, so it can only be imported using the import ID.
+  [[docs](../resources/sla_domain_assignment.md)]
 
 ## v1.11.2
 * Update the Go version used to build the provider to 1.26.10.
