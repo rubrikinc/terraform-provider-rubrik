@@ -7,6 +7,10 @@ page_title: "Changelog"
 ## v1.13.0
 * Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_archival_location.md)]
+* Migrate the `rubrik_gcp_archival_location` resource to the Terraform Plugin Framework. The resource now supports
+  import by identity, and state can be moved from `polaris_gcp_archival_location` with a `moved` block. When no region
+  is specified the `region` field is now null instead of an empty string, and when no bucket labels are specified the
+  `bucket_labels` field is null instead of an empty map. [[docs](../resources/gcp_archival_location.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
@@ -27,6 +31,8 @@ page_title: "Changelog"
   Exocompute feature instead of the Cloud Native Protection feature, and failed for a project without Exocompute.
 * Fix a bug in the `rubrik_gcp_project` resource where removing `credentials` from the configuration made every
   apply fail, trying to set the service account with an empty key.
+* Fix a bug in the `rubrik_gcp_archival_location` resource where the `storage_class` field was described as the AWS
+  bucket storage class.
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources

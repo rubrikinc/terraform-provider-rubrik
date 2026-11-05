@@ -156,6 +156,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newCustomRoleResource,
 		newPolarisCustomRoleResource,
 		newDataSecurityPolicyResource,
+		newGcpArchivalLocationResource,
+		newPolarisGcpArchivalLocationResource,
 		newGcpCloudClusterResource,
 		newPolarisGcpCloudClusterResource,
 		newGcpCustomLabelsResource,
