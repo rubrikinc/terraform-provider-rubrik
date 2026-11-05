@@ -368,7 +368,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			depends_on = [rubrik_azure_service_principal.service_principal]
 		}
 
-		resource "rubrik_azure_kms_key_manager" "key_manager" {
+		resource "rubrik_azure_key_manager" "key_manager" {
 			name             = var.name
 			cloud_account_id = rubrik_azure_subscription.subscription.id
 			region           = var.kms_region
@@ -382,7 +382,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			storage_account_region      = var.region
 
 			key_vault_key {
-				key_manager_id = rubrik_azure_kms_key_manager.key_manager.id
+				key_manager_id = rubrik_azure_key_manager.key_manager.id
 				key_name       = var.key_name
 				key_version    = var.key_version
 			}
@@ -395,7 +395,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azureArchivalLocationCheckDestroy(t),
-			azureKMSKeyManagerCheckDestroy(t),
+			azureKeyManagerCheckDestroy(t),
 			azureSubscriptionCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -426,7 +426,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyName),
 					knownvalue.StringExact(testAzureKMSKeys(t)[0].Name)),
 				statecheck.CompareValuePairs(
-					"rubrik_azure_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+					"rubrik_azure_key_manager.key_manager", tfjsonpath.New(keyID),
 					"rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyManagerID),
 					compare.ValuesSame()),

@@ -45,6 +45,6 @@ const (
 	FeatureFlagGCPSQL core.FeatureFlagName = "CNP_GCP_SQL_ENABLED"
 
 	// FeatureFlagUnifiedEncryptionManagement gates unified encryption
-	// management, i.e. the KMS key managers.
+	// management, i.e. the key managers.
 	FeatureFlagUnifiedEncryptionManagement core.FeatureFlagName = "UNIFIED_ENCRYPTION_MANAGEMENT_ENABLED"
 )

@@ -60,8 +60,8 @@ managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the ´key_vault_key´ block, with a
 key in an Azure key vault registered as a key manager in RSC. Register the key
-manager with the ´rubrik_azure_kms_key_manager´ resource, or look up an existing
-one with the ´rubrik_azure_kms_key_manager´ data source. The ´key_vault_key´
+manager with the ´rubrik_azure_key_manager´ resource, or look up an existing
+one with the ´rubrik_azure_key_manager´ data source. The ´key_vault_key´
 block conflicts with the customer managed key blocks.
 
 The key vault key has the following requirements, which RSC does not check when

@@ -216,7 +216,7 @@ func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 			}
 		}
 
-		resource "rubrik_gcp_kms_key_manager" "key_manager" {
+		resource "rubrik_gcp_key_manager" "key_manager" {
 			name             = var.name
 			cloud_account_id = rubrik_gcp_project.project.id
 			region           = var.kms_region
@@ -229,7 +229,7 @@ func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 			tier   = "BACKUP"
 
 			kms_key {
-				key_manager_id = rubrik_gcp_kms_key_manager.key_manager.id
+				key_manager_id = rubrik_gcp_key_manager.key_manager.id
 				key_name       = var.key_name
 				key_version    = var.key_version
 			}
@@ -240,7 +240,7 @@ func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			gcpRCVArchivalLocationCheckDestroy(t),
-			gcpKMSKeyManagerCheckDestroy(t),
+			gcpKeyManagerCheckDestroy(t),
 			gcpProjectCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
@@ -274,7 +274,7 @@ func TestAccGCPRCVArchivalLocationKMSKeyResource(t *testing.T) {
 					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyName),
 					knownvalue.StringExact(testGCPKMSKeys(t)[0].Name)),
 				statecheck.CompareValuePairs(
-					"rubrik_gcp_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+					"rubrik_gcp_key_manager.key_manager", tfjsonpath.New(keyID),
 					"rubrik_gcp_rcv_archival_location.location",
 					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyManagerID),
 					compare.ValuesSame()),

@@ -27,14 +27,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
-	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-// TestAccAWSKMSKeyManagerResource onboards the AWS account with the UEM key
-// management feature, registers a key manager, updates and imports it.
-func TestAccAWSKMSKeyManagerResource(t *testing.T) {
+// TestAccAWSKeyManagerDataSource onboards the AWS account with the UEM key
+// management feature, registers a key manager and reads it with the data
+// source by ID and by name.
+func TestAccAWSKeyManagerDataSource(t *testing.T) {
 	skipUnlessAWSKMSDefined(t)
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
@@ -53,9 +53,6 @@ func TestAccAWSKMSKeyManagerResource(t *testing.T) {
 			type = string
 		}
 		variable "name" {
-			type = string
-		}
-		variable "description" {
 			type = string
 		}
 
@@ -125,13 +122,20 @@ func TestAccAWSKMSKeyManagerResource(t *testing.T) {
 			}
 		}
 
-		resource "rubrik_aws_kms_key_manager" "key_manager" {
+		resource "rubrik_aws_key_manager" "key_manager" {
 			name             = var.name
-			description      = var.description
 			cloud_account_id = rubrik_aws_cnp_account.account.id
 			region           = var.kms_region
 
 			depends_on = [rubrik_aws_cnp_account_attachments.attachments]
+		}
+
+		data "rubrik_aws_key_manager" "by_id" {
+			id = rubrik_aws_key_manager.key_manager.id
+		}
+
+		data "rubrik_aws_key_manager" "by_name" {
+			name = rubrik_aws_key_manager.key_manager.name
 		}
 	`
 
@@ -144,109 +148,51 @@ func TestAccAWSKMSKeyManagerResource(t *testing.T) {
 			},
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			awsKMSKeyManagerCheckDestroy(t),
+			awsKeyManagerCheckDestroy(t),
 			awsCnpAccountCheckDestroy(t),
 			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
-			// Verify that a key manager can be registered for the account.
+			// Verify that the data source reads the key manager by ID and by
+			// name.
 			Config: conf,
 			ConfigVariables: config.Variables{
 				"account_name":   config.StringVariable(testAWSAccountName(t)),
 				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
 				"name":           config.StringVariable(name),
-				"description":    config.StringVariable("Test key manager."),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
-					NonNullUUID()),
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					knownvalue.StringExact(name)),
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
-					knownvalue.StringExact("Test key manager.")),
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyRegion),
-					knownvalue.StringExact(testAWSKMSRegion(t))),
+				// By ID.
 				statecheck.CompareValuePairs(
-					"rubrik_aws_cnp_account.account", tfjsonpath.New(keyID),
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_aws_key_manager.by_id", tfjsonpath.New(keyID),
 					compare.ValuesSame()),
-				statecheck.ExpectIdentity("rubrik_aws_kms_key_manager.key_manager", map[string]knownvalue.Check{
-					keyID: NonNullUUID(),
-				}),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_aws_kms_key_manager.key_manager",
-					tfjsonpath.New(keyID)),
-			},
-		}, {
-			// Verify that the name and the description are updated in place.
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(testAWSAccountName(t)),
-				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
-				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
-				"name":           config.StringVariable(name + " Update"),
-				"description":    config.StringVariable("Updated test key manager."),
-			},
-			ConfigPlanChecks: resource.ConfigPlanChecks{
-				PreApply: []plancheck.PlanCheck{
-					plancheck.ExpectResourceAction("rubrik_aws_kms_key_manager.key_manager",
-						plancheck.ResourceActionUpdate),
-				},
-			},
-			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyName),
-					knownvalue.StringExact(name+" Update")),
-				statecheck.ExpectKnownValue("rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyDescription),
-					knownvalue.StringExact("Updated test key manager.")),
-				statecheck.ExpectIdentityValueMatchesState("rubrik_aws_kms_key_manager.key_manager",
-					tfjsonpath.New(keyID)),
-			},
-		}, {
-			// Terraform import.
-			ResourceName: "rubrik_aws_kms_key_manager.key_manager",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(testAWSAccountName(t)),
-				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
-				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
-				"name":           config.StringVariable(name + " Update"),
-				"description":    config.StringVariable("Updated test key manager."),
-			},
-			ImportStateKind:   resource.ImportCommandWithID,
-			ImportState:       true,
-			ImportStateVerify: true,
-		}, {
-			// import {} block with id attribute.
-			ResourceName: "rubrik_aws_kms_key_manager.key_manager",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(testAWSAccountName(t)),
-				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
-				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
-				"name":           config.StringVariable(name + " Update"),
-				"description":    config.StringVariable("Updated test key manager."),
-			},
-			ImportStateKind: resource.ImportBlockWithID,
-			ImportState:     true,
-			ImportPlanChecks: resource.ImportPlanChecks{
-				PreApply: []plancheck.PlanCheck{
-					plancheck.ExpectEmptyPlan(),
-				},
-			},
-		}, {
-			// import {} block with identity attribute.
-			ResourceName: "rubrik_aws_kms_key_manager.key_manager",
-			ConfigVariables: config.Variables{
-				"account_name":   config.StringVariable(testAWSAccountName(t)),
-				"aws_account_id": config.StringVariable(testAWSAccountID(t)),
-				"kms_region":     config.StringVariable(testAWSKMSRegion(t)),
-				"name":           config.StringVariable(name + " Update"),
-				"description":    config.StringVariable("Updated test key manager."),
-			},
-			ImportStateKind: resource.ImportBlockWithResourceIdentity,
-			ImportState:     true,
-			ImportPlanChecks: resource.ImportPlanChecks{
-				PreApply: []plancheck.PlanCheck{
-					plancheck.ExpectEmptyPlan(),
-				},
+				statecheck.CompareValuePairs(
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyName),
+					"data.rubrik_aws_key_manager.by_id", tfjsonpath.New(keyName),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyDescription),
+					"data.rubrik_aws_key_manager.by_id", tfjsonpath.New(keyDescription),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyCloudAccountID),
+					"data.rubrik_aws_key_manager.by_id", tfjsonpath.New(keyCloudAccountID),
+					compare.ValuesSame()),
+				statecheck.CompareValuePairs(
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyRegion),
+					"data.rubrik_aws_key_manager.by_id", tfjsonpath.New(keyRegion),
+					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("data.rubrik_aws_key_manager.by_id",
+					tfjsonpath.New(keyProvisioningMethod), knownvalue.StringExact("CLOUD_ACCOUNT_PROVISION")),
+				statecheck.ExpectKnownValue("data.rubrik_aws_key_manager.by_id",
+					tfjsonpath.New(keyIAMRoleARN), knownvalue.NotNull()),
+				// By name.
+				statecheck.CompareValuePairs(
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyID),
+					"data.rubrik_aws_key_manager.by_name", tfjsonpath.New(keyID),
+					compare.ValuesSame()),
 			},
 		}},
 	})

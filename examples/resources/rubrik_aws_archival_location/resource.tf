@@ -21,7 +21,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
 }
 
 # Client-side encryption with a KMS key in a key manager registered in RSC.
-data "rubrik_aws_kms_key_manager" "archival" {
+data "rubrik_aws_key_manager" "archival" {
   name = "archival-key-manager"
 }
 
@@ -32,7 +32,7 @@ resource "rubrik_aws_archival_location" "archival_location" {
   region        = "us-east-2"
 
   kms_key {
-    key_manager_id = data.rubrik_aws_kms_key_manager.archival.id
+    key_manager_id = data.rubrik_aws_key_manager.archival.id
     key_id         = "9c3f1b3e-9f2a-4c05-9d3f-1f2d0a5b8e77"
   }
 }

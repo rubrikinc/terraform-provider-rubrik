@@ -350,15 +350,15 @@ func gcpArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) error 
 	}
 }
 
-// awsKMSKeyManagerCheckDestroy verifies that all aws_kms_key_manager resources
+// awsKeyManagerCheckDestroy verifies that all aws_key_manager resources
 // have been deleted.
-func awsKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+func awsKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
 	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_aws_kms_key_manager" && rs.Type != "rubrik_aws_kms_key_manager" {
+			if rs.Type != "polaris_aws_key_manager" && rs.Type != "rubrik_aws_key_manager" {
 				continue
 			}
 
@@ -369,7 +369,7 @@ func awsKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 
 			_, err = kms.Wrap(polarisClient).AWSKeyManagerByID(t.Context(), id)
 			if err == nil {
-				return fmt.Errorf("aws_kms_key_manager %s still exists", id)
+				return fmt.Errorf("aws_key_manager %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
@@ -380,15 +380,15 @@ func awsKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 	}
 }
 
-// azureKMSKeyManagerCheckDestroy verifies that all azure_kms_key_manager
+// azureKeyManagerCheckDestroy verifies that all azure_key_manager
 // resources have been deleted.
-func azureKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+func azureKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
 	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_azure_kms_key_manager" && rs.Type != "rubrik_azure_kms_key_manager" {
+			if rs.Type != "polaris_azure_key_manager" && rs.Type != "rubrik_azure_key_manager" {
 				continue
 			}
 
@@ -399,7 +399,7 @@ func azureKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 
 			_, err = kms.Wrap(polarisClient).AzureKeyManagerByID(t.Context(), id)
 			if err == nil {
-				return fmt.Errorf("azure_kms_key_manager %s still exists", id)
+				return fmt.Errorf("azure_key_manager %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
@@ -410,15 +410,15 @@ func azureKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 	}
 }
 
-// gcpKMSKeyManagerCheckDestroy verifies that all gcp_kms_key_manager resources
+// gcpKeyManagerCheckDestroy verifies that all gcp_key_manager resources
 // have been deleted.
-func gcpKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
+func gcpKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 	t.Helper()
 	polarisClient := testClient(t)
 
 	return func(s *terraform.State) error {
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "polaris_gcp_kms_key_manager" && rs.Type != "rubrik_gcp_kms_key_manager" {
+			if rs.Type != "polaris_gcp_key_manager" && rs.Type != "rubrik_gcp_key_manager" {
 				continue
 			}
 
@@ -429,7 +429,7 @@ func gcpKMSKeyManagerCheckDestroy(t *testing.T) func(*terraform.State) error {
 
 			_, err = kms.Wrap(polarisClient).GCPKeyManagerByID(t.Context(), id)
 			if err == nil {
-				return fmt.Errorf("gcp_kms_key_manager %s still exists", id)
+				return fmt.Errorf("gcp_key_manager %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err

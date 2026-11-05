@@ -23,8 +23,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"net/url"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -38,21 +36,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqlkms "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/kms"
-	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
+	gqlgcp "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/gcp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/kms"
 )
 
-const resourceAzureKMSKeyManagerDescription = `
-The ´rubrik_azure_kms_key_manager´ resource is used to register an Azure key
-vault key manager in RSC.
+const resourceGCPKeyManagerDescription = `
+The ´rubrik_gcp_key_manager´ resource is used to register a GCP Cloud KMS
+key manager in RSC.
 
 A key manager is a stored connection profile giving RSC access to a customer
 owned key management service. RSC takes the credentials from the cloud account,
 so no credentials are stored. Its ID is the value archival locations refer to
 the key manager by, alongside the name and version of the key itself, which come
-from Azure.
+from GCP.
 
--> **Note:** The Azure subscription must be onboarded to RSC with the
+-> **Note:** The GCP project must be onboarded to RSC with the
    ´CLOUD_NATIVE_UEM_KEY_MANAGEMENT´ feature, and the feature must be connected.
 
 -> **Note:** RSC only supports updating the ´name´ and the ´description´.
@@ -61,48 +59,48 @@ from Azure.
 `
 
 var (
-	_ resource.Resource                = &azureKMSKeyManagerResource{}
-	_ resource.ResourceWithIdentity    = &azureKMSKeyManagerResource{}
-	_ resource.ResourceWithImportState = &azureKMSKeyManagerResource{}
+	_ resource.Resource                = &gcpKeyManagerResource{}
+	_ resource.ResourceWithIdentity    = &gcpKeyManagerResource{}
+	_ resource.ResourceWithImportState = &gcpKeyManagerResource{}
 )
 
-type azureKMSKeyManagerResource struct {
+type gcpKeyManagerResource struct {
 	client *client
 	prefix string
 }
 
-type azureResourceKMSKeyManagerModel struct {
+type gcpResourceKeyManagerModel struct {
 	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
 	Description    types.String `tfsdk:"description"`
 	CloudAccountID types.String `tfsdk:"cloud_account_id"`
 	Region         types.String `tfsdk:"region"`
-	VaultName      types.String `tfsdk:"vault_name"`
+	KeyRing        types.String `tfsdk:"key_ring"`
 }
 
-type azureKMSKeyManagerIdentityModel struct {
+type gcpKeyManagerIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-func newAzureKMSKeyManagerResource() resource.Resource {
-	return &azureKMSKeyManagerResource{prefix: keyRubrik}
+func newGCPKeyManagerResource() resource.Resource {
+	return &gcpKeyManagerResource{prefix: keyRubrik}
 }
 
-func newPolarisAzureKMSKeyManagerResource() resource.Resource {
-	return &azureKMSKeyManagerResource{prefix: keyPolaris}
+func newPolarisGCPKeyManagerResource() resource.Resource {
+	return &gcpKeyManagerResource{prefix: keyPolaris}
 }
 
-func (r *azureKMSKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Metadata")
+func (r *gcpKeyManagerResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Metadata")
 
-	res.TypeName = r.prefix + "_" + keyAzureKMSKeyManager
+	res.TypeName = r.prefix + "_" + keyGCPKeyManager
 }
 
-func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Schema")
+func (r *gcpKeyManagerResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Schema")
 
 	res.Schema = schema.Schema{
-		Description: description(resourceAzureKMSKeyManagerDescription),
+		Description: description(resourceGCPKeyManagerDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -128,8 +126,8 @@ func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Sche
 			},
 			keyCloudAccountID: schema.StringAttribute{
 				Required: true,
-				Description: "RSC cloud account ID of the Azure subscription holding the key vault. Changing " +
-					"this forces a new resource to be created.",
+				Description: "RSC cloud account ID of the GCP project holding the key ring. Changing this forces " +
+					"a new resource to be created.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -139,7 +137,7 @@ func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Sche
 			},
 			keyRegion: schema.StringAttribute{
 				Required: true,
-				Description: "Azure region of the key vault, e.g. `eastus2`. Changing this forces a new " +
+				Description: "Cloud KMS location of the key ring, e.g. `us-west1`. Changing this forces a new " +
 					"resource to be created.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -148,10 +146,10 @@ func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Sche
 					isNotWhiteSpace(),
 				},
 			},
-			keyVaultName: schema.StringAttribute{
+			keyKeyRing: schema.StringAttribute{
 				Required: true,
-				Description: "Name of the key vault, not its URL. Changing this forces a new resource to be " +
-					"created.",
+				Description: "Short name of the Cloud KMS key ring, not the fully qualified resource path. " +
+					"Changing this forces a new resource to be created.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -163,12 +161,12 @@ func (r *azureKMSKeyManagerResource) Schema(ctx context.Context, _ resource.Sche
 	}
 
 	if r.prefix == keyPolaris {
-		res.Schema.DeprecationMessage = "use the `rubrik_azure_kms_key_manager` resource instead."
+		res.Schema.DeprecationMessage = "use the `rubrik_gcp_key_manager` resource instead."
 	}
 }
 
-func (r *azureKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.IdentitySchema")
+func (r *gcpKeyManagerResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.IdentitySchema")
 
 	res.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
@@ -180,8 +178,8 @@ func (r *azureKMSKeyManagerResource) IdentitySchema(ctx context.Context, _ resou
 	}
 }
 
-func (r *azureKMSKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Configure")
+func (r *gcpKeyManagerResource) Configure(ctx context.Context, req resource.ConfigureRequest, res *resource.ConfigureResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Configure")
 
 	if req.ProviderData == nil {
 		return
@@ -189,10 +187,10 @@ func (r *azureKMSKeyManagerResource) Configure(ctx context.Context, req resource
 	r.client = req.ProviderData.(*client)
 }
 
-func (r *azureKMSKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Create")
+func (r *gcpKeyManagerResource) Create(ctx context.Context, req resource.CreateRequest, res *resource.CreateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Create")
 
-	var plan azureResourceKMSKeyManagerModel
+	var plan gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -204,22 +202,22 @@ func (r *azureKMSKeyManagerResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 
-	region := gqlazure.RegionFromName(plan.Region.ValueString())
-	if region == gqlazure.RegionUnknown {
+	region := gqlgcp.RegionFromName(plan.Region.ValueString())
+	if region == gqlgcp.RegionUnknown || region.ToKMSLocationEnumPtr() == nil {
 		res.Diagnostics.AddAttributeError(path.Root(keyRegion), "Invalid region",
-			"The region is not a known Azure region name: "+plan.Region.ValueString())
+			"The region is not a known GCP Cloud KMS location: "+plan.Region.ValueString())
 		return
 	}
 
-	keyManagerID, err := kms.Wrap(polarisClient).CreateAzureKeyManager(ctx, gqlkms.CreateAzureKeyManagerParams{
+	keyManagerID, err := kms.Wrap(polarisClient).CreateGCPKeyManager(ctx, gqlkms.CreateGCPKeyManagerParams{
 		CloudAccountID: plan.CloudAccountID.ValueString(),
 		Name:           plan.Name.ValueString(),
-		Region:         gqlazure.RegionEnum{Region: region},
-		VaultName:      plan.VaultName.ValueString(),
+		KeyRing:        plan.KeyRing.ValueString(),
+		Location:       region.ToKMSLocationEnum(),
 		Description:    plan.Description.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to create Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to create GCP key manager", err.Error())
 		return
 	}
 
@@ -231,27 +229,27 @@ func (r *azureKMSKeyManagerResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 
-	keyManager, err := kms.Wrap(polarisClient).AzureKeyManagerByID(ctx, keyManagerID)
+	keyManager, err := kms.Wrap(polarisClient).GCPKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read GCP key manager", err.Error())
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&plan, keyManager)
+	updateGCPKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := azureKMSKeyManagerIdentityModel{ID: plan.ID}
+	identity := gcpKeyManagerIdentityModel{ID: plan.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *azureKMSKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Read")
+func (r *gcpKeyManagerResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Read")
 
-	var state azureResourceKMSKeyManagerModel
+	var state gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -269,31 +267,31 @@ func (r *azureKMSKeyManagerResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	keyManager, err := kms.Wrap(polarisClient).AzureKeyManagerByID(ctx, keyManagerID)
+	keyManager, err := kms.Wrap(polarisClient).GCPKeyManagerByID(ctx, keyManagerID)
 	if errors.Is(err, graphql.ErrNotFound) {
 		res.State.RemoveResource(ctx)
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read GCP key manager", err.Error())
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&state, keyManager)
+	updateGCPKeyManagerModel(&state, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	identity := azureKMSKeyManagerIdentityModel{ID: state.ID}
+	identity := gcpKeyManagerIdentityModel{ID: state.ID}
 	res.Diagnostics.Append(res.Identity.Set(ctx, identity)...)
 }
 
-func (r *azureKMSKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Update")
+func (r *gcpKeyManagerResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Update")
 
-	var plan azureResourceKMSKeyManagerModel
+	var plan gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -311,30 +309,30 @@ func (r *azureKMSKeyManagerResource) Update(ctx context.Context, req resource.Up
 		return
 	}
 
-	err = kms.Wrap(polarisClient).UpdateAzureKeyManager(ctx, keyManagerID, gqlkms.UpdateAzureKeyManagerParams{
+	err = kms.Wrap(polarisClient).UpdateGCPKeyManager(ctx, keyManagerID, gqlkms.UpdateGCPKeyManagerParams{
 		Name:        plan.Name.ValueString(),
 		Description: plan.Description.ValueString(),
 	})
 	if err != nil {
-		res.Diagnostics.AddError("Failed to update Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to update GCP key manager", err.Error())
 		return
 	}
 
-	keyManager, err := kms.Wrap(polarisClient).AzureKeyManagerByID(ctx, keyManagerID)
+	keyManager, err := kms.Wrap(polarisClient).GCPKeyManagerByID(ctx, keyManagerID)
 	if err != nil {
-		res.Diagnostics.AddError("Failed to read Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to read GCP key manager", err.Error())
 		return
 	}
 
-	updateAzureKMSKeyManagerModel(&plan, keyManager)
+	updateGCPKeyManagerModel(&plan, keyManager)
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
-func (r *azureKMSKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.Delete")
+func (r *gcpKeyManagerResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.Delete")
 
-	var state azureResourceKMSKeyManagerModel
+	var state gcpResourceKeyManagerModel
 	res.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if res.Diagnostics.HasError() {
 		return
@@ -357,30 +355,23 @@ func (r *azureKMSKeyManagerResource) Delete(ctx context.Context, req resource.De
 		return
 	}
 	if err != nil {
-		res.Diagnostics.AddError("Failed to delete Azure key manager", err.Error())
+		res.Diagnostics.AddError("Failed to delete GCP key manager", err.Error())
 		return
 	}
 }
 
-func (r *azureKMSKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
-	tflog.Trace(ctx, "azureKMSKeyManagerResource.ImportState")
+func (r *gcpKeyManagerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "gcpKeyManagerResource.ImportState")
 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
-// updateAzureKMSKeyManagerModel updates the model with the values read from
-// RSC. The key vault name is taken from the key vault URL, as the first label of
-// the host name.
-func updateAzureKMSKeyManagerModel(m *azureResourceKMSKeyManagerModel, keyManager gqlkms.KeyManager) {
+// updateGCPKeyManagerModel updates the model with the values read from RSC.
+func updateGCPKeyManagerModel(m *gcpResourceKeyManagerModel, keyManager gqlkms.KeyManager) {
 	m.ID = types.StringValue(keyManager.KeyVaultInfo.ID.String())
 	m.Name = types.StringValue(keyManager.Name)
 	m.Description = types.StringValue(keyManager.Description)
 	m.CloudAccountID = types.StringValue(keyManager.KeyVaultInfo.CloudAccountID)
-	m.Region = types.StringValue(keyManager.KeyVaultInfo.AzureRegion.Name())
-
-	if vaultURL, err := url.Parse(keyManager.KeyVaultInfo.KeyVaultURL); err == nil {
-		if name, _, _ := strings.Cut(vaultURL.Hostname(), "."); name != "" {
-			m.VaultName = types.StringValue(name)
-		}
-	}
+	m.Region = types.StringValue(keyManager.KeyVaultInfo.GCPLocation.Name())
+	m.KeyRing = types.StringValue(keyManager.KeyVaultInfo.KeyRing)
 }

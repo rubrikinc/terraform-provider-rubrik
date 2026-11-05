@@ -59,8 +59,8 @@ managed key block will have its data encrypted with platform managed keys.
 
 Client-side encryption is enabled by specifying the ´kms_key´ block, with a Cloud
 KMS key in a key manager registered in RSC. Register the key manager with the
-´rubrik_gcp_kms_key_manager´ resource, or look up an existing one with the
-´rubrik_gcp_kms_key_manager´ data source. The ´kms_key´ block conflicts with the
+´rubrik_gcp_key_manager´ resource, or look up an existing one with the
+´rubrik_gcp_key_manager´ data source. The ´kms_key´ block conflicts with the
 customer managed key blocks. Exocompute performs the encryption, so Exocompute
 must be configured for the key manager's cloud account in the key manager's
 region. RSC does not check the key manager's region against the archival

@@ -404,7 +404,7 @@ func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 			}
 		}
 
-		resource "rubrik_aws_kms_key_manager" "key_manager" {
+		resource "rubrik_aws_key_manager" "key_manager" {
 			name             = var.name
 			cloud_account_id = rubrik_aws_cnp_account.account.id
 			region           = var.kms_region
@@ -419,7 +419,7 @@ func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 			region        = var.archival_region
 
 			kms_key {
-				key_manager_id = rubrik_aws_kms_key_manager.key_manager.id
+				key_manager_id = rubrik_aws_key_manager.key_manager.id
 				key_id         = var.key_id
 			}
 
@@ -437,7 +437,7 @@ func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 		},
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			awsArchivalLocationCheckDestroy(t),
-			awsKMSKeyManagerCheckDestroy(t),
+			awsKeyManagerCheckDestroy(t),
 			awsCnpAccountCheckDestroy(t),
 			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
@@ -462,7 +462,7 @@ func TestAccAWSArchivalLocationKMSKeyResource(t *testing.T) {
 					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyID),
 					knownvalue.StringExact(testAWSKMSKeyIDs(t)[0])),
 				statecheck.CompareValuePairs(
-					"rubrik_aws_kms_key_manager.key_manager", tfjsonpath.New(keyID),
+					"rubrik_aws_key_manager.key_manager", tfjsonpath.New(keyID),
 					"rubrik_aws_archival_location.location",
 					tfjsonpath.New(keyKMSKey).AtSliceIndex(0).AtMapKey(keyKeyManagerID),
 					compare.ValuesSame()),
