@@ -107,6 +107,11 @@ page_title: "Changelog"
   `aws/s3`, the same default as the RSC UI, but a specific region archival location now requires `kms_master_key` or
   `kms_key` when the configuration is planned, since RSC requires a customer managed key for a specific region. See the
   [v1.12.0 upgrade guide](upgrade_guide_v1.12.0.md). [[docs](../resources/aws_archival_location.md)]
+* Fix a bug in `rubrik_azure_cloud_cluster` where reading the resource failed with an internal error from
+  `azureCcCdmVersions` when RSC reported the cluster region in a different format than the native Azure region name,
+  e.g. `GermanyWestCentral` instead of `germanywestcentral`. This caused `terraform plan` to fail during refresh. The
+  region is now matched case-insensitively, and the `region` field of the `vm_config` block is used if the region
+  reported by RSC still can't be parsed. [[docs](../resources/azure_cloud_cluster.md)]
 
 ## v1.11.2
 * Update the Go version used to build the provider to 1.26.10.
