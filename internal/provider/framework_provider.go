@@ -228,6 +228,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisAzurePermissionsDataSource,
 		newClusterSettingsDataSource,
 		newClusterVersionsDataSource,
+		newDataCenterAzureSubscriptionDataSource,
+		newPolarisDataCenterAzureSubscriptionDataSource,
 		newDataSecurityPolicyDataSource,
 		newFeatureFlagDataSource,
 		newPolarisFeatureFlagDataSource,
