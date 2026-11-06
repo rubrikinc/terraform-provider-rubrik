@@ -224,10 +224,6 @@ func TestAccAzureSubscriptionDataSource_FrameworkMigration(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the two data sources are equal.
 			Config: `
-				variable "credentials" {
-					type      = string
-					sensitive = true
-				}
 				variable "azure_credentials" {
 					type      = string
 					sensitive = true
@@ -248,9 +244,7 @@ func TestAccAzureSubscriptionDataSource_FrameworkMigration(t *testing.T) {
 					type = string
 				}
 
-				provider "rubrik-sdkv2" {
-					credentials = var.credentials
-				}
+				provider "rubrik-sdkv2" {}
 
 				resource "rubrik_azure_service_principal" "principal" {
 					credentials   = var.azure_credentials
@@ -288,7 +282,6 @@ func TestAccAzureSubscriptionDataSource_FrameworkMigration(t *testing.T) {
 				}
 			`,
 			ConfigVariables: config.Variables{
-				"credentials":           config.StringVariable(testCredentials(t)),
 				"azure_credentials":     config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain":         config.StringVariable(testAzureTenantDomain(t)),
 				"subscription_id":       config.StringVariable(testAzureSubscriptionID(t)),
