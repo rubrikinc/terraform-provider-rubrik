@@ -4,6 +4,16 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_project` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_gcp_project` with a `moved` block. The Plugin Framework has no computed
+  blocks, so only the block in use is populated: with `feature` blocks the `cloud_native_protection` block is empty, and
+  with the deprecated `cloud_native_protection` block the `feature` set is empty. For a configuration using the
+  deprecated block, the first plan after upgrading shows the `feature` set being emptied. Applying it only updates the
+  state, the features in RSC are left as they are. [[docs](../resources/gcp_project.md)]
+* Fix a bug in the `rubrik_gcp_project` resource where upgrading state from schema version 1 read the status of the
+  Exocompute feature instead of the Cloud Native Protection feature, and failed for a project without Exocompute.
+
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
   of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the
