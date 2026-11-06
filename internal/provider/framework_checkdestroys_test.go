@@ -532,6 +532,36 @@ func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {
 	}
 }
 
+// dataCenterAzureSubscriptionCheckDestroy verifies that all
+// data_center_azure_subscription resources have been deleted.
+func dataCenterAzureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_data_center_azure_subscription" && rs.Type != "rubrik_data_center_azure_subscription" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = archival.Wrap(polarisClient).AzureCloudAccountByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("data center azure subscription %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // customRoleCheckDestroy verifies that all custom_role resources have been
 // deleted.
 func customRoleCheckDestroy(t *testing.T) func(*terraform.State) error {
