@@ -3,16 +3,16 @@
 page_title: "rubrik_azure_archival_location Data Source - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The rubrik_azure_archival_location data source is used to access information about
-  an Azure archival location. An archival location is looked up using either the ID or
-  the name.
+  The rubrik_azure_archival_location data source is used to access information
+  about an Azure archival location. An archival location is looked up using either
+  the ID or the name.
 ---
 
 # rubrik_azure_archival_location (Data Source)
 
-The `rubrik_azure_archival_location` data source is used to access information about
-an Azure archival location. An archival location is looked up using either the ID or
-the name.
+The `rubrik_azure_archival_location` data source is used to access information
+about an Azure archival location. An archival location is looked up using either
+the ID or the name.
 
 ## Example Usage
 
