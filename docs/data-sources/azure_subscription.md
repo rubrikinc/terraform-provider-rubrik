@@ -8,8 +8,11 @@ description: |-
   using either the Azure subscription ID, the RSC cloud account ID, or the name.
   When looking up an Azure subscription using the subscription name, the tenant
   domain can be used to specify in which tenant to look for the name.
-  -> Note: The subscription name is the name of the Azure subscription as it appears
-  in RSC.
+  The feature attribute exposes the RSC features enabled for the subscription,
+  including each feature's permission groups, regions, status, resource group and
+  user-assigned managed identity.
+  -> Note: The subscription name is the name of the Azure subscription as it
+  appears in RSC.
 ---
 
 # rubrik_azure_subscription (Data Source)
@@ -20,8 +23,12 @@ using either the Azure subscription ID, the RSC cloud account ID, or the name.
 When looking up an Azure subscription using the subscription name, the tenant
 domain can be used to specify in which tenant to look for the name.
 
--> **Note:** The subscription name is the name of the Azure subscription as it appears
-   in RSC.
+The `feature` attribute exposes the RSC features enabled for the subscription,
+including each feature's permission groups, regions, status, resource group and
+user-assigned managed identity.
+
+-> **Note:** The subscription name is the name of the Azure subscription as it
+   appears in RSC.
 
 ## Example Usage
 
@@ -40,3 +47,22 @@ data "rubrik_azure_subscription" "subscription" {
 - `name` (String) Azure subscription name.
 - `subscription_id` (String) Azure subscription ID.
 - `tenant_domain` (String) Azure tenant primary domain.
+
+### Read-Only
+
+- `feature` (Attributes Set) RSC features enabled for the subscription. (see [below for nested schema](#nestedatt--feature))
+
+<a id="nestedatt--feature"></a>
+### Nested Schema for `feature`
+
+Read-Only:
+
+- `name` (String) RSC feature name.
+- `permission_groups` (Set of String) Permission groups enabled for the feature.
+- `regions` (Set of String) Azure regions where the feature is enabled.
+- `resource_group_name` (String) Name of the Azure resource group used by the feature, if any.
+- `resource_group_region` (String) Region of the Azure resource group used by the feature, if any.
+- `resource_group_tags` (Map of String) Tags of the Azure resource group used by the feature, if any.
+- `status` (String) Status of the feature.
+- `user_assigned_managed_identity_name` (String) Name of the user-assigned managed identity used by the feature, if any.
+- `user_assigned_managed_identity_principal_id` (String) Principal ID of the user-assigned managed identity used by the feature, if any. This is the same ID used as `principal_id` in Azure RBAC role assignments.

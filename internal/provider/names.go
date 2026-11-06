@@ -83,6 +83,7 @@ const (
 	keyAzureSQLDatabaseConfig                       = "azure_sql_database_config"
 	keyAzureSQLManagedInstanceConfig                = "azure_sql_managed_instance_config"
 	keyAzureSQLManagedInstanceCredentials           = "azure_sql_managed_instance_credentials"
+	keyAzureSubscription                            = "azure_subscription"
 	keyDB2Config                                    = "db2_config"
 	keyDifferentialFrequency                        = "differential_frequency"
 	keyDifferentialFrequencyUnit                    = "differential_frequency_unit"
