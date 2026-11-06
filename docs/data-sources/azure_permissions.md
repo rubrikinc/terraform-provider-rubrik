@@ -75,10 +75,6 @@ description: |-
   actions, data_actions, not_actions and not_data_actions fields have
   been deprecated and replaced with the corresponding subscription and resource
   group fields.
-  -> Note: Due to backward compatibility, the features field allow the
-  feature names to be given in 3 different styles: EXAMPLE_FEATURE_NAME,
-  example-feature-name or example_feature_name. The recommended style is
-  EXAMPLE_FEATURE_NAME as it is what the RSC API itself uses.
 ---
 
 # rubrik_azure_permissions (Data Source)
@@ -191,11 +187,6 @@ are used when specifying the feature.
    `actions`, `data_actions`, `not_actions` and `not_data_actions` fields have
    been deprecated and replaced with the corresponding subscription and resource
    group fields.
-
--> **Note:** Due to backward compatibility, the `features` field allow the
-   feature names to be given in 3 different styles: `EXAMPLE_FEATURE_NAME`,
-   `example-feature-name` or `example_feature_name`. The recommended style is
-   `EXAMPLE_FEATURE_NAME` as it is what the RSC API itself uses.
 
 ## Example Usage
 
