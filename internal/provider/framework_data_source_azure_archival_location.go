@@ -267,20 +267,14 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 	targetTemplate := targetMapping.TargetTemplate
 	cloudNativeCompanion := targetTemplate.CloudNativeCompanion
 
-	// The SDKv2 implementation stored an empty map as null, keep doing so to
-	// not change the value for existing configurations.
-	storageAccountTags := types.MapNull(types.StringType)
-	if len(cloudNativeCompanion.StorageAccountTags) > 0 {
-		tagValues := make(map[string]attr.Value, len(cloudNativeCompanion.StorageAccountTags))
-		for _, tag := range cloudNativeCompanion.StorageAccountTags {
-			tagValues[tag.Key] = types.StringValue(tag.Value)
-		}
-		tags, diags := types.MapValue(types.StringType, tagValues)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		storageAccountTags = tags
+	tagValues := make(map[string]attr.Value, len(cloudNativeCompanion.StorageAccountTags))
+	for _, tag := range cloudNativeCompanion.StorageAccountTags {
+		tagValues[tag.Key] = types.StringValue(tag.Value)
+	}
+	storageAccountTags, diags := types.MapValue(types.StringType, tagValues)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
 	}
 
 	customerKeyAttrTypes := map[string]attr.Type{

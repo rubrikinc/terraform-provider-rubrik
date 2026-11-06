@@ -127,7 +127,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the data source can look up the archival location
 			// by ID, by archival location ID and by name. The location has no
-			// storage account tags, so the tags must be null. The tags are
+			// storage account tags, so the tags must be empty. The tags are
 			// set by the update, since RSC doesn't store tags given on create.
 			Config: conf,
 			ConfigVariables: config.Variables{
@@ -165,7 +165,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.by_id",
 					tfjsonpath.New(keyStorageTier), knownvalue.StringExact("COOL")),
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.by_id",
-					tfjsonpath.New(keyStorageAccountTags), knownvalue.Null()),
+					tfjsonpath.New(keyStorageAccountTags), knownvalue.MapSizeExact(0)),
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.by_id",
 					tfjsonpath.New(keyCustomerManagedKey), knownvalue.SetSizeExact(0)),
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.by_id",
