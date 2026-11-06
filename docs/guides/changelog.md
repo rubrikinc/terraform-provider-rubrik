@@ -54,6 +54,12 @@ page_title: "Changelog"
 * Fix the documentation of the `rubrik_gcp_service_account` resource, which said that the `name` field sets the name of
   the service account in RSC. Since v1.10.0, RSC always uses the client email of the service account key as the name,
   and the `name` field is not sent to RSC. [[docs](../resources/gcp_service_account.md)]
+* Migrate the `rubrik_azure_archival_location` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/azure_archival_location.md)]
+* Add support for the `key_vault_key` field in the `rubrik_azure_archival_location` data source.
+  [[docs](../data-sources/azure_archival_location.md)]
+* Fix a bug in the `rubrik_azure_archival_location` data source where `customer_managed_key` returned unused customer
+  managed keys for an archival location encrypted with a key vault key.
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
