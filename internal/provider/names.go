@@ -53,6 +53,7 @@ const (
 	keyAvailableVersions                            = "available_versions"
 	keyAws                                          = "aws"
 	keyAzure                                        = "azure"
+	keyAzureArchivalLocation                        = "azure_archival_location"
 	keyAzureCustomTags                              = "azure_custom_tags"
 	keyAzureDevOpsOrganization                      = "azure_devops_organization"
 	keyAzureDevOpsPermissions                       = "azure_devops_permissions"
