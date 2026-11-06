@@ -187,6 +187,7 @@ const (
 	keyCyberRecoveryDataScanning                    = "cyber_recovery_data_scanning"
 	keyDataAction                                   = "data_action"
 	keyDataActions                                  = "data_actions"
+	keyDataCenterAzureSubscription                  = "data_center_azure_subscription"
 	keyDataScanning                                 = "data_scanning"
 	keyDataSecurityPolicy                           = "data_security_policy"
 	keyDate                                         = "date"
