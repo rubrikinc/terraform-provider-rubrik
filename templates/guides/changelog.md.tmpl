@@ -4,6 +4,10 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/gcp_archival_location.md)]
+
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
   of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the
