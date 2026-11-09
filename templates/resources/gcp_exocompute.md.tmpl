@@ -34,6 +34,14 @@ configured.
 
 Import is supported using the following syntax:
 
+{{if .HasImportIdentityConfig}}
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
+
+{{tffile .ImportIdentityConfigFile}}
+
+{{ .IdentitySchemaMarkdown | trimspace }}
+{{end}}
+
 {{if .HasImportIDConfig}}
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
 

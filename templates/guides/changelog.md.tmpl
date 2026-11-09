@@ -4,6 +4,12 @@ page_title: "Changelog"
 
 # Changelog
 
+## v1.13.0
+* Migrate the `rubrik_gcp_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_gcp_exocompute` with a `moved` block. Unset `host_project_id`,
+  `region`, `subnet_name` and `vpc_name` fields in the `regional_config` block are now null instead of empty strings.
+  [[docs](../resources/gcp_exocompute.md)]
+
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
   of one AWS account and region by tags and ARNs so that their configuration can be protected by an SLA Domain with the

@@ -36,6 +36,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/exocompute"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/gcp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -791,6 +792,36 @@ func userCheckDestroy(t *testing.T) func(*terraform.State) error {
 			_, err := access.Wrap(polarisClient).UserByID(t.Context(), rs.Primary.ID)
 			if err == nil {
 				return fmt.Errorf("user %s still exists", rs.Primary.ID)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// gcpExocomputeCheckDestroy verifies that the GCP Exocompute configurations
+// have been removed from RSC.
+func gcpExocomputeCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_gcp_exocompute" && rs.Type != "rubrik_gcp_exocompute" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = exocompute.Wrap(polarisClient).GCPConfigurationsByCloudAccountID(t.Context(), id, false)
+			if err == nil {
+				return fmt.Errorf("gcp_exocompute %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
