@@ -105,12 +105,6 @@ func (r *azureArchivalLocationResource) moveStateV0(ctx context.Context) resourc
 				return
 			}
 
-			// SDKv2 stores the region of a source region archival location as
-			// the empty string, the framework resource stores it as null.
-			if state.StorageAccountRegion.ValueString() == "" {
-				state.StorageAccountRegion = types.StringNull()
-			}
-
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
 		},
 	}
