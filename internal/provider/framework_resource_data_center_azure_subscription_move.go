@@ -26,7 +26,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -70,12 +69,6 @@ func (r *dataCenterAzureSubscriptionResource) moveStateV0() resource.StateMover 
 			res.Diagnostics.Append(req.SourceState.Get(ctx, &state)...)
 			if res.Diagnostics.HasError() {
 				return
-			}
-
-			// SDKv2 stores an unset description as the empty string, the
-			// framework resource stores it as null.
-			if state.Description.ValueString() == "" {
-				state.Description = types.StringNull()
 			}
 
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)

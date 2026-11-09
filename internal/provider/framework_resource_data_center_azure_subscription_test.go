@@ -69,7 +69,7 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription",
-					tfjsonpath.New(keyDescription), knownvalue.Null()),
+					tfjsonpath.New(keyDescription), knownvalue.StringExact("")),
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription",
 					tfjsonpath.New(keyName), knownvalue.StringExact(name)),
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription",
