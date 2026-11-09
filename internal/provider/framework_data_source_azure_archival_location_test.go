@@ -352,7 +352,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 	name := testUniqueName(t)
 
 	const conf = `
-		variable "rsc_credentials" {
+		variable "credentials" {
 			type      = string
 			sensitive = true
 		}
@@ -445,7 +445,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 			// update, since RSC doesn't store tags given on create.
 			Config: conf,
 			ConfigVariables: config.Variables{
-				"rsc_credentials":             config.StringVariable(testCredentials(t)),
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
 				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
 				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
@@ -524,7 +524,6 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 			Config: conf,
 			ConfigVariables: config.Variables{
 				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"rsc_credentials":             config.StringVariable(testCredentials(t)),
 				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
 				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
 				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
