@@ -38,14 +38,10 @@ const testKeyManagerID = "e9895414-64b4-4e25-a10d-c7a76983953b"
 // server-side encryption keys.
 func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 	awsKMSKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyID: "key-id"}}
-	azureKeyVaultKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyName: "key", keyKeyVersion: "1"}}
-	azureCMK := []any{map[string]any{keyName: "key", keyVaultName: "vault", keyRegion: "eastus2"}}
 	gcpKMSKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyName: "key", keyKeyVersion: "1"}}
 	gcpCMK := []any{map[string]any{keyName: "key", keyRingName: "ring", keyRegion: "us-east1"}}
 
 	awsBase := map[string]any{keyAccountID: testKeyManagerID, keyBucketPrefix: "prefix", keyName: "aws"}
-	azureBase := map[string]any{keyCloudAccountID: testKeyManagerID, keyStorageAccountNamePrefix: "prefix",
-		keyName: "azure"}
 	gcpBase := map[string]any{keyCloudAccountID: testKeyManagerID, keyBucketPrefix: "prefix", keyName: "gcp"}
 
 	testCases := []struct {
@@ -64,17 +60,6 @@ func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 		resource: resourceAwsArchivalLocation(),
 		base:     awsBase,
 		config:   map[string]any{keyKMSKey: awsKMSKey, keyKMSMasterKey: "aws/s3"},
-		conflict: true,
-	}, {
-		name:     "AzureKeyVaultKey",
-		resource: resourceAzureArchivalLocation(),
-		base:     azureBase,
-		config:   map[string]any{keyKeyVaultKey: azureKeyVaultKey},
-	}, {
-		name:     "AzureKeyVaultKeyAndCustomerManagedKey",
-		resource: resourceAzureArchivalLocation(),
-		base:     azureBase,
-		config:   map[string]any{keyKeyVaultKey: azureKeyVaultKey, keyCustomerManagedKey: azureCMK},
 		conflict: true,
 	}, {
 		name:     "GCPKMSKey",

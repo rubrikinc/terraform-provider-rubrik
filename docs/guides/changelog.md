@@ -5,10 +5,16 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Migrate the `rubrik_azure_archival_location` resource to the Terraform Plugin Framework. The resource now supports
+  import by identity, and state can be moved from `polaris_azure_archival_location` with a moved block.
+  [[docs](../resources/azure_archival_location.md)]
 * Migrate the `rubrik_azure_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/azure_archival_location.md)]
 * Add support for the `key_vault_key` field in the `rubrik_azure_archival_location` data source.
   [[docs](../data-sources/azure_archival_location.md)]
+* Improve the validation of the `storage_account_region` field and the `region` field of the `customer_managed_key`
+  block in the `rubrik_azure_archival_location` resource, only regions supported by RSC for archival locations are
+  accepted.
 * Fix a bug in the `rubrik_azure_archival_location` data source where `customer_managed_key` returned unused customer
   managed keys for an archival location encrypted with a key vault key.
 
