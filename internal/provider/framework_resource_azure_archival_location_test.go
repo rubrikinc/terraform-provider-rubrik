@@ -590,13 +590,16 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 
 // TestAccAzureArchivalLocationResource_FrameworkMigration verifies that
 // existing state created by the SDKv2 provider can be read by the Framework
-// provider without drift. Step 1 creates the archival location using the
-// published SDKv2 provider, step 2 refreshes the state using the local
-// Framework provider and asserts that the plan is empty.
+// provider without drift. Step 1 creates a specific region and a source region
+// archival location using the published SDKv2 provider, step 2 plans using the
+// local Framework provider and asserts that the plan is empty.
 func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+
+	// A source region prefix can't be longer than 16 characters.
+	sourceRegionStorageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:11]
 
 	vars := config.Variables{
 		"credentials":                 config.StringVariable(testAzureCredentials(t)),
@@ -608,6 +611,8 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 		"name":                        config.StringVariable(testUniqueName(t)),
 		"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+		"source_region_name":          config.StringVariable(testUniqueName(t)),
+		"source_region_storage_account_name_prefix": config.StringVariable(sourceRegionStorageAccountNamePrefix),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -651,6 +656,12 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 				variable "storage_account_name_prefix" {
 					type = string
 				}
+				variable "source_region_name" {
+					type = string
+				}
+				variable "source_region_storage_account_name_prefix" {
+					type = string
+				}
 
 				provider "rubrik-sdkv2" {}
 
@@ -686,11 +697,23 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 					storage_account_name_prefix = var.storage_account_name_prefix
 					storage_account_region      = var.region
 				}
+
+				resource "rubrik_azure_archival_location" "source_region" {
+					provider = rubrik-sdkv2
+
+					cloud_account_id            = rubrik_azure_subscription.subscription.id
+					name                        = var.source_region_name
+					storage_account_name_prefix = var.source_region_storage_account_name_prefix
+				}
 			`,
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.source_region", tfjsonpath.New(keyID),
+					NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.source_region",
+					tfjsonpath.New(keyStorageAccountRegion), knownvalue.StringExact("")),
 			},
 		}, {
 			// Verify that the state created by the SDKv2 provider plans
@@ -725,6 +748,12 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 				variable "storage_account_name_prefix" {
 					type = string
 				}
+				variable "source_region_name" {
+					type = string
+				}
+				variable "source_region_storage_account_name_prefix" {
+					type = string
+				}
 
 				resource "rubrik_azure_service_principal" "service_principal" {
 					credentials   = var.credentials
@@ -751,6 +780,12 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 					name                        = var.name
 					storage_account_name_prefix = var.storage_account_name_prefix
 					storage_account_region      = var.region
+				}
+
+				resource "rubrik_azure_archival_location" "source_region" {
+					cloud_account_id            = rubrik_azure_subscription.subscription.id
+					name                        = var.source_region_name
+					storage_account_name_prefix = var.source_region_storage_account_name_prefix
 				}
 			`,
 			ConfigVariables: vars,
