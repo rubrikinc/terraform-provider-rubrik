@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -32,6 +33,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 // TestAccAzureArchivalLocationResource onboards the Azure subscription with the
@@ -111,6 +113,9 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
 
 	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_12_0),
+		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azureArchivalLocationCheckDestroy(t),
@@ -154,7 +159,12 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyStorageTier), knownvalue.StringExact("COOL")),
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
-					tfjsonpath.New(keyStorageAccountTags), knownvalue.Null()),
+					tfjsonpath.New(keyStorageAccountTags), knownvalue.MapSizeExact(0)),
+				statecheck.ExpectIdentity("rubrik_azure_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that the name, the storage tier and the storage account
@@ -192,6 +202,8 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 						"environment": knownvalue.StringExact("test"),
 						"owner":       knownvalue.StringExact("terraform"),
 					})),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import.
@@ -216,8 +228,7 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			// import {} block with id attribute. The resource has no identity,
-			// so it can't be imported with an identity.
+			// import {} block with id attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":                 config.StringVariable(testAzureCredentials(t)),
@@ -236,6 +247,32 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 				}),
 			},
 			ImportStateKind: resource.ImportBlockWithID,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// import {} block with identity attribute.
+			ResourceName: "rubrik_azure_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+				"name":                        config.StringVariable(name + " Update"),
+				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"storage_tier":                config.StringVariable("HOT"),
+				"storage_account_tags": config.MapVariable(map[string]config.Variable{
+					"environment": config.StringVariable("test"),
+					"owner":       config.StringVariable("terraform"),
+				}),
+			},
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
 				PreApply: []plancheck.PlanCheck{
@@ -351,6 +388,9 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
 
 	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_12_0),
+		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azureArchivalLocationCheckDestroy(t),
@@ -397,6 +437,11 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 					compare.ValuesSame()),
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyCustomerManagedKey), knownvalue.SetSizeExact(0)),
+				statecheck.ExpectIdentity("rubrik_azure_archival_location.location", map[string]knownvalue.Check{
+					keyID: NonNullUUID(),
+				}),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that a client-side encrypted archival location can be
@@ -426,6 +471,8 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyName),
 					knownvalue.StringExact(name+" Update")),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Verify that changing the key name and the key version rekeys the
@@ -463,6 +510,8 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 					"rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
 					"data.rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
 					compare.ValuesSame()),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyID)),
 			},
 		}, {
 			// Terraform import, verifying that the key vault key is read back.
@@ -486,8 +535,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
-			// import {} block with id attribute. The resource has no identity,
-			// so it can't be imported with an identity.
+			// import {} block with id attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
 			ConfigVariables: config.Variables{
 				"credentials":                 config.StringVariable(testAzureCredentials(t)),
@@ -507,6 +555,405 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}, {
+			// import {} block with identity attribute.
+			ResourceName: "rubrik_azure_archival_location.location",
+			ConfigVariables: config.Variables{
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+				"name":                        config.StringVariable(name + " Update"),
+				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
+				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
+				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			},
+			ImportStateKind: resource.ImportBlockWithResourceIdentity,
+			ImportState:     true,
+			ImportPlanChecks: resource.ImportPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+		}},
+	})
+}
+
+// TestAccAzureArchivalLocationResource_FrameworkMigration verifies that
+// existing state created by the SDKv2 provider can be read by the Framework
+// provider without drift. Step 1 creates the archival location using the
+// published SDKv2 provider, step 2 refreshes the state using the local
+// Framework provider and asserts that the plan is empty.
+func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
+	skipUnlessAzureArchivalDefined(t)
+
+	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(testUniqueName(t)),
+		"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+	}
+
+	resource.Test(t, resource.TestCase{
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			azureArchivalLocationCheckDestroy(t),
+			azureSubscriptionCheckDestroy(t),
+		),
+		Steps: []resource.TestStep{{
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"rubrik-sdkv2": {
+					Source:            "rubrikinc/rubrik",
+					VersionConstraint: "1.11.2",
+				},
+			},
+			Config: `
+				variable "credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "region" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "name" {
+					type = string
+				}
+				variable "storage_account_name_prefix" {
+					type = string
+				}
+
+				provider "rubrik-sdkv2" {}
+
+				resource "rubrik_azure_service_principal" "service_principal" {
+					provider = rubrik-sdkv2
+
+					credentials   = var.credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					provider = rubrik-sdkv2
+
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_archival {
+						permission_groups     = ["BASIC"]
+						regions               = [var.region]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.service_principal]
+				}
+
+				resource "rubrik_azure_archival_location" "location" {
+					provider = rubrik-sdkv2
+
+					cloud_account_id            = rubrik_azure_subscription.subscription.id
+					name                        = var.name
+					storage_account_name_prefix = var.storage_account_name_prefix
+					storage_account_region      = var.region
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
+					NonNullUUID()),
+			},
+		}, {
+			// Verify that the state created by the SDKv2 provider plans
+			// cleanly with the local Framework provider.
+			ProtoV6ProviderFactories: protoV6ProviderFactories,
+			Config: `
+				variable "credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "region" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "name" {
+					type = string
+				}
+				variable "storage_account_name_prefix" {
+					type = string
+				}
+
+				resource "rubrik_azure_service_principal" "service_principal" {
+					credentials   = var.credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "rubrik_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_archival {
+						permission_groups     = ["BASIC"]
+						regions               = [var.region]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [rubrik_azure_service_principal.service_principal]
+				}
+
+				resource "rubrik_azure_archival_location" "location" {
+					cloud_account_id            = rubrik_azure_subscription.subscription.id
+					name                        = var.name
+					storage_account_name_prefix = var.storage_account_name_prefix
+					storage_account_region      = var.region
+				}
+			`,
+			ConfigVariables: vars,
+			PlanOnly:        true,
+		}},
+	})
+}
+
+// TestAccAzureArchivalLocationResource_MoveState verifies that state from a
+// polaris_azure_archival_location resource created by the rubrikinc/polaris
+// provider can be moved to a rubrik_azure_archival_location resource using the
+// moved {} block. The service principal and the subscription stay with the
+// polaris provider, since they are SDKv2 resources in this provider and SDKv2
+// doesn't support moving state between resource types.
+func TestAccAzureArchivalLocationResource_MoveState(t *testing.T) {
+	skipUnlessAzureArchivalDefined(t)
+
+	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testCredentials(t)),
+		"azure_credentials":           config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(testUniqueName(t)),
+		"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+	}
+
+	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_8_0),
+		},
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			azureArchivalLocationCheckDestroy(t),
+			azureSubscriptionCheckDestroy(t),
+		),
+		Steps: []resource.TestStep{{
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"polaris": {
+					Source:            "rubrikinc/polaris",
+					VersionConstraint: "1.11.2",
+				},
+			},
+			Config: `
+				variable "credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "azure_credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "region" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "name" {
+					type = string
+				}
+				variable "storage_account_name_prefix" {
+					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
+				}
+
+				resource "polaris_azure_service_principal" "service_principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "polaris_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_archival {
+						permission_groups     = ["BASIC"]
+						regions               = [var.region]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [polaris_azure_service_principal.service_principal]
+				}
+
+				resource "polaris_azure_archival_location" "location" {
+					cloud_account_id            = polaris_azure_subscription.subscription.id
+					name                        = var.name
+					storage_account_name_prefix = var.storage_account_name_prefix
+					storage_account_region      = var.region
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("polaris_azure_archival_location.location", tfjsonpath.New(keyID),
+					NonNullUUID()),
+			},
+		}, {
+			// Verify the plan is empty, move succeeded without drift, and
+			// apply to update the state.
+			ExternalProviders: map[string]resource.ExternalProvider{
+				"polaris": {
+					Source:            "rubrikinc/polaris",
+					VersionConstraint: "1.11.2",
+				},
+			},
+			// The polaris name refers to the external provider, so only the
+			// rubrik name is served locally.
+			ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
+				"rubrik": newMuxedProviderServer,
+			},
+			Config: `
+				variable "credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "azure_credentials" {
+					type      = string
+					sensitive = true
+				}
+				variable "tenant_domain" {
+					type = string
+				}
+				variable "subscription_id" {
+					type = string
+				}
+				variable "subscription_name" {
+					type = string
+				}
+				variable "region" {
+					type = string
+				}
+				variable "resource_group_name" {
+					type = string
+				}
+				variable "resource_group_region" {
+					type = string
+				}
+				variable "name" {
+					type = string
+				}
+				variable "storage_account_name_prefix" {
+					type = string
+				}
+
+				provider "polaris" {
+					credentials = var.credentials
+				}
+
+				resource "polaris_azure_service_principal" "service_principal" {
+					credentials   = var.azure_credentials
+					tenant_domain = var.tenant_domain
+				}
+
+				resource "polaris_azure_subscription" "subscription" {
+					subscription_id   = var.subscription_id
+					subscription_name = var.subscription_name
+					tenant_domain     = var.tenant_domain
+
+					cloud_native_archival {
+						permission_groups     = ["BASIC"]
+						regions               = [var.region]
+						resource_group_name   = var.resource_group_name
+						resource_group_region = var.resource_group_region
+					}
+
+					depends_on = [polaris_azure_service_principal.service_principal]
+				}
+
+				moved {
+					from = polaris_azure_archival_location.location
+					to   = rubrik_azure_archival_location.location
+				}
+
+				resource "rubrik_azure_archival_location" "location" {
+					cloud_account_id            = polaris_azure_subscription.subscription.id
+					name                        = var.name
+					storage_account_name_prefix = var.storage_account_name_prefix
+					storage_account_region      = var.region
+				}
+			`,
+			ConfigVariables: vars,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
 				},

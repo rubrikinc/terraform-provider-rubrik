@@ -68,21 +68,6 @@ type azureArchivalLocationModel struct {
 	StorageTier              types.String                            `tfsdk:"storage_tier"`
 }
 
-// azureArchivalLocationCustomerKeyModel is an element of the
-// customer_managed_key set.
-type azureArchivalLocationCustomerKeyModel struct {
-	Name      types.String `tfsdk:"name"`
-	Region    types.String `tfsdk:"region"`
-	VaultName types.String `tfsdk:"vault_name"`
-}
-
-// azureKeyVaultKeyModel is an element of the key_vault_key list.
-type azureKeyVaultKeyModel struct {
-	KeyManagerID types.String `tfsdk:"key_manager_id"`
-	KeyName      types.String `tfsdk:"key_name"`
-	KeyVersion   types.String `tfsdk:"key_version"`
-}
-
 func newAzureArchivalLocationDataSource() datasource.DataSource {
 	return &azureArchivalLocationDataSource{prefix: keyRubrik}
 }
