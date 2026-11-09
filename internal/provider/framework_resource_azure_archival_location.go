@@ -244,6 +244,12 @@ func (r *azureArchivalLocationResource) Schema(ctx context.Context, _ resource.S
 			},
 			keyStorageAccountRegion: schema.StringAttribute{
 				Optional: true,
+				Computed: true,
+				// SDKv2 stores an unset region as the empty string. Defaulting
+				// to the empty string keeps state written by SDKv2 from showing
+				// a diff, which would replace the archival location, against a
+				// configuration without a region.
+				Default: stringdefault.StaticString(""),
 				Description: "Azure region to store the snapshots in. If not specified, the snapshots will be stored " +
 					"in the same region as the workload. Changing this forces a new resource to be created.",
 				PlanModifiers: []planmodifier.String{
@@ -775,13 +781,6 @@ func updateAzureArchivalLocationModel(m *azureArchivalLocationResourceModel, tar
 	m.NetworkAccessType = types.StringValue(cloudNativeCompanion.NetworkAccessType)
 	m.Redundancy = types.StringValue(cloudNativeCompanion.Redundancy)
 	m.StorageAccountNamePrefix = types.StringValue(targetTemplate.StorageAccountName)
+	m.StorageAccountRegion = types.StringValue(cloudNativeCompanion.StorageAccountRegion.Name())
 	m.StorageTier = types.StringValue(cloudNativeCompanion.StorageTier)
-
-	// A source region archival location has no region of its own, RSC returns
-	// the unknown region, whose name is the empty string.
-	if name := cloudNativeCompanion.StorageAccountRegion.Name(); name != "" {
-		m.StorageAccountRegion = types.StringValue(name)
-	} else {
-		m.StorageAccountRegion = types.StringNull()
-	}
 }
