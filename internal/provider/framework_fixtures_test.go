@@ -95,6 +95,16 @@ func testAzureSubscriptionID(t *testing.T) string {
 	return conf.SubscriptionID
 }
 
+// testAzureTenantID returns the Azure tenant ID from the Azure test
+// configuration.
+func testAzureTenantID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.TenantID
+}
+
 // testAzureSubscriptionName returns the Azure subscription name from the Azure
 // test configuration.
 func testAzureSubscriptionName(t *testing.T) string {
