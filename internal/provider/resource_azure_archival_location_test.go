@@ -36,7 +36,7 @@ import (
 
 // TestAccAzureArchivalLocationResource onboards the Azure subscription with the
 // Cloud Native Archival feature, creates a specific region archival location,
-// updates and imports it, and reads it with the data source.
+// updates and imports it.
 func TestAccAzureArchivalLocationResource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
@@ -194,51 +194,6 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 					})),
 			},
 		}, {
-			// Verify that the data source reads the archival location by ID
-			// and by name.
-			Config: conf + `
-				data "rubrik_azure_archival_location" "by_id" {
-					id = rubrik_azure_archival_location.location.id
-				}
-				data "rubrik_azure_archival_location" "by_name" {
-					name = rubrik_azure_archival_location.location.name
-				}
-			`,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
-				"storage_tier":                config.StringVariable("HOT"),
-				"storage_account_tags": config.MapVariable(map[string]config.Variable{
-					"environment": config.StringVariable("test"),
-					"owner":       config.StringVariable("terraform"),
-				}),
-			},
-			ConfigStateChecks: []statecheck.StateCheck{
-				statecheck.CompareValuePairs(
-					"rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
-					"data.rubrik_azure_archival_location.by_id", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_archival_location.location", tfjsonpath.New(keyName),
-					"data.rubrik_azure_archival_location.by_id", tfjsonpath.New(keyName),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_archival_location.location", tfjsonpath.New(keyCloudAccountID),
-					"data.rubrik_azure_archival_location.by_id", tfjsonpath.New(keyCloudAccountID),
-					compare.ValuesSame()),
-				statecheck.CompareValuePairs(
-					"rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
-					"data.rubrik_azure_archival_location.by_name", tfjsonpath.New(keyID),
-					compare.ValuesSame()),
-			},
-		}, {
 			// Terraform import.
 			ResourceName: "rubrik_azure_archival_location.location",
 			ConfigVariables: config.Variables{
@@ -387,6 +342,10 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 				key_version    = var.key_version
 			}
 		}
+
+		data "rubrik_azure_archival_location" "location" {
+			id = rubrik_azure_archival_location.location.id
+		}
 	`
 
 	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
@@ -431,6 +390,12 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyManagerID),
 					compare.ValuesSame()),
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyCustomerManagedKey), knownvalue.SetSizeExact(0)),
+				statecheck.CompareValuePairs(
+					"rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
+					"data.rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
+					compare.ValuesSame()),
+				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyCustomerManagedKey), knownvalue.SetSizeExact(0)),
 			},
 		}, {
@@ -494,6 +459,10 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
 					tfjsonpath.New(keyKeyVaultKey).AtSliceIndex(0).AtMapKey(keyKeyVersion),
 					knownvalue.StringExact(testAzureKMSKeys(t)[1].Version)),
+				statecheck.CompareValuePairs(
+					"rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
+					"data.rubrik_azure_archival_location.location", tfjsonpath.New(keyKeyVaultKey),
+					compare.ValuesSame()),
 			},
 		}, {
 			// Terraform import, verifying that the key vault key is read back.
