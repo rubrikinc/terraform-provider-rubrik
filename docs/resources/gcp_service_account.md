@@ -6,9 +6,11 @@ description: |-
   The rubrik_gcp_service_account resource adds the GCP service account to RSC
   as the default service account. The default service account will be used by RSC
   to authenticate to the GCP for projects added to RSC without a service account.
-  ~> Note: Changing the name of the default service account can take a
-  considerable time to propagate through the system. Use the ignore_changes
-  field of the lifecycle block if it becomes an issue.
+  ~> Note: RSC always uses the client email of the service account key as
+  the name of the default service account, the name field is not sent to
+  RSC. If name is set to anything other than the client email, every plan
+  shows a change. Use the ignore_changes field of the lifecycle block if
+  it becomes an issue.
   ~> Note: Destroying the rubrik_gcp_service_account resource only updates
   the local state, it does not remove the service account from RSC. However,
   it's possible to overwrite the RSC global service account with new service
@@ -23,9 +25,11 @@ The `rubrik_gcp_service_account` resource adds the GCP service account to RSC
 as the default service account. The default service account will be used by RSC
 to authenticate to the GCP for projects added to RSC without a service account.
 
-~> **Note:** Changing the name of the default service account can take a
-   considerable time to propagate through the system. Use the `ignore_changes`
-   field of the `lifecycle` block if it becomes an issue.
+~> **Note:** RSC always uses the client email of the service account key as
+   the name of the default service account, the `name` field is not sent to
+   RSC. If `name` is set to anything other than the client email, every plan
+   shows a change. Use the `ignore_changes` field of the `lifecycle` block if
+   it becomes an issue.
 
 ~> **Note:** Destroying the `rubrik_gcp_service_account` resource only updates
    the local state, it does not remove the service account from RSC. However,
@@ -52,9 +56,9 @@ resource "rubrik_gcp_service_account" "default" {
 
 ### Optional
 
-- `name` (String) Service account name in RSC. Defaults to `service-account-<timestamp>`.
+- `name` (String) Service account name in RSC. RSC always uses the client email of the service account key as the name, the value is not sent to RSC.
 - `permissions_hash` (String, Deprecated) Signals that the permissions has been updated. **Deprecated:** use the `permissions` field of the `feature` block of the `rubrik_gcp_project` resource instead.
 
 ### Read-Only
 
-- `id` (String) SHA-256 hash of the  service account name.
+- `id` (String) SHA-256 hash of the `name` field when the resource was created, or of a generated name if `name` isn't set. It is not derived from the name in RSC.
