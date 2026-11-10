@@ -7,6 +7,8 @@ page_title: "Changelog"
 ## v1.13.0
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
+* Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/gcp_project.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
