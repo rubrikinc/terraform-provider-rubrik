@@ -63,6 +63,7 @@ type awsArtifactsModel struct {
 	Cloud               types.String `tfsdk:"cloud"`
 	Feature             types.Set    `tfsdk:"feature"`
 	InstanceProfileKeys types.Set    `tfsdk:"instance_profile_keys"`
+	NativeID            types.String `tfsdk:"native_id"`
 	RoleKeys            types.Set    `tfsdk:"role_keys"`
 }
 
@@ -102,6 +103,16 @@ func (d *awsArtifactsDataSource) Schema(ctx context.Context, _ datasource.Schema
 				ElementType: types.StringType,
 				Computed:    true,
 				Description: "Instance profile keys for the RSC features.",
+			},
+			keyNativeID: schema.StringAttribute{
+				Optional: true,
+				Description: "AWS account ID of an account onboarded to RSC. When specified, the artifacts are those " +
+					"required by the account, e.g. one role per feature for an account using multiple roles. When " +
+					"not specified, the artifacts are those of an account using a single role. RSC returns an error " +
+					"if the account has not been onboarded.",
+				Validators: []validator.String{
+					isNotWhiteSpace(),
+				},
 			},
 			keyRoleKeys: schema.SetAttribute{
 				ElementType: types.StringType,
@@ -188,7 +199,11 @@ func (d *awsArtifactsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 
-	profiles, roles, err := aws.Wrap(polarisClient).Artifacts(ctx, cloud, features)
+	profiles, roles, err := aws.Wrap(polarisClient).ArtifactsWithParams(ctx, aws.ArtifactsParams{
+		Cloud:    cloud,
+		Features: features,
+		NativeID: config.NativeID.ValueString(),
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read AWS artifacts", err.Error())
 		return
@@ -231,6 +246,7 @@ func (d *awsArtifactsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		Cloud:               config.Cloud,
 		Feature:             config.Feature,
 		InstanceProfileKeys: profileSet,
+		NativeID:            config.NativeID,
 		RoleKeys:            roleSet,
 	}
 

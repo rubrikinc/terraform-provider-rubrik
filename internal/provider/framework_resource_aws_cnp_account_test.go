@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
@@ -44,6 +45,27 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 		"credentials":    config.StringVariable(testCredentials(t)),
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+	}
+
+	// An account using a single role gets one CROSSACCOUNT trust policy, an
+	// account using one role per feature gets a trust policy per feature,
+	// including CLOUDACCOUNTS which RSC adds on its own. CLOUD_COST_REPORT is
+	// also added when cost reporting is enabled for the RSC account, so it's
+	// not checked. The Exocompute EKS roles are the same in both role modes.
+	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	roleKeys := []string{"CROSSACCOUNT"}
+	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+		roleKeys = []string{"CLOUDACCOUNTS", "CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION", "EXOCOMPUTE"}
+	}
+	roleKeys = append(roleKeys, "EXOCOMPUTE_EKS_MASTERNODE", "EXOCOMPUTE_EKS_WORKERNODE", "EXOCOMPUTE_EKS_LAMBDA")
+	var trustPolicyChecks []knownvalue.Check
+	for _, roleKey := range roleKeys {
+		trustPolicyChecks = append(trustPolicyChecks, knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyRoleKey: knownvalue.StringExact(roleKey),
+		}))
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -117,21 +139,7 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 						}),
 					})),
 				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
-					tfjsonpath.New(keyTrustPolicies),
-					knownvalue.SetPartial([]knownvalue.Check{
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyRoleKey: knownvalue.StringExact("CROSSACCOUNT"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyRoleKey: knownvalue.StringExact("EXOCOMPUTE_EKS_MASTERNODE"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyRoleKey: knownvalue.StringExact("EXOCOMPUTE_EKS_WORKERNODE"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyRoleKey: knownvalue.StringExact("EXOCOMPUTE_EKS_LAMBDA"),
-						}),
-					})),
+					tfjsonpath.New(keyTrustPolicies), knownvalue.SetPartial(trustPolicyChecks)),
 			},
 		}, {
 			// Terraform import.
@@ -183,6 +191,23 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
 	}
 
+	// See TestAccAwsCnpAccountResource for the trust policies of each role
+	// mode.
+	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	roleKeys := []string{"CROSSACCOUNT"}
+	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+		roleKeys = []string{"CLOUDACCOUNTS", "CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION"}
+	}
+	var trustPolicyChecks []knownvalue.Check
+	for _, roleKey := range roleKeys {
+		trustPolicyChecks = append(trustPolicyChecks, knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyRoleKey: knownvalue.StringExact(roleKey),
+		}))
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy:             awsCnpAccountCheckDestroy(t),
@@ -217,12 +242,7 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
 					tfjsonpath.New(keyExternalID), knownvalue.StringExact("test-external-id")),
 				statecheck.ExpectKnownValue("rubrik_aws_cnp_account.account",
-					tfjsonpath.New(keyTrustPolicies),
-					knownvalue.SetPartial([]knownvalue.Check{
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyRoleKey: knownvalue.StringExact("CROSSACCOUNT"),
-						}),
-					})),
+					tfjsonpath.New(keyTrustPolicies), knownvalue.SetPartial(trustPolicyChecks)),
 			},
 		}, {
 			// Terraform import.
