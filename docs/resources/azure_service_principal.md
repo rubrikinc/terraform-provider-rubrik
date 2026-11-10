@@ -3,45 +3,45 @@
 page_title: "rubrik_azure_service_principal Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The rubrik_azure_service_principal resource adds an Azure service principal to
-  RSC. A service principal must be added for each Azure tenant before subscriptions
-  for the tenants can be added to RSC.
+  The rubrik_azure_service_principal resource adds an Azure service principal
+  to RSC. A service principal must be added for each Azure tenant before
+  subscriptions for the tenants can be added to RSC.
   There are 3 ways to create a rubrik_azure_service principal resource:
-  Using the app_id, app_name, app_secret, tenant_id and tenant_domain
-  fields.Using the credentials field which is the path to a custom service principal
-  file. A description of the custom format can be found
+  Using the app_id, app_name, app_secret, tenant_id and
+  tenant_domain fields.Using the credentials field which is the path to a custom service
+  principal file. A description of the custom format can be found
   here https://github.com/rubrikinc/rubrik-polaris-sdk-for-go?tab=readme-ov-file#azure-credentials.Using the sdk_auth field which is the path to an Azure service principal
   created with the Azure SDK using the --sdk-auth parameter.
   Prefer to use option 1, as the app_name and the app_secret can be updated
   without replacing the service principal.
-  ~> Note: Removing the last subscription from an RSC tenant will automatically
-  remove the tenant, which also removes the service principal. If this happens,
-  the service principal can be replaced using
+  ~> Note: Removing the last subscription from an RSC tenant will
+  automatically remove the tenant, which also removes the service principal.
+  If this happens, the service principal can be replaced using
   terraform apply -replace=<address-of-service-principal>.
-  ~> Note: Destroying the rubrik_azure_service_principal resource only updates
-  the local state, it does not remove the service principal from RSC. However,
-  creating another rubrik_azure_service_principal resource for the same Azure
-  tenant will overwrite the old service principal in RSC.
-  -> Note: There is no way to verify if a service principal has been added to RSC
-  using the UI. RSC tenants don't show up in the UI until the first subscription is
-  added.
+  ~> Note: Destroying the rubrik_azure_service_principal resource only
+  updates the local state, it does not remove the service principal from RSC.
+  However, creating another rubrik_azure_service_principal resource for the
+  same Azure tenant will overwrite the old service principal in RSC.
+  -> Note: There is no way to verify if a service principal has been added
+  to RSC using the UI. RSC tenants don't show up in the UI until the first
+  subscription is added.
   -> Note: A tenant that needs both cloud native protection and Azure DevOps
-  protection declares two rubrik_azure_service_principal resources with the same
-  tenant_domain but different use_case values. The credentials are stored in a
-  separate location per use case.
+  protection declares two rubrik_azure_service_principal resources with the
+  same tenant_domain but different use_case values. The credentials are
+  stored in a separate location per use case.
 ---
 
 # rubrik_azure_service_principal (Resource)
 
-The `rubrik_azure_service_principal` resource adds an Azure service principal to
-RSC. A service principal must be added for each Azure tenant before subscriptions
-for the tenants can be added to RSC.
+The `rubrik_azure_service_principal` resource adds an Azure service principal
+to RSC. A service principal must be added for each Azure tenant before
+subscriptions for the tenants can be added to RSC.
 
 There are 3 ways to create a `rubrik_azure_service principal` resource:
-  1. Using the `app_id`, `app_name`, `app_secret`, `tenant_id` and `tenant_domain`
-     fields.
-  2. Using the `credentials` field which is the path to a custom service principal 
-     file. A description of the custom format can be found
+  1. Using the `app_id`, `app_name`, `app_secret`, `tenant_id` and
+     `tenant_domain` fields.
+  2. Using the `credentials` field which is the path to a custom service
+     principal file. A description of the custom format can be found
      [here](https://github.com/rubrikinc/rubrik-polaris-sdk-for-go?tab=readme-ov-file#azure-credentials).
   3. Using the `sdk_auth` field which is the path to an Azure service principal
      created with the Azure SDK using the `--sdk-auth` parameter.
@@ -49,24 +49,24 @@ There are 3 ways to create a `rubrik_azure_service principal` resource:
 Prefer to use option 1, as the `app_name` and the `app_secret` can be updated
 without replacing the service principal.
 
-~> **Note:** Removing the last subscription from an RSC tenant will automatically
-   remove the tenant, which also removes the service principal. If this happens,
-   the service principal can be replaced using
+~> **Note:** Removing the last subscription from an RSC tenant will
+   automatically remove the tenant, which also removes the service principal.
+   If this happens, the service principal can be replaced using
    `terraform apply -replace=<address-of-service-principal>`.
 
-~> **Note:** Destroying the `rubrik_azure_service_principal` resource only updates
-   the local state, it does not remove the service principal from RSC. However,
-   creating another `rubrik_azure_service_principal` resource for the same Azure
-   tenant will overwrite the old service principal in RSC.
+~> **Note:** Destroying the `rubrik_azure_service_principal` resource only
+   updates the local state, it does not remove the service principal from RSC.
+   However, creating another `rubrik_azure_service_principal` resource for the
+   same Azure tenant will overwrite the old service principal in RSC.
 
--> **Note:** There is no way to verify if a service principal has been added to RSC
-   using the UI. RSC tenants don't show up in the UI until the first subscription is
-   added.
+-> **Note:** There is no way to verify if a service principal has been added
+   to RSC using the UI. RSC tenants don't show up in the UI until the first
+   subscription is added.
 
 -> **Note:** A tenant that needs both cloud native protection and Azure DevOps
-   protection declares two `rubrik_azure_service_principal` resources with the same
-   `tenant_domain` but different `use_case` values. The credentials are stored in a
-   separate location per use case.
+   protection declares two `rubrik_azure_service_principal` resources with the
+   same `tenant_domain` but different `use_case` values. The credentials are
+   stored in a separate location per use case.
 
 ## Example Usage
 
@@ -116,11 +116,11 @@ resource "rubrik_azure_service_principal" "devops" {
 ### Optional
 
 - `app_id` (String) Azure app registration application ID. Also known as the client ID. Changing this forces a new resource to be created.
-- `app_name` (String) Azure app registration display name. Changing this forces a new resource to be created.
-- `app_secret` (String, Sensitive) Azure app registration client secret. Changing this forces a new resource to be created.
+- `app_name` (String) Azure app registration display name.
+- `app_secret` (String, Sensitive) Azure app registration client secret.
 - `credentials` (String) Path to a custom service principal file. Changing this forces a new resource to be created.
 - `permissions` (String, Deprecated) Permissions updated signal. When this field is updated, the provider will notify RSC that permissions has been updated. Use this field with the `rubrik_azure_permissions` data source. **Deprecated:** use the `rubrik_azure_subscription` resource's `permissions` fields instead.
-- `permissions_hash` (String, Deprecated) Permissions updated signal. **Deprecated:** use `permissions` instead.
+- `permissions_hash` (String, Deprecated) Permissions updated signal. **Deprecated:** use the `rubrik_azure_subscription` resource's `permissions` fields instead.
 - `sdk_auth` (String) Path to an Azure service principal created with the Azure SDK using the `--sdk-auth` parameter. Changing this forces a new resource to be created.
 - `tenant_id` (String) Azure tenant ID. Also known as the directory ID. Changing this forces a new resource to be created.
 - `use_case` (String) What the service principal is registered for. One of `CLOUD_NATIVE_PROTECTION` (default) or `AZURE_DEVOPS`. The credentials are stored in a separate location per use case, so a tenant can have one service principal per use case. Changing this forces a new resource to be created.
