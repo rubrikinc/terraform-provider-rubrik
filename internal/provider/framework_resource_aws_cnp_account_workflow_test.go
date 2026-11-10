@@ -34,13 +34,26 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 // TestAccAwsCnpAccountWorkflow exercises the full AWS IAM-roles onboarding
-// workflow end-to-end.
+// workflow end-to-end for an account using a single CROSSACCOUNT role. When
+// RSC onboards new accounts with one role per feature, the account gets a
+// trust policy per feature while the data sources, without native_id, return
+// the CROSSACCOUNT role, so the test is skipped. That role mode is covered by
+// TestAccAwsCnpAccountWorkflow_NativeID.
 func TestAccAwsCnpAccountWorkflow(t *testing.T) {
+	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+		t.Skipf("Feature flag %q enabled, the account uses one role per feature", FeatureFlagAWSManualOnboardingMultiRole)
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		ExternalProviders: map[string]resource.ExternalProvider{
