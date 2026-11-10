@@ -85,6 +85,36 @@ func testAzureTenantDomain(t *testing.T) string {
 	return conf.TenantDomain
 }
 
+// testAzurePrincipalID returns the Azure service principal app ID from the
+// Azure test configuration.
+func testAzurePrincipalID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.PrincipalID
+}
+
+// testAzurePrincipalName returns the Azure service principal app name from the
+// Azure test configuration.
+func testAzurePrincipalName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.PrincipalName
+}
+
+// testAzurePrincipalSecret returns the Azure service principal app secret from
+// the Azure test configuration.
+func testAzurePrincipalSecret(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.PrincipalSecret
+}
+
 // testAzureSubscriptionID returns the Azure subscription ID from the Azure test
 // configuration.
 func testAzureSubscriptionID(t *testing.T) string {
@@ -93,6 +123,16 @@ func testAzureSubscriptionID(t *testing.T) string {
 
 	_, conf := loadAzureTestConfig(t)
 	return conf.SubscriptionID
+}
+
+// testAzureTenantID returns the Azure tenant ID from the Azure test
+// configuration.
+func testAzureTenantID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.TenantID
 }
 
 // testAzureSubscriptionName returns the Azure subscription name from the Azure

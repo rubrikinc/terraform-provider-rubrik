@@ -24,7 +24,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"slices"
 	"strings"
 
@@ -58,6 +61,38 @@ func (v isUUIDValidator) ValidateString(_ context.Context, req validator.StringR
 	if _, err := uuid.Parse(req.ConfigValue.ValueString()); err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid UUID",
 			fmt.Sprintf("%q is not a valid UUID: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// isExistingFile returns a validator that checks if a string value is the path
+// of an existing file.
+func isExistingFile() validator.String {
+	return isExistingFileValidator{}
+}
+
+type isExistingFileValidator struct{}
+
+func (v isExistingFileValidator) Description(_ context.Context) string {
+	return "value must be the path of an existing file"
+}
+
+func (v isExistingFileValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isExistingFileValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if _, err := os.Stat(req.ConfigValue.ValueString()); err != nil {
+		details := "unknown error"
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) {
+			details = pathErr.Err.Error()
+		}
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid File",
+			fmt.Sprintf("failed to access file: %s", details))
 	}
 }
 
