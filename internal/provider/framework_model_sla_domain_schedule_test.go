@@ -275,3 +275,55 @@ func TestToRetentionLockModel(t *testing.T) {
 		})
 	}
 }
+
+func TestScheduleFrequencies(t *testing.T) {
+	all := gqlsla.SnapshotSchedule{
+		Yearly:    &gqlsla.YearlySnapshotSchedule{},
+		Quarterly: &gqlsla.QuarterlySnapshotSchedule{},
+		Monthly:   &gqlsla.MonthlySnapshotSchedule{},
+		Weekly:    &gqlsla.WeeklySnapshotSchedule{},
+		Daily:     &gqlsla.DailySnapshotSchedule{},
+		Hourly:    &gqlsla.HourlySnapshotSchedule{},
+		Minute:    &gqlsla.MinuteSnapshotSchedule{},
+	}
+
+	tests := []struct {
+		name     string
+		schedule gqlsla.SnapshotSchedule
+		want     []gqlsla.RetentionUnit
+	}{
+		{name: "empty", schedule: gqlsla.SnapshotSchedule{}, want: nil},
+		// The frequencies are always from the shortest to the longest, whatever
+		// order the schedules were set in.
+		{
+			name:     "all",
+			schedule: all,
+			want: []gqlsla.RetentionUnit{
+				gqlsla.Minute, gqlsla.Hours, gqlsla.Days, gqlsla.Weeks, gqlsla.Months, gqlsla.Quarters, gqlsla.Years,
+			},
+		},
+		{
+			name:     "daily and monthly",
+			schedule: gqlsla.SnapshotSchedule{Daily: all.Daily, Monthly: all.Monthly},
+			want:     []gqlsla.RetentionUnit{gqlsla.Days, gqlsla.Months},
+		},
+		{
+			name:     "yearly only",
+			schedule: gqlsla.SnapshotSchedule{Yearly: all.Yearly},
+			want:     []gqlsla.RetentionUnit{gqlsla.Years},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scheduleFrequencies(tt.schedule)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("got %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
