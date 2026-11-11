@@ -21,10 +21,8 @@
 package provider
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -41,6 +39,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
+	prefix := testUniqueStorageAccountNamePrefix(t)
 
 	const conf = `
 		variable "credentials" {
@@ -116,7 +115,18 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 		}
 	`
 
-	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(name),
+		"storage_account_name_prefix": config.StringVariable(prefix),
+		"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
@@ -129,19 +139,8 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 			// by ID, by archival location ID and by name. The location has no
 			// storage account tags, so the tags must be empty. The tags are
 			// set by the update, since RSC doesn't store tags given on create.
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
-				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By ID.
 				statecheck.CompareValuePairs(
@@ -308,20 +307,11 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 		}, {
 			// Verify that the data source reads the storage account tags.
 			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 				}),
-			},
+			}),
 			ConfigStateChecks: []statecheck.StateCheck{
 				// By ID.
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.by_id",
@@ -350,6 +340,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
+	prefix := testUniqueStorageAccountNamePrefix(t)
 
 	const conf = `
 		variable "credentials" {
@@ -425,7 +416,18 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 		}
 	`
 
-	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(name),
+		"storage_account_name_prefix": config.StringVariable(prefix),
+		"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
+	}
 
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
@@ -443,19 +445,8 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 			// Verify that the two data sources are equal for an archival
 			// location without storage account tags. The tags are set by the
 			// update, since RSC doesn't store tags given on create.
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
-				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.CompareValuePairs(
 					"rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
@@ -522,20 +513,11 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 			// Verify that the two data sources are equal for an archival
 			// location with storage account tags.
 			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 				}),
-			},
+			}),
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("data.rubrik_azure_archival_location.new",
 					tfjsonpath.New(keyStorageAccountTags), knownvalue.MapExact(map[string]knownvalue.Check{

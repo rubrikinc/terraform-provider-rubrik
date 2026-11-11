@@ -277,30 +277,6 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 		return
 	}
 
-	customerKeyAttrTypes := map[string]attr.Type{
-		keyName:      types.StringType,
-		keyRegion:    types.StringType,
-		keyVaultName: types.StringType,
-	}
-	customerKeyValues := make([]attr.Value, 0, len(cloudNativeCompanion.CMKInfo))
-	for _, key := range cloudNativeCompanion.CMKInfo {
-		customerKeyValue, diags := types.ObjectValue(customerKeyAttrTypes, map[string]attr.Value{
-			keyName:      types.StringValue(key.Name),
-			keyRegion:    types.StringValue(key.Region.Name()),
-			keyVaultName: types.StringValue(key.VaultName),
-		})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		customerKeyValues = append(customerKeyValues, customerKeyValue)
-	}
-	customerKeys, diags := types.SetValue(types.ObjectType{AttrTypes: customerKeyAttrTypes}, customerKeyValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
 	// RSC only lists the groups encrypted with a key from a key manager.
 	// A group which isn't listed has no such key.
 	details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, targetMapping.ID)
@@ -308,34 +284,20 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 		res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
 		return
 	}
-	keyVaultKeyAttrTypes := map[string]attr.Type{
-		keyKeyManagerID: types.StringType,
-		keyKeyName:      types.StringType,
-		keyKeyVersion:   types.StringType,
+	keyVaultKey, diags := fromAzureKeyVaultKey(ctx, details)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
 	}
-	var keyVaultKeyValues []attr.Value
-	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
-		keyVaultKeyValue, diags := types.ObjectValue(keyVaultKeyAttrTypes, map[string]attr.Value{
-			keyKeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-			keyKeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-			keyKeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
-		})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		keyVaultKeyValues = append(keyVaultKeyValues, keyVaultKeyValue)
 
-		// RSC keeps customer managed keys given together with a key vault key,
-		// even though they aren't used, so they aren't returned for a location
-		// with a key vault key.
-		customerKeys, diags = types.SetValue(types.ObjectType{AttrTypes: customerKeyAttrTypes}, []attr.Value{})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
+	// RSC keeps customer managed keys given together with a key vault key,
+	// even though they aren't used, so they aren't returned for a location
+	// with a key vault key.
+	cmkInfo := cloudNativeCompanion.CMKInfo
+	if len(keyVaultKey.Elements()) > 0 {
+		cmkInfo = nil
 	}
-	keyVaultKey, diags := types.ListValue(types.ObjectType{AttrTypes: keyVaultKeyAttrTypes}, keyVaultKeyValues)
+	customerKeys, diags := fromAzureCustomerKeys(ctx, cmkInfo)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return

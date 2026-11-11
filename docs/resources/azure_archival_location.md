@@ -3,32 +3,33 @@
 page_title: "rubrik_azure_archival_location Resource - terraform-provider-rubrik"
 subcategory: ""
 description: |-
-  The rubrik_azure_archival_location resource creates an RSC archival location for
-  cloud-native workloads. This resource requires that the Azure subscription has been
-  onboarded with the cloud_native_archival feature.
-  When creating an archival location, the region where the snapshots are stored needs
-  to be specified:
-  SOURCE_REGION - Store snapshots in the same region to minimize data transfer
-  charges. This is the default behaviour when the storage_account_region field is
-  not specified.SPECIFIC_REGION - Storing snapshots in another region can increase total data
-  transfer charges. The storage_account_region field specifies the region.
+  The rubrik_azure_archival_location resource creates an RSC archival location
+  for cloud-native workloads. This resource requires that the Azure subscription
+  has been onboarded with the cloud_native_archival feature.
+  When creating an archival location, the region where the snapshots are stored
+  needs to be specified:
+  SOURCE_REGION - Store snapshots in the same region to minimize data
+  transfer charges. This is the default behaviour when the
+  storage_account_region field is not specified.SPECIFIC_REGION - Storing snapshots in another region can increase total
+  data transfer charges. The storage_account_region field specifies the
+  region.
   Custom storage encryption is enabled by specifying one or more customer managed
   key blocks. For SPECIFIC_REGION, a customer managed key block for the specific
   region must be specified. For SOURCE_REGION, a customer managed key block for
   each source region should be specified, source regions not having a customer
   managed key block will have its data encrypted with platform managed keys.
-  Client-side encryption is enabled by specifying the key_vault_key block, with a
-  key in an Azure Key Vault registered as a key manager in RSC. Register the key
+  Client-side encryption is enabled by specifying the key_vault_key block, with
+  a key in an Azure Key Vault registered as a key manager in RSC. Register the key
   manager with the rubrik_azure_key_manager resource, or look up an existing
   one with the rubrik_azure_key_manager data source. The key_vault_key
   block conflicts with the customer managed key blocks.
   The key vault key has the following requirements, which RSC does not check when
   the archival location is created:
-  The key vault must be registered as a key manager for a subscription onboarded
-  with the cloud_native_uem_key_management feature, see the
+  The key vault must be registered as a key manager for a subscription
+  onboarded with the cloud_native_uem_key_management feature, see the
   rubrik_azure_subscription resource.The service principal of the key manager's subscription must be assigned the
-  Key Vault Crypto User role on the key vault.Exocompute performs the encryption, so the key manager's subscription must be
-  mapped to Exocompute in the key vault's region.
+  Key Vault Crypto User role on the key vault.Exocompute performs the encryption, so the key manager's subscription must
+  be mapped to Exocompute in the key vault's region.
   Changing the key name or the key version of the key_vault_key block rekeys the
   archival location in place, without re-encrypting the archived data. The rekey
   can take several minutes, increase timeouts.update if it takes longer than the
@@ -40,17 +41,18 @@ description: |-
 
 # rubrik_azure_archival_location (Resource)
 
-The `rubrik_azure_archival_location` resource creates an RSC archival location for
-cloud-native workloads. This resource requires that the Azure subscription has been
-onboarded with the `cloud_native_archival` feature.
+The `rubrik_azure_archival_location` resource creates an RSC archival location
+for cloud-native workloads. This resource requires that the Azure subscription
+has been onboarded with the `cloud_native_archival` feature.
 
-When creating an archival location, the region where the snapshots are stored needs
-to be specified:
-  * `SOURCE_REGION` - Store snapshots in the same region to minimize data transfer
-    charges. This is the default behaviour when the `storage_account_region` field is
-    not specified.
-  * `SPECIFIC_REGION` - Storing snapshots in another region can increase total data
-    transfer charges. The `storage_account_region` field specifies the region.
+When creating an archival location, the region where the snapshots are stored
+needs to be specified:
+  * `SOURCE_REGION` - Store snapshots in the same region to minimize data
+    transfer charges. This is the default behaviour when the
+    `storage_account_region` field is not specified.
+  * `SPECIFIC_REGION` - Storing snapshots in another region can increase total
+    data transfer charges. The `storage_account_region` field specifies the
+    region.
 
 Custom storage encryption is enabled by specifying one or more customer managed
 key blocks. For `SPECIFIC_REGION`, a customer managed key block for the specific
@@ -58,21 +60,21 @@ region must be specified. For `SOURCE_REGION`, a customer managed key block for
 each source region should be specified, source regions not having a customer
 managed key block will have its data encrypted with platform managed keys.
 
-Client-side encryption is enabled by specifying the `key_vault_key` block, with a
-key in an Azure Key Vault registered as a key manager in RSC. Register the key
+Client-side encryption is enabled by specifying the `key_vault_key` block, with
+a key in an Azure Key Vault registered as a key manager in RSC. Register the key
 manager with the `rubrik_azure_key_manager` resource, or look up an existing
 one with the `rubrik_azure_key_manager` data source. The `key_vault_key`
 block conflicts with the customer managed key blocks.
 
 The key vault key has the following requirements, which RSC does not check when
 the archival location is created:
-  * The key vault must be registered as a key manager for a subscription onboarded
-    with the `cloud_native_uem_key_management` feature, see the
+  * The key vault must be registered as a key manager for a subscription
+    onboarded with the `cloud_native_uem_key_management` feature, see the
     `rubrik_azure_subscription` resource.
   * The service principal of the key manager's subscription must be assigned the
     Key Vault Crypto User role on the key vault.
-  * Exocompute performs the encryption, so the key manager's subscription must be
-    mapped to Exocompute in the key vault's region.
+  * Exocompute performs the encryption, so the key manager's subscription must
+    be mapped to Exocompute in the key vault's region.
 
 Changing the key name or the key version of the `key_vault_key` block rekeys the
 archival location in place, without re-encrypting the archived data. The rekey
@@ -149,7 +151,7 @@ resource "rubrik_azure_archival_location" "archival_location" {
 ### Optional
 
 - `customer_managed_key` (Block Set) Customer managed storage encryption. For `SPECIFIC_REGION`, a customer managed key block for the specific region must be specified. For `SOURCE_REGION`, a customer managed key block for each source region should be specified, source regions not having a customer managed key block will have its data encrypted with platform managed keys. Conflicts with `key_vault_key`. (see [below for nested schema](#nestedblock--customer_managed_key))
-- `key_vault_key` (Block List, Max: 1) Azure Key Vault key used for client-side encryption of the archived data. Conflicts with `customer_managed_key`. May be specified at most once. Changing the key name or the key version rekeys the archival location in place. Changing the key manager, or adding or removing the block, forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
+- `key_vault_key` (Block List) Azure Key Vault key used for client-side encryption of the archived data. Conflicts with `customer_managed_key`. May be specified at most once. Changing the key name or the key version rekeys the archival location in place. Changing the key manager, or adding or removing the block, forces a new resource to be created. (see [below for nested schema](#nestedblock--key_vault_key))
 - `network_access_type` (String) Azure storage account network access type. Possible values are `PRIVATE`, `PUBLIC` and `SELECTED_NETWORKS`.
 - `redundancy` (String) Azure storage redundancy. Possible values are `GRS`, `GZRS`, `LRS`, `RA_GRS`, `RA_GZRS` and `ZRS`. Default value is `LRS`. Changing this forces a new resource to be created.
 - `storage_account_region` (String) Azure region to store the snapshots in. If not specified, the snapshots will be stored in the same region as the workload. Changing this forces a new resource to be created.
@@ -189,11 +191,29 @@ Required:
 
 Optional:
 
-- `update` (String)
+- `update` (String) How long to wait for an update of the archival location, including a rekey, to complete. Default is `20m0s`.
 
 ## Import
 
 Import is supported using the following syntax:
+
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
+
+```terraform
+import {
+  to = rubrik_azure_archival_location.archival_location
+  identity = {
+    id = "a3386457-f775-452e-818d-d8fbae1e90bb"
+  }
+}
+```
+
+<!-- schema generated by tfplugindocs -->
+### Identity Schema
+
+#### Required
+
+- `id` (String) Cloud native archival location ID (UUID).
 
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
 

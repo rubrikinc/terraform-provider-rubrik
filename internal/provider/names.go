@@ -373,7 +373,6 @@ const (
 	keyPolarisAWSExocompute                         = "polaris_aws_exocompute"
 	keyPolarisAWSExocomputeClusterAttachment        = "polaris_aws_exocompute_cluster_attachment"
 	keyPolarisAWSPrivateContainerRegistry           = "polaris_aws_private_container_registry"
-	keyPolarisAzureArchivalLocation                 = "polaris_azure_archival_location"
 	keyPolarisAzureCloudCluster                     = "polaris_azure_cloud_cluster"
 	keyPolarisAzureExocompute                       = "polaris_azure_exocompute"
 	keyPolarisAzureExocomputeClusterAttachment      = "polaris_azure_exocompute_cluster_attachment"
