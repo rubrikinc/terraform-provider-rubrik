@@ -39,6 +39,11 @@ import (
 func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 	name := testUniqueName(t)
 
+	vars := config.Variables{
+		"name":            config.StringVariable(name),
+		"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_12_0),
@@ -61,10 +66,7 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 					subscription_id = var.subscription_id
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -100,10 +102,9 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 					subscription_id = var.subscription_id
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name + "-update"),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name": config.StringVariable(name + "-update"),
+			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectResourceAction("rubrik_data_center_azure_subscription.subscription",
@@ -121,20 +122,18 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 		}, {
 			// Terraform import.
 			ResourceName: "rubrik_data_center_azure_subscription.subscription",
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name + "-update"),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name": config.StringVariable(name + "-update"),
+			}),
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
 			ResourceName: "rubrik_data_center_azure_subscription.subscription",
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name + "-update"),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name": config.StringVariable(name + "-update"),
+			}),
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -145,10 +144,9 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 		}, {
 			// import {} block with identity attribute.
 			ResourceName: "rubrik_data_center_azure_subscription.subscription",
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name + "-update"),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name": config.StringVariable(name + "-update"),
+			}),
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -182,6 +180,11 @@ func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T)
 		}
 	`
 
+	vars := config.Variables{
+		"name":            config.StringVariable(name),
+		"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
+	}
+
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: dataCenterAzureSubscriptionCheckDestroy(t),
 		Steps: []resource.TestStep{{
@@ -191,11 +194,8 @@ func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T)
 					VersionConstraint: "1.11.2",
 				},
 			},
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_data_center_azure_subscription.subscription", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -203,11 +203,8 @@ func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T)
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
 			Config:                   conf,
-			ConfigVariables: config.Variables{
-				"name":            config.StringVariable(name),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
-			PlanOnly: true,
+			ConfigVariables:          vars,
+			PlanOnly:                 true,
 		}},
 	})
 }
@@ -218,6 +215,12 @@ func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T)
 // rubrik_data_center_azure_subscription resource using the moved {} block.
 func TestAccAzureDataCenterSubscriptionResource_MoveState(t *testing.T) {
 	name := testUniqueName(t)
+
+	vars := config.Variables{
+		"credentials":     config.StringVariable(testCredentials(t)),
+		"name":            config.StringVariable(name),
+		"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
+	}
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
@@ -251,11 +254,7 @@ func TestAccAzureDataCenterSubscriptionResource_MoveState(t *testing.T) {
 					subscription_id = var.subscription_id
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"credentials":     config.StringVariable(testCredentials(t)),
-				"name":            config.StringVariable(name),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_data_center_azure_subscription.subscription",
 					tfjsonpath.New(keyID), NonNullUUID()),
@@ -283,11 +282,7 @@ func TestAccAzureDataCenterSubscriptionResource_MoveState(t *testing.T) {
 					subscription_id = var.subscription_id
 				}
 			`,
-			ConfigVariables: config.Variables{
-				"credentials":     config.StringVariable(testCredentials(t)),
-				"name":            config.StringVariable(name),
-				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
-			},
+			ConfigVariables: vars,
 			// Verify the plan is empty, move succeeded without drift, and
 			// apply to update the state.
 			ConfigPlanChecks: resource.ConfigPlanChecks{
