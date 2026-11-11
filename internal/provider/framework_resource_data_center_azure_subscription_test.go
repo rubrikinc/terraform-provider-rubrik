@@ -168,32 +168,30 @@ func TestAccAzureDataCenterSubscriptionResource(t *testing.T) {
 func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T) {
 	name := testUniqueName(t)
 
+	const conf = `
+		variable "name" {
+			type = string
+		}
+		variable "subscription_id" {
+			type = string
+		}
+
+		resource "rubrik_data_center_azure_subscription" "subscription" {
+			name            = var.name
+			subscription_id = var.subscription_id
+		}
+	`
+
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: dataCenterAzureSubscriptionCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
-				"rubrik-sdkv2": {
+				"rubrik": {
 					Source:            "rubrikinc/rubrik",
 					VersionConstraint: "1.11.2",
 				},
 			},
-			Config: `
-				variable "name" {
-					type = string
-				}
-				variable "subscription_id" {
-					type = string
-				}
-
-				provider "rubrik-sdkv2" {}
-
-				resource "rubrik_data_center_azure_subscription" "subscription" {
-					provider = rubrik-sdkv2
-
-					name            = var.name
-					subscription_id = var.subscription_id
-				}
-			`,
+			Config: conf,
 			ConfigVariables: config.Variables{
 				"name":            config.StringVariable(name),
 				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
@@ -204,19 +202,7 @@ func TestAccAzureDataCenterSubscriptionResource_FrameworkMigration(t *testing.T)
 			},
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config: `
-				variable "name" {
-					type = string
-				}
-				variable "subscription_id" {
-					type = string
-				}
-
-				resource "rubrik_data_center_azure_subscription" "subscription" {
-					name            = var.name
-					subscription_id = var.subscription_id
-				}
-			`,
+			Config:                   conf,
 			ConfigVariables: config.Variables{
 				"name":            config.StringVariable(name),
 				"subscription_id": config.StringVariable(testAzureSubscriptionID(t)),
