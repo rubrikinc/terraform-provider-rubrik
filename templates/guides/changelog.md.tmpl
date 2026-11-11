@@ -9,6 +9,9 @@ page_title: "Changelog"
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_project.md)]
+* Migrate the `rubrik_azure_private_container_registry` resource to the Terraform Plugin Framework. The resource now
+  supports import by identity, and state can be moved from `polaris_azure_private_container_registry` with a moved
+  block. [[docs](../resources/azure_private_container_registry.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
