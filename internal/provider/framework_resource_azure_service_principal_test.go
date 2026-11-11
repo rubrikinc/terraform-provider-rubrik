@@ -146,34 +146,58 @@ func TestAccAzureServicePrincipalResource(t *testing.T) {
 // existing state created by the SDKv2 provider can be read by the Framework
 // provider without drift.
 func TestAccAzureServicePrincipalResource_FrameworkMigration(t *testing.T) {
+	const credentialsConf = `
+		variable "credentials" {
+			type = string
+		}
+		variable "tenant_domain" {
+			type = string
+		}
+
+		resource "rubrik_azure_service_principal" "service_principal" {
+			credentials   = var.credentials
+			tenant_domain = var.tenant_domain
+		}
+	`
+	const valuesConf = `
+		variable "app_id" {
+			type = string
+		}
+		variable "app_name" {
+			type = string
+		}
+		variable "app_secret" {
+			type      = string
+			sensitive = true
+		}
+		variable "tenant_domain" {
+			type = string
+		}
+		variable "tenant_id" {
+			type = string
+		}
+
+		resource "rubrik_azure_service_principal" "service_principal" {
+			app_id        = var.app_id
+			app_name      = var.app_name
+			app_secret    = var.app_secret
+			tenant_domain = var.tenant_domain
+			tenant_id     = var.tenant_id
+		}
+	`
+
 	resource.Test(t, resource.TestCase{
 		Steps: []resource.TestStep{{
 			// Add the service principal from a credentials file using the
 			// published SDKv2 provider and assert that the plan is empty when
 			// the provider is upgraded to the local provider.
 			ExternalProviders: map[string]resource.ExternalProvider{
-				"rubrik-sdkv2": {
+				"rubrik": {
 					Source:            "rubrikinc/rubrik",
 					VersionConstraint: "1.11.2",
 				},
 			},
-			Config: `
-				variable "credentials" {
-					type = string
-				}
-				variable "tenant_domain" {
-					type = string
-				}
-
-				provider "rubrik-sdkv2" {}
-
-				resource "rubrik_azure_service_principal" "service_principal" {
-					provider = rubrik-sdkv2
-
-					credentials   = var.credentials
-					tenant_domain = var.tenant_domain
-				}
-			`,
+			Config: credentialsConf,
 			ConfigVariables: config.Variables{
 				"credentials":   config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain": config.StringVariable(testAzureTenantDomain(t)),
@@ -184,19 +208,7 @@ func TestAccAzureServicePrincipalResource_FrameworkMigration(t *testing.T) {
 			},
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config: `
-				variable "credentials" {
-					type = string
-				}
-				variable "tenant_domain" {
-					type = string
-				}
-
-				resource "rubrik_azure_service_principal" "service_principal" {
-					credentials   = var.credentials
-					tenant_domain = var.tenant_domain
-				}
-			`,
+			Config:                   credentialsConf,
 			ConfigVariables: config.Variables{
 				"credentials":   config.StringVariable(testAzureCredentials(t)),
 				"tenant_domain": config.StringVariable(testAzureTenantDomain(t)),
@@ -207,41 +219,12 @@ func TestAccAzureServicePrincipalResource_FrameworkMigration(t *testing.T) {
 			// published SDKv2 provider and assert that the plan is empty when
 			// the provider is upgraded to the local provider.
 			ExternalProviders: map[string]resource.ExternalProvider{
-				"rubrik-sdkv2": {
+				"rubrik": {
 					Source:            "rubrikinc/rubrik",
 					VersionConstraint: "1.11.2",
 				},
 			},
-			Config: `
-				variable "app_id" {
-					type = string
-				}
-				variable "app_name" {
-					type = string
-				}
-				variable "app_secret" {
-					type      = string
-					sensitive = true
-				}
-				variable "tenant_domain" {
-					type = string
-				}
-				variable "tenant_id" {
-					type = string
-				}
-
-				provider "rubrik-sdkv2" {}
-
-				resource "rubrik_azure_service_principal" "service_principal" {
-					provider = rubrik-sdkv2
-
-					app_id        = var.app_id
-					app_name      = var.app_name
-					app_secret    = var.app_secret
-					tenant_domain = var.tenant_domain
-					tenant_id     = var.tenant_id
-				}
-			`,
+			Config: valuesConf,
 			ConfigVariables: config.Variables{
 				"app_id":        config.StringVariable(testAzurePrincipalID(t)),
 				"app_name":      config.StringVariable(testAzurePrincipalName(t)),
@@ -255,32 +238,7 @@ func TestAccAzureServicePrincipalResource_FrameworkMigration(t *testing.T) {
 			},
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
-			Config: `
-				variable "app_id" {
-					type = string
-				}
-				variable "app_name" {
-					type = string
-				}
-				variable "app_secret" {
-					type      = string
-					sensitive = true
-				}
-				variable "tenant_domain" {
-					type = string
-				}
-				variable "tenant_id" {
-					type = string
-				}
-
-				resource "rubrik_azure_service_principal" "service_principal" {
-					app_id        = var.app_id
-					app_name      = var.app_name
-					app_secret    = var.app_secret
-					tenant_domain = var.tenant_domain
-					tenant_id     = var.tenant_id
-				}
-			`,
+			Config:                   valuesConf,
 			ConfigVariables: config.Variables{
 				"app_id":        config.StringVariable(testAzurePrincipalID(t)),
 				"app_name":      config.StringVariable(testAzurePrincipalName(t)),
