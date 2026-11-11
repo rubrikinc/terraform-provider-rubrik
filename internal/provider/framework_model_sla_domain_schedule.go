@@ -82,6 +82,37 @@ type retentionLockModel struct {
 	ComplianceAcknowledge types.Bool   `tfsdk:"compliance_mode_acknowledgment"`
 }
 
+// scheduleFrequencies returns the frequencies of the snapshot schedule, from the
+// shortest to the longest. They are the frequencies an archival spec archives
+// when it has no frequencies of its own.
+func scheduleFrequencies(schedule gqlsla.SnapshotSchedule) []gqlsla.RetentionUnit {
+	var frequencies []gqlsla.RetentionUnit
+
+	if schedule.Minute != nil {
+		frequencies = append(frequencies, gqlsla.Minute)
+	}
+	if schedule.Hourly != nil {
+		frequencies = append(frequencies, gqlsla.Hours)
+	}
+	if schedule.Daily != nil {
+		frequencies = append(frequencies, gqlsla.Days)
+	}
+	if schedule.Weekly != nil {
+		frequencies = append(frequencies, gqlsla.Weeks)
+	}
+	if schedule.Monthly != nil {
+		frequencies = append(frequencies, gqlsla.Months)
+	}
+	if schedule.Quarterly != nil {
+		frequencies = append(frequencies, gqlsla.Quarters)
+	}
+	if schedule.Yearly != nil {
+		frequencies = append(frequencies, gqlsla.Years)
+	}
+
+	return frequencies
+}
+
 // scheduleAttrTypes returns the attribute types of a schedule model, given the
 // attribute types of its schedule specific attributes. They are the basic
 // attributes plus the extra attributes.

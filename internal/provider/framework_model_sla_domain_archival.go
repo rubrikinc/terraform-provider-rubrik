@@ -156,7 +156,7 @@ func fromArchivalModels(archivals []archivalModel, schedule gqlsla.SnapshotSched
 				frequencies = append(frequencies, gqlsla.RetentionUnit(freq))
 			}
 		} else {
-			frequencies = frequenciesFromSchedule(schedule)
+			frequencies = scheduleFrequencies(schedule)
 		}
 
 		archivalSpecs = append(archivalSpecs, gqlsla.ArchivalSpec{
