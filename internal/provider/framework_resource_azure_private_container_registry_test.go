@@ -156,7 +156,7 @@ func TestAccAzurePrivateContainerRegistryResource(t *testing.T) {
 		}, {
 			// Verify that the url is updated in place.
 			Config: conf,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"url": config.StringVariable("terraformtestupdated.azurecr.io"),
 			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -174,7 +174,7 @@ func TestAccAzurePrivateContainerRegistryResource(t *testing.T) {
 		}, {
 			// Terraform import.
 			Config: conf,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"url": config.StringVariable("terraformtestupdated.azurecr.io"),
 			}),
 			ResourceName:      "rubrik_azure_private_container_registry.registry",
@@ -184,7 +184,7 @@ func TestAccAzurePrivateContainerRegistryResource(t *testing.T) {
 		}, {
 			// import {} block with id attribute.
 			Config: conf,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"url": config.StringVariable("terraformtestupdated.azurecr.io"),
 			}),
 			ResourceName:    "rubrik_azure_private_container_registry.registry",
@@ -198,7 +198,7 @@ func TestAccAzurePrivateContainerRegistryResource(t *testing.T) {
 		}, {
 			// import {} block with identity attribute.
 			Config: conf,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"url": config.StringVariable("terraformtestupdated.azurecr.io"),
 			}),
 			ResourceName:    "rubrik_azure_private_container_registry.registry",
@@ -443,7 +443,7 @@ func TestAccAzurePrivateContainerRegistryResource_MoveState(t *testing.T) {
 					url              = var.url
 				}
 			`,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"rsc_credentials": config.StringVariable(testCredentials(t)),
 			}),
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -544,7 +544,7 @@ func TestAccAzurePrivateContainerRegistryResource_MoveState(t *testing.T) {
 					url              = var.url
 				}
 			`,
-			ConfigVariables: testVariables(vars, config.Variables{
+			ConfigVariables: testVariables(t, vars, config.Variables{
 				"rsc_credentials": config.StringVariable(testCredentials(t)),
 			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
