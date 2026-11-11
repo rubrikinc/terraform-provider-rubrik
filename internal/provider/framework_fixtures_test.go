@@ -23,12 +23,14 @@ package provider
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
@@ -205,7 +207,9 @@ func testUniqueTagKey(t *testing.T) string {
 // testUniqueStorageAccountNamePrefix returns a unique storage account name
 // prefix which can be used by both region specific archival locations and
 // source region archival locations.
-func testUniqueStorageAccountNamePrefix() string {
+func testUniqueStorageAccountNamePrefix(t *testing.T) string {
+	t.Helper()
+
 	return "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:11]
 }
 
@@ -766,4 +770,17 @@ func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 	if !c.flag(ctx, featureFlag) {
 		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
+}
+
+// testVariables returns a copy of base with the variables of each
+// override added, replacing variables with the same name. Later overrides
+// take precedence.
+func testVariables(t *testing.T, base config.Variables, overrides ...config.Variables) config.Variables {
+	t.Helper()
+
+	vars := maps.Clone(base)
+	for _, override := range overrides {
+		maps.Copy(vars, override)
+	}
+	return vars
 }

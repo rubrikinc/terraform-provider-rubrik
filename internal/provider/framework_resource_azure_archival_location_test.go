@@ -41,7 +41,7 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
-	prefix := testUniqueStorageAccountNamePrefix()
+	prefix := testUniqueStorageAccountNamePrefix(t)
 
 	const conf = `
 		variable "credentials" {
@@ -109,6 +109,20 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 		}
 	`
 
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(name),
+		"storage_account_name_prefix": config.StringVariable(prefix),
+		"storage_tier":                config.StringVariable("COOL"),
+		"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_12_0),
@@ -123,20 +137,8 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 			// Native Archival feature and that an archival location can be
 			// created. The storage account tags are set by the update, since
 			// RSC doesn't store tags given on create.
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"storage_tier":                config.StringVariable("COOL"),
-				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_subscription.subscription",
 					tfjsonpath.New(keyCloudNativeArchival).AtSliceIndex(0).AtMapKey(keyStatus),
@@ -167,22 +169,14 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 			// Verify that the name, the storage tier and the storage account
 			// tags are updated in place.
 			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"storage_tier":                config.StringVariable("HOT"),
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":         config.StringVariable(name + " Update"),
+				"storage_tier": config.StringVariable("HOT"),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 					"owner":       config.StringVariable("terraform"),
 				}),
-			},
+			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
@@ -205,44 +199,28 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 		}, {
 			// Terraform import.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"storage_tier":                config.StringVariable("HOT"),
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":         config.StringVariable(name + " Update"),
+				"storage_tier": config.StringVariable("HOT"),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 					"owner":       config.StringVariable("terraform"),
 				}),
-			},
+			}),
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"storage_tier":                config.StringVariable("HOT"),
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":         config.StringVariable(name + " Update"),
+				"storage_tier": config.StringVariable("HOT"),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 					"owner":       config.StringVariable("terraform"),
 				}),
-			},
+			}),
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -253,22 +231,14 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 		}, {
 			// import {} block with identity attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"storage_tier":                config.StringVariable("HOT"),
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":         config.StringVariable(name + " Update"),
+				"storage_tier": config.StringVariable("HOT"),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 					"owner":       config.StringVariable("terraform"),
 				}),
-			},
+			}),
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -290,7 +260,7 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
 	name := testUniqueName(t)
-	prefix := testUniqueStorageAccountNamePrefix()
+	prefix := testUniqueStorageAccountNamePrefix(t)
 
 	const conf = `
 		variable "credentials" {
@@ -383,6 +353,22 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 		}
 	`
 
+	vars := config.Variables{
+		"credentials":                 config.StringVariable(testAzureCredentials(t)),
+		"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+		"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+		"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+		"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+		"name":                        config.StringVariable(name),
+		"storage_account_name_prefix": config.StringVariable(prefix),
+		"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
+		"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
+		"key_name":                    config.StringVariable(testAzureKMSKeys(t)[0].Name),
+		"key_version":                 config.StringVariable(testAzureKMSKeys(t)[0].Version),
+	}
+
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_12_0),
@@ -396,22 +382,8 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that a client-side encrypted archival location can be
 			// created with a key from the key manager.
-			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[0].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[0].Version),
-			},
+			Config:          conf,
+			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
@@ -443,21 +415,9 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			// Verify that a client-side encrypted archival location can be
 			// renamed, an update must not send customer managed keys.
 			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[0].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[0].Version),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name": config.StringVariable(name + " Update"),
+			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
@@ -474,21 +434,11 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 			// Verify that changing the key name and the key version rekeys the
 			// archival location in place.
 			Config: conf,
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":        config.StringVariable(name + " Update"),
+				"key_name":    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version": config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			}),
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
@@ -512,42 +462,22 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 		}, {
 			// Terraform import, verifying that the key vault key is read back.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":        config.StringVariable(name + " Update"),
+				"key_name":    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version": config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			}),
 			ImportStateKind:   resource.ImportCommandWithID,
 			ImportState:       true,
 			ImportStateVerify: true,
 		}, {
 			// import {} block with id attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":        config.StringVariable(name + " Update"),
+				"key_name":    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version": config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			}),
 			ImportStateKind: resource.ImportBlockWithID,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -558,21 +488,11 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 		}, {
 			// import {} block with identity attribute.
 			ResourceName: "rubrik_azure_archival_location.location",
-			ConfigVariables: config.Variables{
-				"credentials":                 config.StringVariable(testAzureCredentials(t)),
-				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
-				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
-				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
-				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
-				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
-				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
-				"name":                        config.StringVariable(name + " Update"),
-				"storage_account_name_prefix": config.StringVariable(prefix),
-				"kms_region":                  config.StringVariable(testAzureKMSRegion(t)),
-				"vault_name":                  config.StringVariable(testAzureKMSVaultName(t)),
-				"key_name":                    config.StringVariable(testAzureKMSKeys(t)[1].Name),
-				"key_version":                 config.StringVariable(testAzureKMSKeys(t)[1].Version),
-			},
+			ConfigVariables: testVariables(t, vars, config.Variables{
+				"name":        config.StringVariable(name + " Update"),
+				"key_name":    config.StringVariable(testAzureKMSKeys(t)[1].Name),
+				"key_version": config.StringVariable(testAzureKMSKeys(t)[1].Version),
+			}),
 			ImportStateKind: resource.ImportBlockWithResourceIdentity,
 			ImportState:     true,
 			ImportPlanChecks: resource.ImportPlanChecks{
@@ -671,9 +591,9 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 		"resource_group_name":       config.StringVariable(testAzureArchivalResourceGroupName(t)),
 		"resource_group_region":     config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 		"name":                      config.StringVariable(testUniqueName(t)),
-		"name_prefix":               config.StringVariable(testUniqueStorageAccountNamePrefix()),
+		"name_prefix":               config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
 		"source_region_name":        config.StringVariable(testUniqueName(t)),
-		"source_region_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix()),
+		"source_region_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -728,7 +648,7 @@ func TestAccAzureArchivalLocationResource_MoveState(t *testing.T) {
 		"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
 		"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 		"name":                        config.StringVariable(testUniqueName(t)),
-		"storage_account_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix()),
+		"storage_account_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
 	}
 
 	resource.Test(t, resource.TestCase{
