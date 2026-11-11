@@ -15,6 +15,8 @@ resource "rubrik_aws_cloud_cluster" "example" {
     bucket_name             = "my-s3-bucket"
     enable_immutability     = true
     keep_cluster_on_failure = false
+    timezone                = "America/Los_Angeles"
+    location                = "Palo Alto, CA"
   }
 
   vm_config {

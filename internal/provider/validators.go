@@ -67,21 +67,6 @@ func validateFileExist(i any, k string) ([]string, []error) {
 	return nil, nil
 }
 
-// validate numNodes verifies that the num_nodes value is valid. 2 is not allowed
-func validateNumNodes(i any, k string) ([]string, []error) {
-	v, ok := i.(int)
-	if !ok {
-		return nil, []error{fmt.Errorf("expected type of %q to be string", k)}
-	}
-	if v == 2 {
-		return nil, []error{fmt.Errorf("num_nodes cannot be 2")}
-	}
-	if v < 1 {
-		return nil, []error{fmt.Errorf("num_nodes must be greater than 0")}
-	}
-	return nil, nil
-}
-
 // validatePermissions verifies that the permissions value is valid.
 func validatePermissions(m any, p cty.Path) diag.Diagnostics {
 	if m.(string) != "update" {
