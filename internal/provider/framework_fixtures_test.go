@@ -809,7 +809,9 @@ func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 // testVariables returns a copy of base with the variables of each
 // override added, replacing variables with the same name. Later overrides
 // take precedence.
-func testVariables(base config.Variables, overrides ...config.Variables) config.Variables {
+func testVariables(t *testing.T, base config.Variables, overrides ...config.Variables) config.Variables {
+	t.Helper()
+
 	vars := maps.Clone(base)
 	for _, override := range overrides {
 		maps.Copy(vars, override)
