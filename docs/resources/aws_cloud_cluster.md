@@ -166,7 +166,7 @@ Required:
 - `enable_immutability` (Boolean) Whether to enable immutability and object lock for the S3 bucket. Changing this forces a new resource to be created.
 - `keep_cluster_on_failure` (Boolean) Whether to keep the cluster on failure (can be useful for troubleshooting). Changing this forces a new resource to be created.
 - `ntp_servers` (Set of String) NTP servers for the cluster.
-- `num_nodes` (Number) Number of nodes in the cluster. Changing this forces a new resource to be created.
+- `num_nodes` (Number) Number of nodes in the cluster. Must be 1 or at least 3, two nodes are not supported. Changing this forces a new resource to be created.
 
 Optional:
 

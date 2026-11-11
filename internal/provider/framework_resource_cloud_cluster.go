@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -135,9 +134,9 @@ func cloudClusterCommonConfigAttributes() map[string]schema.Attribute {
 		},
 		keyNumNodes: schema.Int64Attribute{
 			Required:      true,
-			Description:   "Number of nodes in the cluster. Changing this forces a new resource to be created.",
+			Description:   "Number of nodes in the cluster. Must be 1 or at least 3, two nodes are not supported. Changing this forces a new resource to be created.",
 			PlanModifiers: []planmodifier.Int64{cloudClusterRequiresReplaceInt64()},
-			Validators:    []validator.Int64{int64validator.AtLeast(1), int64validator.NoneOf(2)},
+			Validators:    []validator.Int64{isCloudClusterNodeCount()},
 		},
 		keyDNSNameServers: schema.SetAttribute{
 			ElementType: types.StringType,

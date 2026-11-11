@@ -531,7 +531,7 @@ func (r *azureCloudClusterResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	rscCluster, err := cluster.Wrap(polarisClient).Cluster(ctx, id)
+	_, err = cluster.Wrap(polarisClient).Cluster(ctx, id)
 	if errors.Is(err, graphql.ErrNotFound) {
 		res.State.RemoveResource(ctx)
 		return
@@ -543,13 +543,11 @@ func (r *azureCloudClusterResource) Read(ctx context.Context, req resource.ReadR
 
 	// vm_config.cdm_version and vm_config.cdm_product are create-time values and
 	// are deliberately not refreshed, that would plan a replacement of the
-	// cluster after an upgrade outside of Terraform. The cdm_version is only set
-	// when missing, i.e. after an import. No subscription or marketplace calls
-	// are made here.
+	// cluster after an upgrade outside of Terraform. After an import the
+	// cdm_version is left null and adopted from the configuration, the installed
+	// version may differ from the version the cluster was created with. No
+	// subscription or marketplace calls are made here.
 	vm := &state.VMConfig[0]
-	if vm.CDMVersion.IsNull() {
-		vm.CDMVersion = types.StringValue(rscCluster.Version)
-	}
 	// SDKv2 stored an empty string for an unset optional string.
 	if vm.Subnet.ValueString() == "" {
 		vm.Subnet = types.StringNull()

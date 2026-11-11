@@ -585,8 +585,8 @@ func TestAccAzureCloudClusterResource(t *testing.T) {
 				keyVMConfig + ".0." + keyNetworkSecurityGroup,
 				keyVMConfig + ".0." + keyNetworkSecurityResourceGroup,
 				keyVMConfig + ".0." + keyVMType,
-				// The cdm_version is the installed version after an import, and the
-				// configured version otherwise.
+				// Create-time input that RSC can't return, adopted from the
+				// configuration after an import.
 				keyVMConfig + ".0." + keyCDMVersion,
 				// Not part of the cluster.
 				keyTimeouts,
