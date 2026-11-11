@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -199,6 +200,13 @@ func testUniqueTagKey(t *testing.T) string {
 	}
 
 	return fmt.Sprintf("terraform-acc-%s", id)
+}
+
+// testUniqueStorageAccountNamePrefix returns a unique storage account name
+// prefix which can be used by both region specific archival locations and
+// source region archival locations.
+func testUniqueStorageAccountNamePrefix() string {
+	return "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:11]
 }
 
 // testClient returns an RSC client for testing outside the Terraform provider.
