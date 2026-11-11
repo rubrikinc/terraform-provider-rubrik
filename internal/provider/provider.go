@@ -84,7 +84,6 @@ func Provider() *schema.Provider {
 			keyPolarisAzureCloudCluster:                  resourceAzureCloudCluster(),
 			keyPolarisAzureExocompute:                    resourceAzureExocompute(),
 			keyPolarisAzureExocomputeClusterAttachment:   resourceAzureExocomputeClusterAttachment(),
-			keyPolarisAzurePrivateContainerRegistry:      resourceAzurePrivateContainerRegistry(),
 			keyPolarisAzureServicePrincipal:              resourceAzureServicePrincipal(),
 			keyPolarisAzureSubscription:                  resourceAzureSubscription(),
 			keyPolarisCDMBootstrap:                       resourceCDMBootstrap(),

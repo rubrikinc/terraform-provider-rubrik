@@ -502,6 +502,39 @@ func gcpPrivateContainerRegistryCheckDestroy(t *testing.T) func(*terraform.State
 	}
 }
 
+// azurePrivateContainerRegistryCheckDestroy verifies that all
+// azure_private_container_registry resources have been deleted. RSC returns an
+// empty registry URL, and no error, when there is no registry registered for
+// the cloud account.
+func azurePrivateContainerRegistryCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_private_container_registry" &&
+				rs.Type != "rubrik_azure_private_container_registry" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			registry, err := pcr.Wrap(polarisClient).AzureRegistry(t.Context(), id)
+			if err != nil {
+				return err
+			}
+			if registry.PCRDetails.RegistryURL != "" {
+				return fmt.Errorf("azure_private_container_registry %s still exists", id)
+			}
+		}
+
+		return nil
+	}
+}
+
 // azureSubscriptionCheckDestroy verifies that all azure_subscription resources
 // have been deleted.
 func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {
