@@ -21,10 +21,8 @@
 package provider
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -41,6 +39,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
+	prefix := testUniqueStorageAccountNamePrefix()
 
 	const conf = `
 		variable "credentials" {
@@ -116,8 +115,6 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 		}
 	`
 
-	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
-
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
@@ -139,7 +136,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
 				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"storage_account_name_prefix": config.StringVariable(prefix),
 				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -317,7 +314,7 @@ func TestAccAzureArchivalLocationDataSource(t *testing.T) {
 				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
 				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"storage_account_name_prefix": config.StringVariable(prefix),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 				}),
@@ -350,6 +347,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
 
 	name := testUniqueName(t)
+	prefix := testUniqueStorageAccountNamePrefix()
 
 	const conf = `
 		variable "credentials" {
@@ -425,8 +423,6 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 		}
 	`
 
-	storageAccountNamePrefix := "tfacc" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
-
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"rubrik-sdkv2": {
@@ -453,7 +449,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
 				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"storage_account_name_prefix": config.StringVariable(prefix),
 				"storage_account_tags":        config.MapVariable(map[string]config.Variable{}),
 			},
 			ConfigStateChecks: []statecheck.StateCheck{
@@ -531,7 +527,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
 				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
 				"name":                        config.StringVariable(name),
-				"storage_account_name_prefix": config.StringVariable(storageAccountNamePrefix),
+				"storage_account_name_prefix": config.StringVariable(prefix),
 				"storage_account_tags": config.MapVariable(map[string]config.Variable{
 					"environment": config.StringVariable("test"),
 				}),
