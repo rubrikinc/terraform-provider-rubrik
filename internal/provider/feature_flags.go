@@ -27,6 +27,10 @@ const (
 	// FeatureFlagAWSAppResilience gates AWS application resilience.
 	FeatureFlagAWSAppResilience core.FeatureFlagName = "LIC_ENABLE_AWS_APP_RESILIENCE"
 
+	// FeatureFlagAWSCloudCostReport gates AWS cost reporting, which RSC adds
+	// on its own to accounts carrying a feature which accrues AWS spend.
+	FeatureFlagAWSCloudCostReport core.FeatureFlagName = "REL_ENABLE_CNP_CLOUD_COST_REPORT_AWS"
+
 	// FeatureFlagAzureDevOpsProtection gates Azure DevOps protection.
 	FeatureFlagAzureDevOpsProtection core.FeatureFlagName = "AZURE_DEVOPS_PROTECTION_ENABLED"
 

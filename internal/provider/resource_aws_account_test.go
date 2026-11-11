@@ -126,6 +126,7 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 	// Add and update account using a profile
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: providerFactories,
+		CheckDestroy:      awsAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: accountOneRegion,
 			Check: resource.ComposeTestCheckFunc(
@@ -182,6 +183,7 @@ func TestAccPolarisAWSAccount_basic(t *testing.T) {
 	// default profile to assume the role.
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: providerFactories,
+		CheckDestroy:      awsAccountCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			Config: crossAccountOneRegion,
 			Check: resource.ComposeTestCheckFunc(

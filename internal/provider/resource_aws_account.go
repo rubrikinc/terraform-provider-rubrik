@@ -1041,6 +1041,16 @@ func awsDeleteAccount(ctx context.Context, d *schema.ResourceData, m any) diag.D
 	features = slices.DeleteFunc(features, func(f core.Feature) bool {
 		return f.Equal(core.FeatureCloudDiscovery) || f.Equal(core.FeatureOutpost)
 	})
+
+	// RSC enables CLOUD_COST_REPORT on its own for an account carrying a
+	// feature which accrues AWS spend, and never removes it along with those
+	// features. It cannot be declared in the resource, so it is removed
+	// whenever RSC has it, otherwise the account is left behind in RSC with
+	// cost reporting as its only feature. The SDK removes it after the other
+	// features in the same call, and it is removed before cloud discovery.
+	if _, ok := cloudAccount.Feature(core.FeatureCloudCostReport); ok {
+		features = append(features, core.FeatureCloudCostReport)
+	}
 	if len(features) != 0 {
 		err = aws.Wrap(client).RemoveAccountWithCFT(ctx, account, features, deleteSnapshots)
 		if err != nil {

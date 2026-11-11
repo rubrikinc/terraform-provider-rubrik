@@ -29,10 +29,73 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
+	// RSC adds the cost reporting policy to the CROSSACCOUNT role when AWS cost
+	// reporting is enabled for the RSC account, since several of the features
+	// accrue AWS spend. The policies are sorted by feature name.
+	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	crossAccountPolicies := []knownvalue.Check{
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUDACCOUNTS"),
+			keyName:    knownvalue.StringExact("CloudAccountsPolicy"),
+		}),
+	}
+	if c.flag(t.Context(), FeatureFlagAWSCloudCostReport) {
+		crossAccountPolicies = append(crossAccountPolicies, knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_COST_REPORT"),
+			keyName:    knownvalue.StringExact("CloudCostReportPolicy"),
+		}))
+	}
+	crossAccountPolicies = append(crossAccountPolicies,
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_DISCOVERY"),
+			keyName:    knownvalue.StringExact("CloudDiscoveryPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_NATIVE_ARCHIVAL"),
+			keyName:    knownvalue.StringExact("CloudNativeArchivalLocationPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_NATIVE_DYNAMODB_PROTECTION"),
+			keyName:    knownvalue.StringExact("DynamoDBProtectionPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
+			keyName:    knownvalue.StringExact("EC2ProtectionPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("CLOUD_NATIVE_S3_PROTECTION"),
+			keyName:    knownvalue.StringExact("S3ProtectionPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("EXOCOMPUTE"),
+			keyName:    knownvalue.StringExact("ExocomputeInlinePolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("EXOCOMPUTE"),
+			keyName:    knownvalue.StringExact("ExocomputePolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("KUBERNETES_PROTECTION"),
+			keyName:    knownvalue.StringExact("KubernetesProtectionPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("RDS_PROTECTION"),
+			keyName:    knownvalue.StringExact("RDSProtectionPolicy"),
+		}),
+		knownvalue.ObjectPartial(map[string]knownvalue.Check{
+			keyFeature: knownvalue.StringExact("SERVERS_AND_APPS"),
+			keyName:    knownvalue.StringExact("ServersAndAppFeaturePolicy"),
+		}),
+	)
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
@@ -122,53 +185,7 @@ func TestAccAwsCnpPermissionsDataSource(t *testing.T) {
 				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
 					tfjsonpath.New(keyID), knownvalue.NotNull()),
 				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
-					tfjsonpath.New(keyCustomerManagedPolicies),
-					knownvalue.ListExact([]knownvalue.Check{
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUDACCOUNTS"),
-							keyName:    knownvalue.StringExact("CloudAccountsPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUD_DISCOVERY"),
-							keyName:    knownvalue.StringExact("CloudDiscoveryPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUD_NATIVE_ARCHIVAL"),
-							keyName:    knownvalue.StringExact("CloudNativeArchivalLocationPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUD_NATIVE_DYNAMODB_PROTECTION"),
-							keyName:    knownvalue.StringExact("DynamoDBProtectionPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
-							keyName:    knownvalue.StringExact("EC2ProtectionPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("CLOUD_NATIVE_S3_PROTECTION"),
-							keyName:    knownvalue.StringExact("S3ProtectionPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("EXOCOMPUTE"),
-							keyName:    knownvalue.StringExact("ExocomputeInlinePolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("EXOCOMPUTE"),
-							keyName:    knownvalue.StringExact("ExocomputePolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("KUBERNETES_PROTECTION"),
-							keyName:    knownvalue.StringExact("KubernetesProtectionPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("RDS_PROTECTION"),
-							keyName:    knownvalue.StringExact("RDSProtectionPolicy"),
-						}),
-						knownvalue.ObjectPartial(map[string]knownvalue.Check{
-							keyFeature: knownvalue.StringExact("SERVERS_AND_APPS"),
-							keyName:    knownvalue.StringExact("ServersAndAppFeaturePolicy"),
-						}),
-					})),
+					tfjsonpath.New(keyCustomerManagedPolicies), knownvalue.ListExact(crossAccountPolicies)),
 				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_permissions.crossaccount",
 					tfjsonpath.New(keyManagedPolicies),
 					knownvalue.ListExact([]knownvalue.Check{})),
@@ -276,13 +293,16 @@ func TestAccAwsCnpPermissionsDataSource_RoleChaining(t *testing.T) {
 
 // TestAccAwsCnpPermissionsDataSource_FrameworkMigration verifies that the
 // migrated aws_cnp_permissions data source is backwards compatible with the
-// SDKv2 provider.
+// SDKv2 provider. The SDKv2 provider must send the features to RSC the same
+// way: RSC adds the cost reporting policy based on the plain list of feature
+// names, which the SDK sends alongside the permission groups starting with
+// polaris v1.12.0.
 func TestAccAwsCnpPermissionsDataSource_FrameworkMigration(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"polaris-sdkv2": {
 				Source:            "rubrikinc/polaris",
-				VersionConstraint: "1.6.3",
+				VersionConstraint: "1.12.0",
 			},
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,

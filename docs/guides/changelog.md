@@ -9,6 +9,10 @@ page_title: "Changelog"
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_project.md)]
+* Fix a bug in the `rubrik_aws_account` resource where destroying the resource left the account behind in RSC with
+  `CLOUD_COST_REPORT` as its only feature. RSC enables cost reporting on its own for accounts carrying a feature which
+  accrues AWS spend, and does not remove it along with those features, so it is now removed explicitly, as the
+  `rubrik_aws_cnp_account` resource already does. [[docs](../resources/aws_account.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
