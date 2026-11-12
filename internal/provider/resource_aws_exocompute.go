@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	fwdiag "github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -299,7 +300,15 @@ func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 
 	var diags diag.Diagnostics
 	if d.Get(keyTriggerHealthCheck).(bool) {
-		diags = exocomputeRunHealthCheck(ctx, client, core.CloudVendorAWS, d.Id(), d.Get(keyVPCID).(string) == "")
+		// The health check returns Framework diagnostics, convert them. This
+		// goes away when the resource is migrated.
+		for _, fd := range exocomputeRunHealthCheck(ctx, client, core.CloudVendorAWS, d.Id(), d.Get(keyVPCID).(string) == "") {
+			severity := diag.Warning
+			if fd.Severity() == fwdiag.SeverityError {
+				severity = diag.Error
+			}
+			diags = append(diags, diag.Diagnostic{Severity: severity, Summary: fd.Summary(), Detail: fd.Detail()})
+		}
 	}
 
 	awsReadExocompute(ctx, d, m)
@@ -315,7 +324,15 @@ func awsUpdateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		diags = exocomputeRunHealthCheck(ctx, client, core.CloudVendorAWS, d.Id(), d.Get(keyVPCID).(string) == "")
+		// The health check returns Framework diagnostics, convert them. This
+		// goes away when the resource is migrated.
+		for _, fd := range exocomputeRunHealthCheck(ctx, client, core.CloudVendorAWS, d.Id(), d.Get(keyVPCID).(string) == "") {
+			severity := diag.Warning
+			if fd.Severity() == fwdiag.SeverityError {
+				severity = diag.Error
+			}
+			diags = append(diags, diag.Diagnostic{Severity: severity, Summary: fd.Summary(), Detail: fd.Detail()})
+		}
 	}
 
 	return append(diags, awsReadExocompute(ctx, d, m)...)
@@ -460,38 +477,29 @@ func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 // The triggerHealthCheck parameter of the create mutations isn't used, since
 // RSC ignores any error from it and returns no job ID, so there is no way to
 // tell which health check result belongs to the configuration.
-func exocomputeRunHealthCheck(ctx context.Context, client *polaris.Client, cloudVendor core.CloudVendor, id string, customerManaged bool) diag.Diagnostics {
+func exocomputeRunHealthCheck(ctx context.Context, client *polaris.Client, cloudVendor core.CloudVendor, id string, customerManaged bool) fwdiag.Diagnostics {
 	if customerManaged {
-		return diag.Diagnostics{{
-			Severity: diag.Warning,
-			Summary:  "Exocompute health check ignored",
-			Detail: "trigger_health_check is ignored for customer managed Exocompute configurations, RSC runs " +
-				"their health checks when it reconciles the attached cluster.",
-		}}
+		return fwdiag.Diagnostics{fwdiag.NewWarningDiagnostic(
+			"Exocompute health check ignored",
+			"trigger_health_check is ignored for customer managed Exocompute configurations, RSC runs "+
+				"their health checks when it reconciles the attached cluster.")}
 	}
 
 	configID, err := uuid.Parse(id)
 	if err != nil {
-		return diag.FromErr(err)
+		return fwdiag.Diagnostics{fwdiag.NewErrorDiagnostic("Invalid Exocompute configuration ID", err.Error())}
 	}
 
 	jobID, err := exocompute.Wrap(client).TriggerHealthCheck(ctx, cloudVendor, configID)
 	if err != nil {
-		return diag.Diagnostics{{
-			Severity: diag.Warning,
-			Summary:  "Exocompute health check not started",
-			Detail:   err.Error(),
-		}}
+		return fwdiag.Diagnostics{fwdiag.NewWarningDiagnostic("Exocompute health check not started", err.Error())}
 	}
 
 	status, err := exocompute.Wrap(client).WaitForHealthCheck(ctx, cloudVendor, configID, jobID)
 	if err != nil {
-		return diag.Diagnostics{{
-			Severity: diag.Warning,
-			Summary:  "Exocompute health check result not available",
-			Detail: fmt.Sprintf("Health check job %s did not finish: %s. Check the result in the RSC UI.",
-				jobID, err),
-		}}
+		return fwdiag.Diagnostics{fwdiag.NewWarningDiagnostic(
+			"Exocompute health check result not available",
+			fmt.Sprintf("Health check job %s did not finish: %s. Check the result in the RSC UI.", jobID, err))}
 	}
 	if status.Status != gqlexocompute.HealthCheckStatusHealthy {
 		detail := fmt.Sprintf("Health check job %s finished with status %s.", jobID, status.Status)
@@ -499,11 +507,7 @@ func exocomputeRunHealthCheck(ctx context.Context, client *polaris.Client, cloud
 			detail += " " + status.FailureReason
 		}
 		detail += " See the Exocompute events in the RSC activity log for details."
-		return diag.Diagnostics{{
-			Severity: diag.Warning,
-			Summary:  "Exocompute health check failed",
-			Detail:   detail,
-		}}
+		return fwdiag.Diagnostics{fwdiag.NewWarningDiagnostic("Exocompute health check failed", detail)}
 	}
 
 	return nil
