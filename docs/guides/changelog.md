@@ -47,6 +47,9 @@ page_title: "Changelog"
   reads the SLA domain back into the state. The error messages of the checks made when applying changed wording, and
   the maximum of one element of a block is no longer listed in the documentation, but is still enforced.
   [[docs](../resources/sla_domain.md)]
+* Migrate the `rubrik_sla_domain` data source to the Terraform Plugin Framework. Existing configurations keep working,
+  and the data source returns the same as before. The nested attributes are listed as `Attributes List` and not
+  `List of Object` in the documentation. [[docs](../data-sources/sla_domain.md)]
 * Fix a bug in `rubrik_azure_exocompute` where creating the resource failed when a private DNS zone was in a different
   subscription than the Exocompute VNet, or when the subnet had blocking network security group rules. RSC only
   reports these as warnings, and the RSC UI lets the user continue past them, so they no longer block creation. All
