@@ -96,3 +96,19 @@ func isZeroPrimitive(value tftypes.Value) bool {
 	}
 	return false
 }
+
+// nullUnknownValues returns the value with every unknown value set to null. The
+// repo saves the state of a resource with its computed values set to null, when
+// they can't be read after a create or an update.
+func nullUnknownValues(value tftypes.Value) tftypes.Value {
+	nulled, err := tftypes.Transform(value, func(_ *tftypes.AttributePath, v tftypes.Value) (tftypes.Value, error) {
+		if !v.IsKnown() {
+			return tftypes.NewValue(v.Type(), nil), nil
+		}
+		return v, nil
+	})
+	if err != nil {
+		return value
+	}
+	return nulled
+}

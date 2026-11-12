@@ -243,3 +243,39 @@ func TestSLADomainOptionalPrimitivesReadBackNull(t *testing.T) {
 	}
 	t.Logf("checked %d optional attributes", len(targets))
 }
+
+func TestNullUnknownValues(t *testing.T) {
+	str := tftypes.String
+	obj := tftypes.Object{AttributeTypes: map[string]tftypes.Type{
+		"known":   str,
+		"unknown": str,
+		"nested":  tftypes.List{ElementType: tftypes.Object{AttributeTypes: map[string]tftypes.Type{"s": str}}},
+	}}
+	nested := tftypes.List{ElementType: tftypes.Object{AttributeTypes: map[string]tftypes.Type{"s": str}}}
+	elem := nested.ElementType
+
+	value := tftypes.NewValue(obj, map[string]tftypes.Value{
+		"known":   tftypes.NewValue(str, "x"),
+		"unknown": tftypes.NewValue(str, tftypes.UnknownValue),
+		"nested": tftypes.NewValue(nested, []tftypes.Value{
+			tftypes.NewValue(elem, map[string]tftypes.Value{"s": tftypes.NewValue(str, tftypes.UnknownValue)}),
+			tftypes.NewValue(elem, map[string]tftypes.Value{"s": tftypes.NewValue(str, "y")}),
+		}),
+	})
+	want := tftypes.NewValue(obj, map[string]tftypes.Value{
+		"known":   tftypes.NewValue(str, "x"),
+		"unknown": tftypes.NewValue(str, nil),
+		"nested": tftypes.NewValue(nested, []tftypes.Value{
+			tftypes.NewValue(elem, map[string]tftypes.Value{"s": tftypes.NewValue(str, nil)}),
+			tftypes.NewValue(elem, map[string]tftypes.Value{"s": tftypes.NewValue(str, "y")}),
+		}),
+	})
+
+	got := nullUnknownValues(value)
+	if !got.Equal(want) {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	if !got.IsFullyKnown() {
+		t.Fatal("the result still holds unknown values")
+	}
+}
