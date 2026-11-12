@@ -44,6 +44,92 @@ import (
 	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
 
+const resourceSLADomainDescription = `
+The ´rubrik_sla_domain´ resource is used to manage RSC global SLA Domains. SLA
+Domain defines how you want to take snapshots of objects like virtual machines,
+databases, SaaS apps and cloud objects. An SLA Domain can define frequency,
+retention, archival and replication.
+
+-> Enabling Instant Archive can increase bandwidth usage and archival storage
+   requirements.
+
+-> The hourly retention for snapshots of cloud-native workloads must be a
+   multiple of 24.
+
+-> For workloads backed up on a Rubrik cluster, snapshots are scheduled using
+   the time zone of that Rubrik cluster. For workloads backed up in the cloud,
+   snapshots are scheduled using the UTC time zone.
+
+---
+
+### Frequency
+
+This defines when and how often snapshots are taken. This could be interval-based (days, hours, minutes) or calendar-based (a day of each month).
+
+### Retention
+
+This defines how long the snapshot is kept on the Rubrik cluster.
+
+### Archival
+Before You Start: To archive snapshots, make sure you’ve added archival locations.
+
+To avoid early deletion fees, retain snapshots in cool tier archival locations for at least 30 days.
+
+---
+# Object types
+
+## Active Directory
+Active Directory protection supports a minimum of 4 hours SLA.
+
+## Azure SQL Databases
+Archival is mandatory and the backups will be instantly archived. Frequency and Retention apply to archived snapshots of the Azure SQL database.
+Continuous backups for point-in-time recovery retentions is configured in ´azure_sql_database_config´.
+The Azure SQL Database object type cannot be combined with other object types.
+
+## Azure SQL Managed Instance
+Archival and Replication are not supported by Azure SQL Managed Instance.
+Log backup for Azure SQL MI is configured in ´azure_sql_managed_instance_config´.
+
+## Azure Blob Storage
+Archival and Replication are not supported by Azure Blob Storage.
+Backup location for scheduled snapshots is configured in ´azure_blob_config´.
+
+## AWS RDS
+Archival is only supported for PostgrSQL and Aurora PostgreSQL databases.
+Continuous backups for point-in-time recovery retention is configured in ´aws_rds_config´. If you don't specify a continuous backup, AWS provides 1 day of continuous backup by default for Aurora databases, which you can change but you can’t disable.
+
+## AWS S3
+Archival and Replication are not supported by AWS S3. SLA Domains protecting AWS S3 cannot protect other object types.
+Backup location(s) are configured in ´backup_location´.
+
+## AWS Config
+The AWS Config object type cannot be combined with other object types. It accepts at most one ´backup_location´, which is optional. Its schedule cannot use ´minute_schedule´, and an ´hourly_schedule´ must have a ´frequency´ of at least 6 hours.
+
+## AWS DynamoDB
+Replication is not supported by AWS DynamoDB.
+Primary Backup Encryption KMS Key and Continuous backups for point-in-time recovery are configured in ´aws_dynamodb_config´. Continuous backups will be automatically enabled for your DynamoDB tables.
+Disabling continuous backups or changing the retention period in your AWS console may lead to higher storage and consumption costs. To avoid this, keep continuous backups enabled in your AWS console.
+
+## GCP BigQuery
+The GCP BigQuery object type cannot be combined with other object types and requires at least one ´backup_location´. It does not support the ´archival´ block, replication or ´minute_schedule´, and its most frequent schedule must take a snapshot at least every 7 days, e.g., a ´daily_schedule´ with a ´frequency´ of at most 7 or a ´weekly_schedule´ with a ´frequency´ of 1.
+
+## Azure Postgres Flexible Server
+The Azure Postgres Flexible Server object type cannot be combined with other object types, and requires a ´backup_location´. It stores its backup location in ´backup_location´ and not in the ´archival´ block.
+
+## GCE Instance/Disk
+Replication is not supported by GCE Instance/Disk.
+
+## Okta
+Archival and Replication are not supported by Okta.
+
+## Microsoft 365
+Archival and Replication are not supported by Microsoft 365.
+M365 protection supports a minimum of 8 hours SLA (12 hours or more recomended).
+
+## OLVM
+Archival is not supported by OLVM.
+`
+
 // defaultSLADomainDeleteTimeout is how long to wait for an SLA domain to be
 // deleted, when no timeout is configured.
 const defaultSLADomainDeleteTimeout = 10 * time.Minute

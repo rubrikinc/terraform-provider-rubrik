@@ -21,15 +21,12 @@
 package provider
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	sdkschema "github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 // polarisSLADomainState returns the state the polaris provider writes for an SLA
@@ -140,94 +137,4 @@ func TestSLADomainMoveStateV0(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestSLADomainMoveSourceSchemaMatchesSDKv2 compares the frozen source schema of
-// the mover with the SDKv2 schema of the resource, which is what the polaris
-// provider has. Both are walked on their own: every attribute and block has to
-// be in the other with the same kind, and the same required, optional and
-// computed flags. The SDKv2 resource is removed when the resource is migrated,
-// and this test with it.
-func TestSLADomainMoveSourceSchemaMatchesSDKv2(t *testing.T) {
-	mover := newSLADomainResource().(*slaDomainResource).MoveState(t.Context())[0]
-
-	type entry struct{ kind, flags string }
-	flags := func(required, optional, computed bool) string {
-		return fmt.Sprintf("required=%t optional=%t computed=%t", required, optional, computed)
-	}
-
-	sdk := map[string]entry{}
-	var walkSDK func(prefix string, m map[string]*sdkschema.Schema)
-	walkSDK = func(prefix string, m map[string]*sdkschema.Schema) {
-		for name, s := range m {
-			path := prefix + "." + name
-			if r, ok := s.Elem.(*sdkschema.Resource); ok {
-				sdk[path] = entry{kind: "block"}
-				walkSDK(path, r.Schema)
-				continue
-			}
-			kind := map[sdkschema.ValueType]string{
-				sdkschema.TypeString: "string", sdkschema.TypeInt: "int64", sdkschema.TypeBool: "bool",
-				sdkschema.TypeSet: "set", sdkschema.TypeList: "list",
-			}[s.Type]
-			sdk[path] = entry{kind: kind, flags: flags(s.Required, s.Optional, s.Computed)}
-		}
-	}
-	walkSDK("", resourceSLADomain().Schema)
-
-	frozen := map[string]entry{}
-	var walkFrozen func(prefix string, attrs map[string]schema.Attribute, blocks map[string]schema.Block)
-	walkFrozen = func(prefix string, attrs map[string]schema.Attribute, blocks map[string]schema.Block) {
-		for name, a := range attrs {
-			var kind string
-			switch a.(type) {
-			case schema.StringAttribute:
-				kind = "string"
-			case schema.Int64Attribute:
-				kind = "int64"
-			case schema.BoolAttribute:
-				kind = "bool"
-			case schema.SetAttribute:
-				kind = "set"
-			case schema.ListAttribute:
-				kind = "list"
-			default:
-				t.Fatalf("%s.%s: unexpected attribute type %T", prefix, name, a)
-			}
-			frozen[prefix+"."+name] = entry{kind: kind, flags: flags(a.IsRequired(), a.IsOptional(), a.IsComputed())}
-		}
-		for name, b := range blocks {
-			path := prefix + "." + name
-			if _, ok := b.(schema.SingleNestedBlock); ok && path == "."+keyTimeouts {
-				// The timeouts are a setting of the SDKv2 resource and not in its schema.
-				continue
-			}
-			nested, ok := b.(schema.ListNestedBlock)
-			if !ok {
-				t.Fatalf("%s: unexpected block type %T", path, b)
-			}
-			frozen[path] = entry{kind: "block"}
-			walkFrozen(path, nested.NestedObject.Attributes, nested.NestedObject.Blocks)
-		}
-	}
-	walkFrozen("", mover.SourceSchema.Attributes, mover.SourceSchema.Blocks)
-
-	if len(sdk) != len(frozen) {
-		t.Errorf("the SDKv2 schema has %d entries, the frozen schema %d", len(sdk), len(frozen))
-	}
-	for path, want := range sdk {
-		got, ok := frozen[path]
-		switch {
-		case !ok:
-			t.Errorf("%s is in the SDKv2 schema and not in the frozen schema", path)
-		case got != want:
-			t.Errorf("%s: frozen %+v, SDKv2 %+v", path, got, want)
-		}
-	}
-	for path := range frozen {
-		if _, ok := sdk[path]; !ok {
-			t.Errorf("%s is in the frozen schema and not in the SDKv2 schema", path)
-		}
-	}
-	t.Logf("compared %d entries", len(sdk))
 }
