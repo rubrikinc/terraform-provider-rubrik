@@ -28,6 +28,7 @@ description: |-
   Azure SQL Databases
   Archival is mandatory and the backups will be instantly archived. Frequency and Retention apply to archived snapshots of the Azure SQL database.
   Continuous backups for point-in-time recovery retentions is configured in azure_sql_database_config.
+  The Azure SQL Database object type cannot be combined with other object types.
   Azure SQL Managed Instance
   Archival and Replication are not supported by Azure SQL Managed Instance.
   Log backup for Azure SQL MI is configured in azure_sql_managed_instance_config.
@@ -40,10 +41,16 @@ description: |-
   AWS S3
   Archival and Replication are not supported by AWS S3. SLA Domains protecting AWS S3 cannot protect other object types.
   Backup location(s) are configured in backup_location.
+  AWS Config
+  The AWS Config object type cannot be combined with other object types. It accepts at most one backup_location, which is optional. Its schedule cannot use minute_schedule, and an hourly_schedule must have a frequency of at least 6 hours.
   AWS DynamoDB
   Replication is not supported by AWS DynamoDB.
   Primary Backup Encryption KMS Key and Continuous backups for point-in-time recovery are configured in aws_dynamodb_config. Continuous backups will be automatically enabled for your DynamoDB tables.
   Disabling continuous backups or changing the retention period in your AWS console may lead to higher storage and consumption costs. To avoid this, keep continuous backups enabled in your AWS console.
+  GCP BigQuery
+  The GCP BigQuery object type cannot be combined with other object types and requires at least one backup_location. It does not support the archival block, replication or minute_schedule, and its most frequent schedule must take a snapshot at least every 7 days, e.g., a daily_schedule with a frequency of at most 7 or a weekly_schedule with a frequency of 1.
+  Azure Postgres Flexible Server
+  The Azure Postgres Flexible Server object type cannot be combined with other object types, and requires a backup_location. It stores its backup location in backup_location and not in the archival block.
   GCE Instance/Disk
   Replication is not supported by GCE Instance/Disk.
   Okta
@@ -96,6 +103,7 @@ Active Directory protection supports a minimum of 4 hours SLA.
 ## Azure SQL Databases
 Archival is mandatory and the backups will be instantly archived. Frequency and Retention apply to archived snapshots of the Azure SQL database.
 Continuous backups for point-in-time recovery retentions is configured in `azure_sql_database_config`.
+The Azure SQL Database object type cannot be combined with other object types.
 
 ## Azure SQL Managed Instance
 Archival and Replication are not supported by Azure SQL Managed Instance.
@@ -113,10 +121,19 @@ Continuous backups for point-in-time recovery retention is configured in `aws_rd
 Archival and Replication are not supported by AWS S3. SLA Domains protecting AWS S3 cannot protect other object types.
 Backup location(s) are configured in `backup_location`.
 
+## AWS Config
+The AWS Config object type cannot be combined with other object types. It accepts at most one `backup_location`, which is optional. Its schedule cannot use `minute_schedule`, and an `hourly_schedule` must have a `frequency` of at least 6 hours.
+
 ## AWS DynamoDB
 Replication is not supported by AWS DynamoDB.
 Primary Backup Encryption KMS Key and Continuous backups for point-in-time recovery are configured in `aws_dynamodb_config`. Continuous backups will be automatically enabled for your DynamoDB tables.
 Disabling continuous backups or changing the retention period in your AWS console may lead to higher storage and consumption costs. To avoid this, keep continuous backups enabled in your AWS console.
+
+## GCP BigQuery
+The GCP BigQuery object type cannot be combined with other object types and requires at least one `backup_location`. It does not support the `archival` block, replication or `minute_schedule`, and its most frequent schedule must take a snapshot at least every 7 days, e.g., a `daily_schedule` with a `frequency` of at most 7 or a `weekly_schedule` with a `frequency` of 1.
+
+## Azure Postgres Flexible Server
+The Azure Postgres Flexible Server object type cannot be combined with other object types, and requires a `backup_location`. It stores its backup location in `backup_location` and not in the `archival` block.
 
 ## GCE Instance/Disk
 Replication is not supported by GCE Instance/Disk.
@@ -326,52 +343,46 @@ resource "rubrik_sla_domain" "gcp_bigquery" {
 ### Required
 
 - `name` (String) SLA Domain name.
-- `object_types` (Set of String) Object types which can be protected by the SLA Domain. Possible values are `ACTIVE_DIRECTORY_OBJECT_TYPE`, `ATLASSIAN_JIRA_OBJECT_TYPE`, `AWS_CONFIG_OBJECT_TYPE`, `AWS_DYNAMODB_OBJECT_TYPE`, `AWS_EC2_EBS_OBJECT_TYPE`, `AWS_RDS_OBJECT_TYPE`, `AWS_S3_OBJECT_TYPE`, `AZURE_AD_OBJECT_TYPE`, `AZURE_BLOB_OBJECT_TYPE`, `AZURE_DEVOPS_OBJECT_TYPE`, `AZURE_OBJECT_TYPE`, `AZURE_SQL_DATABASE_OBJECT_TYPE`, `AZURE_SQL_MANAGED_INSTANCE_OBJECT_TYPE`, `CASSANDRA_OBJECT_TYPE`, `D365_OBJECT_TYPE`, `DB2_OBJECT_TYPE`, `EXCHANGE_OBJECT_TYPE`, `FILESET_OBJECT_TYPE`, `GCP_BIGQUERY_OBJECT_TYPE`, `GCP_CLOUD_SQL_OBJECT_TYPE`, `GCP_OBJECT_TYPE`, `GITHUB_OBJECT_TYPE`, `GOOGLE_WORKSPACE_OBJECT_TYPE`, `HYPERV_OBJECT_TYPE`, `INFORMIX_INSTANCE_OBJECT_TYPE`, `K8S_OBJECT_TYPE`, `KUPR_OBJECT_TYPE`, `M365_BACKUP_STORAGE_OBJECT_TYPE`, `MANAGED_VOLUME_OBJECT_TYPE`, `MONGO_OBJECT_TYPE`, `MONGODB_OBJECT_TYPE`, `MSSQL_OBJECT_TYPE`, `MYSQLDB_OBJECT_TYPE`, `NAS_OBJECT_TYPE`, `NCD_OBJECT_TYPE`, `NUTANIX_OBJECT_TYPE`, `O365_OBJECT_TYPE`, `OKTA_OBJECT_TYPE`, `OLVM_OBJECT_TYPE`, `OPENSTACK_OBJECT_TYPE`, `ORACLE_OBJECT_TYPE`, `POSTGRES_DB_CLUSTER_OBJECT_TYPE`, `PROXMOX_OBJECT_TYPE`, `SALESFORCE_OBJECT_TYPE`, `SAP_HANA_OBJECT_TYPE`, `SNAPMIRROR_CLOUD_OBJECT_TYPE`, `VCD_OBJECT_TYPE`, `VOLUME_GROUP_OBJECT_TYPE`, and `VSPHERE_OBJECT_TYPE`.
-
-~> **Note:** `AZURE_SQL_DATABASE_OBJECT_TYPE` cannot be provided at the same time as other object types.
-
-~> **Note:** `AWS_CONFIG_OBJECT_TYPE` cannot be combined with other object types. It accepts at most one `backup_location`, which is optional. Its schedule cannot use `minute_schedule`, and an `hourly_schedule` must have a `frequency` of at least 6 hours.
-
-~> **Note:** `GCP_BIGQUERY_OBJECT_TYPE` cannot be combined with other object types and requires at least one `backup_location`. It does not support the `archival` block, replication or `minute_schedule`, and its most frequent schedule must take a snapshot at least every 7 days, e.g., a `daily_schedule` with a `frequency` of at most 7 or a `weekly_schedule` with a `frequency` of 1.
+- `object_types` (Set of String) Object types which can be protected by the SLA Domain. Possible values are `ACTIVE_DIRECTORY_OBJECT_TYPE`, `ATLASSIAN_JIRA_OBJECT_TYPE`, `AWS_CONFIG_OBJECT_TYPE`, `AWS_DYNAMODB_OBJECT_TYPE`, `AWS_EC2_EBS_OBJECT_TYPE`, `AWS_RDS_OBJECT_TYPE`, `AWS_S3_OBJECT_TYPE`, `AZURE_AD_OBJECT_TYPE`, `AZURE_BLOB_OBJECT_TYPE`, `AZURE_DEVOPS_OBJECT_TYPE`, `AZURE_OBJECT_TYPE`, `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE`, `AZURE_SQL_DATABASE_OBJECT_TYPE`, `AZURE_SQL_MANAGED_INSTANCE_OBJECT_TYPE`, `CASSANDRA_OBJECT_TYPE`, `D365_OBJECT_TYPE`, `DB2_OBJECT_TYPE`, `EXCHANGE_OBJECT_TYPE`, `FILESET_OBJECT_TYPE`, `GCP_BIGQUERY_OBJECT_TYPE`, `GCP_CLOUD_SQL_OBJECT_TYPE`, `GCP_OBJECT_TYPE`, `GOOGLE_WORKSPACE_OBJECT_TYPE`, `HYPERV_OBJECT_TYPE`, `INFORMIX_INSTANCE_OBJECT_TYPE`, `K8S_OBJECT_TYPE`, `KUPR_OBJECT_TYPE`, `M365_BACKUP_STORAGE_OBJECT_TYPE`, `MANAGED_VOLUME_OBJECT_TYPE`, `MONGO_OBJECT_TYPE`, `MONGODB_OBJECT_TYPE`, `MSSQL_OBJECT_TYPE`, `MYSQLDB_OBJECT_TYPE`, `NAS_OBJECT_TYPE`, `NCD_OBJECT_TYPE`, `NUTANIX_OBJECT_TYPE`, `O365_OBJECT_TYPE`, `OKTA_OBJECT_TYPE`, `OLVM_OBJECT_TYPE`, `OPENSTACK_OBJECT_TYPE`, `ORACLE_OBJECT_TYPE`, `POSTGRES_DB_CLUSTER_OBJECT_TYPE`, `PROXMOX_OBJECT_TYPE`, `SALESFORCE_OBJECT_TYPE`, `SAP_HANA_OBJECT_TYPE`, `SNAPMIRROR_CLOUD_OBJECT_TYPE`, `VCD_OBJECT_TYPE`, `VOLUME_GROUP_OBJECT_TYPE`, and `VSPHERE_OBJECT_TYPE`.
 
 ### Optional
 
 - `apply_changes_to_existing_snapshots` (Boolean) Apply changes to existing snapshots when updating the SLA domain.
 - `apply_changes_to_non_policy_snapshots` (Boolean) Apply changes to non-policy snapshots when updating the SLA domain.
 - `archival` (Block List) Archive snapshots to the specified archival location. Note, if `instant_archive` is enabled, `threshold` and `threshold_unit` are ignored. (see [below for nested schema](#nestedblock--archival))
-- `aws_dynamodb_config` (Block List, Max: 1) (see [below for nested schema](#nestedblock--aws_dynamodb_config))
-- `aws_rds_config` (Block List, Max: 1) AWS RDS continuous backups for point-in-time recovery. If continuous backup isn't specified, AWS provides 1 day of continuous backup by default for Aurora databases, which can be changed but not disable. (see [below for nested schema](#nestedblock--aws_rds_config))
-- `azure_blob_config` (Block List, Max: 1) Azure Blob Storage backup location for scheduled snapshots. To avoid early deletion fees, retain snapshots in cool tier archival locations for at least 30 days. (see [below for nested schema](#nestedblock--azure_blob_config))
-- `azure_postgres_flexible_server_config` (Block List, Max: 1) Azure Postgres Flexible Server configuration. Only valid when `object_types` is exactly `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE`. (see [below for nested schema](#nestedblock--azure_postgres_flexible_server_config))
-- `azure_sql_database_config` (Block List, Max: 1) Azure SQL Database continuous backups for point-in-time recovery. Continuous backups are stored in the source database. Note, the changes will be applied during the next maintenance window. (see [below for nested schema](#nestedblock--azure_sql_database_config))
-- `azure_sql_managed_instance_config` (Block List, Max: 1) Azure SQL MI log backups. Note, the changes will be applied during the next maintenance window. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config))
+- `aws_dynamodb_config` (Block List) (see [below for nested schema](#nestedblock--aws_dynamodb_config))
+- `aws_rds_config` (Block List) AWS RDS continuous backups for point-in-time recovery. If continuous backup isn't specified, AWS provides 1 day of continuous backup by default for Aurora databases, which can be changed but not disable. (see [below for nested schema](#nestedblock--aws_rds_config))
+- `azure_blob_config` (Block List) Azure Blob Storage backup location for scheduled snapshots. To avoid early deletion fees, retain snapshots in cool tier archival locations for at least 30 days. (see [below for nested schema](#nestedblock--azure_blob_config))
+- `azure_postgres_flexible_server_config` (Block List) Azure Postgres Flexible Server configuration. Only valid when `object_types` is exactly `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE`. (see [below for nested schema](#nestedblock--azure_postgres_flexible_server_config))
+- `azure_sql_database_config` (Block List) Azure SQL Database continuous backups for point-in-time recovery. Continuous backups are stored in the source database. A V1 (Azure-managed) SLA also specifies `ltr_config`; a V2 (Rubrik-managed) SLA omits it and specifies a backup location and snapshot schedule. Note, the changes will be applied during the next maintenance window. (see [below for nested schema](#nestedblock--azure_sql_database_config))
+- `azure_sql_managed_instance_config` (Block List) Azure SQL MI log backups. A V1 (Azure-managed) SLA also specifies `ltr_config`; a V2 (Rubrik-managed) SLA omits it and specifies a backup location and snapshot schedule. Note, the changes will be applied during the next maintenance window. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config))
 - `backup_location` (Block List) (see [below for nested schema](#nestedblock--backup_location))
-- `daily_schedule` (Block List, Max: 1) Take snapshots with frequency specified in days. (see [below for nested schema](#nestedblock--daily_schedule))
-- `db2_config` (Block List, Max: 1) Db2 database configuration. (see [below for nested schema](#nestedblock--db2_config))
+- `daily_schedule` (Block List) Take snapshots with frequency specified in days. (see [below for nested schema](#nestedblock--daily_schedule))
+- `db2_config` (Block List) Db2 database configuration. (see [below for nested schema](#nestedblock--db2_config))
 - `description` (String) SLA Domain description.
 - `first_full_snapshot` (Block List) Specifies the snapshot window where the first full snapshot will be taken. If not specified it will be at first opportunity. (see [below for nested schema](#nestedblock--first_full_snapshot))
-- `gcp_cloud_sql_config` (Block List, Max: 1) GCP Cloud SQL configuration. (see [below for nested schema](#nestedblock--gcp_cloud_sql_config))
-- `hourly_schedule` (Block List, Max: 1) Take snapshots with frequency specified in hours. (see [below for nested schema](#nestedblock--hourly_schedule))
-- `informix_config` (Block List, Max: 1) Informix database configuration. (see [below for nested schema](#nestedblock--informix_config))
-- `local_retention` (Block List, Max: 1) (see [below for nested schema](#nestedblock--local_retention))
-- `managed_volume_config` (Block List, Max: 1) Managed Volume configuration. (see [below for nested schema](#nestedblock--managed_volume_config))
-- `minute_schedule` (Block List, Max: 1) Take snapshots with frequency specified in minutes. (see [below for nested schema](#nestedblock--minute_schedule))
-- `mongo_config` (Block List, Max: 1) MongoDB database configuration. (see [below for nested schema](#nestedblock--mongo_config))
-- `monthly_schedule` (Block List, Max: 1) Take snapshots with frequency specified in months. (see [below for nested schema](#nestedblock--monthly_schedule))
-- `mssql_config` (Block List, Max: 1) SQL Server database configuration. (see [below for nested schema](#nestedblock--mssql_config))
-- `mysqldb_config` (Block List, Max: 1) MySQL database configuration. (see [below for nested schema](#nestedblock--mysqldb_config))
-- `ncd_config` (Block List, Max: 1) NAS Cloud Direct configuration. (see [below for nested schema](#nestedblock--ncd_config))
-- `oracle_config` (Block List, Max: 1) Oracle database configuration. (see [below for nested schema](#nestedblock--oracle_config))
-- `postgres_db_cluster_config` (Block List, Max: 1) Postgres DB Cluster configuration. (see [below for nested schema](#nestedblock--postgres_db_cluster_config))
-- `quarterly_schedule` (Block List, Max: 1) Take snapshots with frequency specified in quarters. (see [below for nested schema](#nestedblock--quarterly_schedule))
+- `gcp_cloud_sql_config` (Block List) GCP Cloud SQL configuration. (see [below for nested schema](#nestedblock--gcp_cloud_sql_config))
+- `hourly_schedule` (Block List) Take snapshots with frequency specified in hours. (see [below for nested schema](#nestedblock--hourly_schedule))
+- `informix_config` (Block List) Informix database configuration. (see [below for nested schema](#nestedblock--informix_config))
+- `local_retention` (Block List) (see [below for nested schema](#nestedblock--local_retention))
+- `managed_volume_config` (Block List) Managed Volume configuration. (see [below for nested schema](#nestedblock--managed_volume_config))
+- `minute_schedule` (Block List) Take snapshots with frequency specified in minutes. (see [below for nested schema](#nestedblock--minute_schedule))
+- `mongo_config` (Block List) MongoDB database configuration. (see [below for nested schema](#nestedblock--mongo_config))
+- `monthly_schedule` (Block List) Take snapshots with frequency specified in months. (see [below for nested schema](#nestedblock--monthly_schedule))
+- `mssql_config` (Block List) SQL Server database configuration. (see [below for nested schema](#nestedblock--mssql_config))
+- `mysqldb_config` (Block List) MySQL database configuration. (see [below for nested schema](#nestedblock--mysqldb_config))
+- `ncd_config` (Block List) NAS Cloud Direct configuration. (see [below for nested schema](#nestedblock--ncd_config))
+- `oracle_config` (Block List) Oracle database configuration. (see [below for nested schema](#nestedblock--oracle_config))
+- `postgres_db_cluster_config` (Block List) Postgres DB Cluster configuration. (see [below for nested schema](#nestedblock--postgres_db_cluster_config))
+- `quarterly_schedule` (Block List) Take snapshots with frequency specified in quarters. (see [below for nested schema](#nestedblock--quarterly_schedule))
 - `replication_spec` (Block List) Replication specification for the SLA Domain. (see [below for nested schema](#nestedblock--replication_spec))
-- `retention_lock` (Block List, Max: 1) Enable retention lock. Retention lock prevents data from being accidentally or maliciously modified or deleted during the retention period (see [below for nested schema](#nestedblock--retention_lock))
-- `sap_hana_config` (Block List, Max: 1) SAP HANA database configuration. (see [below for nested schema](#nestedblock--sap_hana_config))
+- `retention_lock` (Block List) Enable retention lock. Retention lock prevents data from being accidentally or maliciously modified or deleted during the retention period (see [below for nested schema](#nestedblock--retention_lock))
+- `sap_hana_config` (Block List) SAP HANA database configuration. (see [below for nested schema](#nestedblock--sap_hana_config))
 - `snapshot_window` (Block List) Specifies an optional snapshot window. (see [below for nested schema](#nestedblock--snapshot_window))
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-- `vmware_vm_config` (Block List, Max: 1) VMware vSphere VM log backups. (see [below for nested schema](#nestedblock--vmware_vm_config))
-- `weekly_schedule` (Block List, Max: 1) Take snapshots with frequency specified in weeks. (see [below for nested schema](#nestedblock--weekly_schedule))
-- `yearly_schedule` (Block List, Max: 1) Take snapshots with frequency specified in years. (see [below for nested schema](#nestedblock--yearly_schedule))
+- `vmware_vm_config` (Block List) VMware vSphere VM log backups. (see [below for nested schema](#nestedblock--vmware_vm_config))
+- `weekly_schedule` (Block List) Take snapshots with frequency specified in weeks. (see [below for nested schema](#nestedblock--weekly_schedule))
+- `yearly_schedule` (Block List) Take snapshots with frequency specified in years. (see [below for nested schema](#nestedblock--yearly_schedule))
 
 ### Read-Only
 
@@ -385,8 +396,8 @@ Optional:
 
 - `archival_location_id` (String) Archival location ID (UUID).
 - `archival_location_to_cluster_mapping` (Block List) Mapping between archival location and Rubrik cluster. Each mapping specifies which cluster should be used for archiving to a specific location. (see [below for nested schema](#nestedblock--archival--archival_location_to_cluster_mapping))
-- `archival_tiering` (Block List, Max: 1) Archival tiering specification for cold storage. (see [below for nested schema](#nestedblock--archival--archival_tiering))
-- `frequency` (Set of String) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the [rubrik_sla_domain](../data-sources/sla_domain.md) data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
+- `archival_tiering` (Block List) Archival tiering specification for cold storage. (see [below for nested schema](#nestedblock--archival--archival_tiering))
+- `frequency` (Set of String) Override which snapshot frequencies to archive. When not specified, frequencies are derived from the snapshot schedule and will not be visible in state. Use the rubrik_sla_domain data source to see the effective frequencies. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
 - `threshold` (Number) Threshold specifies the time before archiving the snapshots at the managing location. The archival location retains the snapshots according to the SLA Domain schedule.
 - `threshold_unit` (String) Threshold unit specifies the unit of `threshold`. Possible values are `DAYS`, `WEEKS`, `MONTHS` and `YEARS`. Default value is `DAYS`.
 
@@ -454,8 +465,6 @@ Required:
 
 - `backup_retention_in_days` (Number) Point-in-time restore retention, in days, that RSC enforces on the source flexible server. Must be between 7 and 35. Omit the whole block to leave the server's existing Azure-side retention untouched.
 
-~> **Note:** An SLA Domain with the `AZURE_POSTGRES_FLEXIBLE_SERVER_OBJECT_TYPE` object type cannot be combined with any other object type, and requires a `backup_location`. It stores its backup location in `backup_location` rather than the `archival` block.
-
 
 <a id="nestedblock--azure_sql_database_config"></a>
 ### Nested Schema for `azure_sql_database_config`
@@ -466,7 +475,45 @@ Required:
 
 Optional:
 
-- `ltr_config` (Block List, Max: 1) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config))
+- `ltr_config` (Block List) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config))
+
+<a id="nestedblock--azure_sql_database_config--ltr_config"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config`
+
+Optional:
+
+- `monthly_retention` (Block List) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--monthly_retention))
+- `weekly_retention` (Block List) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--weekly_retention))
+- `yearly_retention` (Block List) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--yearly_retention))
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--monthly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.monthly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--weekly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.weekly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_database_config--ltr_config--yearly_retention"></a>
+### Nested Schema for `azure_sql_database_config.ltr_config.yearly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
+
+
 
 
 <a id="nestedblock--azure_sql_managed_instance_config"></a>
@@ -478,7 +525,45 @@ Required:
 
 Optional:
 
-- `ltr_config` (Block List, Max: 1) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config))
+- `ltr_config` (Block List) Long-term retention (LTR) configuration for a V1 (Azure-managed) Azure SQL SLA. When set, the SLA manages Azure native LTR backups and must not specify a Rubrik backup location or snapshot schedule. When omitted, the SLA is a V2 (Rubrik-managed) SLA. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config))
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config`
+
+Optional:
+
+- `monthly_retention` (Block List) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention))
+- `weekly_retention` (Block List) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention))
+- `yearly_retention` (Block List) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention))
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.monthly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.weekly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+
+
+<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention"></a>
+### Nested Schema for `azure_sql_managed_instance_config.ltr_config.yearly_retention`
+
+Required:
+
+- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
+- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
+- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
+
+
 
 
 <a id="nestedblock--backup_location"></a>
@@ -679,11 +764,11 @@ Required:
 
 Optional:
 
-- `retain_archive_logs_indefinitely` (Boolean) When true, Oracle archive logs are retained indefinitely on the host and never deleted. Mutually exclusive with `host_log_retention`.
 - `frequency_unit` (String) Frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 - `host_log_retention` (Number) Host log retention duration for archived redo logs.
 - `host_log_retention_unit` (String) Host log retention unit. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 - `log_retention_unit` (String) Log retention unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
+- `retain_archive_logs_indefinitely` (Boolean) When true, Oracle archive logs are retained indefinitely on the host and never deleted. Mutually exclusive with `host_log_retention`.
 
 
 <a id="nestedblock--postgres_db_cluster_config"></a>
@@ -724,7 +809,7 @@ Optional:
 - `aws_region` (String) AWS region to replicate to. Should be specified in the standard AWS style, e.g. `us-west-2`.
 - `azure_region` (String) Azure region to replicate to. Should be specified in the standard Azure style, e.g. `eastus`.
 - `cascading_archival` (Block List) Cascading archival specifications for replication. (see [below for nested schema](#nestedblock--replication_spec--cascading_archival))
-- `local_retention` (Block List, Max: 1) Local retention on replication target. (see [below for nested schema](#nestedblock--replication_spec--local_retention))
+- `local_retention` (Block List) Local retention on replication target. (see [below for nested schema](#nestedblock--replication_spec--local_retention))
 - `replication_pair` (Block List) Replication pairs specifying source and target clusters. (see [below for nested schema](#nestedblock--replication_spec--replication_pair))
 
 <a id="nestedblock--replication_spec--cascading_archival"></a>
@@ -738,8 +823,8 @@ Optional:
 
 - `archival_threshold` (Number) Archival threshold specifies when to archive replicated snapshots.
 - `archival_threshold_unit` (String) Archival threshold unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS` and `YEARS`.
-- `archival_tiering` (Block List, Max: 1) Archival tiering specification for cold storage. (see [below for nested schema](#nestedblock--replication_spec--cascading_archival--archival_tiering))
-- `frequency` (Set of String) Frequencies for cascading archival. Possible values are `MINUTES`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
+- `archival_tiering` (Block List) Archival tiering specification for cold storage. (see [below for nested schema](#nestedblock--replication_spec--cascading_archival--archival_tiering))
+- `frequency` (Set of String) Frequencies for cascading archival. Possible values are `MINUTE`, `HOURS`, `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, `YEARS`.
 
 <a id="nestedblock--replication_spec--cascading_archival--archival_tiering"></a>
 ### Nested Schema for `replication_spec.cascading_archival.archival_tiering`
@@ -797,7 +882,7 @@ Optional:
 - `incremental_frequency_unit` (String) Incremental frequency unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
 - `log_retention` (Number) Log retention duration.
 - `log_retention_unit` (String) Log retention unit. Possible values are `DAYS`, `WEEKS`, `MONTHS`, `YEARS`. Default is `DAYS`.
-- `storage_snapshot_config` (Block List, Max: 1) SAP HANA storage snapshot configuration. (see [below for nested schema](#nestedblock--sap_hana_config--storage_snapshot_config))
+- `storage_snapshot_config` (Block List) SAP HANA storage snapshot configuration. (see [below for nested schema](#nestedblock--sap_hana_config--storage_snapshot_config))
 
 <a id="nestedblock--sap_hana_config--storage_snapshot_config"></a>
 ### Nested Schema for `sap_hana_config.storage_snapshot_config`
@@ -823,88 +908,12 @@ Required:
 - `start_at` (String) Start of the snapshot window. Should be given as `HH:MM`, e.g: `15:30`.
 
 
-<a id="nestedblock--azure_sql_database_config--ltr_config"></a>
-### Nested Schema for `azure_sql_database_config.ltr_config`
-
-Optional:
-
-- `monthly_retention` (Block List, Max: 1) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--monthly_retention))
-- `weekly_retention` (Block List, Max: 1) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--weekly_retention))
-- `yearly_retention` (Block List, Max: 1) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_database_config--ltr_config--yearly_retention))
-
-
-<a id="nestedblock--azure_sql_database_config--ltr_config--weekly_retention"></a>
-### Nested Schema for `azure_sql_database_config.ltr_config.weekly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-
-
-<a id="nestedblock--azure_sql_database_config--ltr_config--monthly_retention"></a>
-### Nested Schema for `azure_sql_database_config.ltr_config.monthly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-
-
-<a id="nestedblock--azure_sql_database_config--ltr_config--yearly_retention"></a>
-### Nested Schema for `azure_sql_database_config.ltr_config.yearly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
-
-
-<a id="nestedblock--azure_sql_managed_instance_config--ltr_config"></a>
-### Nested Schema for `azure_sql_managed_instance_config.ltr_config`
-
-Optional:
-
-- `monthly_retention` (Block List, Max: 1) The monthly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention))
-- `weekly_retention` (Block List, Max: 1) The weekly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention))
-- `yearly_retention` (Block List, Max: 1) The yearly Azure SQL long-term retention. (see [below for nested schema](#nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention))
-
-
-<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--weekly_retention"></a>
-### Nested Schema for `azure_sql_managed_instance_config.ltr_config.weekly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-
-
-<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--monthly_retention"></a>
-### Nested Schema for `azure_sql_managed_instance_config.ltr_config.monthly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-
-
-<a id="nestedblock--azure_sql_managed_instance_config--ltr_config--yearly_retention"></a>
-### Nested Schema for `azure_sql_managed_instance_config.ltr_config.yearly_retention`
-
-Required:
-
-- `retention` (Number) Retention value in the configured retention unit. Azure accepts 0, or 7 to 3650 days.
-- `retention_unit` (String) Unit for the retention value. One of DAYS, WEEKS, MONTHS or YEARS.
-- `week_of_year` (Number) The week of the year (1-52) to retain as the yearly backup.
-
-
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`
 
 Optional:
 
-- `delete` (String) How long to wait for the SLA Domain to be deleted. Default is `10m`.
+- `delete` (String) How long to wait for the SLA Domain to be deleted. Default is `10m0s`.
 
 
 <a id="nestedblock--vmware_vm_config"></a>
@@ -944,8 +953,26 @@ Required:
 
 Import is supported using the following syntax:
 
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
 
-In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+```terraform
+# Import by SLA domain ID (UUID).
+import {
+  to = rubrik_sla_domain.foobar
+  identity = {
+    id = "0e55e625-b78d-4e83-87f3-90313a980211"
+  }
+}
+```
+
+<!-- schema generated by tfplugindocs -->
+### Identity Schema
+
+#### Required
+
+- `id` (String) SLA Domain ID (UUID).
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, which is either the SLA domain ID or the SLA domain name, for example:
 
 ```terraform
 # Using SLA domain ID (UUID).
@@ -961,15 +988,12 @@ import {
 }
 ```
 
-
-
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
-```terraform
+```shell
 # Using SLA domain ID (UUID):
 % terraform import rubrik_sla_domain.foobar 0e55e625-b78d-4e83-87f3-90313a980211
 
 # Using SLA domain name:
 % terraform import rubrik_sla_domain.gold "Gold"
 ```
-
