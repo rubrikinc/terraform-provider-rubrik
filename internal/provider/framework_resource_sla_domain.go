@@ -50,6 +50,8 @@ var (
 	_ resource.ResourceWithConfigValidators = &slaDomainResource{}
 	_ resource.ResourceWithIdentity         = &slaDomainResource{}
 	_ resource.ResourceWithImportState      = &slaDomainResource{}
+	_ resource.ResourceWithModifyPlan       = &slaDomainResource{}
+	_ resource.ResourceWithMoveState        = &slaDomainResource{}
 )
 
 type slaDomainResource struct {
