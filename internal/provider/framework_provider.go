@@ -243,6 +243,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisRoleDataSource,
 		newRoleTemplateDataSource,
 		newPolarisRoleTemplateDataSource,
+		newSLADomainDataSource,
+		newPolarisSLADomainDataSource,
 		newSSOGroupDataSource,
 		newPolarisSSOGroupDataSource,
 		newUserDataSource,
