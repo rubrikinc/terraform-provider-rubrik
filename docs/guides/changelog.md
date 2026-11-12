@@ -5,6 +5,9 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Migrate the `rubrik_data_center_azure_subscription` resource to the Terraform Plugin Framework. The resource now
+  supports import by identity, and state can be moved from `polaris_data_center_azure_subscription` with a moved block.
+  [[docs](../resources/data_center_azure_subscription.md)]
 * Migrate the `rubrik_data_center_azure_subscription` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/data_center_azure_subscription.md)]
 
