@@ -80,7 +80,7 @@ func (r *azureExocomputeResource) moveStateV0() resource.StateMover {
 				CloudAccountID:        types.StringNull(),
 				HostCloudAccountID:    types.StringNull(),
 				OptionalConfig:        types.ListValueMust(types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, []attr.Value{}),
-				PodOverlayNetworkCIDR: types.StringNull(),
+				PodOverlayNetworkCIDR: types.StringValue(""),
 				Region:                source.Region,
 				Subnet:                source.Subnet,
 				SubscriptionID:        source.SubscriptionID,
