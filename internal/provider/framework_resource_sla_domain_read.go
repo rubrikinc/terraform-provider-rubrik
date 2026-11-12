@@ -248,7 +248,15 @@ func slaDomainStateFromRemote(ctx context.Context, s schema.Schema, domain gqlsl
 		return model, diags
 	}
 
+	// Right after an import there is no configuration to compare with.
 	kept := keepNullsFromPrior(remote.Raw, prior.Raw)
+	if isImportedPrior(prior.Raw) {
+		var err error
+		if kept, err = nullOptionalZeroValues(s, remote.Raw); err != nil {
+			diags.AddError("Failed to convert the SLA domain", err.Error())
+			return model, diags
+		}
+	}
 	diags.Append(tfsdk.State{Schema: s, Raw: kept}.Get(ctx, &model)...)
 	return model, diags
 }
