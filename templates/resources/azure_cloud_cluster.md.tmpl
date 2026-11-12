@@ -20,12 +20,18 @@ description: |-
 {{ if or .HasImport .HasImportIDConfig .HasImportIdentityConfig -}}
 ## Import
 
-The RSC cloud cluster ID (UUID) is used to import the cluster. RSC cannot return most of the values used when a cloud
-cluster is created, such as the number of nodes, the virtual network, subnet and network security group and the VM configuration. An
-imported cluster therefore holds only the values RSC can return, and the first apply after the import takes the remaining values from
-the configuration without changing or replacing the cluster. The provider trusts the configuration to match the
-cluster, so the `cluster_config` and `vm_config` blocks must describe the imported cluster. Changing one of these values
-after the first apply replaces the cluster, as it does for any other cluster.
+The RSC cloud cluster ID (UUID) is used to import the cluster. The values used when the cluster was created, such as the
+region, the number of nodes, the instance type, the resource groups, virtual network, subnet and network security
+group, the storage account and container, and the managed identity, are read from the configuration RSC recorded when
+it created the cluster. A configuration which doesn't match the imported cluster plans a replacement of the cluster, so
+check the plan before applying it.
+
+The values RSC doesn't record are taken from the configuration by the first apply after the import, without changing
+or replacing the cluster: `cdm_version`, which may differ from the installed version if the cluster has been upgraded,
+`force_cluster_delete_on_destroy`, the write-only `admin_email` and `admin_password`, and `vm_type` when the cluster was
+created with the `STANDARD` VM type. The same applies to every create-time value of a cluster RSC has no create record
+for, e.g. a cluster which wasn't created by RSC; the import then reports a warning and the provider trusts the
+configuration to match the cluster.
 
 Import is supported using the following syntax:
 

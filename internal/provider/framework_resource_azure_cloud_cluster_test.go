@@ -496,9 +496,11 @@ func TestAccAzureCloudClusterResource(t *testing.T) {
 	}
 	updatedVars["dns_name_servers"] = config.ListVariable(dnsServers...)
 
-	// The RSC cluster is replaced neither by an import nor by a refresh. The
-	// values RSC can't return are adopted from the configuration, so the import
-	// plans an in-place update and not an empty plan.
+	// An import of a cluster matching the configuration never plans a
+	// replacement. The create-time values are read from the configuration RSC
+	// recorded at create, and the few it does not record, e.g. cdm_version, are
+	// adopted from the configuration, so the import plans an in-place update
+	// rather than an empty plan.
 	importPlanChecks := resource.ImportPlanChecks{
 		PreApply: []plancheck.PlanCheck{
 			plancheck.ExpectResourceAction("rubrik_azure_cloud_cluster.cluster", plancheck.ResourceActionUpdate),
@@ -556,38 +558,17 @@ func TestAccAzureCloudClusterResource(t *testing.T) {
 			ImportState:       true,
 			ImportStateVerify: true,
 			ImportStateVerifyIgnore: []string{
-				// RSC can't return any of the create-time inputs, so they are missing
-				// from the state of an imported cluster and are adopted from the
-				// configuration on the first apply.
-				keyCloudAccountID, keyAzResilient,
 				// Write-only attributes are never stored in the state.
 				keyClusterConfig + ".0." + keyAdminEmail,
 				keyClusterConfig + ".0." + keyAdminPassword,
-				// Create-time inputs RSC does not return.
-				keyClusterConfig + ".0." + keyNumNodes,
-				keyClusterConfig + ".0." + keyKeepClusterOnFailure,
 				// A provider side setting, not stored in RSC.
 				keyClusterConfig + ".0." + keyForceClusterDeleteOnDestroy,
-				// RSC does not return the VM configuration, cdm_product is only computed
-				// at create.
-				keyVMConfig + ".0." + keyCDMProduct,
-				keyVMConfig + ".0." + keyInstanceType,
-				keyVMConfig + ".0." + keyResourceGroupName,
-				keyVMConfig + ".0." + keyStorageAccountName,
-				keyVMConfig + ".0." + keyContainerName,
-				keyVMConfig + ".0." + keyEnableImmutability,
-				keyVMConfig + ".0." + keyUserAssignedManagedIdentityName,
-				keyVMConfig + ".0." + keyRegion,
-				keyVMConfig + ".0." + keyNetworkResourceGroup,
-				keyVMConfig + ".0." + keyVnetResourceGroup,
-				keyVMConfig + ".0." + keySubnet,
-				keyVMConfig + ".0." + keyVnet,
-				keyVMConfig + ".0." + keyNetworkSecurityGroup,
-				keyVMConfig + ".0." + keyNetworkSecurityResourceGroup,
-				keyVMConfig + ".0." + keyVMType,
-				// Create-time input that RSC can't return, adopted from the
-				// configuration after an import.
+				// Not recorded by RSC, adopted from the configuration after an
+				// import: the cluster may have been upgraded since it was created.
 				keyVMConfig + ".0." + keyCDMVersion,
+				// Not recorded by RSC for the STANDARD VM type, adopted from the
+				// configuration after an import.
+				keyVMConfig + ".0." + keyVMType,
 				// Not part of the cluster.
 				keyTimeouts,
 			},

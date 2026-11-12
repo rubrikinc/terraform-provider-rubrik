@@ -153,9 +153,10 @@ This will record the renames (Option 2) in state and migrate the local Terraform
 ### Importing cloud clusters
 
 The `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources can now be imported, using either the cluster
-ID or the resource identity. RSC cannot return most of the values used when a cloud cluster is created, so the first
-apply after an import takes those values from the configuration, without changing or replacing the cluster. The
-provider trusts the configuration to match the cluster. See the Import section of the resource documentation.
+ID or the resource identity. The values used when the cluster was created are read from the configuration RSC recorded
+when it created the cluster, so a configuration which doesn't match the imported cluster plans a replacement. The few
+values RSC doesn't record, such as `cdm_version`, are taken from the configuration by the first apply after the import,
+without changing or replacing the cluster. See the Import section of the resource documentation.
 
 ```terraform
 import {

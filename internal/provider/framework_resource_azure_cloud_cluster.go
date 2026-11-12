@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -531,6 +532,27 @@ func (r *azureCloudClusterResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
+	// After an import, the create-time inputs are read from the configuration
+	// RSC recorded when the cluster was created. Values which aren't recorded
+	// are left null and adopted from the configuration by the plan modifiers.
+	if imported && state.CloudAccountID.IsNull() {
+		provisionConfig, err := gqlcloudcluster.Wrap(polarisClient.GQL).ProvisionConfig(ctx, id)
+		switch {
+		case errors.Is(err, graphql.ErrNotFound):
+			res.Diagnostics.AddWarning("Cloud cluster create configuration not found",
+				"RSC has no record of how the cloud cluster was created, the create-time values are taken from the configuration.")
+		case err != nil:
+			res.Diagnostics.AddError("Failed to read the cloud cluster create configuration", err.Error())
+			return
+		case provisionConfig.Azure == nil:
+			res.Diagnostics.AddError("Cloud cluster is not an Azure cloud cluster",
+				fmt.Sprintf("Cloud cluster %q is an %s cloud cluster.", id, provisionConfig.Vendor))
+			return
+		default:
+			azureCloudClusterFromProvisionConfig(*provisionConfig.Azure, &state)
+		}
+	}
+
 	_, err = cluster.Wrap(polarisClient).Cluster(ctx, id)
 	if errors.Is(err, graphql.ErrNotFound) {
 		res.State.RemoveResource(ctx)
@@ -778,4 +800,58 @@ func (r *azureCloudClusterResource) buildCreateInput(ctx context.Context, plan, 
 	}
 
 	return input, diags
+}
+
+// azureCloudClusterFromProvisionConfig sets the create-time inputs of an
+// imported Azure cloud cluster from the configuration RSC recorded when the
+// cluster was created. RSC leaves values holding the zero value of their type
+// out of the recording, so an empty optional string is set to null, which is
+// what a configuration leaving it out plans. The VM type is only set when RSC
+// recorded it, STANDARD is the zero value and can't be told apart from a
+// missing value. The CDM version is not set, RSC records the marketplace image
+// version, which is the cdm_product of the resource.
+func azureCloudClusterFromProvisionConfig(config gqlcloudcluster.AzureProvisionConfig, state *azureCloudClusterModel) {
+	optional := func(value string) types.String {
+		if value == "" {
+			return types.StringNull()
+		}
+		return types.StringValue(value)
+	}
+
+	state.CloudAccountID = types.StringValue(config.CloudAccountID.String())
+	state.AZResilient = types.BoolValue(config.IsAzResilient)
+
+	cc := &state.ClusterConfig[0]
+	cc.NumNodes = types.Int64Value(int64(config.ClusterConfig.NumNodes))
+	cc.KeepClusterOnFailure = types.BoolValue(config.KeepClusterOnFailure)
+
+	vm := &state.VMConfig[0]
+	vm.CDMProduct = optional(config.ImageVersion)
+	vm.InstanceType = types.StringValue(string(config.InstanceType))
+	vm.Region = types.StringValue(config.Region.Name())
+	vm.ResourceGroupName = types.StringValue(config.ResourceGroup)
+	vm.StorageAccountName = types.StringValue(config.StorageAccount)
+	vm.ContainerName = types.StringValue(config.ContainerName)
+	vm.EnableImmutability = types.BoolValue(config.EnableImmutability)
+	vm.UserAssignedManagedIdentity = types.StringValue(config.ManagedIdentityName)
+	vm.NetworkResourceGroup = types.StringValue(config.NetworkResourceGroup)
+	vm.VnetResourceGroup = types.StringValue(config.VnetResourceGroup)
+	vm.Vnet = types.StringValue(config.Vnet)
+	vm.NetworkSecurityGroup = types.StringValue(config.NetworkSecurityGroup)
+	vm.NetworkSecurityResourceGroup = types.StringValue(config.NetworkSecurityResourceGroup)
+	vm.Subnet = optional(config.Subnet)
+	vm.AvailabilityZone = optional(config.AvailabilityZone)
+	if config.VMTypeKnown {
+		vm.VMType = types.StringValue(string(config.VMType))
+	}
+	if len(config.SubnetAzConfigs) > 0 {
+		elems := make([]attr.Value, 0, len(config.SubnetAzConfigs))
+		for _, subnetAz := range config.SubnetAzConfigs {
+			elems = append(elems, types.ObjectValueMust(cloudClusterSubnetAzObjectType.AttrTypes, map[string]attr.Value{
+				keyAvailabilityZone: types.StringValue(subnetAz.AvailabilityZone),
+				keySubnet:           types.StringValue(subnetAz.Subnet),
+			}))
+		}
+		vm.SubnetAzConfig = types.ListValueMust(cloudClusterSubnetAzObjectType, elems)
+	}
 }
