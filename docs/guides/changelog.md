@@ -5,6 +5,12 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* **Deprecated:** Customer managed Exocompute in the `rubrik_azure_exocompute` resource, which is a configuration with
+  `region` but no `subnet`. RSC no longer supports it, and the provider warns when a configuration is planned without
+  `subnet`. [[docs](../resources/azure_exocompute.md)]
+* Migrate the `rubrik_azure_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_azure_exocompute` with a moved block.
+  [[docs](../resources/azure_exocompute.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.

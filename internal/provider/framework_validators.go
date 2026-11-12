@@ -25,6 +25,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"slices"
 	"strings"
 
@@ -105,6 +106,33 @@ func (v isAESKeyValidator) ValidateString(_ context.Context, req validator.Strin
 	if bytes.Equal(key, make([]byte, len(key))) {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid AES key",
 			"the key is all zero bytes, which RSC rejects as too weak.")
+	}
+}
+
+// isIPAddress returns a validator that checks if a string value is a valid IPv4
+// or IPv6 address.
+func isIPAddress() validator.String {
+	return isIPAddressValidator{}
+}
+
+type isIPAddressValidator struct{}
+
+func (v isIPAddressValidator) Description(_ context.Context) string {
+	return "value must be a valid IP address"
+}
+
+func (v isIPAddressValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isIPAddressValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if net.ParseIP(req.ConfigValue.ValueString()) == nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid IP address",
+			fmt.Sprintf("%q is not a valid IP address", req.ConfigValue.ValueString()))
 	}
 }
 

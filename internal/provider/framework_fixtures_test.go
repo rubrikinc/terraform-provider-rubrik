@@ -23,11 +23,13 @@ package provider
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
@@ -123,6 +125,55 @@ func testAzureResourceGroupRegion(t *testing.T) string {
 
 	_, conf := loadAzureTestConfig(t)
 	return conf.CloudNativeProtection.ResourceGroupRegion
+}
+
+// testAzureExocomputeRegion returns the first Exocompute region from the Azure
+// test configuration. The test is skipped if no region is set.
+func testAzureExocomputeRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if len(conf.Exocompute.Regions) == 0 {
+		t.Skip("Azure Exocompute fixture not available: exocompute.regions not set")
+	}
+
+	return conf.Exocompute.Regions[0]
+}
+
+// testAzureExocomputeResourceGroupName returns the Exocompute resource group
+// name from the Azure test configuration.
+func testAzureExocomputeResourceGroupName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.Exocompute.ResourceGroupName
+}
+
+// testAzureExocomputeResourceGroupRegion returns the Exocompute resource group
+// region from the Azure test configuration.
+func testAzureExocomputeResourceGroupRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.Exocompute.ResourceGroupRegion
+}
+
+// testAzureExocomputeSubnetID returns the Exocompute subnet ID from the Azure
+// test configuration. The subnet must be in the first Exocompute region. The
+// test is skipped if no subnet is set.
+func testAzureExocomputeSubnetID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if conf.Exocompute.SubnetID == "" {
+		t.Skip("Azure Exocompute fixture not available: exocompute.subnetId not set")
+	}
+
+	return conf.Exocompute.SubnetID
 }
 
 // testGCPCredentials returns the GCP service account credentials from the GCP
@@ -758,4 +809,17 @@ func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 	if !c.flag(ctx, featureFlag) {
 		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
+}
+
+// testVariables returns a copy of base with the variables of each
+// override added, replacing variables with the same name. Later overrides
+// take precedence.
+func testVariables(t *testing.T, base config.Variables, overrides ...config.Variables) config.Variables {
+	t.Helper()
+
+	vars := maps.Clone(base)
+	for _, override := range overrides {
+		maps.Copy(vars, override)
+	}
+	return vars
 }
