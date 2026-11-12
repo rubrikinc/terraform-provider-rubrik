@@ -84,7 +84,7 @@ func (r *azureExocomputeResource) upgradeStateV0() resource.StateUpgrader {
 				CloudAccountID:        types.StringNull(),
 				HostCloudAccountID:    types.StringNull(),
 				OptionalConfig:        types.ListValueMust(types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, []attr.Value{}),
-				PodOverlayNetworkCIDR: types.StringNull(),
+				PodOverlayNetworkCIDR: types.StringValue(""),
 				Region:                prior.Region,
 				Subnet:                prior.Subnet,
 				SubscriptionID:        prior.SubscriptionID,

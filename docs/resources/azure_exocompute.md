@@ -6,6 +6,7 @@ description: |-
   The rubrik_azure_exocompute resource creates an RSC Exocompute configuration
   for Azure workloads.
   There are 2 types of Exocompute configurations:
+  d
   RSC Managed Host - When a host configuration is created, RSC will
   automatically deploy the necessary resources in the specified Azure region
   to run the Exocompute service. A host configuration can be used by both the
@@ -15,7 +16,7 @@ description: |-
   account will leverage the Exocompute resources deployed for the host
   configuration.
   Item 1 above requires that the Azure subscription has been onboarded with the
-  exocompute feature.
+  EXOCOMPUTE feature.
   Since there are 2 types of Exocompute configurations, there are 2 ways to create
   a rubrik_azure_exocompute resource:
   Using the cloud_account_id, region, subnet and
@@ -51,6 +52,7 @@ The `rubrik_azure_exocompute` resource creates an RSC Exocompute configuration
 for Azure workloads.
 
 There are 2 types of Exocompute configurations:
+d
  1. *RSC Managed Host* - When a host configuration is created, RSC will
     automatically deploy the necessary resources in the specified Azure region
     to run the Exocompute service. A host configuration can be used by both the
@@ -62,10 +64,11 @@ There are 2 types of Exocompute configurations:
     configuration.
 
 Item 1 above requires that the Azure subscription has been onboarded with the
-`exocompute` feature.
+`EXOCOMPUTE` feature.
 
 Since there are 2 types of Exocompute configurations, there are 2 ways to create
 a `rubrik_azure_exocompute` resource:
+
  1. Using the `cloud_account_id`, `region`, `subnet` and
    `pod_overlay_network_cidr` fields creates an RSC managed host configuration.
  2. Using the `cloud_account_id` and `host_cloud_account_id` fields creates an
