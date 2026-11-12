@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/google/uuid"
 	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
 
@@ -231,4 +232,25 @@ func slaDomainParams(model slaDomainModel, objectTypes []gqlsla.ObjectType, feat
 		RetentionLockMode: retentionLockMode,
 		SnapshotSchedule:  schedule,
 	}, nil
+}
+
+// slaDomainUpdateParams returns the parameters for updating the SLA domain with
+// the specified ID.
+func slaDomainUpdateParams(id uuid.UUID, params gqlsla.CreateDomainParams, applyToExisting, applyToNonPolicy bool) gqlsla.UpdateDomainParams {
+	// When updating a data center archival, RSC requires the group ID to be set
+	// to nil. The archival specs are copied, since they are shared with the
+	// parameters of the caller.
+	params.ArchivalSpecs = slices.Clone(params.ArchivalSpecs)
+	for i, spec := range params.ArchivalSpecs {
+		if len(spec.ArchivalLocationToClusterMapping) > 0 {
+			params.ArchivalSpecs[i].GroupID = uuid.Nil
+		}
+	}
+
+	return gqlsla.UpdateDomainParams{
+		ID:                              id,
+		ShouldApplyToExistingSnapshots:  &gqlsla.BoolValue{Value: applyToExisting},
+		ShouldApplyToNonPolicySnapshots: &gqlsla.BoolValue{Value: applyToNonPolicy},
+		CreateDomainParams:              params,
+	}
 }

@@ -447,3 +447,45 @@ func TestSLADomainParamsFields(t *testing.T) {
 		}
 	})
 }
+
+func TestSLADomainUpdateParams(t *testing.T) {
+	id := uuid.New()
+	mapped, plain := uuid.New(), uuid.New()
+	params := gqlsla.CreateDomainParams{
+		Name: "gold",
+		ArchivalSpecs: []gqlsla.ArchivalSpec{
+			{GroupID: mapped, ArchivalLocationToClusterMapping: []gqlsla.ArchivalLocationToClusterMapping{{LocationID: uuid.New()}}},
+			{GroupID: plain},
+		},
+	}
+
+	t.Run("the group ID is cleared for an archival with cluster mappings only", func(t *testing.T) {
+		got := slaDomainUpdateParams(id, params, false, false)
+		if got.ArchivalSpecs[0].GroupID != uuid.Nil {
+			t.Errorf("mapped archival group ID = %s, want nil", got.ArchivalSpecs[0].GroupID)
+		}
+		if got.ArchivalSpecs[1].GroupID != plain {
+			t.Errorf("plain archival group ID = %s, want %s", got.ArchivalSpecs[1].GroupID, plain)
+		}
+	})
+
+	t.Run("the specs of the caller aren't changed", func(t *testing.T) {
+		slaDomainUpdateParams(id, params, false, false)
+		if params.ArchivalSpecs[0].GroupID != mapped {
+			t.Errorf("caller's group ID = %s, want %s", params.ArchivalSpecs[0].GroupID, mapped)
+		}
+	})
+
+	t.Run("the apply flags and the ID are set", func(t *testing.T) {
+		got := slaDomainUpdateParams(id, params, true, false)
+		if got.ID != id || got.Name != "gold" {
+			t.Errorf("id, name = %s, %q", got.ID, got.Name)
+		}
+		if got.ShouldApplyToExistingSnapshots == nil || !got.ShouldApplyToExistingSnapshots.Value {
+			t.Errorf("apply to existing = %+v, want true", got.ShouldApplyToExistingSnapshots)
+		}
+		if got.ShouldApplyToNonPolicySnapshots == nil || got.ShouldApplyToNonPolicySnapshots.Value {
+			t.Errorf("apply to non policy = %+v, want false", got.ShouldApplyToNonPolicySnapshots)
+		}
+	})
+}
