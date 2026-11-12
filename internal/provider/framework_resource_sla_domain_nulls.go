@@ -23,7 +23,9 @@ package provider
 import (
 	"math/big"
 	"slices"
+	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
@@ -111,4 +113,70 @@ func nullUnknownValues(value tftypes.Value) tftypes.Value {
 		return value
 	}
 	return nulled
+}
+
+// nullOptionalZeroValues returns the remote value, where an optional attribute
+// which isn't computed, and which RSC returns as the zero value of its type, is
+// null. It is used right after an import. There is no configuration to compare
+// with, so the blocks aren't in the prior value, and keepNullsFromPrior would
+// return the zero values of the attributes in them. The plan after the import
+// would then show a diff for every optional attribute of a block which the
+// configuration doesn't set.
+//
+// An attribute which is set to its zero value in the configuration, such as
+// instant_tiering = false, plans a change to false after an import, which is
+// the cost of not knowing the configuration.
+func nullOptionalZeroValues(s schema.Schema, remote tftypes.Value) (tftypes.Value, error) {
+	optional := optionalOnlyAttributePaths(s)
+	return tftypes.Transform(remote, func(path *tftypes.AttributePath, v tftypes.Value) (tftypes.Value, error) {
+		if v.IsKnown() && !v.IsNull() && isZeroPrimitive(v) && optional[attributePathKey(path)] {
+			return tftypes.NewValue(v.Type(), nil), nil
+		}
+		return v, nil
+	})
+}
+
+// attributePathKey returns the schema path of an attribute path, without the
+// positions of the elements of blocks.
+func attributePathKey(path *tftypes.AttributePath) string {
+	var key []string
+	for _, step := range path.Steps() {
+		if name, ok := step.(tftypes.AttributeName); ok {
+			key = append(key, string(name))
+		}
+	}
+	return strings.Join(key, ".")
+}
+
+// optionalOnlyAttributePaths returns the schema paths of the attributes which are
+// optional and not computed.
+func optionalOnlyAttributePaths(s schema.Schema) map[string]bool {
+	paths := make(map[string]bool)
+	var walk func(prefix []string, attrs map[string]schema.Attribute, blocks map[string]schema.Block)
+	walk = func(prefix []string, attrs map[string]schema.Attribute, blocks map[string]schema.Block) {
+		for name, attr := range attrs {
+			if attr.IsOptional() && !attr.IsComputed() {
+				paths[strings.Join(append(slices.Clone(prefix), name), ".")] = true
+			}
+		}
+		for name, block := range blocks {
+			if nested, ok := block.(schema.ListNestedBlock); ok {
+				walk(append(slices.Clone(prefix), name), nested.NestedObject.Attributes, nested.NestedObject.Blocks)
+			}
+		}
+	}
+	walk(nil, s.Attributes, s.Blocks)
+	return paths
+}
+
+// isImportedPrior reports whether the prior value is the state of an import, which
+// only has the ID set. A configuration always has a name, so a prior without one
+// can't be a plan or the state of a resource which was created.
+func isImportedPrior(prior tftypes.Value) bool {
+	var attrs map[string]tftypes.Value
+	if !prior.IsKnown() || prior.IsNull() || prior.As(&attrs) != nil {
+		return false
+	}
+	name, ok := attrs[keyName]
+	return ok && name.IsNull() && !attrs[keyID].IsNull()
 }

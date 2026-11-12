@@ -26,8 +26,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
 
 func TestKeepNullsFromPrior(t *testing.T) {
@@ -277,5 +280,159 @@ func TestNullUnknownValues(t *testing.T) {
 	}
 	if !got.IsFullyKnown() {
 		t.Fatal("the result still holds unknown values")
+	}
+}
+
+// importedSLADomainPrior returns the state of an import, where only the id is set.
+func importedSLADomainPrior(t *testing.T, id string) tftypes.Value {
+	t.Helper()
+
+	typ := slaDomainSchema(t.Context()).Type().TerraformType(t.Context()).(tftypes.Object)
+	values := make(map[string]tftypes.Value, len(typ.AttributeTypes))
+	for name, attrType := range typ.AttributeTypes {
+		values[name] = tftypes.NewValue(attrType, nil)
+	}
+	values[keyID] = tftypes.NewValue(tftypes.String, id)
+	return tftypes.NewValue(typ, values)
+}
+
+func TestIsImportedPrior(t *testing.T) {
+	id := uuid.NewString()
+	imported := importedSLADomainPrior(t, id)
+	if !isImportedPrior(imported) {
+		t.Error("the state of an import isn't recognised")
+	}
+	if isImportedPrior(tftypes.NewValue(imported.Type(), nil)) {
+		t.Error("a null value is an import")
+	}
+
+	// A plan has a name, and so has the state of a created resource, which also
+	// has an id. A refresh reads with that state, and has to keep the attributes
+	// which are set to their zero value.
+	plan := slaDomainPlan(t, map[string]tftypes.Value{keyName: tftypes.NewValue(tftypes.String, "gold")})
+	if isImportedPrior(plan.Raw) {
+		t.Error("a plan with a name is an import")
+	}
+	state := slaDomainPlan(t, map[string]tftypes.Value{
+		keyName: tftypes.NewValue(tftypes.String, "gold"),
+		keyID:   tftypes.NewValue(tftypes.String, id),
+	})
+	if isImportedPrior(state.Raw) {
+		t.Error("the state of a created resource, with a name and an id, is an import")
+	}
+}
+
+// TestSLADomainImportedStateKeepsOptionalAttributesNull reads an SLA domain right
+// after an import, for each optional attribute of the schema which isn't
+// computed. The block holding the attribute isn't in the prior value then, and
+// the zero value RSC returns has to be null, or the first plan after the import
+// shows a diff for an attribute the configuration doesn't set.
+func TestSLADomainImportedStateKeepsOptionalAttributesNull(t *testing.T) {
+	ctx := t.Context()
+	s := slaDomainSchema(ctx)
+
+	paths := optionalOnlyAttributePaths(s)
+	if len(paths) != 40 {
+		t.Fatalf("found %d optional attributes, want 40", len(paths))
+	}
+
+	// remote is a value where every block has one element, and every optional
+	// attribute which isn't computed has the zero value of its type.
+	var fill func(typ tftypes.Type, path []string) tftypes.Value
+	fill = func(typ tftypes.Type, path []string) tftypes.Value {
+		switch typ := typ.(type) {
+		case tftypes.Object:
+			values := make(map[string]tftypes.Value, len(typ.AttributeTypes))
+			for name, attrType := range typ.AttributeTypes {
+				values[name] = fill(attrType, append(slices.Clone(path), name))
+			}
+			return tftypes.NewValue(typ, values)
+		case tftypes.List:
+			if _, ok := typ.ElementType.(tftypes.Object); ok {
+				return tftypes.NewValue(typ, []tftypes.Value{fill(typ.ElementType, path)})
+			}
+			return tftypes.NewValue(typ, nil)
+		}
+		switch {
+		case typ.Is(tftypes.String):
+			return tftypes.NewValue(typ, "")
+		case typ.Is(tftypes.Number):
+			return tftypes.NewValue(typ, 0)
+		case typ.Is(tftypes.Bool):
+			return tftypes.NewValue(typ, false)
+		}
+		return tftypes.NewValue(typ, nil)
+	}
+	remote := fill(s.Type().TerraformType(ctx), nil)
+
+	got, err := nullOptionalZeroValues(s, remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Walk the result: an attribute is null exactly when it is optional only.
+	checked := 0
+	err = tftypes.Walk(got, func(path *tftypes.AttributePath, v tftypes.Value) (bool, error) {
+		if len(path.Steps()) == 0 || !isZeroOrNull(v) {
+			return true, nil
+		}
+		key := attributePathKey(path)
+		switch {
+		case paths[key] && !v.IsNull():
+			t.Errorf("%s is %s after an import, want null", key, v)
+		case !paths[key] && v.IsNull() && isPrimitive(v):
+			t.Errorf("%s is null after an import, but isn't an optional attribute", key)
+		}
+		if paths[key] {
+			checked++
+		}
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checked < 31 {
+		t.Errorf("checked %d optional primitives, want at least 31", checked)
+	}
+}
+
+func isZeroOrNull(v tftypes.Value) bool { return v.IsNull() || isZeroPrimitive(v) }
+
+func isPrimitive(v tftypes.Value) bool {
+	return v.Type().Is(tftypes.String) || v.Type().Is(tftypes.Number) || v.Type().Is(tftypes.Bool)
+}
+
+func TestSLADomainStateFromRemoteAfterImport(t *testing.T) {
+	ctx := t.Context()
+	s := slaDomainSchema(ctx)
+	id := uuid.New()
+
+	domain := gqlsla.Domain{ID: id, Name: "gold", ObjectTypes: []gqlsla.ObjectType{gqlsla.ObjectVSphereVM}}
+	domain.SnapshotSchedule.Weekly = &gqlsla.WeeklySnapshotSchedule{
+		BasicSchedule: gqlsla.BasicSnapshotSchedule{Frequency: 1, Retention: 1, RetentionUnit: gqlsla.Weeks},
+	}
+
+	model, diags := slaDomainStateFromRemote(ctx, s, domain, tfsdk.Plan{Schema: s, Raw: importedSLADomainPrior(t, id.String())})
+	if diags.HasError() {
+		t.Fatalf("unexpected error: %v", diags)
+	}
+	if !model.Description.IsNull() {
+		t.Errorf("description = %v, want null", model.Description)
+	}
+	if len(model.WeeklySchedule) != 1 || !model.WeeklySchedule[0].DayOfWeek.IsNull() {
+		t.Errorf("weekly schedule = %+v, want a null day of week", model.WeeklySchedule)
+	}
+	if model.WeeklySchedule[0].Frequency.ValueInt64() != 1 || model.Name.ValueString() != "gold" {
+		t.Errorf("values RSC returned weren't kept: %+v", model)
+	}
+
+	// A day of the week which RSC returns is kept.
+	domain.SnapshotSchedule.Weekly.DayOfWeek = gqlsla.Monday
+	model, diags = slaDomainStateFromRemote(ctx, s, domain, tfsdk.Plan{Schema: s, Raw: importedSLADomainPrior(t, id.String())})
+	if diags.HasError() {
+		t.Fatalf("unexpected error: %v", diags)
+	}
+	if model.WeeklySchedule[0].DayOfWeek.ValueString() != string(gqlsla.Monday) {
+		t.Errorf("day of week = %v, want MONDAY", model.WeeklySchedule[0].DayOfWeek)
 	}
 }
