@@ -36,18 +36,6 @@ resource "rubrik_azure_exocompute" "host" {
   }
 }
 
-# Customer managed Exocompute.
-resource "rubrik_azure_exocompute" "host" {
-  cloud_account_id = data.rubrik_azure_subscription.host.id
-  region           = "eastus2"
-}
-
-resource "rubrik_azure_exocompute_cluster_attachment" "cluster" {
-  cluster_name  = "my-aks-cluster"
-  exocompute_id = rubrik_azure_exocompute.host.id
-}
-
-
 data "rubrik_azure_subscription" "application" {
   name = "application-subscription"
 }
