@@ -200,7 +200,7 @@ Required:
 - `cdm_version` (String) CDM version to use. This is a create-time input, it is not updated when the cluster is upgraded outside of Terraform. Changing this forces a new resource to be created.
 - `container_name` (String) Azure storage container name for the cluster. Changing this forces a new resource to be created.
 - `enable_immutability` (Boolean) Whether to enable immutability for the storage account. Changing this forces a new resource to be created.
-- `instance_type` (String) Azure instance type for the cluster nodes. Changing this forces a new resource to be created. Possible values are `STANDARD_DS5_V2`, `STANDARD_D16S_V5`, `STANDARD_D8S_V5`, `STANDARD_D32S_V5`, `STANDARD_E16S_V5`, `STANDARD_D8AS_V5`, `STANDARD_D16AS_V5`, `STANDARD_D32AS_V5` and `STANDARD_E16AS_V5`.
+- `instance_type` (String) Azure instance type for the cluster nodes. Changing this forces a new resource to be created. Possible values are `STANDARD_DS5_V2`, `STANDARD_D16S_V5`, `STANDARD_D8S_V5`, `STANDARD_D32S_V5`, `STANDARD_E16S_V5`, `STANDARD_D8AS_V5`, `STANDARD_D16AS_V5`, `STANDARD_D32AS_V5`, `STANDARD_E16AS_V5`, `STANDARD_D8S_V6`, `STANDARD_D16S_V6`, `STANDARD_E16S_V6`, `STANDARD_D8AS_V6`, `STANDARD_D16AS_V6` and `STANDARD_E16AS_V6`.
 - `network_resource_group` (String) Azure resource group name for network resources. Changing this forces a new resource to be created.
 - `network_security_group` (String) Azure network security group name. Changing this forces a new resource to be created.
 - `network_security_resource_group` (String) Azure resource group name for the network security group. Changing this forces a new resource to be created.

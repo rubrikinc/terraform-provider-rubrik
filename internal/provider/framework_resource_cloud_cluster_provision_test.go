@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -159,5 +160,58 @@ func TestAwsCloudClusterFromProvisionConfig(t *testing.T) {
 	}
 	if !state.ClusterConfig[0].DynamicScalingEnabled.ValueBool() || state.ClusterConfig[0].BucketName.ValueString() != "my-bucket" {
 		t.Errorf("dynamic_scaling_enabled/bucket_name: got %v/%v", state.ClusterConfig[0].DynamicScalingEnabled, state.ClusterConfig[0].BucketName)
+	}
+}
+
+// TestCloudClusterInstanceTypes verifies that instance_type accepts every
+// instance type RSC offers for a CDM version. The lists are the instance types
+// from RSC's per CDM version support lists, a type RSC rejects for the CDM
+// version of a cluster is reported by RSC and not by the provider. A type
+// missing from the provider is rejected at plan time, even when RSC offers it.
+func TestCloudClusterInstanceTypes(t *testing.T) {
+	offeredAws := []gqlcloudcluster.AwsCCInstanceType{
+		// CDM 9.4.
+		gqlcloudcluster.AwsInstanceTypeM6I_2XLarge,
+		gqlcloudcluster.AwsInstanceTypeM6I_4XLarge,
+		gqlcloudcluster.AwsInstanceTypeR6I_4XLarge,
+		// CDM 9.5.
+		gqlcloudcluster.AwsInstanceTypeM6A_2XLarge,
+		gqlcloudcluster.AwsInstanceTypeM6A_4XLarge,
+		gqlcloudcluster.AwsInstanceTypeR6A_4XLarge,
+		gqlcloudcluster.AwsInstanceTypeM7I_2XLarge,
+		gqlcloudcluster.AwsInstanceTypeM7I_4XLarge,
+		gqlcloudcluster.AwsInstanceTypeR7I_4XLarge,
+		// CDM 9.6.
+		gqlcloudcluster.AwsInstanceTypeM7A_2XLarge,
+		gqlcloudcluster.AwsInstanceTypeM7A_4XLarge,
+		gqlcloudcluster.AwsInstanceTypeR7A_4XLarge,
+	}
+	for _, instanceType := range offeredAws {
+		if !slices.Contains(awsCloudClusterInstanceTypes, instanceType) {
+			t.Errorf("AWS instance type %q is offered by RSC but not accepted by instance_type", instanceType)
+		}
+	}
+
+	offeredAzure := []gqlcloudcluster.AzureCCESSupportedInstanceType{
+		// CDM 9.4.
+		gqlcloudcluster.AzureInstanceTypeStandardD8SV5,
+		gqlcloudcluster.AzureInstanceTypeStandardD16SV5,
+		gqlcloudcluster.AzureInstanceTypeStandardE16SV5,
+		// CDM 9.5.
+		gqlcloudcluster.AzureInstanceTypeStandardD8ASV5,
+		gqlcloudcluster.AzureInstanceTypeStandardD16ASV5,
+		gqlcloudcluster.AzureInstanceTypeStandardE16ASV5,
+		// CDM 9.5.1.
+		gqlcloudcluster.AzureInstanceTypeStandardD8SV6,
+		gqlcloudcluster.AzureInstanceTypeStandardD16SV6,
+		gqlcloudcluster.AzureInstanceTypeStandardE16SV6,
+		gqlcloudcluster.AzureInstanceTypeStandardD8ASV6,
+		gqlcloudcluster.AzureInstanceTypeStandardD16ASV6,
+		gqlcloudcluster.AzureInstanceTypeStandardE16ASV6,
+	}
+	for _, instanceType := range offeredAzure {
+		if !slices.Contains(azureCloudClusterInstanceTypes, instanceType) {
+			t.Errorf("Azure instance type %q is offered by RSC but not accepted by instance_type", instanceType)
+		}
 	}
 }

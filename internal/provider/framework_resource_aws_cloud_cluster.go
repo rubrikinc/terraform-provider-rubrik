@@ -77,7 +77,10 @@ number of nodes, instance types, and network configuration.
 `
 
 // awsCloudClusterInstanceTypes are the instance type names RSC accepts for AWS
-// cloud clusters.
+// cloud clusters. The instance types a cluster can be created with depend on
+// the CDM version, RSC reports the valid ones when it rejects an instance type.
+// The M7 and R7 types are offered from CDM 9.5 and the M7a and R7a types from
+// CDM 9.6. M5 is only kept to be able to manage existing clusters.
 var awsCloudClusterInstanceTypes = []gqlcloudcluster.AwsCCInstanceType{
 	gqlcloudcluster.AwsInstanceTypeM5_4XLarge,
 	gqlcloudcluster.AwsInstanceTypeM6I_2XLarge,
@@ -88,6 +91,12 @@ var awsCloudClusterInstanceTypes = []gqlcloudcluster.AwsCCInstanceType{
 	gqlcloudcluster.AwsInstanceTypeM6A_4XLarge,
 	gqlcloudcluster.AwsInstanceTypeM6A_8XLarge,
 	gqlcloudcluster.AwsInstanceTypeR6A_4XLarge,
+	gqlcloudcluster.AwsInstanceTypeM7I_2XLarge,
+	gqlcloudcluster.AwsInstanceTypeM7I_4XLarge,
+	gqlcloudcluster.AwsInstanceTypeR7I_4XLarge,
+	gqlcloudcluster.AwsInstanceTypeM7A_2XLarge,
+	gqlcloudcluster.AwsInstanceTypeM7A_4XLarge,
+	gqlcloudcluster.AwsInstanceTypeR7A_4XLarge,
 }
 
 var (

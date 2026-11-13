@@ -193,7 +193,7 @@ Required:
 
 - `cdm_version` (String) CDM version to use. This is a create-time input, it is not updated when the cluster is upgraded outside of Terraform. Changing this forces a new resource to be created.
 - `instance_profile_name` (String) AWS instance profile name for the cluster nodes. Changing this forces a new resource to be created.
-- `instance_type` (String) AWS instance type for the cluster nodes. Changing this forces a new resource to be created. Possible values are `M5_4XLARGE`, `M6I_2XLARGE`, `M6I_4XLARGE`, `M6I_8XLARGE`, `R6I_4XLARGE`, `M6A_2XLARGE`, `M6A_4XLARGE`, `M6A_8XLARGE` and `R6A_4XLARGE`.
+- `instance_type` (String) AWS instance type for the cluster nodes. Changing this forces a new resource to be created. Possible values are `M5_4XLARGE`, `M6I_2XLARGE`, `M6I_4XLARGE`, `M6I_8XLARGE`, `R6I_4XLARGE`, `M6A_2XLARGE`, `M6A_4XLARGE`, `M6A_8XLARGE`, `R6A_4XLARGE`, `M7I_2XLARGE`, `M7I_4XLARGE`, `R7I_4XLARGE`, `M7A_2XLARGE`, `M7A_4XLARGE` and `R7A_4XLARGE`.
 - `security_group_ids` (Set of String) AWS security group IDs for the cluster nodes. Changing this forces a new resource to be created.
 - `vpc_id` (String) AWS VPC ID where the cluster will be deployed. Changing this forces a new resource to be created.
 

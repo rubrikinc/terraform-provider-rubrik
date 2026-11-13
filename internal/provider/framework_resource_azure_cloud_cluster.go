@@ -75,7 +75,9 @@ number of nodes, instance types, and network configuration.
 `
 
 // azureCloudClusterInstanceTypes are the instance type names RSC accepts for
-// Azure cloud clusters.
+// Azure cloud clusters. The instance types a cluster can be created with depend
+// on the CDM version, RSC reports the valid ones when it rejects an instance
+// type. The v6 types are offered from CDM 9.5.1.
 var azureCloudClusterInstanceTypes = []gqlcloudcluster.AzureCCESSupportedInstanceType{
 	gqlcloudcluster.AzureInstanceTypeStandardDS5V2,
 	gqlcloudcluster.AzureInstanceTypeStandardD16SV5,
@@ -86,6 +88,12 @@ var azureCloudClusterInstanceTypes = []gqlcloudcluster.AzureCCESSupportedInstanc
 	gqlcloudcluster.AzureInstanceTypeStandardD16ASV5,
 	gqlcloudcluster.AzureInstanceTypeStandardD32ASV5,
 	gqlcloudcluster.AzureInstanceTypeStandardE16ASV5,
+	gqlcloudcluster.AzureInstanceTypeStandardD8SV6,
+	gqlcloudcluster.AzureInstanceTypeStandardD16SV6,
+	gqlcloudcluster.AzureInstanceTypeStandardE16SV6,
+	gqlcloudcluster.AzureInstanceTypeStandardD8ASV6,
+	gqlcloudcluster.AzureInstanceTypeStandardD16ASV6,
+	gqlcloudcluster.AzureInstanceTypeStandardE16ASV6,
 }
 
 var (
