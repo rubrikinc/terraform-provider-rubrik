@@ -5,6 +5,11 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* **Deprecated:** The `rubrik_azure_exocompute_cluster_attachment` resource. RSC no longer supports customer managed
+  Exocompute.
+* Migrate the `rubrik_azure_exocompute_cluster_attachment` resource to the Terraform Plugin Framework. The resource
+  now supports resource identity, and state can be moved from `polaris_azure_exocompute_cluster_attachment` with a
+  moved block. Fix a bug where changing `token_refresh` failed. [[docs](../resources/azure_exocompute_cluster_attachment.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
