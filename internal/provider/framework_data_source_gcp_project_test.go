@@ -52,6 +52,10 @@ data "rubrik_gcp_project" "by_id" {
 	id = rubrik_gcp_project.default.id
 }
 
+data "rubrik_gcp_project" "by_upper_case_id" {
+	id = upper(rubrik_gcp_project.default.id)
+}
+
 data "rubrik_gcp_project" "by_name" {
 	name = rubrik_gcp_project.default.project_name
 }
@@ -73,7 +77,7 @@ func TestAccGCPProjectDataSource(t *testing.T) {
 	}
 
 	var checks []statecheck.StateCheck
-	for _, name := range []string{"by_id", "by_name", "by_project_id", "by_project_number"} {
+	for _, name := range []string{"by_id", "by_upper_case_id", "by_name", "by_project_id", "by_project_number"} {
 		ds := "data.rubrik_gcp_project." + name
 		checks = append(checks,
 			statecheck.CompareValuePairs("rubrik_gcp_project.default", tfjsonpath.New(keyID),
@@ -102,7 +106,9 @@ func TestAccGCPProjectDataSource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			// Verify that the project is found by the RSC cloud account ID,
 			// the name, the GCP project ID and the GCP project number, and
-			// that every lookup returns the same project.
+			// that every lookup returns the same project. The upper case ID
+			// lookup verifies that the ID is returned as stored in RSC, not
+			// as configured.
 			Config:            tfConfig,
 			ConfigStateChecks: checks,
 		}},
