@@ -414,7 +414,7 @@ func azureCloudClusterTestConfig(prefix, clusterSettings string) string {
 				cluster_name            = var.cluster_name
 				admin_email             = var.admin_email
 				admin_password          = var.admin_password
-				num_nodes               = 3
+				num_nodes               = 1
 				dns_name_servers        = var.dns_name_servers
 				ntp_servers             = var.ntp_servers
 				keep_cluster_on_failure = false
@@ -595,10 +595,26 @@ func TestAccAzureCloudClusterResource(t *testing.T) {
 // migrated azure_cloud_cluster resource is backwards compatible with the SDKv2
 // provider. Step 1 creates the cluster with the SDKv2 provider; Step 2 swaps to
 // the framework provider with the same config and asserts an empty plan.
+//
+// The test needs the released provider in step 1. A dev_overrides entry for
+// rubrikinc/rubrik in the Terraform CLI configuration replaces it with a local
+// build, which makes the test compare two builds of this provider and not the
+// SDKv2 provider with this one. Run the test with a CLI configuration without
+// overrides:
+//
+//	printf 'provider_installation {\n  direct {}\n}\n' > /tmp/no-override.tfrc
+//	TF_CLI_CONFIG_FILE=/tmp/no-override.tfrc go test -run '^TestAccAzureCloudClusterResource_FrameworkMigration$' ./internal/provider
 func TestAccAzureCloudClusterResource_FrameworkMigration(t *testing.T) {
 	fixture := testAzureCloudClusterConfig(t)
 	vars := azureCloudClusterTestVariables(t, fixture)
 	conf := azureCloudClusterTestConfig("rubrik", "")
+
+	clusterConfig := func(name string) tfjsonpath.Path {
+		return tfjsonpath.New(keyClusterConfig).AtSliceIndex(0).AtMapKey(name)
+	}
+	vmConfig := func(name string) tfjsonpath.Path {
+		return tfjsonpath.New(keyVMConfig).AtSliceIndex(0).AtMapKey(name)
+	}
 
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: azureCloudClusterCheckDestroy(t),
@@ -613,6 +629,32 @@ func TestAccAzureCloudClusterResource_FrameworkMigration(t *testing.T) {
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", tfjsonpath.New(keyCloudAccountID), knownvalue.StringExact(fixture.CloudAccountID)),
+				// The SDKv2 provider stores empty values where the Framework
+				// plans null. Pinning them documents what the second step must
+				// accept without a plan.
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", clusterConfig(keyNumNodes), knownvalue.Int64Exact(1)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", clusterConfig(keyDNSNameServers), knownvalue.SetSizeExact(len(fixture.DNSNameServers))),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", clusterConfig(keyNTPServers), knownvalue.SetSizeExact(len(fixture.NTPServers))),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", clusterConfig(keyForceClusterDeleteOnDestroy), knownvalue.Bool(false)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", clusterConfig(keyAdminPassword), knownvalue.Null()),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyCDMVersion), knownvalue.StringExact(fixture.CDMVersion)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyCDMProduct), knownvalue.NotNull()),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyInstanceType), knownvalue.StringExact(fixture.InstanceType)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyRegion), knownvalue.StringExact(fixture.Region)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyResourceGroupName), knownvalue.StringExact(fixture.ResourceGroupName)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyStorageAccountName), knownvalue.StringExact(fixture.StorageAccountName)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyContainerName), knownvalue.StringExact(fixture.ContainerName)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyUserAssignedManagedIdentityName), knownvalue.StringExact(fixture.UserAssignedManagedIdentity)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyNetworkResourceGroup), knownvalue.StringExact(fixture.NetworkResourceGroup)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyVnetResourceGroup), knownvalue.StringExact(fixture.VnetResourceGroup)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyVnet), knownvalue.StringExact(fixture.Vnet)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keySubnet), knownvalue.StringExact(fixture.Subnet)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyNetworkSecurityGroup), knownvalue.StringExact(fixture.NetworkSecurityGroup)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyNetworkSecurityResourceGroup), knownvalue.StringExact(fixture.NetworkSecurityResourceGroup)),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyVMType), knownvalue.StringExact("DENSE")),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keyAvailabilityZone), knownvalue.StringExact("")),
+				statecheck.ExpectKnownValue("rubrik_azure_cloud_cluster.cluster", vmConfig(keySubnetAzConfigs), knownvalue.ListSizeExact(0)),
 			},
 		}, {
 			// The state written by the SDKv2 provider must not plan any change.
@@ -632,6 +674,11 @@ func TestAccAzureCloudClusterResource_FrameworkMigration(t *testing.T) {
 // polaris_azure_cloud_cluster resource created by the rubrikinc/polaris
 // provider can be moved to a rubrik_azure_cloud_cluster resource using the
 // moved {} block.
+//
+// The test needs the released rubrikinc/polaris provider in step 1. A
+// dev_overrides entry for rubrikinc/polaris in the Terraform CLI configuration
+// replaces it with a local build, see TestAccAzureCloudClusterResource_FrameworkMigration
+// for how to run the test without overrides.
 func TestAccAzureCloudClusterResource_MoveState(t *testing.T) {
 	fixture := testAzureCloudClusterConfig(t)
 	vars := azureCloudClusterTestVariables(t, fixture)
