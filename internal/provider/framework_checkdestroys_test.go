@@ -124,11 +124,15 @@ func awsCloudClusterCheckDestroy(t *testing.T) func(*terraform.State) error {
 				return err
 			}
 
-			_, err = cluster.Wrap(polarisClient).Cluster(t.Context(), id)
-			if err == nil {
-				return fmt.Errorf("aws_cloud_cluster %s still exists", id)
-			}
-			if !errors.Is(err, graphql.ErrNotFound) {
+			// RSC removes a cloud cluster asynchronously. The cluster keeps
+			// being returned, with the removal state WAITING_FOR_DATA_DELETION,
+			// until RSC has deleted the data of the cluster, which can take
+			// hours, so a cluster which still exists after the destroy is not a
+			// failure. The SDK doesn't expose the removal state, which means a
+			// cluster being removed can't be told from a running one. The
+			// destroy itself is verified by the test framework, which fails the
+			// test if it returns an error.
+			if _, err := cluster.Wrap(polarisClient).Cluster(t.Context(), id); err != nil && !errors.Is(err, graphql.ErrNotFound) {
 				return err
 			}
 		}
@@ -248,11 +252,15 @@ func azureCloudClusterCheckDestroy(t *testing.T) func(*terraform.State) error {
 				return err
 			}
 
-			_, err = cluster.Wrap(polarisClient).Cluster(t.Context(), id)
-			if err == nil {
-				return fmt.Errorf("azure_cloud_cluster %s still exists", id)
-			}
-			if !errors.Is(err, graphql.ErrNotFound) {
+			// RSC removes a cloud cluster asynchronously. The cluster keeps
+			// being returned, with the removal state WAITING_FOR_DATA_DELETION,
+			// until RSC has deleted the data of the cluster, which can take
+			// hours, so a cluster which still exists after the destroy is not a
+			// failure. The SDK doesn't expose the removal state, which means a
+			// cluster being removed can't be told from a running one. The
+			// destroy itself is verified by the test framework, which fails the
+			// test if it returns an error.
+			if _, err := cluster.Wrap(polarisClient).Cluster(t.Context(), id); err != nil && !errors.Is(err, graphql.ErrNotFound) {
 				return err
 			}
 		}
