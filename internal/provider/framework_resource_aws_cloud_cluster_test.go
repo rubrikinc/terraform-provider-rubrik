@@ -23,6 +23,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -466,7 +467,7 @@ func awsCloudClusterTestConfig(prefix, clusterSettings string) string {
 func awsCloudClusterTestVariables(t *testing.T, fixture testAWSCloudCluster) config.Variables {
 	t.Helper()
 
-	strings := func(values []string) config.Variable {
+	stringList := func(values []string) config.Variable {
 		vars := make([]config.Variable, len(values))
 		for i, v := range values {
 			vars[i] = config.StringVariable(v)
@@ -478,7 +479,7 @@ func awsCloudClusterTestVariables(t *testing.T, fixture testAWSCloudCluster) con
 		"credentials":           config.StringVariable(testCredentials(t)),
 		"cluster_name":          config.StringVariable(fmt.Sprintf("tf-test-%s", uuid.NewString()[:8])),
 		"admin_email":           config.StringVariable(fixture.AdminEmail),
-		"admin_password":        config.StringVariable("Tf-" + uuid.NewString()),
+		"admin_password":        config.StringVariable("Tf_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:18]),
 		"cloud_account_id":      config.StringVariable(fixture.CloudAccountID),
 		"region":                config.StringVariable(fixture.Region),
 		"cdm_version":           config.StringVariable(fixture.CDMVersion),
@@ -486,10 +487,10 @@ func awsCloudClusterTestVariables(t *testing.T, fixture testAWSCloudCluster) con
 		"instance_profile_name": config.StringVariable(fixture.InstanceProfileName),
 		"vpc_id":                config.StringVariable(fixture.VPCID),
 		"subnet_id":             config.StringVariable(fixture.SubnetID),
-		"security_group_ids":    strings(fixture.SecurityGroupIDs),
+		"security_group_ids":    stringList(fixture.SecurityGroupIDs),
 		"bucket_name":           config.StringVariable(fixture.BucketName),
-		"dns_name_servers":      strings(fixture.DNSNameServers),
-		"ntp_servers":           strings(fixture.NTPServers),
+		"dns_name_servers":      stringList(fixture.DNSNameServers),
+		"ntp_servers":           stringList(fixture.NTPServers),
 	}
 }
 

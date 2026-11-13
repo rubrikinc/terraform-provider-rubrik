@@ -23,6 +23,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -445,7 +446,7 @@ func azureCloudClusterTestConfig(prefix, clusterSettings string) string {
 func azureCloudClusterTestVariables(t *testing.T, fixture testAzureCloudCluster) config.Variables {
 	t.Helper()
 
-	strings := func(values []string) config.Variable {
+	stringList := func(values []string) config.Variable {
 		vars := make([]config.Variable, len(values))
 		for i, v := range values {
 			vars[i] = config.StringVariable(v)
@@ -457,7 +458,7 @@ func azureCloudClusterTestVariables(t *testing.T, fixture testAzureCloudCluster)
 		"credentials":                         config.StringVariable(testCredentials(t)),
 		"cluster_name":                        config.StringVariable(fmt.Sprintf("tf-test-%s", uuid.NewString()[:8])),
 		"admin_email":                         config.StringVariable(fixture.AdminEmail),
-		"admin_password":                      config.StringVariable("Tf-" + uuid.NewString()),
+		"admin_password":                      config.StringVariable("Tf_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:18]),
 		"cloud_account_id":                    config.StringVariable(fixture.CloudAccountID),
 		"region":                              config.StringVariable(fixture.Region),
 		"cdm_version":                         config.StringVariable(fixture.CDMVersion),
@@ -472,8 +473,8 @@ func azureCloudClusterTestVariables(t *testing.T, fixture testAzureCloudCluster)
 		"subnet":                              config.StringVariable(fixture.Subnet),
 		"network_security_group":              config.StringVariable(fixture.NetworkSecurityGroup),
 		"network_security_resource_group":     config.StringVariable(fixture.NetworkSecurityResourceGroup),
-		"dns_name_servers":                    strings(fixture.DNSNameServers),
-		"ntp_servers":                         strings(fixture.NTPServers),
+		"dns_name_servers":                    stringList(fixture.DNSNameServers),
+		"ntp_servers":                         stringList(fixture.NTPServers),
 	}
 }
 
