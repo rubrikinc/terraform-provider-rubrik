@@ -482,3 +482,36 @@ func TestIsAESKeyValidator(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCloudClusterNodeCountValidator(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     basetypes.Int64Value
+		expectErr bool
+	}{
+		{name: "SingleNode", value: basetypes.NewInt64Value(1)},
+		{name: "TwoNodes", value: basetypes.NewInt64Value(2), expectErr: true},
+		{name: "ThreeNodes", value: basetypes.NewInt64Value(3)},
+		{name: "ManyNodes", value: basetypes.NewInt64Value(10)},
+		{name: "Zero", value: basetypes.NewInt64Value(0), expectErr: true},
+		{name: "Negative", value: basetypes.NewInt64Value(-1), expectErr: true},
+		{name: "NullValue", value: basetypes.NewInt64Null()},
+		{name: "UnknownValue", value: basetypes.NewInt64Unknown()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validator.Int64Request{ConfigValue: tc.value}
+			var res validator.Int64Response
+
+			isCloudClusterNodeCountValidator{}.ValidateInt64(context.Background(), req, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %s, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %s, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}

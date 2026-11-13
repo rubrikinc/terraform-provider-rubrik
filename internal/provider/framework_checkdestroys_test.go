@@ -35,6 +35,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudapp"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cluster"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/dspm"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/gcp"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
@@ -96,6 +97,36 @@ func awsCnpAccountCheckDestroy(t *testing.T) func(*terraform.State) error {
 			_, err = aws.Wrap(polarisClient).AccountByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_cnp_account %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// awsCloudClusterCheckDestroy verifies that all aws_cloud_cluster resources
+// have been deleted.
+func awsCloudClusterCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_aws_cloud_cluster" && rs.Type != "rubrik_aws_cloud_cluster" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = cluster.Wrap(polarisClient).Cluster(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("aws_cloud_cluster %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err
@@ -190,6 +221,36 @@ func awsRCVArchivalLocationCheckDestroy(t *testing.T) func(*terraform.State) err
 			_, err = archival.Wrap(polarisClient).RCVAWSTargetMappingByID(t.Context(), id)
 			if err == nil {
 				return fmt.Errorf("aws_rcv_archival_location %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// azureCloudClusterCheckDestroy verifies that all azure_cloud_cluster resources
+// have been deleted.
+func azureCloudClusterCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_cloud_cluster" && rs.Type != "rubrik_azure_cloud_cluster" {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = cluster.Wrap(polarisClient).Cluster(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure_cloud_cluster %s still exists", id)
 			}
 			if !errors.Is(err, graphql.ErrNotFound) {
 				return err

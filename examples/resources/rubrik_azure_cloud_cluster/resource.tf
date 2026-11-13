@@ -11,21 +11,27 @@ resource "rubrik_azure_cloud_cluster" "example" {
     ntp_servers             = ["pool.ntp.org"]
     num_nodes               = 3
     keep_cluster_on_failure = false
+    timezone                = "America/Los_Angeles"
+    location                = "Palo Alto, CA"
   }
 
   vm_config {
-    cdm_version                     = "9.2.3-p7-29713"
-    instance_type                   = "STANDARD_D8S_V5"
-    location                        = "westus"
-    resource_group                  = "my-resource-group"
-    network_resource_group          = "my-network-resource-group"
-    vnet_resource_group             = "my-vnet-resource-group"
-    subnet                          = "my-subnet"
-    vnet                            = "my-vnet"
-    network_security_group          = "my-network-security-group"
-    network_security_resource_group = "my-network-security-resource-group"
-    vm_type                         = "EXTRA_DENSE"
-    availability_zone               = "1"
+    cdm_version                         = "9.2.3-p7-29713"
+    instance_type                       = "STANDARD_D8S_V5"
+    region                              = "westus"
+    resource_group_name                 = "my-resource-group"
+    storage_account_name                = "mystorageaccount"
+    container_name                      = "my-container"
+    enable_immutability                 = true
+    user_assigned_managed_identity_name = "my-managed-identity"
+    network_resource_group              = "my-network-resource-group"
+    vnet_resource_group                 = "my-vnet-resource-group"
+    vnet                                = "my-vnet"
+    subnet                              = "my-subnet"
+    network_security_group              = "my-network-security-group"
+    network_security_resource_group     = "my-network-security-resource-group"
+    vm_type                             = "EXTRA_DENSE"
+    availability_zone                   = "1"
   }
 }
 
@@ -45,34 +51,34 @@ resource "rubrik_azure_cloud_cluster" "multi_az" {
   }
 
   vm_config {
-    cdm_version                     = "9.2.3-p7-29713"
-    instance_type                   = "STANDARD_D8S_V5"
-    location                        = "westus"
-    resource_group                  = "my-resource-group"
-    network_resource_group          = "my-network-resource-group"
-    vnet_resource_group             = "my-vnet-resource-group"
-    vnet                            = "my-vnet"
-    network_security_group          = "my-network-security-group"
-    network_security_resource_group = "my-network-security-resource-group"
-    vm_type                         = "EXTRA_DENSE"
-    storage_account                 = "my-storage-account"
-    container_name                  = "my-container"
-    enable_immutability             = true
-    user_assigned_managed_identity  = "my-managed-identity"
+    cdm_version                         = "9.2.3-p7-29713"
+    instance_type                       = "STANDARD_D8S_V5"
+    region                              = "westus"
+    resource_group_name                 = "my-resource-group"
+    storage_account_name                = "mystorageaccount"
+    container_name                      = "my-container"
+    enable_immutability                 = true
+    user_assigned_managed_identity_name = "my-managed-identity"
+    network_resource_group              = "my-network-resource-group"
+    vnet_resource_group                 = "my-vnet-resource-group"
+    vnet                                = "my-vnet"
+    network_security_group              = "my-network-security-group"
+    network_security_resource_group     = "my-network-security-resource-group"
+    vm_type                             = "EXTRA_DENSE"
 
     subnet_az_config {
       availability_zone = "1"
-      subnet            = "subnet-zone-1"
+      subnet            = "my-subnet-1"
     }
 
     subnet_az_config {
       availability_zone = "2"
-      subnet            = "subnet-zone-2"
+      subnet            = "my-subnet-2"
     }
 
     subnet_az_config {
       availability_zone = "3"
-      subnet            = "subnet-zone-3"
+      subnet            = "my-subnet-3"
     }
   }
 }
