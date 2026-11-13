@@ -84,6 +84,11 @@ page_title: "Changelog"
 * Migrate the `rubrik_azure_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
   identity, and state can be moved from `polaris_azure_exocompute` with a moved block.
   [[docs](../resources/azure_exocompute.md)]
+* **Deprecated:** The `rubrik_azure_exocompute_cluster_attachment` resource. RSC no longer supports customer managed
+  Exocompute.
+* Migrate the `rubrik_azure_exocompute_cluster_attachment` resource to the Terraform Plugin Framework. The resource
+  now supports resource identity, and state can be moved from `polaris_azure_exocompute_cluster_attachment` with a
+  moved block. Fix a bug where changing `token_refresh` failed. [[docs](../resources/azure_exocompute_cluster_attachment.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
