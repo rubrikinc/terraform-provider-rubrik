@@ -100,21 +100,6 @@ func validateRoleARN(m any, p cty.Path) diag.Diagnostics {
 	return nil
 }
 
-// validateStringIsNumber assumes m is a string holding an integer and returns
-// nil if the string can be converted to an integer, otherwise a diagnostic
-// message is returned.
-func validateStringIsNumber(i any, k string) ([]string, []error) {
-	v, ok := i.(string)
-	if !ok {
-		return nil, []error{fmt.Errorf("expected type of %q to be string", k)}
-	}
-	if _, err := strconv.ParseInt(v, 10, 64); err != nil {
-		return nil, []error{fmt.Errorf("%q is not an integer: %s", v, err)}
-	}
-
-	return nil, nil
-}
-
 // validatePermissionGroup returns a function that validates that the value is
 // one of the permission groups of the feature with the specified name, or one
 // of the extra permission groups. If the feature isn't found in the features,

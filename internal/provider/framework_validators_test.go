@@ -84,6 +84,41 @@ func TestIsUUIDValidator(t *testing.T) {
 	}
 }
 
+func TestIsInt64Validator(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     basetypes.StringValue
+		expectErr bool
+	}{
+		{name: "Positive", value: basetypes.NewStringValue("123456789012")},
+		{name: "Negative", value: basetypes.NewStringValue("-1")},
+		{name: "MaxInt64", value: basetypes.NewStringValue("9223372036854775807")},
+		{name: "Overflow", value: basetypes.NewStringValue("9223372036854775808"), expectErr: true},
+		{name: "NotANumber", value: basetypes.NewStringValue("12a"), expectErr: true},
+		{name: "EmptyString", value: basetypes.NewStringValue(""), expectErr: true},
+		{name: "NullValue", value: basetypes.NewStringNull()},
+		{name: "UnknownValue", value: basetypes.NewStringUnknown()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validator.StringRequest{
+				ConfigValue: tc.value,
+			}
+			var res validator.StringResponse
+
+			isInt64Validator{}.ValidateString(context.Background(), req, &res)
+
+			if tc.expectErr && !res.Diagnostics.HasError() {
+				t.Errorf("expected error for %q, got none", tc.value)
+			}
+			if !tc.expectErr && res.Diagnostics.HasError() {
+				t.Errorf("expected no error for %q, got: %s", tc.value, res.Diagnostics.Errors())
+			}
+		})
+	}
+}
+
 func TestIsNotWhiteSpaceValidator(t *testing.T) {
 	tests := []struct {
 		name      string
