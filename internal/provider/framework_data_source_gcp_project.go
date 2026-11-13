@@ -265,20 +265,5 @@ func (d *gcpProjectDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		ProjectNumber:    types.StringValue(strconv.FormatInt(project.ProjectNumber, 10)),
 	}
 
-	// Terraform rejects a data source changing a configured value, so the
-	// configured lookup value is kept as is.
-	if !config.ID.IsNull() {
-		state.ID = config.ID
-	}
-	if !config.Name.IsNull() {
-		state.Name = config.Name
-	}
-	if !config.ProjectID.IsNull() {
-		state.ProjectID = config.ProjectID
-	}
-	if !config.ProjectNumber.IsNull() {
-		state.ProjectNumber = config.ProjectNumber
-	}
-
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 }
