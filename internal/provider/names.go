@@ -243,6 +243,7 @@ const (
 	keyFrequencyUnit                                = "frequency_unit"
 	keyGcp                                          = "gcp"
 	keyGcpCloudCluster                              = "gcp_cloud_cluster"
+	keyGCPArchivalLocation                          = "gcp_archival_location"
 	keyGCPCustomLabels                              = "gcp_custom_labels"
 	keyGCPPermissions                               = "gcp_permissions"
 	keyGCPPrivateContainerRegistry                  = "gcp_private_container_registry"
