@@ -443,6 +443,7 @@ func awsCloudClusterTestConfig(prefix, clusterSettings string) string {
 				admin_password          = var.admin_password
 				num_nodes               = 1
 				dns_name_servers        = var.dns_name_servers
+				dns_search_domains      = ["example.com"]
 				ntp_servers             = var.ntp_servers
 				bucket_name             = var.bucket_name
 				enable_immutability     = false
@@ -656,6 +657,7 @@ func TestAccAwsCloudClusterResource_FrameworkMigration(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyNumNodes), knownvalue.Int64Exact(1)),
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyBucketName), knownvalue.StringExact(fixture.BucketName)),
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyDNSNameServers), knownvalue.SetSizeExact(len(fixture.DNSNameServers))),
+				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyDNSSearchDomains), knownvalue.SetSizeExact(1)),
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyNTPServers), knownvalue.SetSizeExact(len(fixture.NTPServers))),
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyForceClusterDeleteOnDestroy), knownvalue.Bool(false)),
 				statecheck.ExpectKnownValue("rubrik_aws_cloud_cluster.cluster", clusterConfig(keyAdminPassword), knownvalue.Null()),
