@@ -173,6 +173,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newSelfServeRollingUpgradeResource,
 		newSSOGroupResource,
 		newPolarisSSOGroupResource,
+		newTagRuleResource,
+		newPolarisTagRuleResource,
 		newUserResource,
 		newPolarisUserResource,
 	}
@@ -237,6 +239,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisRoleTemplateDataSource,
 		newSSOGroupDataSource,
 		newPolarisSSOGroupDataSource,
+		newTagRuleDataSource,
+		newPolarisTagRuleDataSource,
 		newUserDataSource,
 		newPolarisUserDataSource,
 	}

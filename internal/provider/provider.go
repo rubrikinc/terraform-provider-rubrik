@@ -100,7 +100,6 @@ func Provider() *schema.Provider {
 			keyPolarisRefresh:                            resourceRefresh(),
 			keyPolarisSLADomain:                          resourceSLADomain(),
 			keyPolarisSLADomainAssignment:                resourceSLADomainAssignment(),
-			keyPolarisTagRule:                            resourceTagRule(),
 		}),
 
 		DataSourcesMap: withDeprecatedPolarisAlias(map[string]*schema.Resource{
@@ -118,7 +117,6 @@ func Provider() *schema.Provider {
 			keyPolarisSnapshot:                    dataSourceSnapshot(),
 			keyPolarisSLADomain:                   dataSourceSLADomain(),
 			keyPolarisSLASourceCluster:            dataSourceSLASourceCluster(),
-			keyPolarisTagRule:                     dataSourceTagRule(),
 		}),
 
 		ConfigureContextFunc: providerConfigure,

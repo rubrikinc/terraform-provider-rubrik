@@ -40,7 +40,7 @@ data "rubrik_tag_rule" "rule" {
 
 - `cloud_account_ids` (Set of String) The RSC cloud account IDs (UUID) to which the tag rule should be applied. If empty, the tag rule will be applied to all RSC cloud accounts.
 - `object_type` (String) Object type to which the tag rule will be applied. Possible values are `AWS_EBS_VOLUME`, `AWS_EC2_INSTANCE`, `AWS_RDS_INSTANCE`, `AWS_S3_BUCKET`, `AZURE_MANAGED_DISK`, `AZURE_SQL_DATABASE_DB`, `AZURE_SQL_DATABASE_SERVER`, `AZURE_SQL_MANAGED_INSTANCE_SERVER`, `AZURE_STORAGE_ACCOUNT` and `AZURE_VIRTUAL_MACHINE`.
-- `tag` (List of Object) Tag conditions to match. (see [below for nested schema](#nestedatt--tag))
+- `tag` (Attributes List) Tag conditions to match. (see [below for nested schema](#nestedatt--tag))
 - `tag_all_values` (Boolean, Deprecated) If true, all tag values are matched. **Deprecated:** Use `tag` instead.
 - `tag_key` (String, Deprecated) Tag key to match. **Deprecated:** Use `tag` instead.
 - `tag_value` (String, Deprecated) Tag value to match. If the tag value is empty, it matches empty values. **Deprecated:** Use `tag` instead.
@@ -50,6 +50,6 @@ data "rubrik_tag_rule" "rule" {
 
 Read-Only:
 
-- `key` (String)
-- `match_all` (Boolean)
-- `values` (List of String)
+- `key` (String) Tag key to match.
+- `match_all` (Boolean) If true, all tag values for this key are matched.
+- `values` (List of String) Tag values to match.

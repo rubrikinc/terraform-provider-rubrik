@@ -147,6 +147,9 @@ page_title: "Changelog"
   e.g. `GermanyWestCentral` instead of `germanywestcentral`. This caused `terraform plan` to fail during refresh. The
   region is now matched case-insensitively, and the `region` field of the `vm_config` block is used if the region
   reported by RSC still can't be parsed. [[docs](../resources/azure_cloud_cluster.md)]
+* Migrate the `rubrik_tag_rule` resource and data source to the Terraform Plugin Framework. The resource now
+  supports import by identity, and state can be moved from `polaris_tag_rule` with a moved block.
+  [[docs](../resources/tag_rule.md)]
 
 ## v1.11.2
 * Update the Go version used to build the provider to 1.26.10.
