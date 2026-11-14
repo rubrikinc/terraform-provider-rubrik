@@ -401,6 +401,7 @@ const (
 	keyPolarisManaged                               = "polaris_managed"
 	keyPolarisNCDArchivalLocation                   = "polaris_ncd_archival_location"
 	keyPolarisSnapshot                              = "polaris_snapshot"
+	keySLADomain                                    = "sla_domain"
 	keyPolarisSLADomain                             = "polaris_sla_domain"
 	keyPolarisSLADomainAssignment                   = "polaris_sla_domain_assignment"
 	keyPolarisSLASourceCluster                      = "polaris_sla_source_cluster"
