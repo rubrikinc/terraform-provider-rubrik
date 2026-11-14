@@ -64,6 +64,13 @@ page_title: "Changelog"
   or doesn't finish is reported as a warning and the configuration is kept. Changing the field doesn't replace the
   configuration. The resources also get a `timeouts` block, the create and update timeouts default to 60 minutes.
   [[docs](../resources/aws_exocompute.md)] [[docs](../resources/azure_exocompute.md)]
+* Migrate the `rubrik_sla_domain` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_sla_domain` with a `moved` block. Existing configurations and state
+  keep working. A plan which violates one of the rules which depend on more than one attribute, e.g. a
+  `minute_schedule` for the `AWS_CONFIG_OBJECT_TYPE` object type, is still rejected when planning, and an update now
+  reads the SLA domain back into the state. The error messages of the checks made when applying changed wording, and
+  the maximum of one element of a block is no longer listed in the documentation, but is still enforced.
+  [[docs](../resources/sla_domain.md)]
 * Fix a bug in `rubrik_azure_exocompute` where creating the resource failed when a private DNS zone was in a different
   subscription than the Exocompute VNet, or when the subnet had blocking network security group rules. RSC only
   reports these as warnings, and the RSC UI lets the user continue past them, so they no longer block creation. All
