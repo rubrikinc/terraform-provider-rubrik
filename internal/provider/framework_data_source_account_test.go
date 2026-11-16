@@ -21,8 +21,10 @@
 package provider
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
@@ -30,6 +32,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
@@ -172,11 +175,26 @@ func TestAccAccountDataSource(t *testing.T) {
 					knownvalue.ListSizeExact(1)),
 				statecheck.ExpectKnownValue("data.rubrik_account.current", tfjsonpath.New(keyGcp),
 					knownvalue.ListSizeExact(1)),
-				statecheck.ExpectKnownValue("data.rubrik_account.current",
-					tfjsonpath.New(keyAws).AtSliceIndex(0).AtMapKey(keyFeatures).AtSliceIndex(0).AtMapKey(keyPermissionGroups),
-					knownvalue.ListPartial(map[int]knownvalue.Check{
-						0: knownvalue.NotNull(),
-					})),
+			},
+			// Some features have no permission groups, e.g. the legacy ARCHIVAL
+			// feature, so the first feature of an account can't be expected to
+			// have one. Verify that at least one feature of each vendor has.
+			Check: func(s *terraform.State) error {
+				attrs := s.RootModule().Resources["data.rubrik_account.current"].Primary.Attributes
+				for _, vendor := range []string{keyAws, keyAzure, keyGcp} {
+					found := false
+					for key, value := range attrs {
+						if strings.HasPrefix(key, vendor+".0."+keyFeatures+".") &&
+							strings.Contains(key, "."+keyPermissionGroups+".") && !strings.HasSuffix(key, ".#") && value != "" {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return fmt.Errorf("no feature of %s has a permission group", vendor)
+					}
+				}
+				return nil
 			},
 		}},
 	})
