@@ -231,6 +231,27 @@ func TestFromWeeklyScheduleModelDayOfWeek(t *testing.T) {
 	}
 }
 
+// TestToWeeklyScheduleModelDayOfWeek verifies that the day of the week is null
+// when RSC returns none, which it does for an SLA domain which doesn't have one,
+// such as an M365 Backup Storage SLA domain, and not an empty string. The day is
+// computed, and a computed attribute which has no value is null.
+func TestToWeeklyScheduleModelDayOfWeek(t *testing.T) {
+	basic := gqlsla.BasicSnapshotSchedule{Frequency: 1, Retention: 4, RetentionUnit: gqlsla.Weeks}
+
+	t.Run("a day RSC returns is kept", func(t *testing.T) {
+		got := toWeeklyScheduleModel(&gqlsla.WeeklySnapshotSchedule{BasicSchedule: basic, DayOfWeek: gqlsla.Friday})
+		if got.DayOfWeek.IsNull() || got.DayOfWeek.ValueString() != "FRIDAY" {
+			t.Errorf("day of week = %v, want FRIDAY", got.DayOfWeek)
+		}
+	})
+	t.Run("no day is null", func(t *testing.T) {
+		got := toWeeklyScheduleModel(&gqlsla.WeeklySnapshotSchedule{BasicSchedule: basic})
+		if !got.DayOfWeek.IsNull() {
+			t.Errorf("day of week = %v, want null", got.DayOfWeek)
+		}
+	})
+}
+
 func TestToRetentionLockModel(t *testing.T) {
 	tests := []struct {
 		name        string

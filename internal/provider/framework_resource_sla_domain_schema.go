@@ -1524,7 +1524,8 @@ func slaDomainSchema(ctx context.Context) schema.Schema {
 					Attributes: map[string]schema.Attribute{
 						keyDayOfWeek: schema.StringAttribute{
 							Optional:    true,
-							Description: "Day of week. Possible values are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. Note: For M365 Backup Storage SLAs, this field should be omitted.",
+							Computed:    true,
+							Description: "Day of week. Possible values are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. When it is not specified, RSC chooses the day. Note: For M365 Backup Storage SLAs, this field should be omitted.",
 							Validators: []validator.String{
 								stringvalidator.OneOf(string(gqlsla.Monday), string(gqlsla.Tuesday), string(gqlsla.Wednesday), string(gqlsla.Thursday), string(gqlsla.Friday), string(gqlsla.Saturday), string(gqlsla.Sunday)),
 							},

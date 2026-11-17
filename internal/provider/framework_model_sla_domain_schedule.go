@@ -233,9 +233,15 @@ func toWeeklyScheduleModel(s *gqlsla.WeeklySnapshotSchedule) *weeklyScheduleMode
 	if s == nil {
 		return nil
 	}
+	// RSC returns no day for an SLA domain which doesn't have one, such as an
+	// M365 Backup Storage SLA domain. The day is computed, so it is null then.
+	dayOfWeek := types.StringNull()
+	if s.DayOfWeek != "" {
+		dayOfWeek = types.StringValue(string(s.DayOfWeek))
+	}
 	return &weeklyScheduleModel{
 		basicScheduleModel: toBasicSchedule(s.BasicSchedule),
-		DayOfWeek:          types.StringValue(string(s.DayOfWeek)),
+		DayOfWeek:          dayOfWeek,
 	}
 }
 

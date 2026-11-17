@@ -935,7 +935,7 @@ Required:
 
 Optional:
 
-- `day_of_week` (String) Day of week. Possible values are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. Note: For M365 Backup Storage SLAs, this field should be omitted.
+- `day_of_week` (String) Day of week. Possible values are `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY` and `SUNDAY`. When it is not specified, RSC chooses the day. Note: For M365 Backup Storage SLAs, this field should be omitted.
 
 
 <a id="nestedblock--yearly_schedule"></a>

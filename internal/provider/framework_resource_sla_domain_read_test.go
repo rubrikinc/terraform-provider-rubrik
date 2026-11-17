@@ -87,7 +87,7 @@ func TestSLADomainStateFromRemoteKeepsUnsetAttributesNull(t *testing.T) {
 	t.Run("a description which is set to an empty string is kept", func(t *testing.T) {
 		plan := slaDomainPlan(t, map[string]tftypes.Value{
 			keyDescription:    tftypes.NewValue(tftypes.String, ""),
-			keyWeeklySchedule: oneBlockWith(t, keyWeeklySchedule, map[string]tftypes.Value{keyDayOfWeek: tftypes.NewValue(tftypes.String, "")}),
+			keyWeeklySchedule: oneBlock(t, keyWeeklySchedule),
 		})
 		model, diags := slaDomainStateFromRemote(ctx, s, domain, plan)
 		if diags.HasError() {
@@ -95,9 +95,6 @@ func TestSLADomainStateFromRemoteKeepsUnsetAttributesNull(t *testing.T) {
 		}
 		if model.Description.IsNull() || model.Description.ValueString() != "" {
 			t.Errorf("description = %v, want an empty string", model.Description)
-		}
-		if model.WeeklySchedule[0].DayOfWeek.IsNull() {
-			t.Errorf("day of week is null, want an empty string")
 		}
 	})
 
