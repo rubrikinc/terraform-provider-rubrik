@@ -149,8 +149,9 @@ func TestAccSLADomainResource(t *testing.T) {
 			}
 
 			weekly_schedule {
-				frequency = 1
-				retention = 4
+				frequency      = 1
+				retention      = 4
+				retention_unit = "WEEKS"
 			}
 		}
 	`
