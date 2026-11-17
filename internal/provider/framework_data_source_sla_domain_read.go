@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	gqlsla "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/sla"
 )
@@ -60,6 +61,15 @@ func slaDomainDataSourceFromRemote(ctx context.Context, domain gqlsla.Domain) (s
 			model.Archival[i].Frequency = append(model.Archival[i].Frequency, string(frequency))
 		}
 		slices.Sort(model.Archival[i].Frequency)
+	}
+
+	// The day of the week of a weekly schedule is null in the model when RSC
+	// returns none, since it is computed in the resource, and was the empty
+	// string in the SDKv2 data source, which a configuration may compare with.
+	for i := range model.WeeklySchedule {
+		if model.WeeklySchedule[i].DayOfWeek.IsNull() {
+			model.WeeklySchedule[i].DayOfWeek = types.StringValue("")
+		}
 	}
 
 	// What the SDKv2 data source didn't set.

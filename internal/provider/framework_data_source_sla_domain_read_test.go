@@ -220,3 +220,36 @@ func TestEmptyListsForNull(t *testing.T) {
 		}
 	})
 }
+
+// TestSLADomainDataSourceWeeklyDayOfWeek verifies that a weekly schedule which
+// RSC returns without a day has the empty string as its day, as the SDKv2 data
+// source returned, and not null, which the resource uses since the day is
+// computed there.
+func TestSLADomainDataSourceWeeklyDayOfWeek(t *testing.T) {
+	tests := []struct {
+		name string
+		day  gqlsla.Day
+		want string
+	}{
+		{name: "no day", day: "", want: ""},
+		{name: "a day", day: gqlsla.Friday, want: "FRIDAY"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domain, _ := slaDomainFromRSC(t)
+			domain.SnapshotSchedule.Weekly = &gqlsla.WeeklySnapshotSchedule{
+				BasicSchedule: gqlsla.BasicSnapshotSchedule{Frequency: 1, Retention: 4, RetentionUnit: gqlsla.Weeks},
+				DayOfWeek:     tt.day,
+			}
+
+			model, diags := slaDomainDataSourceFromRemote(t.Context(), domain)
+			if diags.HasError() {
+				t.Fatalf("unexpected error: %v", diags)
+			}
+			got := model.WeeklySchedule[0].DayOfWeek
+			if got.IsNull() || got.ValueString() != tt.want {
+				t.Fatalf("day of week = %v, want %q", got, tt.want)
+			}
+		})
+	}
+}
