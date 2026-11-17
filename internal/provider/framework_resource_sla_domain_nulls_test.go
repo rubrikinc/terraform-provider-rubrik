@@ -332,8 +332,10 @@ func TestSLADomainImportedStateKeepsOptionalAttributesNull(t *testing.T) {
 	s := slaDomainSchema(ctx)
 
 	paths := optionalOnlyAttributePaths(s)
-	if len(paths) != 40 {
-		t.Fatalf("found %d optional attributes, want 40", len(paths))
+	// The day of the week of a weekly schedule is computed, and not in the
+	// 40 optional attributes which are not.
+	if len(paths) != 39 {
+		t.Fatalf("found %d optional attributes, want 39", len(paths))
 	}
 
 	// remote is a value where every block has one element, and every optional
