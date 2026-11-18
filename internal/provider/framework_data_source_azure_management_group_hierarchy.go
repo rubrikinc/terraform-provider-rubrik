@@ -45,9 +45,8 @@ compute the ´subscription_ids´ of the ´rubrik_azure_management_group´ resour
 RSC signs in as the customer app registered with the ´rubrik_azure_service_principal´ resource. The app's service
 principal must have the ´Contributor´ and ´User Access Administrator´ roles at the management group scope.
 
-~> **Note:** Once subscriptions have been onboarded, they are no longer eligible. Use ´all_subscription_ids´ rather
-than ´eligible_subscription_ids´ for the ´subscription_ids´ of the ´rubrik_azure_management_group´ resource, otherwise
-the next plan removes the onboarded subscriptions.
+~> **Note:** Use explicit subscription IDs for onboarding. ´eligible_subscription_ids´ can shrink after onboarding or
+when permissions change. ´all_subscription_ids´ includes subscriptions that cannot be onboarded through this group.
 
 ~> **Note:** The RSC feature flag ´AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED´ must be enabled for the RSC account.
 `

@@ -1,1 +1,1 @@
-% terraform import rubrik_azure_management_group.prod mydomain.onmicrosoft.com/prod-mg
+% terraform import rubrik_azure_management_group.prod example.onmicrosoft.com/prod-mg

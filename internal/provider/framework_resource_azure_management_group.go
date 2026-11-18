@@ -27,6 +27,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
@@ -46,6 +47,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
+	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	regions "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
 )
@@ -60,7 +62,8 @@ definitions at the management group scope and the role assignments for each subs
 must therefore have the ´Contributor´ and ´User Access Administrator´ roles at the management group scope. RSC can
 only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
 
-~> **Note:** The RSC feature flag ´AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED´ must be enabled for the RSC account.
+~> **Note:** Both ´AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED´ and ´CNP_AZURE_DISABLE_DELETE_COMBINED´ must be enabled
+for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
 
 ~> **Note:** A subscription must not be managed by both this resource and the ´rubrik_azure_subscription´ resource.
 Once a subscription has been onboarded through a management group, it can no longer be updated through
@@ -74,12 +77,16 @@ Once a subscription has been onboarded through a management group, it can no lon
     the feature and add it again, or create a new resource.
   * Azure Government Cloud is not supported.
 
-Subscriptions and features removed from the configuration are disabled in RSC, the snapshots are kept. When the resource
-is destroyed, the snapshots are deleted if ´delete_snapshots_on_destroy´ is ´true´.
+Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
+Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
+deletes them only if ´delete_snapshots_on_destroy´ is ´true´.
 
 ## Import
-The resource ID is ´<tenant_domain>/<management_group_id>´.
+The resource ID is ´<tenant_domain>/<management_group_id>´. Import adopts all subscription/feature pairs in the group.
+Only import a non-OAuth group whose subscriptions all have the same connected features.
 `
+
+const azureManagementGroupOperationTimeout = 45 * time.Minute
 
 var (
 	_ resource.Resource                = &azureManagementGroupResource{}
@@ -95,16 +102,18 @@ type azureManagementGroupResource struct {
 // azureManagementGroupModel is the resource state. Field order follows the
 // schema.
 type azureManagementGroupModel struct {
-	ID                        types.String `tfsdk:"id"`
-	TenantDomain              types.String `tfsdk:"tenant_domain"`
-	AppID                     types.String `tfsdk:"app_id"`
-	ManagementGroupID         types.String `tfsdk:"management_group_id"`
-	ManagementGroupName       types.String `tfsdk:"management_group_name"`
-	CustomerManagementGroupID types.String `tfsdk:"customer_management_group_id"`
-	Regions                   types.Set    `tfsdk:"regions"`
-	SubscriptionIDs           types.Set    `tfsdk:"subscription_ids"`
-	DeleteSnapshotsOnDestroy  types.Bool   `tfsdk:"delete_snapshots_on_destroy"`
-	Feature                   types.Set    `tfsdk:"feature"`
+	ID                          types.String `tfsdk:"id"`
+	TenantDomain                types.String `tfsdk:"tenant_domain"`
+	AppID                       types.String `tfsdk:"app_id"`
+	ManagementGroupID           types.String `tfsdk:"management_group_id"`
+	ManagementGroupName         types.String `tfsdk:"management_group_name"`
+	CustomerManagementGroupID   types.String `tfsdk:"customer_management_group_id"`
+	Regions                     types.Set    `tfsdk:"regions"`
+	SubscriptionIDs             types.Set    `tfsdk:"subscription_ids"`
+	DeleteSnapshotsOnDestroy    types.Bool   `tfsdk:"delete_snapshots_on_destroy"`
+	Feature                     types.Set    `tfsdk:"feature"`
+	ManagedSubscriptionFeatures types.Map    `tfsdk:"managed_subscription_features"`
+	OnboardingTaskID            types.String `tfsdk:"onboarding_task_id"`
 }
 
 // azureManagementGroupFeatureModel is the model of a feature block.
@@ -227,6 +236,15 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 				Description: "Delete the snapshots of the subscriptions when the resource is destroyed. Default " +
 					"value is `false`.",
 			},
+			keyManagedSubscriptionFeatures: schema.MapAttribute{
+				Computed:    true,
+				ElementType: types.SetType{ElemType: types.StringType},
+				Description: "Feature names managed by this resource, keyed by Azure subscription ID.",
+			},
+			keyOnboardingTaskID: schema.StringAttribute{
+				Computed:    true,
+				Description: "Accepted onboarding task that has not yet been cleared from state.",
+			},
 		},
 		Blocks: map[string]schema.Block{
 			keyFeature: schema.SetNestedBlock{
@@ -329,31 +347,52 @@ func (r *azureManagementGroupResource) Create(ctx context.Context, req resource.
 	}
 
 	tenantDomain, managementGroupID := plan.TenantDomain.ValueString(), plan.ManagementGroupID.ValueString()
-	addErr := api.AddManagementGroupSubscriptions(ctx, tenantDomain, input.appID, managementGroupID, input.regions,
-		azureManagementGroupSubscriptions(input.subscriptions, input.features))
-
-	// Onboarding is asynchronous and can partly succeed. If any subscription
-	// ended up in the management group, we save the ID and identity so the
-	// resource is tainted rather than orphaned in RSC.
-	data, err := readAzureManagementGroup(ctx, api, tenantDomain, managementGroupID)
-	if err != nil && !errors.Is(err, graphql.ErrNotFound) && addErr == nil {
-		res.Diagnostics.AddError("Failed to read management group after create", err.Error())
+	ctx, cancel := context.WithTimeout(ctx, azureManagementGroupOperationTimeout)
+	defer cancel()
+	if !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
+		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before onboarding.")
 		return
 	}
-	if err == nil || addErr == nil {
-		plan.ID = types.StringValue(tenantDomain + "/" + managementGroupID)
-		plan.ManagementGroupName = types.StringNull()
-		plan.CustomerManagementGroupID = types.StringNull()
-		if err == nil {
-			plan.ManagementGroupName = types.StringValue(data.group.Name)
-			plan.CustomerManagementGroupID = types.StringValue(data.group.CustomerID.String())
-		}
-		res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
-		res.Diagnostics.Append(res.Identity.Set(ctx, azureManagementGroupIdentityModel{ID: plan.ID})...)
+	data, err := readAzureManagementGroup(ctx, api, tenantDomain, managementGroupID)
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+		res.Diagnostics.AddError("Failed to check existing subscriptions", err.Error())
+		return
 	}
-	if addErr != nil {
-		res.Diagnostics.AddError("Failed to onboard management group subscriptions", addErr.Error())
+	wanted, _, err := azureManagementGroupReconcile(data.accounts, nil, input)
+	if err != nil {
+		res.Diagnostics.AddError("Cannot onboard subscriptions", err.Error())
+		return
 	}
+	taskID, err := api.StartManagementGroupOnboarding(ctx, tenantDomain, input.appID, managementGroupID, input.regions, wanted)
+	if err != nil {
+		res.Diagnostics.AddError("Failed to submit management group onboarding", err.Error())
+		return
+	}
+
+	// Persist accepted work before a waiter or read-back can fail.
+	plan.ID = types.StringValue(tenantDomain + "/" + managementGroupID)
+	plan.ManagementGroupName = types.StringNull()
+	plan.CustomerManagementGroupID = types.StringNull()
+	plan.OnboardingTaskID = types.StringValue(taskID.String())
+	res.Diagnostics.Append(plan.setManagedFeatures(ctx, input.managedFeatures())...)
+	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
+	res.Diagnostics.Append(res.Identity.Set(ctx, azureManagementGroupIdentityModel{ID: plan.ID})...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	if err := api.WaitForManagementGroupOnboarding(ctx, taskID, tenantDomain, managementGroupID, wanted); err != nil {
+		res.Diagnostics.AddError("Failed to complete management group onboarding", err.Error())
+		return
+	}
+	plan.OnboardingTaskID = types.StringNull()
+	data, err = readAzureManagementGroup(ctx, api, tenantDomain, managementGroupID)
+	if err != nil {
+		res.Diagnostics.AddWarning("Failed to read management group after create", err.Error())
+	} else {
+		plan.ManagementGroupName = types.StringValue(data.group.Name)
+		plan.CustomerManagementGroupID = types.StringValue(data.group.CustomerID.String())
+	}
+	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
 
 func (r *azureManagementGroupResource) Read(ctx context.Context, req resource.ReadRequest, res *resource.ReadResponse) {
@@ -378,17 +417,60 @@ func (r *azureManagementGroupResource) Read(ctx context.Context, req resource.Re
 		return
 	}
 
+	if !state.OnboardingTaskID.IsNull() {
+		taskID, err := uuid.Parse(state.OnboardingTaskID.ValueString())
+		if err != nil {
+			res.Diagnostics.AddError("Invalid onboarding task ID", err.Error())
+			return
+		}
+		task, err := core.Wrap(polarisClient.GQL).KorgTaskChainStatus(ctx, taskID)
+		if err != nil {
+			res.Diagnostics.AddError("Cannot refresh pending onboarding task", err.Error())
+			return
+		}
+		switch task.State {
+		case core.TaskChainSucceeded, core.TaskChainFailed, core.TaskChainCanceled:
+			state.OnboardingTaskID = types.StringNull()
+		default:
+			// Keep the accepted job and ownership while it can still create rows.
+			return
+		}
+	}
 	data, err := readAzureManagementGroup(ctx, azure.Wrap(polarisClient), tenantDomain, managementGroupID)
-	if errors.Is(err, graphql.ErrNotFound) {
+	if errors.Is(err, graphql.ErrNotFound) && state.ManagedSubscriptionFeatures.IsNull() {
 		res.State.RemoveResource(ctx)
 		return
 	}
-	if err != nil {
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
 		res.Diagnostics.AddError("Failed to read management group", err.Error())
 		return
 	}
-
-	res.Diagnostics.Append(data.setModel(ctx, &state, tenantDomain, managementGroupID)...)
+	if state.ManagedSubscriptionFeatures.IsNull() {
+		// Import explicitly adopts the group's existing subscriptions.
+		appID, err := azure.Wrap(polarisClient).ManagementGroupCustomerAppID(ctx, tenantDomain)
+		if err != nil {
+			res.Diagnostics.AddError("Failed to read management group's non-OAuth customer app", err.Error())
+			return
+		}
+		data.appID = appID
+		res.Diagnostics.Append(data.setModel(ctx, &state, tenantDomain, managementGroupID)...)
+	} else {
+		input, diags := azureManagementGroupInputFromModel(ctx, state)
+		res.Diagnostics.Append(diags...)
+		if res.Diagnostics.HasError() {
+			return
+		}
+		// A missing pair makes its subscription drift, while the separate
+		// ownership map still protects it during repair or destroy.
+		ids := azureManagementGroupPresentSubscriptions(data.accounts, input.managed, state.SubscriptionIDs.Elements())
+		values, diags := types.SetValueFrom(ctx, types.StringType, ids)
+		res.Diagnostics.Append(diags...)
+		state.SubscriptionIDs = values
+		if err == nil {
+			state.ManagementGroupName = types.StringValue(data.group.Name)
+			state.CustomerManagementGroupID = types.StringValue(data.group.CustomerID.String())
+		}
+	}
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -424,71 +506,66 @@ func (r *azureManagementGroupResource) Update(ctx context.Context, req resource.
 		return
 	}
 
-	changes, err := azureManagementGroupDiff(oldInput, newInput)
-	if err != nil {
+	if err := azureManagementGroupValidateUpdate(oldInput, newInput); err != nil {
 		res.Diagnostics.AddError("Unsupported management group change", err.Error())
 		return
 	}
-
+	if !state.OnboardingTaskID.IsNull() {
+		res.Diagnostics.AddError("Management group onboarding still pending", "Refresh after the accepted onboarding task finishes before updating.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, azureManagementGroupOperationTimeout)
+	defer cancel()
 	tenantDomain, managementGroupID := plan.TenantDomain.ValueString(), plan.ManagementGroupID.ValueString()
 	data, err := readAzureManagementGroup(ctx, api, tenantDomain, managementGroupID)
-	if err != nil {
+	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
 		res.Diagnostics.AddError("Failed to read management group", err.Error())
 		return
 	}
-	accountIDs := func(nativeIDs []uuid.UUID) []uuid.UUID {
-		var ids []uuid.UUID
-		for _, account := range data.accounts {
-			if slices.Contains(nativeIDs, account.NativeID) {
-				ids = append(ids, account.ID)
+	adds, removes, err := azureManagementGroupReconcile(data.accounts, oldInput.managed, newInput)
+	if err != nil {
+		res.Diagnostics.AddError("Cannot reconcile management group", err.Error())
+		return
+	}
+	if (len(adds) != 0 || len(removes) != 0) && !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
+		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before updating.")
+		return
+	}
+	if len(adds) != 0 {
+		taskID, err := api.StartManagementGroupOnboarding(ctx, tenantDomain, newInput.appID, managementGroupID, newInput.regions, adds)
+		if err != nil {
+			res.Diagnostics.AddError("Failed to submit management group onboarding", err.Error())
+			return
+		}
+		// Journal only accepted pairs; never widen to the cross-product of
+		// old and new subscription and feature sets.
+		for _, sub := range adds {
+			id := sub.NativeID.String()
+			for _, feature := range sub.Features {
+				if !slices.Contains(oldInput.managed[id], feature.Feature.Name) {
+					oldInput.managed[id] = append(oldInput.managed[id], feature.Feature.Name)
+				}
 			}
 		}
-		return ids
-	}
-
-	// Remove before adding, features first. The state is saved after every
-	// step that changed RSC, so a failure later doesn't lose track of it.
-	retained := make([]uuid.UUID, 0, len(newInput.subscriptions))
-	for _, id := range newInput.subscriptions {
-		if !slices.Contains(changes.addSubscriptions, id) {
-			retained = append(retained, id)
-		}
-	}
-	if len(changes.removeFeatures) > 0 {
-		err := removeAzureManagementGroupFeatures(ctx, api, tenantDomain, newInput.appID, accountIDs(retained), changes.removeFeatures, false)
-		if err != nil {
-			res.Diagnostics.AddError("Failed to remove features", err.Error())
+		state.OnboardingTaskID = types.StringValue(taskID.String())
+		res.Diagnostics.Append(state.setManagedFeatures(ctx, oldInput.managed)...)
+		res.Diagnostics.Append(res.State.Set(ctx, &state)...)
+		if res.Diagnostics.HasError() {
 			return
 		}
-	}
-	if len(changes.removeSubscriptions) > 0 {
-		names := make([]string, 0, len(oldInput.features))
-		for _, feature := range oldInput.features {
-			names = append(names, feature.name)
-		}
-		err := removeAzureManagementGroupFeatures(ctx, api, tenantDomain, newInput.appID, accountIDs(changes.removeSubscriptions), names, false)
-		if err != nil {
-			res.Diagnostics.AddError("Failed to remove subscriptions", err.Error())
+		if err := api.WaitForManagementGroupOnboarding(ctx, taskID, tenantDomain, managementGroupID, adds); err != nil {
+			res.Diagnostics.AddError("Failed to complete management group onboarding", err.Error())
 			return
 		}
+		state.OnboardingTaskID = types.StringNull()
+		res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 	}
-	if len(changes.addFeatures) > 0 && len(retained) > 0 {
-		err := api.AddManagementGroupSubscriptions(ctx, tenantDomain, newInput.appID, managementGroupID, newInput.regions,
-			azureManagementGroupSubscriptions(retained, changes.addFeatures))
-		if err != nil {
-			res.Diagnostics.AddError("Failed to add features", err.Error())
-			return
-		}
+	if err := removeAzureManagementGroupFeatures(ctx, api, tenantDomain, newInput.appID, removes, false); err != nil {
+		res.Diagnostics.AddError("Failed to remove management group features", err.Error())
+		return
 	}
-	if len(changes.addSubscriptions) > 0 {
-		err := api.AddManagementGroupSubscriptions(ctx, tenantDomain, newInput.appID, managementGroupID, newInput.regions,
-			azureManagementGroupSubscriptions(changes.addSubscriptions, newInput.features))
-		if err != nil {
-			res.Diagnostics.AddError("Failed to add subscriptions", err.Error())
-			return
-		}
-	}
-
+	plan.OnboardingTaskID = types.StringNull()
+	res.Diagnostics.Append(plan.setManagedFeatures(ctx, newInput.managedFeatures())...)
 	plan.ID = state.ID
 	plan.ManagementGroupName = state.ManagementGroupName
 	plan.CustomerManagementGroupID = state.CustomerManagementGroupID
@@ -521,6 +598,20 @@ func (r *azureManagementGroupResource) Delete(ctx context.Context, req resource.
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, azureManagementGroupOperationTimeout)
+	defer cancel()
+	if !state.OnboardingTaskID.IsNull() {
+		taskID, err := uuid.Parse(state.OnboardingTaskID.ValueString())
+		if err != nil {
+			res.Diagnostics.AddError("Invalid onboarding task ID", err.Error())
+			return
+		}
+		// Failed/canceled onboarding can still leave rows to delete.
+		if _, err := core.Wrap(polarisClient.GQL).WaitForTaskChain(ctx, taskID, 10*time.Second); err != nil {
+			res.Diagnostics.AddError("Cannot delete while onboarding may still be running", err.Error())
+			return
+		}
+	}
 	data, err := readAzureManagementGroup(ctx, api, state.TenantDomain.ValueString(), state.ManagementGroupID.ValueString())
 	if errors.Is(err, graphql.ErrNotFound) {
 		return
@@ -529,16 +620,16 @@ func (r *azureManagementGroupResource) Delete(ctx context.Context, req resource.
 		res.Diagnostics.AddError("Failed to read management group", err.Error())
 		return
 	}
-
-	ids := make([]uuid.UUID, 0, len(data.accounts))
-	for _, account := range data.accounts {
-		ids = append(ids, account.ID)
+	_, removes, err := azureManagementGroupReconcile(data.accounts, input.managed, azureManagementGroupInput{})
+	if err != nil {
+		res.Diagnostics.AddError("Cannot determine managed subscription features", err.Error())
+		return
 	}
-	names := make([]string, 0, len(input.features))
-	for _, feature := range input.features {
-		names = append(names, feature.name)
+	if len(removes) != 0 && !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
+		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before destroying.")
+		return
 	}
-	err = removeAzureManagementGroupFeatures(ctx, api, state.TenantDomain.ValueString(), input.appID, ids, names,
+	err = removeAzureManagementGroupFeatures(ctx, api, state.TenantDomain.ValueString(), input.appID, removes,
 		state.DeleteSnapshotsOnDestroy.ValueBool())
 	if err != nil {
 		res.Diagnostics.AddError("Failed to remove management group subscriptions", err.Error())
@@ -573,6 +664,7 @@ type azureManagementGroupInput struct {
 	regions       []regions.Region
 	subscriptions []uuid.UUID
 	features      []azureManagementGroupFeature
+	managed       map[string][]string
 }
 
 func azureManagementGroupInputFromModel(ctx context.Context, model azureManagementGroupModel) (azureManagementGroupInput, diag.Diagnostics) {
@@ -585,6 +677,10 @@ func azureManagementGroupInputFromModel(ctx context.Context, model azureManageme
 		return input, diags
 	}
 	input.appID = appID
+	input.managed = make(map[string][]string)
+	if !model.ManagedSubscriptionFeatures.IsNull() && !model.ManagedSubscriptionFeatures.IsUnknown() {
+		diags.Append(model.ManagedSubscriptionFeatures.ElementsAs(ctx, &input.managed, false)...)
+	}
 
 	var regionNames, subscriptionIDs []string
 	diags.Append(model.Regions.ElementsAs(ctx, &regionNames, false)...)
@@ -601,6 +697,7 @@ func azureManagementGroupInputFromModel(ctx context.Context, model azureManageme
 		input.subscriptions = append(input.subscriptions, subscriptionID)
 	}
 
+	featureNames := make(map[string]bool)
 	var featureModels []azureManagementGroupFeatureModel
 	diags.Append(model.Feature.ElementsAs(ctx, &featureModels, false)...)
 	for _, featureModel := range featureModels {
@@ -609,6 +706,10 @@ func azureManagementGroupInputFromModel(ctx context.Context, model azureManageme
 			resourceGroupName:   featureModel.ResourceGroupName.ValueString(),
 			resourceGroupRegion: featureModel.ResourceGroupRegion.ValueString(),
 		}
+		if featureNames[feature.name] {
+			diags.AddError("Duplicate management group feature", fmt.Sprintf("Feature %s must appear only once.", feature.name))
+		}
+		featureNames[feature.name] = true
 		diags.Append(featureModel.PermissionGroups.ElementsAs(ctx, &feature.permissionGroups, false)...)
 		diags.Append(featureModel.ResourceGroupTags.ElementsAs(ctx, &feature.resourceGroupTags, false)...)
 		slices.Sort(feature.permissionGroups)
@@ -647,99 +748,135 @@ func azureManagementGroupSubscriptions(ids []uuid.UUID, features []azureManageme
 	return subscriptions
 }
 
-// azureManagementGroupChanges are the changes needed to go from one
-// configuration to another.
-type azureManagementGroupChanges struct {
-	addSubscriptions    []uuid.UUID
-	removeSubscriptions []uuid.UUID
-	// addFeatures are the features to add to the retained subscriptions.
-	addFeatures []azureManagementGroupFeature
-	// removeFeatures are the names of the features to remove from the retained
-	// subscriptions.
-	removeFeatures []string
-}
-
-// azureManagementGroupDiff returns the changes needed to go from the old to
-// the new configuration. Changes RSC has no operation for, changing the
-// regions or the details of an existing feature, are returned as an error.
-func azureManagementGroupDiff(oldInput, newInput azureManagementGroupInput) (azureManagementGroupChanges, error) {
-	var changes azureManagementGroupChanges
-
-	oldRegions := slices.Sorted(maps.Keys(setOf(oldInput.regions)))
-	newRegions := slices.Sorted(maps.Keys(setOf(newInput.regions)))
-	if !slices.Equal(oldRegions, newRegions) {
-		return changes, errors.New("changing regions is not supported, create a new resource instead")
+// azureManagementGroupValidateUpdate rejects changes with no public in-place API.
+func azureManagementGroupValidateUpdate(oldInput, newInput azureManagementGroupInput) error {
+	if len(oldInput.regions) != len(newInput.regions) || slices.ContainsFunc(oldInput.regions, func(region regions.Region) bool {
+		return !slices.Contains(newInput.regions, region)
+	}) {
+		return errors.New("changing regions is not supported")
 	}
-
-	for _, id := range newInput.subscriptions {
-		if !slices.Contains(oldInput.subscriptions, id) {
-			changes.addSubscriptions = append(changes.addSubscriptions, id)
-		}
-	}
-	for _, id := range oldInput.subscriptions {
-		if !slices.Contains(newInput.subscriptions, id) {
-			changes.removeSubscriptions = append(changes.removeSubscriptions, id)
-		}
-	}
-
 	for _, feature := range newInput.features {
 		idx := slices.IndexFunc(oldInput.features, func(f azureManagementGroupFeature) bool { return f.name == feature.name })
 		if idx < 0 {
-			changes.addFeatures = append(changes.addFeatures, feature)
 			continue
 		}
 		old := oldInput.features[idx]
 		if !slices.Equal(old.permissionGroups, feature.permissionGroups) || old.resourceGroupName != feature.resourceGroupName ||
 			old.resourceGroupRegion != feature.resourceGroupRegion || !maps.Equal(old.resourceGroupTags, feature.resourceGroupTags) {
-			return changes, fmt.Errorf("changing the permission groups or the resource group of the existing feature %s "+
-				"is not supported, remove the feature and add it again", feature.name)
+			return fmt.Errorf("changing the permission groups or the resource group of existing feature %s is not supported", feature.name)
 		}
 	}
-	for _, feature := range oldInput.features {
-		if !slices.ContainsFunc(newInput.features, func(f azureManagementGroupFeature) bool { return f.name == feature.name }) {
-			changes.removeFeatures = append(changes.removeFeatures, feature.name)
-		}
-	}
-
-	return changes, nil
-}
-
-// setOf returns the values as a set.
-func setOf[T comparable](values []T) map[T]struct{} {
-	set := make(map[T]struct{}, len(values))
-	for _, value := range values {
-		set[value] = struct{}{}
-	}
-
-	return set
-}
-
-// removeAzureManagementGroupFeatures disables the features on the cloud
-// accounts, one feature at a time. The Cloud Discovery feature is the parent of
-// the protection features and must be removed last.
-func removeAzureManagementGroupFeatures(ctx context.Context, api azure.API, tenantDomain string, appID uuid.UUID,
-	accountIDs []uuid.UUID, featureNames []string, deleteSnapshots bool) error {
-	names := slices.Clone(featureNames)
-	slices.SortStableFunc(names, func(a, b string) int {
-		return boolToInt(a == core.FeatureCloudDiscovery.Name) - boolToInt(b == core.FeatureCloudDiscovery.Name)
-	})
-
-	for _, name := range names {
-		if err := api.RemoveManagementGroupSubscriptionFeature(ctx, tenantDomain, appID, accountIDs, core.Feature{Name: name},
-			deleteSnapshots); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
+// azureManagementGroupPresentSubscriptions returns only owned subscriptions
+// with all owned features connected. Missing pairs produce a Terraform diff
+// without causing refresh to forget which remote pairs it is allowed to delete.
+func azureManagementGroupPresentSubscriptions(accounts []azure.CloudAccount, owned map[string][]string, previous []attr.Value) []string {
+	spelling := make(map[string]string, len(previous))
+	for _, value := range previous {
+		if str, ok := value.(types.String); ok {
+			spelling[strings.ToLower(str.ValueString())] = str.ValueString()
+		}
 	}
+	ids := make([]string, 0, len(owned))
+	for _, account := range accounts {
+		id := account.NativeID.String()
+		names := owned[id]
+		if len(names) == 0 || slices.ContainsFunc(names, func(name string) bool {
+			feature, exists := account.Feature(core.Feature{Name: name})
+			return !exists || feature.Status != core.StatusConnected
+		}) {
+			continue
+		}
+		if value := spelling[id]; value != "" {
+			id = value
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
 
-	return 0
+// managedFeatures is the desired ownership matrix for this configuration.
+func (input azureManagementGroupInput) managedFeatures() map[string][]string {
+	result := make(map[string][]string, len(input.subscriptions))
+	for _, id := range input.subscriptions {
+		for _, feature := range input.features {
+			result[id.String()] = append(result[id.String()], feature.name)
+		}
+	}
+	return result
+}
+
+func (model *azureManagementGroupModel) setManagedFeatures(ctx context.Context, pairs map[string][]string) diag.Diagnostics {
+	value, diags := types.MapValueFrom(ctx, types.SetType{ElemType: types.StringType}, pairs)
+	model.ManagedSubscriptionFeatures = value
+	return diags
+}
+
+// azureManagementGroupReconcile only acts on exact owned or explicitly desired pairs.
+// It does not claim an existing feature merely because it shares the same group.
+func azureManagementGroupReconcile(accounts []azure.CloudAccount, owned map[string][]string, desired azureManagementGroupInput) ([]azure.ManagementGroupSubscription, map[string][]uuid.UUID, error) {
+	byID := make(map[uuid.UUID]azure.CloudAccount, len(accounts))
+	for _, account := range accounts {
+		byID[account.NativeID] = account
+	}
+	var adds []azure.ManagementGroupSubscription
+	desiredPairs := desired.managedFeatures()
+	for _, sub := range azureManagementGroupSubscriptions(desired.subscriptions, desired.features) {
+		var missing []azure.ManagementGroupFeature
+		for _, feature := range sub.Features {
+			actual, exists := byID[sub.NativeID].Feature(feature.Feature)
+			if !exists {
+				missing = append(missing, feature)
+			} else if !slices.Contains(owned[sub.NativeID.String()], feature.Feature.Name) {
+				return nil, nil, fmt.Errorf("subscription %s feature %s already exists and is not managed by this resource; import the group or choose a different subscription", sub.NativeID, feature.Feature.Name)
+			} else if actual.Status != core.StatusConnected {
+				return nil, nil, fmt.Errorf("subscription %s feature %s exists with status %s; repair it in RSC before retrying", sub.NativeID, feature.Feature.Name, actual.Status)
+			}
+		}
+		if len(missing) != 0 {
+			adds = append(adds, azure.ManagementGroupSubscription{NativeID: sub.NativeID, Features: missing})
+		}
+	}
+	removes := make(map[string][]uuid.UUID)
+	for _, account := range accounts {
+		id := account.NativeID.String()
+		shouldRemove := func(feature azure.Feature) bool {
+			return slices.Contains(owned[id], feature.Name) && !slices.Contains(desiredPairs[id], feature.Name)
+		}
+		for _, feature := range account.Features {
+			if !shouldRemove(feature) {
+				continue
+			}
+			if account.AuthType == gqlazure.AuthTypeOAuthRubrikApp || account.AuthType == gqlazure.AuthTypeOAuthCustomerApp {
+				return nil, nil, fmt.Errorf("cannot remove feature %s from OAuth subscription %s with this non-OAuth resource", feature.Name, id)
+			}
+			if feature.Equal(core.FeatureCloudDiscovery) && slices.ContainsFunc(account.Features, func(other azure.Feature) bool {
+				return !other.Equal(core.FeatureCloudDiscovery) && other.IsProtectionFeature() && !shouldRemove(other)
+			}) {
+				return nil, nil, fmt.Errorf("cannot remove Cloud Discovery from subscription %s while a retained or unmanaged protection feature depends on it", id)
+			}
+			removes[feature.Name] = append(removes[feature.Name], account.ID)
+		}
+	}
+	return adds, removes, nil
+}
+
+// removeAzureManagementGroupFeatures removes Cloud Discovery after protection features.
+func removeAzureManagementGroupFeatures(ctx context.Context, api azure.API, tenantDomain string, appID uuid.UUID,
+	removes map[string][]uuid.UUID, deleteSnapshots bool) error {
+	names := slices.Sorted(maps.Keys(removes))
+	if idx := slices.Index(names, core.FeatureCloudDiscovery.Name); idx >= 0 {
+		names = append(slices.Delete(names, idx, idx+1), core.FeatureCloudDiscovery.Name)
+	}
+	for _, name := range names {
+		if err := api.RemoveManagementGroupSubscriptionFeature(ctx, tenantDomain, appID, removes[name], core.Feature{Name: name},
+			deleteSnapshots && name == core.FeatureCloudNativeProtection.Name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // azureManagementGroupData is the management group as read from RSC.
@@ -749,10 +886,8 @@ type azureManagementGroupData struct {
 	accounts []azure.CloudAccount
 }
 
-// readAzureManagementGroup reads the subscriptions onboarded through the
-// management group. Features that are disabled are ignored, and so are
-// subscriptions without any other features. Returns graphql.ErrNotFound if no
-// subscriptions remain.
+// readAzureManagementGroup reads all observed pairs in the group. Disabled
+// rows are retained because disabling alone does not complete Azure cleanup.
 func readAzureManagementGroup(ctx context.Context, api azure.API, tenantDomain, managementGroupID string) (azureManagementGroupData, error) {
 	accounts, err := api.Subscriptions(ctx, "")
 	if err != nil {
@@ -766,12 +901,6 @@ func readAzureManagementGroup(ctx context.Context, api azure.API, tenantDomain, 
 			continue
 		}
 
-		account.Features = slices.DeleteFunc(slices.Clone(account.Features), func(f azure.Feature) bool {
-			return f.Status == core.StatusDisabled
-		})
-		if len(account.Features) == 0 {
-			continue
-		}
 		data.group = *mg
 		data.accounts = append(data.accounts, account)
 	}
@@ -779,27 +908,12 @@ func readAzureManagementGroup(ctx context.Context, api azure.API, tenantDomain, 
 		return azureManagementGroupData{}, fmt.Errorf("management group %s: %w", managementGroupID, graphql.ErrNotFound)
 	}
 
-	tenants, err := api.Tenants(ctx, tenantDomain)
-	if err != nil {
-		return azureManagementGroupData{}, err
-	}
-	for _, tenant := range tenants {
-		if strings.EqualFold(tenant.DomainName, tenantDomain) {
-			data.appID = tenant.ClientID
-		}
-	}
-
 	return data, nil
 }
 
-// setModel updates the model with the management group read from RSC. Feature
-// details RSC always returns, but that have not been configured, e.g. the
-// resource group of a protection feature, are kept out of the state.
+// setModel reconstructs the configuration and ownership for an explicit import.
 func (d azureManagementGroupData) setModel(ctx context.Context, model *azureManagementGroupModel, tenantDomain, managementGroupID string) diag.Diagnostics {
 	var diags diag.Diagnostics
-
-	var prior []azureManagementGroupFeatureModel
-	diags.Append(model.Feature.ElementsAs(ctx, &prior, false)...)
 
 	model.ID = types.StringValue(tenantDomain + "/" + managementGroupID)
 	model.TenantDomain = types.StringValue(tenantDomain)
@@ -812,6 +926,31 @@ func (d azureManagementGroupData) setModel(ctx context.Context, model *azureMana
 	if model.DeleteSnapshotsOnDestroy.IsNull() || model.DeleteSnapshotsOnDestroy.IsUnknown() {
 		model.DeleteSnapshotsOnDestroy = types.BoolValue(false)
 	}
+
+	pairs := make(map[string][]string, len(d.accounts))
+	var expected []string
+	for _, account := range d.accounts {
+		var names []string
+		if account.AuthType == gqlazure.AuthTypeOAuthRubrikApp || account.AuthType == gqlazure.AuthTypeOAuthCustomerApp {
+			diags.AddError("Cannot import management group", fmt.Sprintf("Subscription %s is onboarded with OAuth.", account.NativeID))
+			return diags
+		}
+		for _, feature := range account.Features {
+			if feature.Status != core.StatusConnected {
+				diags.AddError("Cannot import management group", fmt.Sprintf("Subscription %s feature %s is not connected.", account.NativeID, feature.Name))
+				return diags
+			}
+			names = append(names, feature.Name)
+		}
+		slices.Sort(names)
+		if expected != nil && !slices.Equal(expected, names) {
+			diags.AddError("Cannot import management group", "Subscriptions must have identical feature sets before import.")
+			return diags
+		}
+		expected = names
+		pairs[account.NativeID.String()] = names
+	}
+	diags.Append(model.setManagedFeatures(ctx, pairs)...)
 
 	subscriptionIDs := make([]attr.Value, 0, len(d.accounts))
 	regionSet := make(map[string]struct{})
@@ -851,12 +990,10 @@ func (d azureManagementGroupData) setModel(ctx context.Context, model *azureMana
 			ResourceGroupRegion: types.StringNull(),
 			ResourceGroupTags:   types.MapNull(types.StringType),
 		}
-		idx := slices.IndexFunc(prior, func(p azureManagementGroupFeatureModel) bool { return p.Name.ValueString() == name })
-		configured := idx < 0 || !prior[idx].ResourceGroupName.IsNull()
-		if configured && feature.ResourceGroup.Name != "" {
+		if feature.Name == core.FeatureCloudNativeArchival.Name && feature.ResourceGroup.Name != "" {
 			featureModel.ResourceGroupName = types.StringValue(feature.ResourceGroup.Name)
 			featureModel.ResourceGroupRegion = types.StringValue(feature.ResourceGroup.Region)
-			if len(feature.ResourceGroup.Tags) > 0 || (idx >= 0 && !prior[idx].ResourceGroupTags.IsNull()) {
+			if len(feature.ResourceGroup.Tags) > 0 {
 				tags, tagDiags := types.MapValueFrom(ctx, types.StringType, feature.ResourceGroup.Tags)
 				diags.Append(tagDiags...)
 				featureModel.ResourceGroupTags = tags

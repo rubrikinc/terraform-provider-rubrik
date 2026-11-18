@@ -275,6 +275,8 @@ const (
 	keyActive                                       = "active"
 	keyAWSKeyManager                                = "aws_key_manager"
 	keyAzureKeyManager                              = "azure_key_manager"
+	keyManagedSubscriptionFeatures                  = "managed_subscription_features"
+	keyOnboardingTaskID                             = "onboarding_task_id"
 	keyAzureManagementGroup                         = "azure_management_group"
 	keyAzureManagementGroupHierarchy                = "azure_management_group_hierarchy"
 	keyAllSubscriptionIDs                           = "all_subscription_ids"

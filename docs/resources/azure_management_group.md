@@ -10,7 +10,8 @@ description: |-
   definitions at the management group scope and the role assignments for each subscription. The app's service principal
   must therefore have the Contributor and User Access Administrator roles at the management group scope. RSC can
   only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
-  ~> Note: The RSC feature flag AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED must be enabled for the RSC account.
+  ~> Note: Both AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED and CNP_AZURE_DISABLE_DELETE_COMBINED must be enabled
+  for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
   ~> Note: A subscription must not be managed by both this resource and the rubrik_azure_subscription resource.
   Once a subscription has been onboarded through a management group, it can no longer be updated through
   rubrik_azure_subscription.
@@ -18,10 +19,12 @@ description: |-
   OAuth onboarding of management groups needs interactive consent in a browser and is not supported.Subscriptions added to the management group later are not onboarded automatically. Add them to
   subscription_ids.Changing regions, or the permission_groups or resource group of an existing feature, is not supported. Remove
   the feature and add it again, or create a new resource.Azure Government Cloud is not supported.
-  Subscriptions and features removed from the configuration are disabled in RSC, the snapshots are kept. When the resource
-  is destroyed, the snapshots are deleted if delete_snapshots_on_destroy is true.
+  Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
+  Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
+  deletes them only if delete_snapshots_on_destroy is true.
   Import
-  The resource ID is <tenant_domain>/<management_group_id>.
+  The resource ID is <tenant_domain>/<management_group_id>. Import adopts all subscription/feature pairs in the group.
+  Only import a non-OAuth group whose subscriptions all have the same connected features.
 ---
 
 # rubrik_azure_management_group (Resource)
@@ -35,7 +38,8 @@ definitions at the management group scope and the role assignments for each subs
 must therefore have the `Contributor` and `User Access Administrator` roles at the management group scope. RSC can
 only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
 
-~> **Note:** The RSC feature flag `AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED` must be enabled for the RSC account.
+~> **Note:** Both `AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED` and `CNP_AZURE_DISABLE_DELETE_COMBINED` must be enabled
+for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
 
 ~> **Note:** A subscription must not be managed by both this resource and the `rubrik_azure_subscription` resource.
 Once a subscription has been onboarded through a management group, it can no longer be updated through
@@ -49,15 +53,28 @@ Once a subscription has been onboarded through a management group, it can no lon
     the feature and add it again, or create a new resource.
   * Azure Government Cloud is not supported.
 
-Subscriptions and features removed from the configuration are disabled in RSC, the snapshots are kept. When the resource
-is destroyed, the snapshots are deleted if `delete_snapshots_on_destroy` is `true`.
+Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
+Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
+deletes them only if `delete_snapshots_on_destroy` is `true`.
 
 ## Import
-The resource ID is `<tenant_domain>/<management_group_id>`.
+The resource ID is `<tenant_domain>/<management_group_id>`. Import adopts all subscription/feature pairs in the group.
+Only import a non-OAuth group whose subscriptions all have the same connected features.
 
 ## Example Usage
 
 ```terraform
+variable "rsc_app_object_id" {
+  description = "Object ID of the RSC app's service principal."
+  type        = string
+}
+
+variable "rsc_app_secret" {
+  description = "Client secret for the RSC app registration."
+  type        = string
+  sensitive   = true
+}
+
 # The app's service principal needs the Contributor and User Access
 # Administrator roles at the management group scope. Keep them in place until
 # the resource has been destroyed, RSC needs them to remove its role
@@ -79,25 +96,11 @@ resource "azurerm_role_assignment" "rsc_user_access_administrator" {
 }
 
 resource "rubrik_azure_service_principal" "default" {
-  app_id        = "25c2b42a-c76b-11eb-9767-6ff6b5b7e72b"
+  app_id        = "11111111-1111-4111-8111-111111111111"
   app_name      = "My App"
-  app_secret    = "<my-apps-secret>"
-  tenant_domain = "mydomain.onmicrosoft.com"
-  tenant_id     = "2bfdaef8-c76b-11eb-8d3d-4706c14a88f0"
-}
-
-# Onboard the subscriptions of the management group. Subscriptions added to the
-# management group later are not onboarded automatically.
-data "rubrik_azure_management_group_hierarchy" "prod" {
-  tenant_domain       = rubrik_azure_service_principal.default.tenant_domain
-  app_id              = rubrik_azure_service_principal.default.app_id
-  management_group_id = "prod-mg"
-  features            = ["CLOUD_NATIVE_PROTECTION"]
-
-  depends_on = [
-    azurerm_role_assignment.rsc_contributor,
-    azurerm_role_assignment.rsc_user_access_administrator,
-  ]
+  app_secret    = var.rsc_app_secret
+  tenant_domain = "example.onmicrosoft.com"
+  tenant_id     = "22222222-2222-4222-8222-222222222222"
 }
 
 resource "rubrik_azure_management_group" "prod" {
@@ -105,7 +108,12 @@ resource "rubrik_azure_management_group" "prod" {
   app_id              = rubrik_azure_service_principal.default.app_id
   management_group_id = "prod-mg"
   regions             = ["eastus2", "westus2"]
-  subscription_ids    = data.rubrik_azure_management_group_hierarchy.prod.all_subscription_ids
+  subscription_ids    = ["33333333-3333-4333-8333-333333333333"]
+
+  depends_on = [
+    azurerm_role_assignment.rsc_contributor,
+    azurerm_role_assignment.rsc_user_access_administrator,
+  ]
 
   feature {
     name              = "CLOUD_NATIVE_PROTECTION"
@@ -118,25 +126,6 @@ resource "rubrik_azure_management_group" "prod" {
     resource_group_name   = "rubrik-archival"
     resource_group_region = "eastus2"
   }
-}
-
-# With an explicit list of subscriptions.
-resource "rubrik_azure_management_group" "dev" {
-  tenant_domain       = rubrik_azure_service_principal.default.tenant_domain
-  app_id              = rubrik_azure_service_principal.default.app_id
-  management_group_id = "dev-mg"
-  regions             = ["eastus2"]
-  subscription_ids = [
-    "7f3b4c19-5a0d-4c4a-9d0e-2b6f3b8c1a11",
-    "0c8d2f6e-91a4-4d7b-b2c5-6a1e9f4d3b22",
-  ]
-
-  feature {
-    name              = "CLOUD_NATIVE_PROTECTION"
-    permission_groups = ["BASIC"]
-  }
-
-  delete_snapshots_on_destroy = false
 }
 ```
 
@@ -160,7 +149,9 @@ resource "rubrik_azure_management_group" "dev" {
 
 - `customer_management_group_id` (String) RSC customer management group ID (UUID).
 - `id` (String) Resource ID, in the format `<tenant_domain>/<management_group_id>`.
+- `managed_subscription_features` (Map of Set of String) Feature names managed by this resource, keyed by Azure subscription ID.
 - `management_group_name` (String) Azure management group display name.
+- `onboarding_task_id` (String) Accepted onboarding task that has not yet been cleared from state.
 
 <a id="nestedblock--feature"></a>
 ### Nested Schema for `feature`
@@ -186,7 +177,7 @@ In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp
 import {
   to = rubrik_azure_management_group.prod
   identity = {
-    id = "mydomain.onmicrosoft.com/prod-mg"
+    id = "example.onmicrosoft.com/prod-mg"
   }
 }
 ```
@@ -203,12 +194,12 @@ In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.
 ```terraform
 import {
   to = rubrik_azure_management_group.prod
-  id = "mydomain.onmicrosoft.com/prod-mg"
+  id = "example.onmicrosoft.com/prod-mg"
 }
 ```
 
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-% terraform import rubrik_azure_management_group.prod mydomain.onmicrosoft.com/prod-mg
+% terraform import rubrik_azure_management_group.prod example.onmicrosoft.com/prod-mg
 ```
