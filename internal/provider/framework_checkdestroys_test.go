@@ -800,3 +800,33 @@ func userCheckDestroy(t *testing.T) func(*terraform.State) error {
 		return nil
 	}
 }
+
+// slaDomainCheckDestroy returns a check destroy function which verifies that the
+// SLA domains of the state no longer exist in RSC.
+func slaDomainCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != keyRubrik+"_"+keySLADomain && rs.Type != keyPolaris+"_"+keySLADomain {
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+			_, err = sla.Wrap(polarisClient).DomainByID(t.Context(), id)
+			if errors.Is(err, graphql.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("SLA domain %s still exists", id)
+		}
+
+		return nil
+	}
+}
