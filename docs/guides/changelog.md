@@ -12,6 +12,8 @@ page_title: "Changelog"
 * New data source added for `rubrik_azure_management_group_hierarchy` which lists the subscriptions and management
   groups under an Azure management group, and the eligibility of the subscriptions for onboarding.
   [[docs](../data-sources/azure_management_group_hierarchy.md)]
+  Both management group types also have `polaris_` aliases in `rubrikinc/rubrik` for configurations that retain
+  the `polaris` local provider name.
 * Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_archival_location.md)]
 * Migrate the `rubrik_gcp_archival_location` resource to the Terraform Plugin Framework. The resource now supports

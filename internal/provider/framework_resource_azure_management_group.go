@@ -97,6 +97,7 @@ var (
 
 type azureManagementGroupResource struct {
 	client *client
+	prefix string
 }
 
 // azureManagementGroupModel is the resource state. Field order follows the
@@ -140,13 +141,17 @@ var azureManagementGroupFeatureAttrTypes = map[string]attr.Type{
 }
 
 func newAzureManagementGroupResource() resource.Resource {
-	return &azureManagementGroupResource{}
+	return &azureManagementGroupResource{prefix: keyRubrik}
+}
+
+func newPolarisAzureManagementGroupResource() resource.Resource {
+	return &azureManagementGroupResource{prefix: keyPolaris}
 }
 
 func (r *azureManagementGroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, res *resource.MetadataResponse) {
 	tflog.Trace(ctx, "azureManagementGroupResource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyAzureManagementGroup
+	res.TypeName = r.prefix + "_" + keyAzureManagementGroup
 }
 
 func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.SchemaRequest, res *resource.SchemaResponse) {
@@ -299,6 +304,9 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 				},
 			},
 		},
+	}
+	if r.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_azure_management_group` resource instead."
 	}
 }
 

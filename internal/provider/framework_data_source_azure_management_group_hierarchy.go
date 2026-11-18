@@ -55,6 +55,7 @@ var _ datasource.DataSource = &azureManagementGroupHierarchyDataSource{}
 
 type azureManagementGroupHierarchyDataSource struct {
 	client *client
+	prefix string
 }
 
 // azureManagementGroupHierarchyDataSourceModel is the data source state.
@@ -85,13 +86,17 @@ var azureManagementGroupHierarchyGroupAttrTypes = map[string]attr.Type{
 }
 
 func newAzureManagementGroupHierarchyDataSource() datasource.DataSource {
-	return &azureManagementGroupHierarchyDataSource{}
+	return &azureManagementGroupHierarchyDataSource{prefix: keyRubrik}
+}
+
+func newPolarisAzureManagementGroupHierarchyDataSource() datasource.DataSource {
+	return &azureManagementGroupHierarchyDataSource{prefix: keyPolaris}
 }
 
 func (d *azureManagementGroupHierarchyDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, res *datasource.MetadataResponse) {
 	tflog.Trace(ctx, "azureManagementGroupHierarchyDataSource.Metadata")
 
-	res.TypeName = keyRubrik + "_" + keyAzureManagementGroupHierarchy
+	res.TypeName = d.prefix + "_" + keyAzureManagementGroupHierarchy
 }
 
 func (d *azureManagementGroupHierarchyDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, res *datasource.SchemaResponse) {
@@ -190,6 +195,9 @@ func (d *azureManagementGroupHierarchyDataSource) Schema(ctx context.Context, _ 
 				Description: "Azure IDs of the subscriptions in the hierarchy that are eligible for onboarding.",
 			},
 		},
+	}
+	if d.prefix == keyPolaris {
+		res.Schema.DeprecationMessage = "use the `rubrik_azure_management_group_hierarchy` data source instead."
 	}
 }
 
