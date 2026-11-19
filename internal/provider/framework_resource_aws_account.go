@@ -312,6 +312,37 @@ type awsAccountFeatureModel struct {
 	Status           types.String `tfsdk:"status"`
 }
 
+// newAWSAccountFeatureModel returns the regular feature block with the
+// specified name for the account. The block is empty unless the account has
+// all RSC features of the block. The regions are null when RSC returns none.
+func newAWSAccountFeatureModel(account aws.CloudAccount, key string) []awsAccountFeatureModel {
+	feature := awsAccountRSCFeature(&account, awsAccountBlockFeatures[key])
+	if feature == nil {
+		return nil
+	}
+
+	groups := make([]attr.Value, 0, len(feature.PermissionGroups))
+	for _, group := range feature.PermissionGroups {
+		groups = append(groups, types.StringValue(string(group)))
+	}
+
+	regions := types.SetNull(types.StringType)
+	if len(feature.Regions) > 0 {
+		values := make([]attr.Value, 0, len(feature.Regions))
+		for _, region := range feature.Regions {
+			values = append(values, types.StringValue(region))
+		}
+		regions = types.SetValueMust(types.StringType, values)
+	}
+
+	return []awsAccountFeatureModel{{
+		PermissionGroups: types.SetValueMust(types.StringType, groups),
+		Regions:          regions,
+		StackARN:         types.StringValue(feature.StackArn),
+		Status:           types.StringValue(core.FormatStatus(feature.Status)),
+	}}
+}
+
 // accountFeature returns the regular feature block with the specified name in
 // RSC terms. An unknown region name is an error.
 func (m awsAccountFeatureModel) accountFeature(ctx context.Context, key string, diags *diag.Diagnostics) awsAccountFeature {
@@ -337,6 +368,29 @@ func (m awsAccountFeatureModel) accountFeature(ctx context.Context, key string, 
 	return feature
 }
 
+// withComputed returns the element with the unknown status and stack ARN set
+// from the account. They are set to null when the account is nil or doesn't
+// have all RSC features of the regular feature block with the specified name.
+func (m awsAccountFeatureModel) withComputed(account *aws.CloudAccount, key string) awsAccountFeatureModel {
+	feature := awsAccountRSCFeature(account, awsAccountBlockFeatures[key])
+
+	if m.Status.IsUnknown() {
+		m.Status = types.StringNull()
+		if feature != nil {
+			m.Status = types.StringValue(core.FormatStatus(feature.Status))
+		}
+	}
+
+	if m.StackARN.IsUnknown() {
+		m.StackARN = types.StringNull()
+		if feature != nil {
+			m.StackARN = types.StringValue(feature.StackArn)
+		}
+	}
+
+	return m
+}
+
 // awsAccountOutpostModel is the model of an element of the outpost block.
 type awsAccountOutpostModel struct {
 	OutpostAccountID      types.String `tfsdk:"outpost_account_id"`
@@ -344,6 +398,29 @@ type awsAccountOutpostModel struct {
 	PermissionGroups      types.Set    `tfsdk:"permission_groups"`
 	StackARN              types.String `tfsdk:"stack_arn"`
 	Status                types.String `tfsdk:"status"`
+}
+
+// newAWSAccountOutpostModel returns the outpost block for the account, with the
+// specified outpost account ID and profile. The block is empty unless the
+// account has the outpost feature.
+func newAWSAccountOutpostModel(account aws.CloudAccount, outpostID, outpostProfile types.String) []awsAccountOutpostModel {
+	feature := awsAccountRSCFeature(&account, awsAccountBlockFeatures[keyOutpost])
+	if feature == nil {
+		return nil
+	}
+
+	groups := make([]attr.Value, 0, len(feature.PermissionGroups))
+	for _, group := range feature.PermissionGroups {
+		groups = append(groups, types.StringValue(string(group)))
+	}
+
+	return []awsAccountOutpostModel{{
+		OutpostAccountID:      outpostID,
+		OutpostAccountProfile: outpostProfile,
+		PermissionGroups:      types.SetValueMust(types.StringType, groups),
+		StackARN:              types.StringValue(feature.StackArn),
+		Status:                types.StringValue(core.FormatStatus(feature.Status)),
+	}}
 }
 
 // accountFeature returns the outpost block in RSC terms.
@@ -359,12 +436,56 @@ func (m awsAccountOutpostModel) accountFeature(ctx context.Context, diags *diag.
 	}
 }
 
+// withComputed returns the element with the unknown status and stack ARN set
+// from the account. They are set to null when the account is nil or doesn't
+// have the outpost feature.
+func (m awsAccountOutpostModel) withComputed(account *aws.CloudAccount) awsAccountOutpostModel {
+	feature := awsAccountRSCFeature(account, awsAccountBlockFeatures[keyOutpost])
+
+	if m.Status.IsUnknown() {
+		m.Status = types.StringNull()
+		if feature != nil {
+			m.Status = types.StringValue(core.FormatStatus(feature.Status))
+		}
+	}
+
+	if m.StackARN.IsUnknown() {
+		m.StackARN = types.StringNull()
+		if feature != nil {
+			m.StackARN = types.StringValue(feature.StackArn)
+		}
+	}
+
+	return m
+}
+
 // awsAccountRoleChainingModel is the model of an element of the role_chaining
 // block.
 type awsAccountRoleChainingModel struct {
 	PermissionGroups types.Set    `tfsdk:"permission_groups"`
 	StackARN         types.String `tfsdk:"stack_arn"`
 	Status           types.String `tfsdk:"status"`
+}
+
+// newAWSAccountRoleChainingModel returns the role_chaining block for the
+// account. The block is empty unless the account has the role chaining
+// feature.
+func newAWSAccountRoleChainingModel(account aws.CloudAccount) []awsAccountRoleChainingModel {
+	feature := awsAccountRSCFeature(&account, awsAccountBlockFeatures[keyRoleChaining])
+	if feature == nil {
+		return nil
+	}
+
+	groups := make([]attr.Value, 0, len(feature.PermissionGroups))
+	for _, group := range feature.PermissionGroups {
+		groups = append(groups, types.StringValue(string(group)))
+	}
+
+	return []awsAccountRoleChainingModel{{
+		PermissionGroups: types.SetValueMust(types.StringType, groups),
+		StackARN:         types.StringValue(feature.StackArn),
+		Status:           types.StringValue(core.FormatStatus(feature.Status)),
+	}}
 }
 
 // accountFeature returns the role_chaining block in RSC terms.
@@ -376,6 +497,29 @@ func (m awsAccountRoleChainingModel) accountFeature(ctx context.Context, diags *
 		key:      keyRoleChaining,
 		features: []core.Feature{core.FeatureRoleChaining.WithPermissionGroups(groups...)},
 	}
+}
+
+// withComputed returns the element with the unknown status and stack ARN set
+// from the account. They are set to null when the account is nil or doesn't
+// have the role chaining feature.
+func (m awsAccountRoleChainingModel) withComputed(account *aws.CloudAccount) awsAccountRoleChainingModel {
+	feature := awsAccountRSCFeature(account, awsAccountBlockFeatures[keyRoleChaining])
+
+	if m.Status.IsUnknown() {
+		m.Status = types.StringNull()
+		if feature != nil {
+			m.Status = types.StringValue(core.FormatStatus(feature.Status))
+		}
+	}
+
+	if m.StackARN.IsUnknown() {
+		m.StackARN = types.StringNull()
+		if feature != nil {
+			m.StackARN = types.StringValue(feature.StackArn)
+		}
+	}
+
+	return m
 }
 
 type awsAccountIdentityModel struct {
@@ -1390,29 +1534,21 @@ func updateAWSAccountResourceModel(m *awsAccountResourceModel, account aws.Cloud
 		m.Permissions = types.StringValue(awsAccountPermissionsUpdateRequired)
 	}
 
-	m.CloudDiscovery = awsAccountReadFeature(account, keyCloudDiscovery)
-	m.CloudNativeArchival = awsAccountReadFeature(account, keyCloudNativeArchival)
-	m.CloudNativeConfigProtection = awsAccountReadFeature(account, keyCloudNativeConfigProtection)
-	m.CloudNativeDynamoDBProtection = awsAccountReadFeature(account, keyCloudNativeDynamoDBProtection)
-	m.CloudNativeProtection = awsAccountReadFeature(account, keyCloudNativeProtection)
-	m.CloudNativeS3Protection = awsAccountReadFeature(account, keyCloudNativeS3Protection)
-	m.CloudNativeUEMKeyManagement = awsAccountReadFeature(account, keyCloudNativeUEMKeyManagement)
-	m.CyberRecoveryDataScanning = awsAccountReadFeature(account, keyCyberRecoveryDataScanning)
-	m.DataScanning = awsAccountReadFeature(account, keyDataScanning)
-	m.DSPM = awsAccountReadFeature(account, keyDSPM)
-	m.Exocompute = awsAccountReadFeature(account, keyExocompute)
-	m.KubernetesProtection = awsAccountReadFeature(account, keyKubernetesProtection)
-	m.RDSProtection = awsAccountReadFeature(account, keyRDSProtection)
-	m.ServersAndApps = awsAccountReadFeature(account, keyServersAndApps)
-
-	m.RoleChaining = nil
-	if feature, ok := awsAccountRSCFeature(account, awsAccountBlockFeatures[keyRoleChaining]); ok {
-		m.RoleChaining = []awsAccountRoleChainingModel{{
-			PermissionGroups: awsAccountPermissionGroups(feature),
-			StackARN:         types.StringValue(feature.StackArn),
-			Status:           types.StringValue(core.FormatStatus(feature.Status)),
-		}}
-	}
+	m.CloudDiscovery = newAWSAccountFeatureModel(account, keyCloudDiscovery)
+	m.CloudNativeArchival = newAWSAccountFeatureModel(account, keyCloudNativeArchival)
+	m.CloudNativeConfigProtection = newAWSAccountFeatureModel(account, keyCloudNativeConfigProtection)
+	m.CloudNativeDynamoDBProtection = newAWSAccountFeatureModel(account, keyCloudNativeDynamoDBProtection)
+	m.CloudNativeProtection = newAWSAccountFeatureModel(account, keyCloudNativeProtection)
+	m.CloudNativeS3Protection = newAWSAccountFeatureModel(account, keyCloudNativeS3Protection)
+	m.CloudNativeUEMKeyManagement = newAWSAccountFeatureModel(account, keyCloudNativeUEMKeyManagement)
+	m.CyberRecoveryDataScanning = newAWSAccountFeatureModel(account, keyCyberRecoveryDataScanning)
+	m.DataScanning = newAWSAccountFeatureModel(account, keyDataScanning)
+	m.DSPM = newAWSAccountFeatureModel(account, keyDSPM)
+	m.Exocompute = newAWSAccountFeatureModel(account, keyExocompute)
+	m.KubernetesProtection = newAWSAccountFeatureModel(account, keyKubernetesProtection)
+	m.RDSProtection = newAWSAccountFeatureModel(account, keyRDSProtection)
+	m.ServersAndApps = newAWSAccountFeatureModel(account, keyServersAndApps)
+	m.RoleChaining = newAWSAccountRoleChainingModel(account)
 
 	var outpostID, outpostProfile types.String
 	if len(m.Outpost) > 0 {
@@ -1421,80 +1557,29 @@ func updateAWSAccountResourceModel(m *awsAccountResourceModel, account aws.Cloud
 	}
 	switch {
 	case outpostID.ValueString() == "":
-		m.Outpost = awsAccountReadOutpost(account, types.StringNull(), types.StringNull())
+		m.Outpost = newAWSAccountOutpostModel(account, types.StringNull(), types.StringNull())
 	case outpostAccount != nil:
-		m.Outpost = awsAccountReadOutpost(*outpostAccount, types.StringValue(outpostAccount.NativeID), outpostProfile)
+		m.Outpost = newAWSAccountOutpostModel(*outpostAccount, types.StringValue(outpostAccount.NativeID), outpostProfile)
 	default:
 		m.Outpost = nil
 	}
 }
 
-// awsAccountReadFeature returns the regular feature block with the specified
-// name for the account. The regions are null when RSC returns none.
-func awsAccountReadFeature(account aws.CloudAccount, key string) []awsAccountFeatureModel {
-	feature, ok := awsAccountRSCFeature(account, awsAccountBlockFeatures[key])
-	if !ok {
+// awsAccountRSCFeature returns the feature of the account standing for a
+// feature block with the specified RSC features, which is the first of them.
+// Nil is returned when the account is nil or doesn't have all of them.
+func awsAccountRSCFeature(account *aws.CloudAccount, features []core.Feature) *aws.Feature {
+	if account == nil || len(features) == 0 {
 		return nil
 	}
-
-	regions := types.SetNull(types.StringType)
-	if len(feature.Regions) > 0 {
-		values := make([]attr.Value, 0, len(feature.Regions))
-		for _, region := range feature.Regions {
-			values = append(values, types.StringValue(region))
-		}
-		regions = types.SetValueMust(types.StringType, values)
-	}
-
-	return []awsAccountFeatureModel{{
-		PermissionGroups: awsAccountPermissionGroups(feature),
-		Regions:          regions,
-		StackARN:         types.StringValue(feature.StackArn),
-		Status:           types.StringValue(core.FormatStatus(feature.Status)),
-	}}
-}
-
-// awsAccountReadOutpost returns the outpost block for the account, with the
-// given outpost account ID and profile.
-func awsAccountReadOutpost(account aws.CloudAccount, outpostID, outpostProfile types.String) []awsAccountOutpostModel {
-	feature, ok := awsAccountRSCFeature(account, awsAccountBlockFeatures[keyOutpost])
-	if !ok {
-		return nil
-	}
-
-	return []awsAccountOutpostModel{{
-		OutpostAccountID:      outpostID,
-		OutpostAccountProfile: outpostProfile,
-		PermissionGroups:      awsAccountPermissionGroups(feature),
-		StackARN:              types.StringValue(feature.StackArn),
-		Status:                types.StringValue(core.FormatStatus(feature.Status)),
-	}}
-}
-
-// awsAccountRSCFeature returns the feature of the account for a feature block
-// with the specified RSC features. False is returned unless the account has
-// all of them.
-func awsAccountRSCFeature(account aws.CloudAccount, features []core.Feature) (aws.Feature, bool) {
-	var feature aws.Feature
 	for _, f := range features {
-		var ok bool
-		if feature, ok = account.Feature(f); !ok {
-			return aws.Feature{}, false
+		if _, ok := account.Feature(f); !ok {
+			return nil
 		}
 	}
 
-	return feature, len(features) > 0
-}
-
-// awsAccountPermissionGroups returns the permission groups of the feature as a
-// set value.
-func awsAccountPermissionGroups(feature aws.Feature) types.Set {
-	groups := make([]attr.Value, 0, len(feature.PermissionGroups))
-	for _, group := range feature.PermissionGroups {
-		groups = append(groups, types.StringValue(string(group)))
-	}
-
-	return types.SetValueMust(types.StringType, groups)
+	feature, _ := account.Feature(features[0])
+	return &feature
 }
 
 // awsAccountComputed returns the model with the computed values left unknown by
@@ -1520,79 +1605,73 @@ func awsAccountComputed(m awsAccountResourceModel, account *aws.CloudAccount) aw
 		}
 	}
 
-	m.CloudDiscovery = awsAccountComputedFeature(m.CloudDiscovery, account, keyCloudDiscovery)
-	m.CloudNativeArchival = awsAccountComputedFeature(m.CloudNativeArchival, account, keyCloudNativeArchival)
-	m.CloudNativeConfigProtection = awsAccountComputedFeature(m.CloudNativeConfigProtection, account,
-		keyCloudNativeConfigProtection)
-	m.CloudNativeDynamoDBProtection = awsAccountComputedFeature(m.CloudNativeDynamoDBProtection, account,
-		keyCloudNativeDynamoDBProtection)
-	m.CloudNativeProtection = awsAccountComputedFeature(m.CloudNativeProtection, account, keyCloudNativeProtection)
-	m.CloudNativeS3Protection = awsAccountComputedFeature(m.CloudNativeS3Protection, account,
-		keyCloudNativeS3Protection)
-	m.CloudNativeUEMKeyManagement = awsAccountComputedFeature(m.CloudNativeUEMKeyManagement, account,
-		keyCloudNativeUEMKeyManagement)
-	m.CyberRecoveryDataScanning = awsAccountComputedFeature(m.CyberRecoveryDataScanning, account,
-		keyCyberRecoveryDataScanning)
-	m.DataScanning = awsAccountComputedFeature(m.DataScanning, account, keyDataScanning)
-	m.DSPM = awsAccountComputedFeature(m.DSPM, account, keyDSPM)
-	m.Exocompute = awsAccountComputedFeature(m.Exocompute, account, keyExocompute)
-	m.KubernetesProtection = awsAccountComputedFeature(m.KubernetesProtection, account, keyKubernetesProtection)
-	m.RDSProtection = awsAccountComputedFeature(m.RDSProtection, account, keyRDSProtection)
-	m.ServersAndApps = awsAccountComputedFeature(m.ServersAndApps, account, keyServersAndApps)
+	if len(m.CloudDiscovery) > 0 {
+		m.CloudDiscovery = []awsAccountFeatureModel{m.CloudDiscovery[0].withComputed(account, keyCloudDiscovery)}
+	}
+	if len(m.CloudNativeArchival) > 0 {
+		m.CloudNativeArchival = []awsAccountFeatureModel{
+			m.CloudNativeArchival[0].withComputed(account, keyCloudNativeArchival),
+		}
+	}
+	if len(m.CloudNativeConfigProtection) > 0 {
+		m.CloudNativeConfigProtection = []awsAccountFeatureModel{
+			m.CloudNativeConfigProtection[0].withComputed(account, keyCloudNativeConfigProtection),
+		}
+	}
+	if len(m.CloudNativeDynamoDBProtection) > 0 {
+		m.CloudNativeDynamoDBProtection = []awsAccountFeatureModel{
+			m.CloudNativeDynamoDBProtection[0].withComputed(account, keyCloudNativeDynamoDBProtection),
+		}
+	}
+	if len(m.CloudNativeProtection) > 0 {
+		m.CloudNativeProtection = []awsAccountFeatureModel{
+			m.CloudNativeProtection[0].withComputed(account, keyCloudNativeProtection),
+		}
+	}
+	if len(m.CloudNativeS3Protection) > 0 {
+		m.CloudNativeS3Protection = []awsAccountFeatureModel{
+			m.CloudNativeS3Protection[0].withComputed(account, keyCloudNativeS3Protection),
+		}
+	}
+	if len(m.CloudNativeUEMKeyManagement) > 0 {
+		m.CloudNativeUEMKeyManagement = []awsAccountFeatureModel{
+			m.CloudNativeUEMKeyManagement[0].withComputed(account, keyCloudNativeUEMKeyManagement),
+		}
+	}
+	if len(m.CyberRecoveryDataScanning) > 0 {
+		m.CyberRecoveryDataScanning = []awsAccountFeatureModel{
+			m.CyberRecoveryDataScanning[0].withComputed(account, keyCyberRecoveryDataScanning),
+		}
+	}
+	if len(m.DataScanning) > 0 {
+		m.DataScanning = []awsAccountFeatureModel{m.DataScanning[0].withComputed(account, keyDataScanning)}
+	}
+	if len(m.DSPM) > 0 {
+		m.DSPM = []awsAccountFeatureModel{m.DSPM[0].withComputed(account, keyDSPM)}
+	}
+	if len(m.Exocompute) > 0 {
+		m.Exocompute = []awsAccountFeatureModel{m.Exocompute[0].withComputed(account, keyExocompute)}
+	}
+	if len(m.KubernetesProtection) > 0 {
+		m.KubernetesProtection = []awsAccountFeatureModel{
+			m.KubernetesProtection[0].withComputed(account, keyKubernetesProtection),
+		}
+	}
+	if len(m.RDSProtection) > 0 {
+		m.RDSProtection = []awsAccountFeatureModel{m.RDSProtection[0].withComputed(account, keyRDSProtection)}
+	}
+	if len(m.ServersAndApps) > 0 {
+		m.ServersAndApps = []awsAccountFeatureModel{m.ServersAndApps[0].withComputed(account, keyServersAndApps)}
+	}
 
 	// The outpost feature of a separate outpost account isn't on the account,
 	// its status and stack ARN are null until the next Read.
 	if len(m.Outpost) > 0 {
-		outpost := m.Outpost[0]
-		outpost.Status, outpost.StackARN = awsAccountComputedStatus(outpost.Status, outpost.StackARN, account,
-			awsAccountBlockFeatures[keyOutpost])
-		m.Outpost = []awsAccountOutpostModel{outpost}
+		m.Outpost = []awsAccountOutpostModel{m.Outpost[0].withComputed(account)}
 	}
 	if len(m.RoleChaining) > 0 {
-		roleChaining := m.RoleChaining[0]
-		roleChaining.Status, roleChaining.StackARN = awsAccountComputedStatus(roleChaining.Status,
-			roleChaining.StackARN, account, awsAccountBlockFeatures[keyRoleChaining])
-		m.RoleChaining = []awsAccountRoleChainingModel{roleChaining}
+		m.RoleChaining = []awsAccountRoleChainingModel{m.RoleChaining[0].withComputed(account)}
 	}
 
 	return m
-}
-
-// awsAccountComputedFeature returns the regular feature block with the
-// specified name, with the computed values set from the account.
-func awsAccountComputedFeature(block []awsAccountFeatureModel, account *aws.CloudAccount, key string) []awsAccountFeatureModel {
-	if len(block) == 0 {
-		return nil
-	}
-
-	elem := block[0]
-	elem.Status, elem.StackARN = awsAccountComputedStatus(elem.Status, elem.StackARN, account,
-		awsAccountBlockFeatures[key])
-	return []awsAccountFeatureModel{elem}
-}
-
-// awsAccountComputedStatus returns the status and stack ARN of a feature block,
-// with unknown values set from the account. They are set to null when the
-// account is nil or doesn't have all the RSC features of the block.
-func awsAccountComputedStatus(status, stackARN types.String, account *aws.CloudAccount, features []core.Feature) (types.String, types.String) {
-	var feature aws.Feature
-	var ok bool
-	if account != nil {
-		feature, ok = awsAccountRSCFeature(*account, features)
-	}
-
-	if status.IsUnknown() {
-		status = types.StringNull()
-		if ok {
-			status = types.StringValue(core.FormatStatus(feature.Status))
-		}
-	}
-	if stackARN.IsUnknown() {
-		stackARN = types.StringNull()
-		if ok {
-			stackARN = types.StringValue(feature.StackArn)
-		}
-	}
-
-	return status, stackARN
 }
