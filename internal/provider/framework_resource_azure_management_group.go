@@ -69,21 +69,45 @@ for the RSC account. The latter ensures that removal deletes the feature and its
 Once a subscription has been onboarded through a management group, it can no longer be updated through
 ´rubrik_azure_subscription´.
 
+## Cloud Discovery and Cost Reporting
+The resource requests only the features specified in ´feature´. To match the RSC wizard's Discovery + Protection
+selection, add a ´CLOUD_DISCOVERY´ feature entry with the ´BASIC´ permission group when Cloud Discovery onboarding is
+available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+
+RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting ´CLOUD_COST_REPORT´
+row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
+remove the Cost Reporting row.
+
+## Exocompute
+As with standalone Azure subscriptions, RSC maps an ´EXOCOMPUTE´ subscription to itself if it has no existing mapping.
+The default mapping alone does not mean a host is configured. Use ´rubrik_azure_exocompute´ to configure a host or map
+workload subscriptions to a different host. Look up a management-group subscription with the ´rubrik_azure_subscription´
+**data source** and use its RSC ´id´ as ´cloud_account_id´ or ´host_cloud_account_id´. Do not use the native Azure
+subscription ID or the management group ID for either field. If the data source could be read before onboarding, add
+a dependency on the management-group resource.
+
 ## Limitations
   * OAuth onboarding of management groups needs interactive consent in a browser and is not supported.
   * Subscriptions added to the management group later are not onboarded automatically. Add them to
     ´subscription_ids´.
-  * Changing ´regions´, or the ´permission_groups´ or resource group of an existing ´feature´, is not supported. Remove
-    the feature and add it again, or create a new resource.
+  * Region additions require an already connected ´CLOUD_DISCOVERY´ feature managed by this resource on every
+    subscription. Apply the region addition separately from subscription or feature changes. RSC aligns regional
+    features such as CNP, Blob, and SQL; Exocompute host regions are configured separately. The provider refuses an
+    update that would overwrite unmanaged feature regions or remove an existing region. Region removals are not supported.
+  * Changing the ´permission_groups´ or resource group of an existing ´feature´ is not supported. Remove the feature
+    and add it again, or create a new resource.
   * Azure Government Cloud is not supported.
+  * For features that require a user-assigned managed identity, such as PostgreSQL Flexible Server Protection and
+    Cloud Native Archival Encryption, specify the resource group. RSC creates the managed identity as part of
+    management-group onboarding. The public management-group API does not accept an existing identity as input.
 
 Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
 Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
 deletes them only if ´delete_snapshots_on_destroy´ is ´true´.
 
 ## Import
-The resource ID is ´<tenant_domain>/<management_group_id>´. Import adopts all subscription/feature pairs in the group.
-Only import a non-OAuth group whose subscriptions all have the same connected features.
+The resource ID is ´<tenant_domain>/<management_group_id>´. Import adopts the group's existing subscriptions and their
+supported features. Only import a non-OAuth group whose subscriptions all have the same connected supported features and settings.
 `
 
 const azureManagementGroupOperationTimeout = 45 * time.Minute
@@ -93,6 +117,7 @@ var (
 	_ resource.ResourceWithConfigure   = &azureManagementGroupResource{}
 	_ resource.ResourceWithIdentity    = &azureManagementGroupResource{}
 	_ resource.ResourceWithImportState = &azureManagementGroupResource{}
+	_ resource.ResourceWithModifyPlan  = &azureManagementGroupResource{}
 )
 
 type azureManagementGroupResource struct {
@@ -117,7 +142,7 @@ type azureManagementGroupModel struct {
 	OnboardingTaskID            types.String `tfsdk:"onboarding_task_id"`
 }
 
-// azureManagementGroupFeatureModel is the model of a feature block.
+// azureManagementGroupFeatureModel is the model of a feature entry.
 type azureManagementGroupFeatureModel struct {
 	Name                types.String `tfsdk:"name"`
 	PermissionGroups    types.Set    `tfsdk:"permission_groups"`
@@ -130,8 +155,7 @@ type azureManagementGroupIdentityModel struct {
 	ID types.String `tfsdk:"id"`
 }
 
-// azureManagementGroupFeatureAttrTypes are the attribute types of a feature
-// block.
+// azureManagementGroupFeatureAttrTypes are the attribute types of a feature entry.
 var azureManagementGroupFeatureAttrTypes = map[string]attr.Type{
 	keyName:                types.StringType,
 	keyPermissionGroups:    types.SetType{ElemType: types.StringType},
@@ -217,7 +241,8 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 				ElementType: types.StringType,
 				Required:    true,
 				Description: "Azure regions to enable the features in. Should be specified in the standard Azure " +
-					"style, e.g. `eastus`. Changing the regions of an existing resource is not supported.",
+					"style, e.g. `eastus`. Regions can be added to an existing resource with connected Cloud Discovery, " +
+					"but cannot be removed.",
 				Validators: []validator.Set{
 					setvalidator.SizeAtLeast(1),
 					setvalidator.ValueStringsAre(stringvalidator.OneOf(regions.AllRegionNames()...)),
@@ -250,14 +275,13 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 				Computed:    true,
 				Description: "Accepted onboarding task that has not yet been cleared from state.",
 			},
-		},
-		Blocks: map[string]schema.Block{
-			keyFeature: schema.SetNestedBlock{
+			keyFeature: schema.SetNestedAttribute{
+				Required:    true,
 				Description: "RSC features to enable on all the subscriptions. At least one is required.",
 				Validators: []validator.Set{
 					setvalidator.SizeAtLeast(1),
 				},
-				NestedObject: schema.NestedBlockObject{
+				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						keyName: schema.StringAttribute{
 							Required: true,
@@ -278,7 +302,8 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 						keyResourceGroupName: schema.StringAttribute{
 							Optional: true,
 							Description: "Name of the Azure resource group RSC creates the feature's resources in. " +
-								"Required for the `CLOUD_NATIVE_ARCHIVAL` feature, ignored for other features.",
+								"Required for `CLOUD_NATIVE_ARCHIVAL` and may be required for other features, such as " +
+								"`CLOUD_NATIVE_PROTECTION`, depending on RSC configuration.",
 							Validators: []validator.String{
 								isNotWhiteSpace(),
 								stringvalidator.AlsoRequires(path.MatchRelative().AtParent().AtName(keyResourceGroupRegion)),
@@ -300,6 +325,9 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 								mapvalidator.AlsoRequires(path.MatchRelative().AtParent().AtName(keyResourceGroupName)),
 							},
 						},
+					},
+					Validators: []validator.Object{
+						featurePermissionGroupsValidator(core.AzureSubscriptionFeatures()),
 					},
 				},
 			},
@@ -535,6 +563,17 @@ func (r *azureManagementGroupResource) Update(ctx context.Context, req resource.
 		res.Diagnostics.AddError("Cannot reconcile management group", err.Error())
 		return
 	}
+	if !state.Regions.Equal(plan.Regions) {
+		if !state.SubscriptionIDs.Equal(plan.SubscriptionIDs) || !state.Feature.Equal(plan.Feature) || len(adds) != 0 || len(removes) != 0 {
+			res.Diagnostics.AddError("Apply region additions separately", "Do not change subscriptions or features in the same apply as a region addition. Repair any missing features before adding regions.")
+			return
+		}
+		if err := azureManagementGroupAddRegions(ctx, gqlazure.Wrap(polarisClient.GQL), tenantDomain, managementGroupID,
+			oldInput.managed, newInput.subscriptions, newInput.regions); err != nil {
+			res.Diagnostics.AddError("Failed to add management group regions", err.Error())
+			return
+		}
+	}
 	if (len(adds) != 0 || len(removes) != 0) && !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
 		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before updating.")
 		return
@@ -656,7 +695,7 @@ func (r *azureManagementGroupResource) ImportState(ctx context.Context, req reso
 	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyDeleteSnapshotsOnDestroy), false)...)
 }
 
-// azureManagementGroupFeature is a feature block in plain Go types.
+// azureManagementGroupFeature is a feature entry in plain Go types.
 type azureManagementGroupFeature struct {
 	name                string
 	permissionGroups    []string
@@ -758,10 +797,10 @@ func azureManagementGroupSubscriptions(ids []uuid.UUID, features []azureManageme
 
 // azureManagementGroupValidateUpdate rejects changes with no public in-place API.
 func azureManagementGroupValidateUpdate(oldInput, newInput azureManagementGroupInput) error {
-	if len(oldInput.regions) != len(newInput.regions) || slices.ContainsFunc(oldInput.regions, func(region regions.Region) bool {
+	if slices.ContainsFunc(oldInput.regions, func(region regions.Region) bool {
 		return !slices.Contains(newInput.regions, region)
 	}) {
-		return errors.New("changing regions is not supported")
+		return errors.New("removing regions is not supported")
 	}
 	for _, feature := range newInput.features {
 		idx := slices.IndexFunc(oldInput.features, func(f azureManagementGroupFeature) bool { return f.name == feature.name })
@@ -865,16 +904,26 @@ func azureManagementGroupReconcile(accounts []azure.CloudAccount, owned map[stri
 			}) {
 				return nil, nil, fmt.Errorf("cannot remove Cloud Discovery from subscription %s while a retained or unmanaged protection feature depends on it", id)
 			}
+			if feature.Equal(core.FeatureCloudNativeArchival) {
+				if encryption, exists := account.Feature(core.FeatureCloudNativeArchivalEncryption); exists && !shouldRemove(encryption) {
+					return nil, nil, fmt.Errorf("cannot remove Cloud Native Archival from subscription %s while a retained or unmanaged Archival Encryption feature depends on it", id)
+				}
+			}
 			removes[feature.Name] = append(removes[feature.Name], account.ID)
 		}
 	}
 	return adds, removes, nil
 }
 
-// removeAzureManagementGroupFeatures removes Cloud Discovery after protection features.
+// removeAzureManagementGroupFeatures removes dependent features before their parents.
 func removeAzureManagementGroupFeatures(ctx context.Context, api azure.API, tenantDomain string, appID uuid.UUID,
 	removes map[string][]uuid.UUID, deleteSnapshots bool) error {
 	names := slices.Sorted(maps.Keys(removes))
+	// RSC also removes Encryption when its Archival parent is removed.
+	// Delete it first so we do not issue a second delete against a missing row.
+	if parent, child := slices.Index(names, core.CloudNativeArchival), slices.Index(names, core.CloudNativeArchivalEncryption); parent >= 0 && child > parent {
+		names[parent], names[child] = names[child], names[parent]
+	}
 	if idx := slices.Index(names, core.FeatureCloudDiscovery.Name); idx >= 0 {
 		names = append(slices.Delete(names, idx, idx+1), core.FeatureCloudDiscovery.Name)
 	}
@@ -905,7 +954,7 @@ func readAzureManagementGroup(ctx context.Context, api azure.API, tenantDomain, 
 	var data azureManagementGroupData
 	for _, account := range accounts {
 		mg := account.ManagementGroup
-		if mg == nil || !strings.EqualFold(mg.NativeID, managementGroupID) || !strings.EqualFold(account.TenantDomain, tenantDomain) {
+		if mg == nil || len(account.Features) == 0 || !strings.EqualFold(mg.NativeID, managementGroupID) || !strings.EqualFold(account.TenantDomain, tenantDomain) {
 			continue
 		}
 
@@ -966,7 +1015,17 @@ func (d azureManagementGroupData) setModel(ctx context.Context, model *azureMana
 	for _, account := range d.accounts {
 		subscriptionIDs = append(subscriptionIDs, types.StringValue(account.NativeID.String()))
 		for _, feature := range account.Features {
-			if _, ok := featureByName[feature.Name]; !ok {
+			if previous, ok := featureByName[feature.Name]; ok {
+				// One Terraform feature entry applies to every subscription. Do not
+				// import settings from only the first subscription if they differ.
+				if !previous.Feature.DeepEqual(feature.Feature) ||
+					!slices.Equal(slices.Sorted(slices.Values(previous.Regions)), slices.Sorted(slices.Values(feature.Regions))) ||
+					(feature.SupportResourceGroup() && (previous.ResourceGroup.Name != feature.ResourceGroup.Name ||
+						previous.ResourceGroup.Region != feature.ResourceGroup.Region || !maps.Equal(previous.ResourceGroup.Tags, feature.ResourceGroup.Tags))) {
+					diags.AddError("Cannot import management group", fmt.Sprintf("Subscriptions have different settings for feature %s.", feature.Name))
+					return diags
+				}
+			} else {
 				featureByName[feature.Name] = feature
 			}
 			for _, region := range feature.Regions {
@@ -998,7 +1057,7 @@ func (d azureManagementGroupData) setModel(ctx context.Context, model *azureMana
 			ResourceGroupRegion: types.StringNull(),
 			ResourceGroupTags:   types.MapNull(types.StringType),
 		}
-		if feature.Name == core.FeatureCloudNativeArchival.Name && feature.ResourceGroup.Name != "" {
+		if feature.SupportResourceGroup() && feature.ResourceGroup.Name != "" {
 			featureModel.ResourceGroupName = types.StringValue(feature.ResourceGroup.Name)
 			featureModel.ResourceGroupRegion = types.StringValue(feature.ResourceGroup.Region)
 			if len(feature.ResourceGroup.Tags) > 0 {

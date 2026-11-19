@@ -15,16 +15,35 @@ description: |-
   ~> Note: A subscription must not be managed by both this resource and the rubrik_azure_subscription resource.
   Once a subscription has been onboarded through a management group, it can no longer be updated through
   rubrik_azure_subscription.
+  Cloud Discovery and Cost Reporting
+  The resource requests only the features specified in feature. To match the RSC wizard's Discovery + Protection
+  selection, add a CLOUD_DISCOVERY feature entry with the BASIC permission group when Cloud Discovery onboarding is
+  available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+  RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting CLOUD_COST_REPORT
+  row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
+  remove the Cost Reporting row.
+  Exocompute
+  As with standalone Azure subscriptions, RSC maps an EXOCOMPUTE subscription to itself if it has no existing mapping.
+  The default mapping alone does not mean a host is configured. Use rubrik_azure_exocompute to configure a host or map
+  workload subscriptions to a different host. Look up a management-group subscription with the rubrik_azure_subscription
+  data source and use its RSC id as cloud_account_id or host_cloud_account_id. Do not use the native Azure
+  subscription ID or the management group ID for either field. If the data source could be read before onboarding, add
+  a dependency on the management-group resource.
   Limitations
   OAuth onboarding of management groups needs interactive consent in a browser and is not supported.Subscriptions added to the management group later are not onboarded automatically. Add them to
-  subscription_ids.Changing regions, or the permission_groups or resource group of an existing feature, is not supported. Remove
-  the feature and add it again, or create a new resource.Azure Government Cloud is not supported.
+  subscription_ids.Region additions require an already connected CLOUD_DISCOVERY feature managed by this resource on every
+  subscription. Apply the region addition separately from subscription or feature changes. RSC aligns regional
+  features such as CNP, Blob, and SQL; Exocompute host regions are configured separately. The provider refuses an
+  update that would overwrite unmanaged feature regions or remove an existing region. Region removals are not supported.Changing the permission_groups or resource group of an existing feature is not supported. Remove the feature
+  and add it again, or create a new resource.Azure Government Cloud is not supported.For features that require a user-assigned managed identity, such as PostgreSQL Flexible Server Protection and
+  Cloud Native Archival Encryption, specify the resource group. RSC creates the managed identity as part of
+  management-group onboarding. The public management-group API does not accept an existing identity as input.
   Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
   Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
   deletes them only if delete_snapshots_on_destroy is true.
   Import
-  The resource ID is <tenant_domain>/<management_group_id>. Import adopts all subscription/feature pairs in the group.
-  Only import a non-OAuth group whose subscriptions all have the same connected features.
+  The resource ID is <tenant_domain>/<management_group_id>. Import adopts the group's existing subscriptions and their
+  supported features. Only import a non-OAuth group whose subscriptions all have the same connected supported features and settings.
 ---
 
 # rubrik_azure_management_group (Resource)
@@ -45,34 +64,69 @@ for the RSC account. The latter ensures that removal deletes the feature and its
 Once a subscription has been onboarded through a management group, it can no longer be updated through
 `rubrik_azure_subscription`.
 
+## Cloud Discovery and Cost Reporting
+The resource requests only the features specified in `feature`. To match the RSC wizard's Discovery + Protection
+selection, add a `CLOUD_DISCOVERY` feature entry with the `BASIC` permission group when Cloud Discovery onboarding is
+available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+
+RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting `CLOUD_COST_REPORT`
+row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
+remove the Cost Reporting row.
+
+## Exocompute
+As with standalone Azure subscriptions, RSC maps an `EXOCOMPUTE` subscription to itself if it has no existing mapping.
+The default mapping alone does not mean a host is configured. Use `rubrik_azure_exocompute` to configure a host or map
+workload subscriptions to a different host. Look up a management-group subscription with the `rubrik_azure_subscription`
+**data source** and use its RSC `id` as `cloud_account_id` or `host_cloud_account_id`. Do not use the native Azure
+subscription ID or the management group ID for either field. If the data source could be read before onboarding, add
+a dependency on the management-group resource.
+
 ## Limitations
   * OAuth onboarding of management groups needs interactive consent in a browser and is not supported.
   * Subscriptions added to the management group later are not onboarded automatically. Add them to
     `subscription_ids`.
-  * Changing `regions`, or the `permission_groups` or resource group of an existing `feature`, is not supported. Remove
-    the feature and add it again, or create a new resource.
+  * Region additions require an already connected `CLOUD_DISCOVERY` feature managed by this resource on every
+    subscription. Apply the region addition separately from subscription or feature changes. RSC aligns regional
+    features such as CNP, Blob, and SQL; Exocompute host regions are configured separately. The provider refuses an
+    update that would overwrite unmanaged feature regions or remove an existing region. Region removals are not supported.
+  * Changing the `permission_groups` or resource group of an existing `feature` is not supported. Remove the feature
+    and add it again, or create a new resource.
   * Azure Government Cloud is not supported.
+  * For features that require a user-assigned managed identity, such as PostgreSQL Flexible Server Protection and
+    Cloud Native Archival Encryption, specify the resource group. RSC creates the managed identity as part of
+    management-group onboarding. The public management-group API does not accept an existing identity as input.
 
 Only subscription/feature pairs that this resource submitted or imported are removed from RSC. Changes made outside
 Terraform are not adopted on refresh. Removing Cloud Native Protection preserves snapshots by default; resource destroy
 deletes them only if `delete_snapshots_on_destroy` is `true`.
 
 ## Import
-The resource ID is `<tenant_domain>/<management_group_id>`. Import adopts all subscription/feature pairs in the group.
-Only import a non-OAuth group whose subscriptions all have the same connected features.
+The resource ID is `<tenant_domain>/<management_group_id>`. Import adopts the group's existing subscriptions and their
+supported features. Only import a non-OAuth group whose subscriptions all have the same connected supported features and settings.
 
 ## Example Usage
 
 ```terraform
-variable "rsc_app_object_id" {
-  description = "Object ID of the RSC app's service principal."
-  type        = string
+data "azuread_client_config" "current" {}
+
+data "azuread_domains" "current" {
+  only_initial = true
 }
 
-variable "rsc_app_secret" {
-  description = "Client secret for the RSC app registration."
-  type        = string
-  sensitive   = true
+# Create the application credentials that RSC uses to access Azure.
+resource "azuread_application" "rsc" {
+  display_name            = "Rubrik Security Cloud - Management Group Example"
+  prevent_duplicate_names = true
+  owners                  = [data.azuread_client_config.current.object_id]
+}
+
+resource "azuread_application_password" "rsc" {
+  application_id = azuread_application.rsc.id
+}
+
+resource "azuread_service_principal" "rsc" {
+  client_id = azuread_application.rsc.client_id
+  owners    = [data.azuread_client_config.current.object_id]
 }
 
 # The app's service principal needs the Contributor and User Access
@@ -86,27 +140,29 @@ data "azurerm_management_group" "prod" {
 resource "azurerm_role_assignment" "rsc_contributor" {
   scope                = data.azurerm_management_group.prod.id
   role_definition_name = "Contributor"
-  principal_id         = var.rsc_app_object_id
+  principal_id         = azuread_service_principal.rsc.object_id
 }
 
 resource "azurerm_role_assignment" "rsc_user_access_administrator" {
   scope                = data.azurerm_management_group.prod.id
   role_definition_name = "User Access Administrator"
-  principal_id         = var.rsc_app_object_id
+  principal_id         = azuread_service_principal.rsc.object_id
 }
 
+# Register the app once. The management group resource uses the secret stored
+# in RSC. Protect Terraform state because the generated password is stored there.
 resource "rubrik_azure_service_principal" "default" {
-  app_id        = "11111111-1111-4111-8111-111111111111"
-  app_name      = "My App"
-  app_secret    = var.rsc_app_secret
-  tenant_domain = "example.onmicrosoft.com"
-  tenant_id     = "22222222-2222-4222-8222-222222222222"
+  app_id        = azuread_application.rsc.client_id
+  app_name      = azuread_application.rsc.display_name
+  app_secret    = azuread_application_password.rsc.value
+  tenant_domain = data.azuread_domains.current.domains[0].domain_name
+  tenant_id     = azuread_service_principal.rsc.application_tenant_id
 }
 
 resource "rubrik_azure_management_group" "prod" {
   tenant_domain       = rubrik_azure_service_principal.default.tenant_domain
   app_id              = rubrik_azure_service_principal.default.app_id
-  management_group_id = "prod-mg"
+  management_group_id = data.azurerm_management_group.prod.name
   regions             = ["eastus2", "westus2"]
   subscription_ids    = ["33333333-3333-4333-8333-333333333333"]
 
@@ -115,17 +171,26 @@ resource "rubrik_azure_management_group" "prod" {
     azurerm_role_assignment.rsc_user_access_administrator,
   ]
 
-  feature {
-    name              = "CLOUD_NATIVE_PROTECTION"
-    permission_groups = ["BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY"]
-  }
-
-  feature {
-    name                  = "CLOUD_NATIVE_ARCHIVAL"
-    permission_groups     = ["BASIC"]
-    resource_group_name   = "rubrik-archival"
-    resource_group_region = "eastus2"
-  }
+  feature = [
+    # Optional: uncomment to match the Discovery + Protection wizard bundle
+    # when Cloud Discovery onboarding is available in RSC.
+    # {
+    #   name              = "CLOUD_DISCOVERY"
+    #   permission_groups = ["BASIC"]
+    # },
+    {
+      name                  = "CLOUD_NATIVE_PROTECTION"
+      permission_groups     = ["BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY"]
+      resource_group_name   = "rubrik-protection"
+      resource_group_region = "eastus2"
+    },
+    {
+      name                  = "CLOUD_NATIVE_ARCHIVAL"
+      permission_groups     = ["BASIC"]
+      resource_group_name   = "rubrik-archival"
+      resource_group_region = "eastus2"
+    },
+  ]
 }
 ```
 
@@ -135,15 +200,15 @@ resource "rubrik_azure_management_group" "prod" {
 ### Required
 
 - `app_id` (String) Azure app registration application ID (UUID) of the customer app, as set with the `rubrik_azure_service_principal` resource. The secret stored in RSC for the app is used. Changing this forces a new resource to be created.
+- `feature` (Attributes Set) RSC features to enable on all the subscriptions. At least one is required. (see [below for nested schema](#nestedatt--feature))
 - `management_group_id` (String) Azure management group ID. Changing this forces a new resource to be created.
-- `regions` (Set of String) Azure regions to enable the features in. Should be specified in the standard Azure style, e.g. `eastus`. Changing the regions of an existing resource is not supported.
+- `regions` (Set of String) Azure regions to enable the features in. Should be specified in the standard Azure style, e.g. `eastus`. Regions can be added to an existing resource with connected Cloud Discovery, but cannot be removed.
 - `subscription_ids` (Set of String) Azure subscription IDs (UUIDs) to onboard. The subscriptions must be in the management group and eligible for the features. Subscriptions removed from the set have their features disabled in RSC.
 - `tenant_domain` (String) Azure tenant primary domain. Changing this forces a new resource to be created.
 
 ### Optional
 
 - `delete_snapshots_on_destroy` (Boolean) Delete the snapshots of the subscriptions when the resource is destroyed. Default value is `false`.
-- `feature` (Block Set) RSC features to enable on all the subscriptions. At least one is required. (see [below for nested schema](#nestedblock--feature))
 
 ### Read-Only
 
@@ -153,7 +218,7 @@ resource "rubrik_azure_management_group" "prod" {
 - `management_group_name` (String) Azure management group display name.
 - `onboarding_task_id` (String) Accepted onboarding task that has not yet been cleared from state.
 
-<a id="nestedblock--feature"></a>
+<a id="nestedatt--feature"></a>
 ### Nested Schema for `feature`
 
 Required:
@@ -163,7 +228,7 @@ Required:
 
 Optional:
 
-- `resource_group_name` (String) Name of the Azure resource group RSC creates the feature's resources in. Required for the `CLOUD_NATIVE_ARCHIVAL` feature, ignored for other features.
+- `resource_group_name` (String) Name of the Azure resource group RSC creates the feature's resources in. Required for `CLOUD_NATIVE_ARCHIVAL` and may be required for other features, such as `CLOUD_NATIVE_PROTECTION`, depending on RSC configuration.
 - `resource_group_region` (String) Region of the Azure resource group, e.g. `eastus`.
 - `resource_group_tags` (Map of String) Tags to add to the Azure resource group.
 

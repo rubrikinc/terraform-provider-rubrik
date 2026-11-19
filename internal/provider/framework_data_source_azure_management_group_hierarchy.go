@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -249,11 +250,19 @@ func (d *azureManagementGroupHierarchyDataSource) Read(ctx context.Context, req 
 		return
 	}
 
+	// Sort the results to keep the Terraform lists stable across reads.
+	slices.SortFunc(hierarchy.Subscriptions, func(a, b azure.ManagementGroupHierarchySubscription) int {
+		return strings.Compare(a.NativeID.String(), b.NativeID.String())
+	})
+	slices.SortFunc(hierarchy.ManagementGroups, func(a, b azure.ManagementGroup) int {
+		return strings.Compare(a.NativeID, b.NativeID)
+	})
+
 	subscriptions := make([]attr.Value, 0, len(hierarchy.Subscriptions))
 	allIDs := make([]attr.Value, 0, len(hierarchy.Subscriptions))
 	var eligibleIDs []attr.Value
 	for _, sub := range hierarchy.Subscriptions {
-		id := types.StringValue(strings.ToLower(sub.NativeID.String()))
+		id := types.StringValue(sub.NativeID.String())
 		allIDs = append(allIDs, id)
 		if sub.IsEligible {
 			eligibleIDs = append(eligibleIDs, id)

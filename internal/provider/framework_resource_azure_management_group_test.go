@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/azure"
+	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 	regions "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
 )
@@ -44,19 +46,30 @@ func TestAzureManagementGroupReconcile(t *testing.T) {
 	a, b, c := uuid.New(), uuid.New(), uuid.New()
 	protection := core.FeatureCloudNativeProtection
 	archival := core.FeatureCloudNativeArchival
+	costReport := azure.Feature{Feature: core.FeatureCloudCostReport, Status: core.StatusMissingPermissions}
 	connected := func(f core.Feature) azure.Feature { return azure.Feature{Feature: f, Status: core.StatusConnected} }
 	accounts := []azure.CloudAccount{
-		{ID: a, NativeID: first, Features: []azure.Feature{connected(protection), connected(archival)}},
+		{ID: a, NativeID: first, Features: []azure.Feature{connected(protection), connected(archival), costReport}},
 		{ID: b, NativeID: second, Features: []azure.Feature{connected(protection)}},
 		{ID: c, NativeID: external, Features: []azure.Feature{connected(protection), connected(archival)}},
 	}
 	owned := map[string][]string{first.String(): {protection.Name}, second.String(): {protection.Name, archival.Name}}
 	present := azureManagementGroupPresentSubscriptions(accounts, owned, []attr.Value{types.StringValue(strings.ToUpper(first.String()))})
 	if !slices.Equal(present, []string{strings.ToUpper(first.String())}) {
-		t.Fatalf("refresh returned %v; external and partially onboarded subscriptions must not mask drift", present)
+		t.Fatalf("refresh returned %v; unmanaged features must not cause drift, and partially onboarded subscriptions must not mask it", present)
 	}
 
-	adds, removes, err := azureManagementGroupReconcile(accounts, owned, azureManagementGroupInput{
+	// Even if the SDK exposes this row someday, it is not part of the owned
+	// feature set and does not require an update or deletion.
+	adds, removes, err := azureManagementGroupReconcile(accounts[:1], owned, azureManagementGroupInput{
+		subscriptions: []uuid.UUID{first},
+		features:      []azureManagementGroupFeature{{name: protection.Name}},
+	})
+	if err != nil || len(adds) != 0 || len(removes) != 0 {
+		t.Fatalf("unmanaged features caused an update: adds=%v removes=%v err=%v", adds, removes, err)
+	}
+
+	adds, removes, err = azureManagementGroupReconcile(accounts, owned, azureManagementGroupInput{
 		subscriptions: []uuid.UUID{second},
 		features:      []azureManagementGroupFeature{{name: protection.Name}, {name: archival.Name}},
 	})
@@ -81,6 +94,31 @@ func TestAzureManagementGroupReconcile(t *testing.T) {
 	}
 }
 
+func TestAzureManagementGroupReconcileProtectsArchivalEncryption(t *testing.T) {
+	id := uuid.New()
+	accounts := []azure.CloudAccount{{ID: uuid.New(), NativeID: id, Features: []azure.Feature{
+		{Feature: core.FeatureCloudNativeArchival, Status: core.StatusConnected},
+		{Feature: core.FeatureCloudNativeArchivalEncryption, Status: core.StatusConnected},
+	}}}
+	for _, tc := range []struct {
+		name    string
+		owned   []string
+		desired azureManagementGroupInput
+	}{
+		{name: "unmanaged encryption", owned: []string{core.CloudNativeArchival}},
+		{name: "retained encryption", owned: []string{core.CloudNativeArchival, core.CloudNativeArchivalEncryption}, desired: azureManagementGroupInput{
+			subscriptions: []uuid.UUID{id}, features: []azureManagementGroupFeature{{name: core.CloudNativeArchivalEncryption}},
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := azureManagementGroupReconcile(accounts, map[string][]string{id.String(): tc.owned}, tc.desired)
+			if err == nil || !strings.Contains(err.Error(), "Archival Encryption feature depends on it") {
+				t.Fatalf("expected the Archival deletion to be blocked, got %v", err)
+			}
+		})
+	}
+}
+
 func TestAzureManagementGroupValidateUpdate(t *testing.T) {
 	old := azureManagementGroupInput{
 		regions:  []regions.Region{regions.RegionFromName("eastus2")},
@@ -93,6 +131,13 @@ func TestAzureManagementGroupValidateUpdate(t *testing.T) {
 			t.Fatal("accepted a region change")
 		}
 	})
+	t.Run("region additions", func(t *testing.T) {
+		changed := old
+		changed.regions = append(slices.Clone(old.regions), regions.RegionFromName("westus2"))
+		if err := azureManagementGroupValidateUpdate(old, changed); err != nil {
+			t.Fatalf("rejected a region addition: %v", err)
+		}
+	})
 	t.Run("permission groups", func(t *testing.T) {
 		changed := old
 		changed.features = []azureManagementGroupFeature{{name: core.FeatureCloudNativeProtection.Name, permissionGroups: []string{"BASIC", "EXPORT_AND_RESTORE"}}}
@@ -102,46 +147,40 @@ func TestAzureManagementGroupValidateUpdate(t *testing.T) {
 	})
 }
 
-// TestAzureManagementGroupSetModel verifies configuration and ownership are recovered on import.
-func TestAzureManagementGroupSetModel(t *testing.T) {
-	nativeID := uuid.New()
-	data := azureManagementGroupData{
-		appID: uuid.New(),
-		group: azure.ManagementGroup{NativeID: "mg", Name: "MG", CustomerID: uuid.New()},
-		accounts: []azure.CloudAccount{{
-			NativeID: nativeID,
-			Features: []azure.Feature{{
-				Feature:       core.Feature{Name: core.FeatureCloudNativeArchival.Name, PermissionGroups: []core.PermissionGroup{"BASIC"}},
-				Status:        core.StatusConnected,
-				ResourceGroup: azure.FeatureResourceGroup{Name: "rg", Region: "eastus2"},
-				Regions:       []string{"eastus2"},
-			}},
+func TestAzureManagementGroupImportRejectsDifferentSettings(t *testing.T) {
+	protection := azure.Feature{
+		Feature: core.Feature{Name: core.CloudNativeProtection, PermissionGroups: []core.PermissionGroup{core.PermissionGroupBasic}},
+		Status:  core.StatusConnected,
+		Regions: []string{"eastus2"},
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*azure.Feature)
+	}{
+		{name: "Permission groups", change: func(f *azure.Feature) {
+			f.PermissionGroups = []core.PermissionGroup{core.PermissionGroupBasic, "EXPORT_AND_RESTORE"}
 		}},
+		{name: "Regions", change: func(f *azure.Feature) { f.Regions = []string{"westus2"} }},
+		{name: "Resource group", change: func(f *azure.Feature) { f.ResourceGroup.Name = "another-group" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			other := protection
+			tc.change(&other)
+			data := azureManagementGroupData{
+				appID: uuid.New(),
+				group: azure.ManagementGroup{NativeID: "mg", Name: "MG", CustomerID: uuid.New()},
+				accounts: []azure.CloudAccount{
+					{NativeID: uuid.New(), Features: []azure.Feature{protection}},
+					{NativeID: uuid.New(), Features: []azure.Feature{other}},
+				},
+			}
+			var imported azureManagementGroupModel
+			diags := data.setModel(t.Context(), &imported, "example.onmicrosoft.com", "mg")
+			if !diags.HasError() || !strings.Contains(diags.Errors()[0].Detail(), "different settings") {
+				t.Fatalf("expected mismatched feature settings to reject import, got %v", diags)
+			}
+		})
 	}
-
-	// Imported, there is no prior state.
-	imported := azureManagementGroupModel{
-		ManagedSubscriptionFeatures: types.MapNull(types.SetType{ElemType: types.StringType}),
-		Feature:                     types.SetNull(types.ObjectType{AttrTypes: azureManagementGroupFeatureAttrTypes}),
-		DeleteSnapshotsOnDestroy:    types.BoolNull(),
-	}
-	if diags := data.setModel(t.Context(), &imported, "example.onmicrosoft.com", "mg"); diags.HasError() {
-		t.Fatalf("unexpected diagnostics: %v", diags)
-	}
-	var importedFeatures []azureManagementGroupFeatureModel
-	imported.Feature.ElementsAs(t.Context(), &importedFeatures, false)
-	if len(importedFeatures) != 1 || importedFeatures[0].ResourceGroupName.ValueString() != "rg" {
-		t.Errorf("imported features: %+v", importedFeatures)
-	}
-	if imported.ID.ValueString() != "example.onmicrosoft.com/mg" || imported.AppID.ValueString() != data.appID.String() {
-		t.Errorf("imported ID or app ID: %s, %s", imported.ID, imported.AppID)
-	}
-
-	input, diags := azureManagementGroupInputFromModel(t.Context(), imported)
-	if diags.HasError() || !slices.Equal(input.managed[nativeID.String()], []string{core.FeatureCloudNativeArchival.Name}) {
-		t.Fatalf("ownership did not round-trip: %+v, %v", input.managed, diags)
-	}
-
 }
 
 func TestAccAzureManagementGroupResource(t *testing.T) {
@@ -161,31 +200,38 @@ func TestAccAzureManagementGroupResource(t *testing.T) {
 	}
 	tenantDomain := testAzureTenantDomain(t)
 
+	credentials := testAzureCredentials(t)
 	config := func(subscriptions ...string) string {
-		quoted := `"` + strings.Join(subscriptions, `", "`) + `"`
-		return `
+		quoted := make([]string, 0, len(subscriptions))
+		for _, id := range subscriptions {
+			quoted = append(quoted, fmt.Sprintf("%q", id))
+		}
+		return fmt.Sprintf(`
 			resource "rubrik_azure_service_principal" "default" {
-				credentials   = "` + testAzureCredentials(t) + `"
-				tenant_domain = "` + tenantDomain + `"
+				credentials   = %q
+				tenant_domain = %q
 			}
 
 			resource "rubrik_azure_management_group" "test" {
 				tenant_domain       = rubrik_azure_service_principal.default.tenant_domain
-				app_id              = "` + appID + `"
-				management_group_id = "` + managementGroupID + `"
+				app_id              = %q
+				management_group_id = %q
 				regions             = ["eastus2"]
-				subscription_ids    = [` + quoted + `]
+				subscription_ids    = [%s]
 
-				feature {
-					name              = "CLOUD_NATIVE_PROTECTION"
-					permission_groups = ["BASIC"]
-				}
+				feature = [{
+					name                  = "CLOUD_NATIVE_PROTECTION"
+					permission_groups     = ["BASIC"]
+					resource_group_name   = "terraform-mg-acceptance-test"
+					resource_group_region = "eastus2"
+				}]
 			}
-		`
+		`, credentials, tenantDomain, appID, managementGroupID, strings.Join(quoted, ", "))
 	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             azureManagementGroupCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			// Verify that a management group can be onboarded with a single
 			// subscription.
@@ -196,6 +242,9 @@ func TestAccAzureManagementGroupResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_management_group.test", tfjsonpath.New(keyCustomerManagementGroupID), NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_azure_management_group.test", tfjsonpath.New(keySubscriptionIDs),
 					knownvalue.SetSizeExact(1)),
+				statecheck.ExpectIdentity("rubrik_azure_management_group.test", map[string]knownvalue.Check{
+					keyID: knownvalue.StringExact(tenantDomain + "/" + managementGroupID),
+				}),
 				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_management_group.test", tfjsonpath.New(keyID)),
 			},
 		}, {
@@ -246,4 +295,61 @@ func TestAccAzureManagementGroupResource(t *testing.T) {
 			},
 		}},
 	})
+}
+
+func TestAzureManagementGroupRegionUpdates(t *testing.T) {
+	east := regions.RegionFromName("eastus2")
+	west := regions.RegionFromName("westus2")
+	central := regions.RegionFromName("centralus")
+	id := uuid.New()
+	row := func(feature string, names ...regions.Region) gqlazure.CloudAccount {
+		return gqlazure.CloudAccount{
+			ID: id, Name: "subscription", Feature: gqlazure.Feature{
+				Feature: feature, Status: core.StatusConnected, Regions: gqlazure.RegionsToCloudAccountRegionEnum(names),
+			},
+		}
+	}
+	owned := []string{core.CloudDiscovery, core.CloudNativeProtection, core.Exocompute}
+	tests := []struct {
+		name     string
+		accounts []gqlazure.CloudAccount
+		wantAdd  []regions.Region
+		wantErr  string
+	}{
+		{name: "Preserves discovery extras and excludes Exocompute", accounts: []gqlazure.CloudAccount{
+			row(core.CloudDiscovery, east, central), row(core.CloudNativeProtection, east, central), row(core.Exocompute, central),
+		}, wantAdd: []regions.Region{west}},
+		{name: "Rejects alignment that drops a sibling's region", accounts: []gqlazure.CloudAccount{
+			row(core.CloudDiscovery, east), row(core.CloudNativeProtection, east, central),
+		}, wantErr: "would remove centralus"},
+		{name: "Rejects alignment that changes unmanaged feature", accounts: []gqlazure.CloudAccount{
+			row(core.CloudDiscovery, east), row(core.CloudNativeProtection, east), row(core.DSPMMetadata, east),
+		}, wantErr: "would change unmanaged feature DSPM_METADATA"},
+		{name: "Requires Cloud Discovery", accounts: []gqlazure.CloudAccount{
+			row(core.CloudNativeProtection, east),
+		}, wantErr: "require a connected CLOUD_DISCOVERY"},
+		{name: "Resumes partial alignment", accounts: []gqlazure.CloudAccount{
+			row(core.CloudDiscovery, east, west), row(core.CloudNativeProtection, east),
+		}, wantAdd: []regions.Region{east, west}},
+		{name: "Already aligned", accounts: []gqlazure.CloudAccount{
+			row(core.CloudDiscovery, east, west), row(core.CloudNativeProtection, east, west),
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := azureManagementGroupRegionUpdates(tt.accounts, owned, []regions.Region{east, west})
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("wanted %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil || got.subscriptionID != id || !slices.Equal(got.toAdd, tt.wantAdd) || slices.Contains(got.align, core.Exocompute) {
+				t.Fatalf("unexpected update: %+v, %v", got, err)
+			}
+			if len(tt.accounts[0].Feature.Regions) > 1 && slices.Contains(tt.accounts[0].Feature.Regions, central.ToCloudAccountRegionEnum()) && !slices.Contains(got.expected, central) {
+				t.Fatal("did not preserve the existing discovery region")
+			}
+		})
+	}
 }
