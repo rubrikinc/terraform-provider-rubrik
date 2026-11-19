@@ -503,6 +503,32 @@ func gcpPrivateContainerRegistryCheckDestroy(t *testing.T) func(*terraform.State
 	}
 }
 
+// azureManagementGroupCheckDestroy verifies that the test group has no managed
+// Azure subscription features left in RSC.
+func azureManagementGroupCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	api := azure.Wrap(testClient(t))
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != keyRubrik+"_"+keyAzureManagementGroup {
+				continue
+			}
+			tenant, group, ok := strings.Cut(rs.Primary.ID, "/")
+			if !ok {
+				return fmt.Errorf("invalid management group ID %q", rs.Primary.ID)
+			}
+			_, err := readAzureManagementGroup(t.Context(), api, tenant, group)
+			if err == nil {
+				return fmt.Errorf("management group %s still has subscriptions in RSC", rs.Primary.ID)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 // azureSubscriptionCheckDestroy verifies that all azure_subscription resources
 // have been deleted.
 func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {

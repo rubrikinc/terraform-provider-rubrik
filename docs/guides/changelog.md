@@ -5,6 +5,15 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* New resource added for `rubrik_azure_management_group` which onboards the subscriptions of an Azure management group
+  to RSC without OAuth. RSC signs in as the customer app set with `rubrik_azure_service_principal`, so the app's service
+  principal needs the Contributor and User Access Administrator roles at the management group scope. Requires the
+  `AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED` feature flag. [[docs](../resources/azure_management_group.md)]
+* New data source added for `rubrik_azure_management_group_hierarchy` which lists the subscriptions and management
+  groups under an Azure management group, and the eligibility of the subscriptions for onboarding.
+  [[docs](../data-sources/azure_management_group_hierarchy.md)]
+  Both management group types also have `polaris_` aliases in `rubrikinc/rubrik` for configurations that retain
+  the `polaris` local provider name.
 * Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_archival_location.md)]
 * Migrate the `rubrik_gcp_archival_location` resource to the Terraform Plugin Framework. The resource now supports
