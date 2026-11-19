@@ -289,7 +289,8 @@ func TestAccGCPExocomputeResource_FrameworkMigration(t *testing.T) {
 		),
 		Steps: []resource.TestStep{{
 			// Create the Exocompute configuration with the SDKv2 resource of
-			// the last release.
+			// the last release, and verify that it stores the unset host
+			// project ID as an empty string.
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"rubrik": {
 					Source:            "rubrikinc/rubrik",
@@ -301,6 +302,12 @@ func TestAccGCPExocomputeResource_FrameworkMigration(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_gcp_exocompute.exocompute", tfjsonpath.New(keyID),
 					NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_gcp_exocompute.exocompute", tfjsonpath.New(keyRegionalConfig),
+					knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.ObjectPartial(map[string]knownvalue.Check{
+							keyHostProjectID: knownvalue.StringExact(""),
+						}),
+					})),
 			},
 		}, {
 			// Verify that the state upgraded in place by the Framework resource
