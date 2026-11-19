@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -59,6 +60,60 @@ func (v isUUIDValidator) ValidateString(_ context.Context, req validator.StringR
 	if _, err := uuid.Parse(req.ConfigValue.ValueString()); err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid UUID",
 			fmt.Sprintf("%q is not a valid UUID: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// isARN returns a validator that checks if a string value is an AWS ARN.
+func isARN() validator.String {
+	return isARNValidator{}
+}
+
+type isARNValidator struct{}
+
+func (v isARNValidator) Description(_ context.Context) string {
+	return "value must be a valid AWS ARN"
+}
+
+func (v isARNValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isARNValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if _, err := arn.Parse(req.ConfigValue.ValueString()); err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid ARN",
+			fmt.Sprintf("failed to parse ARN %q: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// isAWSAccountID returns a validator that checks if a string value is an AWS
+// account ID, 12 digits.
+func isAWSAccountID() validator.String {
+	return isAWSAccountIDValidator{}
+}
+
+type isAWSAccountIDValidator struct{}
+
+func (v isAWSAccountIDValidator) Description(_ context.Context) string {
+	return "value must be a 12 digit AWS account ID"
+}
+
+func (v isAWSAccountIDValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isAWSAccountIDValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	value := req.ConfigValue.ValueString()
+	if _, err := strconv.ParseUint(value, 10, 64); len(value) != 12 || err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid AWS Account ID",
+			fmt.Sprintf("%q is not a valid account number", value))
 	}
 }
 

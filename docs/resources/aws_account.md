@@ -10,7 +10,7 @@ description: |-
   Using the profile field. The AWS profile is used to create the Cloud
   Formation stack and lookup the AWS account ID.Using the assume_role field with, or without, the profile field. If the
   profile field is omitted, the default profile is used. The profile is used
-  to assume the role. The assumed role is then used and create the Cloud
+  to assume the role. The assumed role is then used to create the Cloud
   Formation stack and lookup the account ID.
   Any combination of different RSC features, except as noted below, can be enabled
   for an account:
@@ -130,7 +130,7 @@ There are two ways to specify the AWS account to onboard:
     Formation stack and lookup the AWS account ID.
  2. Using the `assume_role` field with, or without, the `profile` field. If the
     `profile` field is omitted, the default profile is used. The profile is used
-    to assume the role. The assumed role is then used and create the Cloud
+    to assume the role. The assumed role is then used to create the Cloud
     Formation stack and lookup the account ID.
 
 Any combination of different RSC features, except as noted below, can be enabled
@@ -386,27 +386,27 @@ resource "rubrik_aws_account" "account2" {
 ### Optional
 
 - `assume_role` (String) Role ARN of role to assume.
-- `cloud_discovery` (Block List, Max: 1) Enable the Cloud Discovery feature for the account. (see [below for nested schema](#nestedblock--cloud_discovery))
-- `cloud_native_archival` (Block List, Max: 1) Enable the Cloud Native Archival feature for the account. (see [below for nested schema](#nestedblock--cloud_native_archival))
-- `cloud_native_config_protection` (Block List, Max: 1) Enable the Cloud Applications feature, also known as Cloud Native Config Protection, for the account. (see [below for nested schema](#nestedblock--cloud_native_config_protection))
-- `cloud_native_dynamodb_protection` (Block List, Max: 1) Enable the Cloud Native DynamoDB Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_dynamodb_protection))
-- `cloud_native_protection` (Block List, Max: 1) Enable the Cloud Native Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_protection))
-- `cloud_native_s3_protection` (Block List, Max: 1) Enable the Cloud Native S3 Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_s3_protection))
-- `cloud_native_uem_key_management` (Block List, Max: 1) Enable the Cloud Native UEM Key Management feature for the account. Required to register the account's KMS as a key manager in RSC. (see [below for nested schema](#nestedblock--cloud_native_uem_key_management))
-- `cyber_recovery_data_scanning` (Block List, Max: 1) Enable the Cyber Recovery Data Scanning feature for the account. The Cyber Recovery Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--cyber_recovery_data_scanning))
-- `data_scanning` (Block List, Max: 1) Enable the Data Scanning feature for the account. The Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--data_scanning))
-- `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed.
-- `dspm` (Block List, Max: 1) Enable the DSPM feature for the account. The DSPM feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--dspm))
-- `exocompute` (Block List, Max: 1) Enable the Exocompute feature for the account. (see [below for nested schema](#nestedblock--exocompute))
-- `kubernetes_protection` (Block List, Max: 1) Enable the Kubernetes Protection feature for the AWS account. (see [below for nested schema](#nestedblock--kubernetes_protection))
-- `name` (String) Account name in Polaris. If not given the name is taken from AWS Organizations or, if the required permissions are missing, is derived from the AWS account ID and the named profile.
-- `outpost` (Block List, Max: 1) Enable the Outpost feature for the account. To use the DSPM, Data Scanning and Cyber Recovery Data Scanning features, one account must have the Outpost feature enabled. (see [below for nested schema](#nestedblock--outpost))
+- `cloud_discovery` (Block List) Enable the Cloud Discovery feature for the account. (see [below for nested schema](#nestedblock--cloud_discovery))
+- `cloud_native_archival` (Block List) Enable the Cloud Native Archival feature for the account. (see [below for nested schema](#nestedblock--cloud_native_archival))
+- `cloud_native_config_protection` (Block List) Enable the Cloud Applications feature, also known as Cloud Native Config Protection, for the account. (see [below for nested schema](#nestedblock--cloud_native_config_protection))
+- `cloud_native_dynamodb_protection` (Block List) Enable the Cloud Native DynamoDB Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_dynamodb_protection))
+- `cloud_native_protection` (Block List) Enable the Cloud Native Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_protection))
+- `cloud_native_s3_protection` (Block List) Enable the Cloud Native S3 Protection feature for the account. (see [below for nested schema](#nestedblock--cloud_native_s3_protection))
+- `cloud_native_uem_key_management` (Block List) Enable the Cloud Native UEM Key Management feature for the account. Required to register the account's KMS as a key manager in RSC. (see [below for nested schema](#nestedblock--cloud_native_uem_key_management))
+- `cyber_recovery_data_scanning` (Block List) Enable the Cyber Recovery Data Scanning feature for the account. The Cyber Recovery Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--cyber_recovery_data_scanning))
+- `data_scanning` (Block List) Enable the Data Scanning feature for the account. The Data Scanning feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--data_scanning))
+- `delete_snapshots_on_destroy` (Boolean) Should snapshots be deleted when the resource is destroyed. Default value is `false`.
+- `dspm` (Block List) Enable the DSPM feature for the account. The DSPM feature requires the Outpost feature to be enabled. (see [below for nested schema](#nestedblock--dspm))
+- `exocompute` (Block List) Enable the Exocompute feature for the account. (see [below for nested schema](#nestedblock--exocompute))
+- `kubernetes_protection` (Block List) Enable the Kubernetes Protection feature for the AWS account. (see [below for nested schema](#nestedblock--kubernetes_protection))
+- `name` (String) Account name in RSC. If not given the name is taken from AWS Organizations or, if the required permissions are missing, is derived from the AWS account ID and the named profile.
+- `outpost` (Block List) Enable the Outpost feature for the account. To use the DSPM, Data Scanning and Cyber Recovery Data Scanning features, one account must have the Outpost feature enabled. (see [below for nested schema](#nestedblock--outpost))
 - `permissions` (String) When set to 'update' feature permissions can be updated by applying the configuration.
 - `profile` (String) AWS named profile.
-- `rds_protection` (Block List, Max: 1) Enable the RDS Protection feature for the account. (see [below for nested schema](#nestedblock--rds_protection))
-- `role_chaining` (Block List, Max: 1) Enable the Role Chaining feature for the account. This feature is mutually exclusive with all other features. (see [below for nested schema](#nestedblock--role_chaining))
+- `rds_protection` (Block List) Enable the RDS Protection feature for the account. (see [below for nested schema](#nestedblock--rds_protection))
+- `role_chaining` (Block List) Enable the Role Chaining feature for the account. This feature is mutually exclusive with all other features. (see [below for nested schema](#nestedblock--role_chaining))
 - `role_chaining_account_id` (String) RSC cloud account ID of the AWS account with the Role Chaining feature enabled. When specified, the account will use cross-account role chaining.
-- `servers_and_apps` (Block List, Max: 1) Enable the Servers and Apps feature for the account. (see [below for nested schema](#nestedblock--servers_and_apps))
+- `servers_and_apps` (Block List) Enable the Servers and Apps feature for the account. (see [below for nested schema](#nestedblock--servers_and_apps))
 
 ### Read-Only
 
@@ -641,6 +641,24 @@ Read-Only:
 ## Import
 
 Import is supported using the following syntax:
+
+In Terraform v1.12.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `identity` attribute, for example:
+
+```terraform
+import {
+  to = rubrik_aws_account.account
+  identity = {
+    id = "d0e44ae7-73cb-4434-861b-369f3c060cb5"
+  }
+}
+```
+
+<!-- schema generated by tfplugindocs -->
+### Identity Schema
+
+#### Required
+
+- `id` (String) RSC cloud account ID (UUID).
 
 In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
 

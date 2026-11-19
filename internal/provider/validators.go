@@ -10,28 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	"github.com/hashicorp/go-cty/cty"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
-
-// validateAwsAccountID verifies the account number is numeric, 12 digits.
-func validateAwsAccountID(i any, k string) ([]string, []error) {
-	v, ok := i.(string)
-	if !ok {
-		return nil, []error{fmt.Errorf("expected type of %q to be string", k)}
-	}
-	if len(v) != 12 {
-		return nil, []error{fmt.Errorf("%q is not a valid account number", v)}
-	}
-	if _, err := strconv.ParseUint(v, 10, 64); err != nil {
-		return nil, []error{fmt.Errorf("%q is not a valid account number", v)}
-	}
-
-	return nil, nil
-}
 
 // validateEmailAddress verifies that i contains a valid email address.
 func validateEmailAddress(i any, k string) ([]string, []error) {
@@ -80,24 +61,6 @@ func validateNumNodes(i any, k string) ([]string, []error) {
 		return nil, []error{fmt.Errorf("num_nodes must be greater than 0")}
 	}
 	return nil, nil
-}
-
-// validatePermissions verifies that the permissions value is valid.
-func validatePermissions(m any, p cty.Path) diag.Diagnostics {
-	if m.(string) != "update" {
-		return diag.Errorf("invalid permissions value")
-	}
-
-	return nil
-}
-
-// validateRoleARN verifies that the role ARN is a valid AWS ARN.
-func validateRoleARN(m any, p cty.Path) diag.Diagnostics {
-	if _, err := arn.Parse(m.(string)); err != nil {
-		return diag.Errorf("failed to parse role ARN: %v", err)
-	}
-
-	return nil
 }
 
 // validatePermissionGroup returns a function that validates that the value is

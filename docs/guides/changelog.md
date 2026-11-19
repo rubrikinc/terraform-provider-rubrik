@@ -5,6 +5,17 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* New list resource added for `rubrik_aws_account` which lists AWS accounts onboarded via the AWS CloudFormation
+  workflow. [[docs](../list-resources/aws_account.md)]
+* Migrate the `rubrik_aws_account` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_aws_account` with a `moved` block. Empty strings stored by the SDKv2
+  resource for unset fields are upgraded to null once, in a new schema version. [[docs](../resources/aws_account.md)]
+* Fix a bug in the `rubrik_aws_account` resource where a changed `name` was never applied to RSC, giving a diff on
+  every plan.
+* Fix a bug in the `rubrik_aws_account` resource where a failed create, after the account had been added to RSC, left
+  the account untracked by Terraform.
+* Fix a bug in the `rubrik_aws_account` resource where upgrading state from schema version 1 read the status of the
+  Exocompute feature instead of the Cloud Native Protection feature, and failed for an account without Exocompute.
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.

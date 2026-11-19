@@ -73,7 +73,6 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: withDeprecatedPolarisAlias(map[string]*schema.Resource{
-			keyPolarisAWSAccount:                         resourceAwsAccount(),
 			keyPolarisAWSArchivalLocation:                resourceAwsArchivalLocation(),
 			keyPolarisAWSCloudCluster:                    resourceAwsCloudCluster(),
 			keyPolarisAWSCNPAccountTrustPolicy:           resourceAwsCnpAccountTrustPolicy(),

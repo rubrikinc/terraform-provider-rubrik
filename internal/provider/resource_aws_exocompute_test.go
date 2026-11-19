@@ -77,7 +77,7 @@ func TestAccPolarisAWSExocompute_basic(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: exocompute,
 			Check: resource.ComposeTestCheckFunc(

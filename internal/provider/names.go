@@ -367,7 +367,6 @@ const (
 	keyPolaris                                      = "polaris"
 	keyRubrik                                       = "rubrik"
 	keyPolarisAccount                               = "polaris_account"
-	keyPolarisAWSAccount                            = "polaris_aws_account"
 	keyPolarisAWSArchivalLocation                   = "polaris_aws_archival_location"
 	keyPolarisAWSCloudCluster                       = "polaris_aws_cloud_cluster"
 	keyPolarisAWSCNPAccountTrustPolicy              = "polaris_aws_cnp_account_trust_policy"
