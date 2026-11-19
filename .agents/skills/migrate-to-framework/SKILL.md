@@ -100,6 +100,17 @@ Rewrite the acceptance test from `tests.md` in the `new-provider-type` skill:
 - Cover each `UpgradeState` entry the same way.
 - Name cloud tests with the `TestAccAws`, `TestAccAzure`, or `TestAccGcp` prefix so CI selects them.
 
+For a data source:
+
+- Add `TestAcc<Name>DataSourceFrameworkMigration`. It reads the same object with the `polaris_<name>` data source from
+  the last `rubrikinc/polaris` release (`ExternalProviders`) and with this provider, and compares every attribute with
+  `statecheck.CompareValuePairs`. Cover every lookup argument (`id`, `name`, and so on). Follow an existing
+  `*DataSourceFrameworkMigration` test.
+- At least one lookup must use a value that differs from how RSC stores it but still matches, such as a name in a
+  different case or an upper-case UUID. A lookup using the exact RSC value cannot tell returning the RSC value apart
+  from returning the configured value.
+- Do not drop a data source test because another test covers the lookups. Check which attributes that test compares.
+
 ## 7. Examples, docs, and changelog
 
 - Move any example files from `examples/` to match the Framework layout (add `import.sh`, `import-by-string-id.tf`, and
