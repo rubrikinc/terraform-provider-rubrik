@@ -24,9 +24,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -36,66 +34,64 @@ func (r *azureArchivalLocationResource) MoveState(ctx context.Context) []resourc
 
 	return []resource.StateMover{
 		r.moveStateV0(ctx),
+		r.moveStateLatest(ctx),
 	}
+}
+
+// azureArchivalLocationMoveGuard reports whether the move request is for state
+// of the given schema version, from the polaris_azure_archival_location
+// resource of the rubrikinc/rubrik or rubrikinc/polaris provider.
+func azureArchivalLocationMoveGuard(req resource.MoveStateRequest, version int64) bool {
+	if req.SourceTypeName != keyPolaris+"_"+keyAzureArchivalLocation || req.SourceSchemaVersion != version {
+		return false
+	}
+
+	provider := req.SourceProviderAddress
+	return strings.HasSuffix(provider, "rubrikinc/rubrik") || strings.HasSuffix(provider, "rubrikinc/polaris")
 }
 
 // moveStateV0 moves v0 state from the polaris_azure_archival_location resource
 // in the rubrikinc/polaris provider, or from the deprecated alias in this
-// provider, to the rubrik_azure_archival_location resource. The SourceSchema is
-// an inline literal frozen at the SDKv2 v0 schema of this provider. The polaris
-// provider's v0 schema lacks the key_vault_key and timeouts blocks, and in older
-// versions the network_access_type attribute, which the framework then decodes
-// as null.
+// provider, to the rubrik_azure_archival_location resource. It does the same
+// conversion as the v0 state upgrader.
 func (r *azureArchivalLocationResource) moveStateV0(ctx context.Context) resource.StateMover {
 	return resource.StateMover{
-		SourceSchema: &schema.Schema{
-			Attributes: map[string]schema.Attribute{
-				keyID:                       schema.StringAttribute{Computed: true},
-				keyCloudAccountID:           schema.StringAttribute{Required: true},
-				keyConnectionStatus:         schema.StringAttribute{Computed: true},
-				keyContainerName:            schema.StringAttribute{Computed: true},
-				keyLocationTemplate:         schema.StringAttribute{Computed: true},
-				keyName:                     schema.StringAttribute{Required: true},
-				keyNetworkAccessType:        schema.StringAttribute{Optional: true, Computed: true},
-				keyRedundancy:               schema.StringAttribute{Optional: true},
-				keyStorageAccountNamePrefix: schema.StringAttribute{Required: true},
-				keyStorageAccountRegion:     schema.StringAttribute{Optional: true},
-				keyStorageAccountTags:       schema.MapAttribute{ElementType: types.StringType, Optional: true},
-				keyStorageTier:              schema.StringAttribute{Optional: true},
-			},
-			Blocks: map[string]schema.Block{
-				keyCustomerManagedKey: schema.SetNestedBlock{
-					NestedObject: schema.NestedBlockObject{
-						Attributes: map[string]schema.Attribute{
-							keyName:      schema.StringAttribute{Required: true},
-							keyRegion:    schema.StringAttribute{Required: true},
-							keyVaultName: schema.StringAttribute{Required: true},
-						},
-					},
-				},
-				keyKeyVaultKey: schema.ListNestedBlock{
-					NestedObject: schema.NestedBlockObject{
-						Attributes: map[string]schema.Attribute{
-							keyKeyManagerID: schema.StringAttribute{Required: true},
-							keyKeyName:      schema.StringAttribute{Required: true},
-							keyKeyVersion:   schema.StringAttribute{Required: true},
-						},
-					},
-				},
-				keyTimeouts: timeouts.Block(ctx, timeouts.Opts{Update: true}),
-			},
-		},
+		SourceSchema: azureArchivalLocationSchemaV0(ctx),
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "azureArchivalLocationResource.moveStateV0")
 
-			if !strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/polaris") &&
-				!strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/rubrik") {
+			if !azureArchivalLocationMoveGuard(req, 0) {
 				return
 			}
-			if req.SourceTypeName != keyPolaris+"_"+keyAzureArchivalLocation {
+
+			var state azureArchivalLocationResourceModel
+			res.Diagnostics.Append(req.SourceState.Get(ctx, &state)...)
+			if res.Diagnostics.HasError() {
 				return
 			}
-			if req.SourceSchemaVersion != 0 {
+
+			if state.StorageAccountRegion.ValueString() == "" {
+				state.StorageAccountRegion = types.StringNull()
+			}
+			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
+		},
+	}
+}
+
+// moveStateLatest moves state of the current schema version, written by the
+// polaris_azure_archival_location alias of this provider, as it is. When the
+// schema version is bumped, the previous version needs a mover of its own, with
+// a copy of its schema, as for v0.
+func (r *azureArchivalLocationResource) moveStateLatest(ctx context.Context) resource.StateMover {
+	var schemaRes resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaRes)
+
+	return resource.StateMover{
+		SourceSchema: &schemaRes.Schema,
+		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
+			tflog.Trace(ctx, "azureArchivalLocationResource.moveStateLatest")
+
+			if !azureArchivalLocationMoveGuard(req, schemaRes.Schema.Version) {
 				return
 			}
 
