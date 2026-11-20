@@ -24,11 +24,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -38,7 +34,20 @@ func (r *azureExocomputeResource) MoveState(ctx context.Context) []resource.Stat
 	return []resource.StateMover{
 		r.moveStateV0(),
 		r.moveStateV1(ctx),
+		r.moveStateLatest(ctx),
 	}
+}
+
+// azureExocomputeMoveGuard reports whether the move request is for state of
+// the given schema version, from the polaris_azure_exocompute resource of the
+// rubrikinc/rubrik or rubrikinc/polaris provider.
+func azureExocomputeMoveGuard(req resource.MoveStateRequest, version int64) bool {
+	if req.SourceTypeName != keyPolaris+"_"+keyAzureExocompute || req.SourceSchemaVersion != version {
+		return false
+	}
+
+	provider := req.SourceProviderAddress
+	return strings.HasSuffix(provider, "rubrikinc/rubrik") || strings.HasSuffix(provider, "rubrikinc/polaris")
 }
 
 // moveStateV0 moves v0 state from the polaris_azure_exocompute resource in the
@@ -46,68 +55,75 @@ func (r *azureExocomputeResource) MoveState(ctx context.Context) []resource.Stat
 // the same conversion as the v0 state upgrader.
 func (r *azureExocomputeResource) moveStateV0() resource.StateMover {
 	return resource.StateMover{
-		SourceSchema: &schema.Schema{
-			Attributes: map[string]schema.Attribute{
-				keyID:             schema.StringAttribute{Computed: true},
-				keyPolarisManaged: schema.BoolAttribute{Optional: true},
-				keyRegion:         schema.StringAttribute{Required: true},
-				keySubnet:         schema.StringAttribute{Required: true},
-				keySubscriptionID: schema.StringAttribute{Required: true},
-			},
-		},
+		SourceSchema: azureExocomputeSchemaV0,
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "azureExocomputeResource.moveStateV0")
 
-			if !strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/polaris") &&
-				!strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/rubrik") {
-				return
-			}
-			if req.SourceTypeName != keyPolaris+"_"+keyAzureExocompute {
-				return
-			}
-			if req.SourceSchemaVersion != 0 {
+			if !azureExocomputeMoveGuard(req, 0) {
 				return
 			}
 
-			var source azureExocomputeModelV0
-			res.Diagnostics.Append(req.SourceState.Get(ctx, &source)...)
+			var prior azureExocomputeModelV0
+			res.Diagnostics.Append(req.SourceState.Get(ctx, &prior)...)
 			if res.Diagnostics.HasError() {
 				return
 			}
 
-			state := azureExocomputeModel{
-				ID:                    source.ID,
-				CloudAccountID:        types.StringNull(),
-				HostCloudAccountID:    types.StringNull(),
-				OptionalConfig:        types.ListValueMust(types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, []attr.Value{}),
-				PodOverlayNetworkCIDR: types.StringValue(""),
-				Region:                source.Region,
-				Subnet:                source.Subnet,
-				SubscriptionID:        source.SubscriptionID,
-				TriggerHealthCheck:    types.BoolNull(),
-				Timeouts:              azureExocomputeNullTimeouts,
+			state, d := upgradeAzureExocomputeStateV0(ctx, prior)
+			res.Diagnostics.Append(d...)
+			if res.Diagnostics.HasError() {
+				return
 			}
+
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
 		},
 	}
 }
 
 // moveStateV1 moves v1 state from the polaris_azure_exocompute resource in the
-// rubrikinc/polaris provider to the rubrik_azure_exocompute resource.
+// rubrikinc/polaris provider to the rubrik_azure_exocompute resource. It does
+// the same conversion as the v1 state upgrader.
 func (r *azureExocomputeResource) moveStateV1(ctx context.Context) resource.StateMover {
 	return resource.StateMover{
-		SourceSchema: azureExocomputeSourceSchemaV1(ctx),
+		SourceSchema: azureExocomputeSchemaV1(ctx),
 		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
 			tflog.Trace(ctx, "azureExocomputeResource.moveStateV1")
 
-			if !strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/polaris") &&
-				!strings.HasSuffix(req.SourceProviderAddress, "rubrikinc/rubrik") {
+			if !azureExocomputeMoveGuard(req, 1) {
 				return
 			}
-			if req.SourceTypeName != keyPolaris+"_"+keyAzureExocompute {
+
+			var prior azureExocomputeModelV1
+			res.Diagnostics.Append(req.SourceState.Get(ctx, &prior)...)
+			if res.Diagnostics.HasError() {
 				return
 			}
-			if req.SourceSchemaVersion != 1 {
+
+			state, d := upgradeAzureExocomputeStateV1(ctx, prior)
+			res.Diagnostics.Append(d...)
+			if res.Diagnostics.HasError() {
+				return
+			}
+
+			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
+		},
+	}
+}
+
+// moveStateLatest moves state of the current schema version, written by the
+// polaris_azure_exocompute alias of this provider, as it is. When the schema
+// version is bumped, the previous version needs a mover of its own, with a copy
+// of its schema, as for v0 and v1.
+func (r *azureExocomputeResource) moveStateLatest(ctx context.Context) resource.StateMover {
+	var schemaRes resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaRes)
+
+	return resource.StateMover{
+		SourceSchema: &schemaRes.Schema,
+		StateMover: func(ctx context.Context, req resource.MoveStateRequest, res *resource.MoveStateResponse) {
+			tflog.Trace(ctx, "azureExocomputeResource.moveStateLatest")
+
+			if !azureExocomputeMoveGuard(req, schemaRes.Schema.Version) {
 				return
 			}
 
@@ -118,50 +134,6 @@ func (r *azureExocomputeResource) moveStateV1(ctx context.Context) resource.Stat
 			}
 
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
-		},
-	}
-}
-
-// azureExocomputeSourceSchemaV1 returns the source schema used when moving v1
-// state from the polaris_azure_exocompute resource. The schema is frozen at the
-// attribute set of the latest polaris release. State written by earlier polaris
-// releases lacks the fields added since, and the Framework sets those to null
-// when decoding the source state.
-func azureExocomputeSourceSchemaV1(ctx context.Context) *schema.Schema {
-	return &schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			keyID:                    schema.StringAttribute{Computed: true},
-			keyCloudAccountID:        schema.StringAttribute{Optional: true},
-			keyHostCloudAccountID:    schema.StringAttribute{Optional: true},
-			keyPodOverlayNetworkCIDR: schema.StringAttribute{Optional: true},
-			keyRegion:                schema.StringAttribute{Optional: true},
-			keySubnet:                schema.StringAttribute{Optional: true},
-			keySubscriptionID:        schema.StringAttribute{Optional: true},
-			keyTriggerHealthCheck:    schema.BoolAttribute{Optional: true},
-		},
-		Blocks: map[string]schema.Block{
-			keyOptionalConfig: schema.ListNestedBlock{
-				NestedObject: schema.NestedBlockObject{
-					Attributes: map[string]schema.Attribute{
-						keyAllowlistAdditionalIPs:         schema.SetAttribute{ElementType: types.StringType, Optional: true},
-						keyAllowlistRubrikIPs:             schema.BoolAttribute{Optional: true},
-						keyClusterAccess:                  schema.StringAttribute{Optional: true},
-						keyClusterTier:                    schema.StringAttribute{Optional: true},
-						keyDiskEncryptionAtHost:           schema.BoolAttribute{Optional: true},
-						keyDiskEncryptionSetID:            schema.StringAttribute{Optional: true, Computed: true},
-						keyHealthCheckVMNamePrefix:        schema.StringAttribute{Optional: true, Computed: true},
-						keyMaxNodeCount:                   schema.StringAttribute{Optional: true},
-						keyPostgresPrivateDNSZoneID:       schema.StringAttribute{Optional: true, Computed: true},
-						keyPostgresSubnetID:               schema.StringAttribute{Optional: true, Computed: true},
-						keyPrivateExocomputeDNSZoneID:     schema.StringAttribute{Optional: true},
-						keyResourceGroupPrefix:            schema.StringAttribute{Optional: true},
-						keySnapshotPrivateAccessDNSZoneID: schema.StringAttribute{Optional: true},
-						keySQLPrivateDNSZoneID:            schema.StringAttribute{Optional: true, Computed: true},
-						keyUserDefinedRouting:             schema.BoolAttribute{Optional: true},
-					},
-				},
-			},
-			keyTimeouts: timeouts.Block(ctx, timeouts.Opts{Create: true, Update: true}),
 		},
 	}
 }
