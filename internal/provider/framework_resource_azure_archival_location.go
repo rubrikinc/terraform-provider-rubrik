@@ -107,6 +107,7 @@ var (
 	_ resource.ResourceWithIdentity         = &azureArchivalLocationResource{}
 	_ resource.ResourceWithImportState      = &azureArchivalLocationResource{}
 	_ resource.ResourceWithMoveState        = &azureArchivalLocationResource{}
+	_ resource.ResourceWithUpgradeState     = &azureArchivalLocationResource{}
 )
 
 type azureArchivalLocationResource struct {
@@ -155,6 +156,7 @@ func (r *azureArchivalLocationResource) Schema(ctx context.Context, _ resource.S
 
 	res.Schema = schema.Schema{
 		Description: description(resourceAzureArchivalLocationDescription),
+		Version:     1,
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -244,12 +246,6 @@ func (r *azureArchivalLocationResource) Schema(ctx context.Context, _ resource.S
 			},
 			keyStorageAccountRegion: schema.StringAttribute{
 				Optional: true,
-				Computed: true,
-				// SDKv2 stores an unset region as the empty string. Defaulting
-				// to the empty string keeps state written by SDKv2 from showing
-				// a diff, which would replace the archival location, against a
-				// configuration without a region.
-				Default: stringdefault.StaticString(""),
 				Description: "Azure region to store the snapshots in. If not specified, the snapshots will be stored " +
 					"in the same region as the workload. Changing this forces a new resource to be created.",
 				PlanModifiers: []planmodifier.String{
@@ -781,6 +777,9 @@ func updateAzureArchivalLocationModel(m *azureArchivalLocationResourceModel, tar
 	m.NetworkAccessType = types.StringValue(cloudNativeCompanion.NetworkAccessType)
 	m.Redundancy = types.StringValue(cloudNativeCompanion.Redundancy)
 	m.StorageAccountNamePrefix = types.StringValue(targetTemplate.StorageAccountName)
-	m.StorageAccountRegion = types.StringValue(cloudNativeCompanion.StorageAccountRegion.Name())
+	m.StorageAccountRegion = types.StringNull()
+	if v := cloudNativeCompanion.StorageAccountRegion.Name(); v != "" {
+		m.StorageAccountRegion = types.StringValue(v)
+	}
 	m.StorageTier = types.StringValue(cloudNativeCompanion.StorageTier)
 }
