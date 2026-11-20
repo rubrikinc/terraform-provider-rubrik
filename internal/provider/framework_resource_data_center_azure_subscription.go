@@ -31,7 +31,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -54,10 +53,11 @@ center archival.
 `
 
 var (
-	_ resource.Resource                = &dataCenterAzureSubscriptionResource{}
-	_ resource.ResourceWithIdentity    = &dataCenterAzureSubscriptionResource{}
-	_ resource.ResourceWithImportState = &dataCenterAzureSubscriptionResource{}
-	_ resource.ResourceWithMoveState   = &dataCenterAzureSubscriptionResource{}
+	_ resource.Resource                 = &dataCenterAzureSubscriptionResource{}
+	_ resource.ResourceWithIdentity     = &dataCenterAzureSubscriptionResource{}
+	_ resource.ResourceWithImportState  = &dataCenterAzureSubscriptionResource{}
+	_ resource.ResourceWithMoveState    = &dataCenterAzureSubscriptionResource{}
+	_ resource.ResourceWithUpgradeState = &dataCenterAzureSubscriptionResource{}
 )
 
 type dataCenterAzureSubscriptionResource struct {
@@ -96,6 +96,7 @@ func (r *dataCenterAzureSubscriptionResource) Schema(ctx context.Context, _ reso
 
 	res.Schema = schema.Schema{
 		Description: description(resourceDataCenterAzureSubscriptionDescription),
+		Version:     1,
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
 				Computed:    true,
@@ -105,13 +106,7 @@ func (r *dataCenterAzureSubscriptionResource) Schema(ctx context.Context, _ reso
 				},
 			},
 			keyDescription: schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				// SDKv2 stores an unset description as the empty string.
-				// Defaulting to the empty string keeps state written by SDKv2
-				// from showing a diff against a configuration without a
-				// description.
-				Default:     stringdefault.StaticString(""),
+				Optional:    true,
 				Description: "Data center subscription description.",
 				Validators: []validator.String{
 					isNotWhiteSpace(),
@@ -252,7 +247,10 @@ func (r *dataCenterAzureSubscriptionResource) Read(ctx context.Context, req reso
 		return
 	}
 
-	state.Description = types.StringValue(cloudAccount.Description)
+	state.Description = types.StringNull()
+	if v := cloudAccount.Description; v != "" {
+		state.Description = types.StringValue(v)
+	}
 	state.Name = types.StringValue(cloudAccount.Name)
 	state.SubscriptionID = types.StringValue(cloudAccount.SubscriptionID.String())
 	state.TenantID = types.StringValue(cloudAccount.TenantID.String())
