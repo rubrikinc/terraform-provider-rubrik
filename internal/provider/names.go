@@ -388,7 +388,6 @@ const (
 	keyPolarisDataCenterArchivalLocation            = "polaris_data_center_archival_location"
 	keyPolarisDataCenterArchivalLocationAmazonS3    = "polaris_data_center_archival_location_amazon_s3"
 	keyPolarisDataCenterAWSAccount                  = "polaris_data_center_aws_account"
-	keyPolarisDataCenterAzureSubscription           = "polaris_data_center_azure_subscription"
 	keyPolarisDeployment                            = "polaris_deployment"
 	keyPolarisFeatures                              = "polaris_features"
 	keyPolarisGCPArchivalLocation                   = "polaris_gcp_archival_location"

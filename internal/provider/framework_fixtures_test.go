@@ -23,11 +23,13 @@ package provider
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
@@ -93,6 +95,16 @@ func testAzureSubscriptionID(t *testing.T) string {
 
 	_, conf := loadAzureTestConfig(t)
 	return conf.SubscriptionID
+}
+
+// testAzureTenantID returns the Azure tenant ID from the Azure test
+// configuration.
+func testAzureTenantID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.TenantID
 }
 
 // testAzureSubscriptionName returns the Azure subscription name from the Azure
@@ -758,4 +770,17 @@ func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 	if !c.flag(ctx, featureFlag) {
 		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
+}
+
+// testVariables returns a copy of base with the variables of each
+// override added, replacing variables with the same name. Later overrides
+// take precedence.
+func testVariables(t *testing.T, base config.Variables, overrides ...config.Variables) config.Variables {
+	t.Helper()
+
+	vars := maps.Clone(base)
+	for _, override := range overrides {
+		maps.Copy(vars, override)
+	}
+	return vars
 }
