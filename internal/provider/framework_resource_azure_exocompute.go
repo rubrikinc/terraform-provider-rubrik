@@ -205,7 +205,7 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 	tflog.Trace(ctx, "azureExocomputeResource.Schema")
 
 	res.Schema = schema.Schema{
-		Version:     1,
+		Version:     2,
 		Description: description(resourceAzureExocomputeDescription),
 		Attributes: map[string]schema.Attribute{
 			keyID: schema.StringAttribute{
@@ -243,8 +243,6 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 			},
 			keyPodOverlayNetworkCIDR: schema.StringAttribute{
 				Optional: true,
-				Computed: true,
-				Default:  stringdefault.StaticString(""),
 				Description: "The CIDR range assigned to pods when launching Exocompute with the CNI overlay network " +
 					"plugin mode. Rubrik recommends a size of /18 or larger. The pod CIDR must not overlap with the " +
 					"cluster subnet or any IP ranges used in on-premises networks and other peered VNets. The " +
@@ -270,8 +268,6 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 			},
 			keySubnet: schema.StringAttribute{
 				Optional: true,
-				Computed: true,
-				Default:  stringdefault.StaticString(""),
 				Description: "Azure subnet ID of the cluster subnet corresponding to the Exocompute configuration. " +
 					"This subnet will be used to allocate IP addresses to the nodes of the cluster. Changing this " +
 					"forces a new resource to be created.",
@@ -490,8 +486,6 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 						},
 						keyPrivateExocomputeDNSZoneID: schema.StringAttribute{
 							Optional: true,
-							Computed: true,
-							Default:  stringdefault.StaticString(""),
 							Description: "Azure resource ID of the private DNS zone which will resolve the API " +
 								"server URL for a private cluster. If empty, Azure will automatically create a " +
 								"private DNS zone in the node resource group, and will delete it when the AKS " +
@@ -505,8 +499,6 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 						},
 						keyResourceGroupPrefix: schema.StringAttribute{
 							Optional: true,
-							Computed: true,
-							Default:  stringdefault.StaticString(""),
 							Description: "Prefix of resource groups associated with the cluster, such as cluster " +
 								"nodes. Changing this forces a new resource to be created.",
 							PlanModifiers: []planmodifier.String{
@@ -518,8 +510,6 @@ func (r *azureExocomputeResource) Schema(ctx context.Context, _ resource.SchemaR
 						},
 						keySnapshotPrivateAccessDNSZoneID: schema.StringAttribute{
 							Optional: true,
-							Computed: true,
-							Default:  stringdefault.StaticString(""),
 							Description: "Azure resource ID of the private DNS zone linked to the exocompute VNet, " +
 								"which will resolve private endpoints linked to snapshots. If empty, a new private " +
 								"DNS zone will be created in the Exocompute resource group. Changing this forces a " +
@@ -848,8 +838,8 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 			state.SubscriptionID = types.StringValue(appID.String())
 		}
 		state.HostCloudAccountID = types.StringValue(hostID.String())
-		state.PodOverlayNetworkCIDR = types.StringValue("")
-		state.Subnet = types.StringValue("")
+		state.PodOverlayNetworkCIDR = types.StringNull()
+		state.Subnet = types.StringNull()
 	} else {
 		exoConfigID, err := uuid.Parse(id)
 		if err != nil {
@@ -874,12 +864,16 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 		}
 		state.Region = types.StringValue(exoConfig.Region.Name())
 
-		// RSC returns an unset string as an empty string, which is kept as an
-		// empty string. These attributes default to an empty string, which
-		// matches the state written by the SDKv2 resource. The validators
-		// reject a configured empty string.
-		state.Subnet = types.StringValue(exoConfig.SubnetID)
-		state.PodOverlayNetworkCIDR = types.StringValue(exoConfig.PodOverlayNetworkCIDR)
+		// RSC returns an unset string as an empty string, which is stored as
+		// null.
+		state.Subnet = types.StringNull()
+		if v := exoConfig.SubnetID; v != "" {
+			state.Subnet = types.StringValue(v)
+		}
+		state.PodOverlayNetworkCIDR = types.StringNull()
+		if v := exoConfig.PodOverlayNetworkCIDR; v != "" {
+			state.PodOverlayNetworkCIDR = types.StringValue(v)
+		}
 
 		// An unset block is an empty list, not null.
 		state.OptionalConfig = types.ListValueMust(types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, []attr.Value{})
@@ -895,9 +889,9 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 				MaxNodeCount:                   types.StringValue(string(c.NodeCount)),
 				PostgresPrivateDNSZoneID:       types.StringNull(),
 				PostgresSubnetID:               types.StringNull(),
-				PrivateExocomputeDNSZoneID:     types.StringValue(c.ExocomputePrivateDnsZoneID),
-				ResourceGroupPrefix:            types.StringValue(c.NodeRGPrefix),
-				SnapshotPrivateAccessDNSZoneID: types.StringValue(c.SnapshotPrivateDnsZoneId),
+				PrivateExocomputeDNSZoneID:     types.StringNull(),
+				ResourceGroupPrefix:            types.StringNull(),
+				SnapshotPrivateAccessDNSZoneID: types.StringNull(),
 				SQLPrivateDNSZoneID:            types.StringNull(),
 				UserDefinedRouting:             types.BoolValue(c.UserDefinedRouting),
 			}
@@ -920,6 +914,15 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 			}
 			if v := c.PostgresSubnetID; v != "" {
 				config.PostgresSubnetID = types.StringValue(v)
+			}
+			if v := c.ExocomputePrivateDnsZoneID; v != "" {
+				config.PrivateExocomputeDNSZoneID = types.StringValue(v)
+			}
+			if v := c.NodeRGPrefix; v != "" {
+				config.ResourceGroupPrefix = types.StringValue(v)
+			}
+			if v := c.SnapshotPrivateDnsZoneId; v != "" {
+				config.SnapshotPrivateAccessDNSZoneID = types.StringValue(v)
 			}
 			if v := c.SQLPrivateDnsZoneID; v != "" {
 				config.SQLPrivateDNSZoneID = types.StringValue(v)
