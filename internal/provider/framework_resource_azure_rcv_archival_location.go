@@ -113,20 +113,6 @@ type azureRCVArchivalLocationModel struct {
 	Timeouts            timeouts.Value `tfsdk:"timeouts"`
 }
 
-type azureRCVKeyVaultKeyModel struct {
-	KeyManagerID types.String `tfsdk:"key_manager_id"`
-	KeyName      types.String `tfsdk:"key_name"`
-	KeyVersion   types.String `tfsdk:"key_version"`
-}
-
-// azureRCVKeyVaultKeyType is the element type of the key_vault_key block,
-// needed to build a null list when the block has no value to hold.
-var azureRCVKeyVaultKeyType = types.ObjectType{AttrTypes: map[string]attr.Type{
-	keyKeyManagerID: types.StringType,
-	keyKeyName:      types.StringType,
-	keyKeyVersion:   types.StringType,
-}}
-
 type azureRCVRSAKeyModel struct {
 	Key     types.String `tfsdk:"key"`
 	Version types.String `tfsdk:"version"`
@@ -427,7 +413,7 @@ func (r *azureRCVArchivalLocationResource) Create(ctx context.Context, req resou
 	}
 	createParams.RSAKey = rsaKey
 
-	keyVaultKey, diags := toAzureRCVKeyVaultKey(ctx, plan.KeyVaultKey)
+	keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -507,18 +493,13 @@ func (r *azureRCVArchivalLocationResource) Read(ctx context.Context, req resourc
 		res.Diagnostics.AddError("Failed to read RCV Azure archival location encryption details", err.Error())
 		return
 	}
-	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
-		keyVaultKey := []azureRCVKeyVaultKeyModel{{
-			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-			KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-			KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
-		}}
-		list, diags := types.ListValueFrom(ctx, azureRCVKeyVaultKeyType, keyVaultKey)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		state.KeyVaultKey = list
+	keyVaultKey, diags := fromAzureKeyVaultKey(ctx, details)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	if len(keyVaultKey.Elements()) > 0 {
+		state.KeyVaultKey = keyVaultKey
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
@@ -562,7 +543,7 @@ func (r *azureRCVArchivalLocationResource) Update(ctx context.Context, req resou
 	// archival location, so a difference here is always a change to the existing
 	// key.
 	if !plan.KeyVaultKey.Equal(state.KeyVaultKey) {
-		keyVaultKey, diags := toAzureRCVKeyVaultKey(ctx, plan.KeyVaultKey)
+		keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
 		res.Diagnostics.Append(diags...)
 		if res.Diagnostics.HasError() {
 			return
@@ -653,34 +634,6 @@ func (r *azureRCVArchivalLocationResource) ImportState(ctx context.Context, req 
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 }
 
-// toAzureRCVKeyVaultKey converts the key_vault_key block into the SDK Key Vault
-// key parameter. It returns nil when the block is left out, letting RCV create
-// and manage the encryption key.
-func toAzureRCVKeyVaultKey(ctx context.Context, list types.List) (*gqlarchival.AzureKeyVaultKey, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if list.IsNull() || list.IsUnknown() {
-		return nil, diags
-	}
-
-	var keys []azureRCVKeyVaultKeyModel
-	diags.Append(list.ElementsAs(ctx, &keys, false)...)
-	if diags.HasError() || len(keys) == 0 {
-		return nil, diags
-	}
-
-	keyManagerID, err := uuid.Parse(keys[0].KeyManagerID.ValueString())
-	if err != nil {
-		diags.AddAttributeError(path.Root(keyKeyVaultKey), "Invalid key manager ID", err.Error())
-		return nil, diags
-	}
-
-	return &gqlarchival.AzureKeyVaultKey{
-		KeyVaultID: keyManagerID,
-		KeyName:    keys[0].KeyName.ValueString(),
-		KeyVersion: keys[0].KeyVersion.ValueString(),
-	}, diags
-}
-
 // toAzureRCVRSAKey returns the key from the rsa_key block, or the empty string
 // when the block is left out. The key is write-only, so the list must come from
 // the config rather than the plan.
@@ -709,7 +662,7 @@ func newAzureRCVArchivalLocationModel(targetMapping gqlarchival.RCVAzureTargetMa
 		ID:                types.StringValue(targetMapping.ID.String()),
 		UpdateChildVaults: types.BoolNull(),
 		RSAKey:            types.ListNull(azureRCVRSAKeyType),
-		KeyVaultKey:       types.ListNull(azureRCVKeyVaultKeyType),
+		KeyVaultKey:       types.ListNull(azureKeyVaultKeyType),
 		Timeouts:          nullTimeouts,
 	}
 	updateAzureRCVArchivalLocationModel(&m, &targetMapping)
