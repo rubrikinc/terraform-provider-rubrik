@@ -5,6 +5,27 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Add import by ID or resource identity for `rubrik_gcp_cloud_cluster`. Import reads the create-time inputs RSC recorded.
+  [[docs](../resources/gcp_cloud_cluster.md)]
+* Migrate the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources to the Terraform Plugin Framework.
+  The resources now support import by ID and by identity, and state can be moved from the `polaris_aws_cloud_cluster`
+  and `polaris_azure_cloud_cluster` resources using a `moved` block. The `default` key of the `timeouts` block is
+  removed. See the [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md).
+  [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
+* Add support for the newer instance types in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster`
+  resources. `instance_type` now accepts `M7I_2XLARGE`, `M7I_4XLARGE`, `R7I_4XLARGE`, `M7A_2XLARGE`, `M7A_4XLARGE` and
+  `R7A_4XLARGE` for AWS, and `STANDARD_D8S_V6`, `STANDARD_D16S_V6`, `STANDARD_E16S_V6`, `STANDARD_D8AS_V6`,
+  `STANDARD_D16AS_V6` and `STANDARD_E16AS_V6` for Azure. Which instance types a cluster can be created with depends on
+  the CDM version. [[docs](../resources/aws_cloud_cluster.md)] [[docs](../resources/azure_cloud_cluster.md)]
+* Improve `vm_config.cdm_version` in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources. It is no
+  longer overwritten with the installed CDM version, so a cluster upgraded outside of Terraform no longer plans a
+  replacement.
+* Improve the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources so reading a disconnected cluster
+  reports warnings instead of failing.
+* Improve the `rubrik_azure_cloud_cluster` resource. The subscription and marketplace offers are no longer looked up on
+  every read, `cdm_product` is computed when the cluster is created.
+* Fix a bug in the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources where the `timezone` and
+  `location` set when the cluster was created were not applied.
 * Add support for AWS accounts using multiple roles in the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions`
   data sources, using the new `native_id` field. Given the AWS account ID, the data sources return the roles and
   policies matching the account's trust policies, or the role mode RSC uses for new accounts if it has not been

@@ -25,6 +25,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/mail"
 	"slices"
 	"strconv"
 	"strings"
@@ -323,4 +324,59 @@ func (v setMustContainValidator) ValidateSet(ctx context.Context, req validator.
 
 	res.Diagnostics.AddAttributeError(req.Path, "Missing required value",
 		fmt.Sprintf("%q must be included in the set", v.value))
+}
+
+// isEmailAddress returns a validator that checks if a string value is a valid
+// email address.
+func isEmailAddress() validator.String {
+	return isEmailAddressValidator{}
+}
+
+type isEmailAddressValidator struct{}
+
+func (v isEmailAddressValidator) Description(_ context.Context) string {
+	return "value must be a valid email address"
+}
+
+func (v isEmailAddressValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isEmailAddressValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if _, err := mail.ParseAddress(req.ConfigValue.ValueString()); err != nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid email address",
+			fmt.Sprintf("%q is not a valid email address", req.ConfigValue.ValueString()))
+	}
+}
+
+// isCloudClusterNodeCount returns a validator that checks if an int64 value is
+// a valid number of nodes for a cloud cluster. A cloud cluster has either a
+// single node or at least three nodes, two nodes are not supported.
+func isCloudClusterNodeCount() validator.Int64 {
+	return isCloudClusterNodeCountValidator{}
+}
+
+type isCloudClusterNodeCountValidator struct{}
+
+func (v isCloudClusterNodeCountValidator) Description(_ context.Context) string {
+	return "value must be 1 or at least 3"
+}
+
+func (v isCloudClusterNodeCountValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isCloudClusterNodeCountValidator) ValidateInt64(_ context.Context, req validator.Int64Request, res *validator.Int64Response) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if n := req.ConfigValue.ValueInt64(); n < 1 || n == 2 {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid number of nodes",
+			fmt.Sprintf("A cloud cluster has either 1 node or at least 3 nodes, got %d.", n))
+	}
 }

@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -633,6 +634,103 @@ func customTagsImportID(resourceName string) resource.ImportStateIdFunc {
 
 		return rs.Primary.Attributes[keyCloudAccountID], nil
 	}
+}
+
+// awsCloudClusterFileEnv is the environment variable holding the path of the
+// JSON file with the network inputs of the AWS cloud cluster acceptance tests.
+const awsCloudClusterFileEnv = "TEST_AWSCLOUDCLUSTER_FILE"
+
+// testAWSCloudCluster holds the inputs of the AWS cloud cluster acceptance
+// tests. The account must be onboarded to RSC with the Server and Apps feature,
+// and the cluster is created in the subnet, with the VPC, security groups,
+// instance profile and bucket given here.
+type testAWSCloudCluster struct {
+	CloudAccountID      string   `json:"cloudAccountId"`
+	Region              string   `json:"region"`
+	CDMVersion          string   `json:"cdmVersion"`
+	InstanceType        string   `json:"instanceType"`
+	InstanceProfileName string   `json:"instanceProfileName"`
+	VPCID               string   `json:"vpcId"`
+	SubnetID            string   `json:"subnetId"`
+	SecurityGroupIDs    []string `json:"securityGroupIds"`
+	BucketName          string   `json:"bucketName"`
+	AdminEmail          string   `json:"adminEmail"`
+	DNSNameServers      []string `json:"dnsNameServers"`
+	NTPServers          []string `json:"ntpServers"`
+}
+
+// testAWSCloudClusterConfig returns the AWS cloud cluster test configuration.
+// The test is skipped if TEST_AWSCLOUDCLUSTER_FILE is not set.
+func testAWSCloudClusterConfig(t *testing.T) testAWSCloudCluster {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	path := os.Getenv(awsCloudClusterFileEnv)
+	if path == "" {
+		t.Skipf("AWS cloud cluster fixture not available: env '%s' not set", awsCloudClusterFileEnv)
+	}
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read file %s: %s", awsCloudClusterFileEnv, err)
+	}
+	var conf testAWSCloudCluster
+	if err := json.Unmarshal(buf, &conf); err != nil {
+		t.Fatalf("failed to unmarshal JSON from %s: %s", awsCloudClusterFileEnv, err)
+	}
+
+	return conf
+}
+
+// azureCloudClusterFileEnv is the environment variable holding the path of the
+// JSON file with the network inputs of the Azure cloud cluster acceptance
+// tests.
+const azureCloudClusterFileEnv = "TEST_AZURECLOUDCLUSTER_FILE"
+
+// testAzureCloudCluster holds the inputs of the Azure cloud cluster acceptance
+// tests. The subscription must be onboarded to RSC with the Server and Apps
+// feature, and the cluster is created with the resource groups, storage
+// account, container, managed identity, VNet, subnet and network security
+// group given here.
+type testAzureCloudCluster struct {
+	CloudAccountID               string   `json:"cloudAccountId"`
+	Region                       string   `json:"region"`
+	CDMVersion                   string   `json:"cdmVersion"`
+	InstanceType                 string   `json:"instanceType"`
+	ResourceGroupName            string   `json:"resourceGroupName"`
+	StorageAccountName           string   `json:"storageAccountName"`
+	ContainerName                string   `json:"containerName"`
+	UserAssignedManagedIdentity  string   `json:"userAssignedManagedIdentityName"`
+	NetworkResourceGroup         string   `json:"networkResourceGroup"`
+	VnetResourceGroup            string   `json:"vnetResourceGroup"`
+	Vnet                         string   `json:"vnet"`
+	Subnet                       string   `json:"subnet"`
+	NetworkSecurityGroup         string   `json:"networkSecurityGroup"`
+	NetworkSecurityResourceGroup string   `json:"networkSecurityResourceGroup"`
+	AdminEmail                   string   `json:"adminEmail"`
+	DNSNameServers               []string `json:"dnsNameServers"`
+	NTPServers                   []string `json:"ntpServers"`
+}
+
+// testAzureCloudClusterConfig returns the Azure cloud cluster test
+// configuration. The test is skipped if TEST_AZURECLOUDCLUSTER_FILE is not set.
+func testAzureCloudClusterConfig(t *testing.T) testAzureCloudCluster {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	path := os.Getenv(azureCloudClusterFileEnv)
+	if path == "" {
+		t.Skipf("Azure cloud cluster fixture not available: env '%s' not set", azureCloudClusterFileEnv)
+	}
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read file %s: %s", azureCloudClusterFileEnv, err)
+	}
+	var conf testAzureCloudCluster
+	if err := json.Unmarshal(buf, &conf); err != nil {
+		t.Fatalf("failed to unmarshal JSON from %s: %s", azureCloudClusterFileEnv, err)
+	}
+
+	return conf
 }
 
 // skipUnlessAcceptanceTest skips the test if the TF_ACC environment variable is

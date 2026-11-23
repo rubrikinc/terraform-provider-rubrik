@@ -37,7 +37,7 @@ Validate the configuration:
 ```shell
 % terraform plan
 ```
-If you get an error or an unwanted diff, please see the _New Features_ section below for additional instructions.
+If you get an error or an unwanted diff, see the _New Features_ and _Significant Changes_ sections below.
 Otherwise, refresh the state to the v1.13.0 version:
 ```shell
 % terraform apply -refresh-only
@@ -93,9 +93,11 @@ The following resources support state migration via Terraform's `moved {}` block
 
 * `polaris_aws_account_managed` → `rubrik_aws_account_managed`
 * `polaris_aws_account_managed_stack` → `rubrik_aws_account_managed_stack`
+* `polaris_aws_cloud_cluster` → `rubrik_aws_cloud_cluster`
 * `polaris_aws_cnp_account` → `rubrik_aws_cnp_account`
 * `polaris_aws_cnp_account_attachments` → `rubrik_aws_cnp_account_attachments`
 * `polaris_aws_custom_tags` → `rubrik_aws_custom_tags`
+* `polaris_azure_cloud_cluster` → `rubrik_azure_cloud_cluster`
 * `polaris_azure_custom_tags` → `rubrik_azure_custom_tags`
 * `polaris_azure_devops_organization` → `rubrik_azure_devops_organization`
 * `polaris_custom_role` → `rubrik_custom_role`
@@ -140,7 +142,7 @@ Then validate the configuration:
 ```
 For Option 1, the plan should show no changes (apart from deprecation warnings for each `polaris` resource and data
 source). For Option 2, the plan should show the moved resources with no other changes. If you get an error or an
-unwanted diff, see the _New Features_ section below for additional context. Otherwise, proceed by running:
+unwanted diff, see the _New Features_ and _Significant Changes_ sections below. Otherwise, proceed by running:
 ```shell
 % terraform apply
 ```
@@ -230,3 +232,62 @@ within the limit keep the same prefix, so existing roles are not replaced.
 Without `native_id`, the data sources behave as before. An account using multiple roles then gets trust policies for
 one role per feature, but roles and policies for a single `CROSSACCOUNT` role, so the roles built from them do not
 match.
+
+### Importing cloud clusters
+
+The `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources can now be imported, using either the cluster
+ID or the resource identity. The values used when the cluster was created are read from the configuration RSC recorded
+when it created the cluster, so a configuration which doesn't match the imported cluster plans a replacement. The few
+values RSC doesn't record, such as `cdm_version`, are taken from the configuration by the first apply after the import,
+without changing or replacing the cluster. See the Import section of the resource documentation.
+
+```terraform
+import {
+  to = rubrik_aws_cloud_cluster.cluster
+  id = "00000000-0000-0000-0000-000000000000"
+}
+```
+
+The `rubrik_gcp_cloud_cluster` resource also supports import by ID or identity. It requires the original RSC create
+record and uses the recorded CDM version, not the currently installed version.
+See the [GCP resource documentation](../resources/gcp_cloud_cluster.md#import).
+
+## Significant Changes
+
+### Cloud cluster resources moved to the Plugin Framework
+
+The `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources, and their deprecated `polaris_` aliases, are
+now implemented using the Terraform Plugin Framework. Existing state is read as is, and a plan for an unchanged
+configuration shows no changes and no replacement of the cluster.
+
+If you manage an AWS cluster with `rubrikinc/polaris`, upgrade the source provider to v1.12.2 before switching
+providers. That release fixes how `polaris_aws_cloud_cluster` writes `cloud_account_id` to state. Check that the
+migration plan shows no cluster changes before applying. Leave refresh enabled for that plan.
+
+The following behavior changes apply:
+* `vm_config.cdm_version` is a create-time input and is no longer overwritten with the installed CDM version when the
+  resource is refreshed. A cluster upgraded outside of Terraform no longer plans a replacement.
+* `vm_config.cdm_product` of the `rubrik_azure_cloud_cluster` resource is computed when the cluster is created, and is
+  no longer looked up on every refresh.
+* The `timezone` and `location` set in `cluster_config` when the cluster is created are now applied to the cluster.
+* Refreshing a disconnected cluster reports warnings, instead of failing, when the DNS and NTP servers cannot be read.
+  The values in the state are kept in that case.
+
+### The `timeouts.default` key is removed
+
+The `timeouts` block of the cloud cluster resources only supports the `create` and `read` keys. The `default` key was
+accepted by the SDKv2 implementation, where it set the timeout of the update and delete operations. The update and delete
+operations no longer have a timeout, and the key is rejected in configurations. Remove it from the `timeouts` block if
+you use it. State which still holds the key is read without an error.
+
+```terraform
+resource "rubrik_aws_cloud_cluster" "cluster" {
+  # ... existing configuration ...
+
+  timeouts {
+    create = "90m"
+    read   = "20m"
+    # default = "20m" # Remove.
+  }
+}
+```
