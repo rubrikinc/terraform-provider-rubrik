@@ -68,6 +68,9 @@ implements resource identity and import, and gets a list resource when RSC has a
 - Mark credentials `Sensitive: true`. Use `WriteOnly: true` for values RSC needs on create or update but never returns
 - Read adjacent code before editing and follow its patterns
 - Inject dependencies for testability. Prefer fakes over mocks
+- Before writing a code comment, commit message, or PR text that states how Terraform, the Framework, the SDK, or RSC
+  behaves, verify it: cite the source (file and line in the dependency, found with `go list`) or show a minimal
+  reproduction. If it cannot be verified, write it as an assumption ("assumed, not verified") so reviewers check it
 
 ### Helper Functions
 

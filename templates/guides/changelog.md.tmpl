@@ -13,6 +13,14 @@ page_title: "Changelog"
   [[docs](../data-sources/aws_cnp_artifacts.md)]
 * Migrate the `rubrik_gcp_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/gcp_archival_location.md)]
+* Migrate the `rubrik_gcp_archival_location` resource to the Terraform Plugin Framework. The resource now supports
+  import by identity, and state can be moved from `polaris_gcp_archival_location` with a `moved` block. When no region
+  is specified the `region` field is now null instead of an empty string, and when no bucket labels are specified the
+  `bucket_labels` field is null instead of an empty map. [[docs](../resources/gcp_archival_location.md)]
+* Migrate the `rubrik_gcp_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_gcp_exocompute` with a `moved` block. Unset `host_project_id`,
+  `region`, `subnet_name` and `vpc_name` fields in the `regional_config` block are now null instead of empty strings.
+  [[docs](../resources/gcp_exocompute.md)]
 * Migrate the `rubrik_gcp_permissions` data source to the Terraform Plugin Framework. The `permission_groups` field is
   now optional and computed. [[docs](../data-sources/gcp_permissions.md)]
 * Migrate the `rubrik_gcp_project` data source to the Terraform Plugin Framework.
@@ -29,10 +37,20 @@ page_title: "Changelog"
   SDKv2 resource stored an empty `organization_name` the same way whether it was left out or set to `""`, so a
   configuration setting `organization_name = ""` shows a one-time update from null to `""`. Applying it only updates
   the state. [[docs](../resources/gcp_project.md)]
+* Migrate the `rubrik_gcp_service_account` resource to the Terraform Plugin Framework. State can be moved from
+  `polaris_gcp_service_account` with a `moved` block. The resource still has no import, since RSC doesn't return the
+  service account key. [[docs](../resources/gcp_service_account.md)]
+* Fix a bug in the Plugin Framework resources, such as the state upgraders of the `rubrik_gcp_project` resource, where
+  calling RSC before the provider was configured caused a panic. An error is now reported instead.
 * Fix a bug in the `rubrik_gcp_project` resource where upgrading state from schema version 1 read the status of the
   Exocompute feature instead of the Cloud Native Protection feature, and failed for a project without Exocompute.
 * Fix a bug in the `rubrik_gcp_project` resource where removing `credentials` from the configuration made every
   apply fail, trying to set the service account with an empty key.
+* Fix a bug in the `rubrik_gcp_archival_location` resource where the `storage_class` field was described as the AWS
+  bucket storage class.
+* Fix the documentation of the `rubrik_gcp_service_account` resource, which said that the `name` field sets the name of
+  the service account in RSC. Since v1.10.0, RSC always uses the client email of the service account key as the name,
+  and the `name` field is not sent to RSC. [[docs](../resources/gcp_service_account.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources

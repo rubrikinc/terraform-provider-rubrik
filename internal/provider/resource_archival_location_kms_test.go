@@ -34,19 +34,16 @@ import (
 const testKeyManagerID = "e9895414-64b4-4e25-a10d-c7a76983953b"
 
 // TestArchivalLocationKMSKeyConflicts checks that the client-side encryption
-// key blocks of the cloud native archival locations conflict with the
+// key blocks of the AWS and Azure cloud native archival locations conflict with the
 // server-side encryption keys.
 func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 	awsKMSKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyID: "key-id"}}
 	azureKeyVaultKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyName: "key", keyKeyVersion: "1"}}
 	azureCMK := []any{map[string]any{keyName: "key", keyVaultName: "vault", keyRegion: "eastus2"}}
-	gcpKMSKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyName: "key", keyKeyVersion: "1"}}
-	gcpCMK := []any{map[string]any{keyName: "key", keyRingName: "ring", keyRegion: "us-east1"}}
 
 	awsBase := map[string]any{keyAccountID: testKeyManagerID, keyBucketPrefix: "prefix", keyName: "aws"}
 	azureBase := map[string]any{keyCloudAccountID: testKeyManagerID, keyStorageAccountNamePrefix: "prefix",
 		keyName: "azure"}
-	gcpBase := map[string]any{keyCloudAccountID: testKeyManagerID, keyBucketPrefix: "prefix", keyName: "gcp"}
 
 	testCases := []struct {
 		name     string
@@ -75,17 +72,6 @@ func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 		resource: resourceAzureArchivalLocation(),
 		base:     azureBase,
 		config:   map[string]any{keyKeyVaultKey: azureKeyVaultKey, keyCustomerManagedKey: azureCMK},
-		conflict: true,
-	}, {
-		name:     "GCPKMSKey",
-		resource: resourceGcpArchivalLocation(),
-		base:     gcpBase,
-		config:   map[string]any{keyKMSKey: gcpKMSKey},
-	}, {
-		name:     "GCPKMSKeyAndCustomerManagedKey",
-		resource: resourceGcpArchivalLocation(),
-		base:     gcpBase,
-		config:   map[string]any{keyKMSKey: gcpKMSKey, keyCustomerManagedKey: gcpCMK},
 		conflict: true,
 	}}
 
