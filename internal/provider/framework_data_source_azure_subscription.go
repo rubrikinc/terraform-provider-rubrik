@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -58,11 +57,25 @@ type azureSubscriptionDataSource struct {
 }
 
 type azureSubscriptionModel struct {
-	ID             types.String `tfsdk:"id"`
-	Feature        types.Set    `tfsdk:"feature"`
-	Name           types.String `tfsdk:"name"`
-	SubscriptionID types.String `tfsdk:"subscription_id"`
-	TenantDomain   types.String `tfsdk:"tenant_domain"`
+	ID             types.String                    `tfsdk:"id"`
+	Feature        []azureSubscriptionFeatureModel `tfsdk:"feature"`
+	Name           types.String                    `tfsdk:"name"`
+	SubscriptionID types.String                    `tfsdk:"subscription_id"`
+	TenantDomain   types.String                    `tfsdk:"tenant_domain"`
+}
+
+// azureSubscriptionFeatureModel is the model of an RSC feature enabled for an
+// Azure subscription.
+type azureSubscriptionFeatureModel struct {
+	Name                                   types.String      `tfsdk:"name"`
+	PermissionGroups                       []string          `tfsdk:"permission_groups"`
+	Regions                                []string          `tfsdk:"regions"`
+	Status                                 types.String      `tfsdk:"status"`
+	ResourceGroupName                      types.String      `tfsdk:"resource_group_name"`
+	ResourceGroupRegion                    types.String      `tfsdk:"resource_group_region"`
+	ResourceGroupTags                      map[string]string `tfsdk:"resource_group_tags"`
+	UserAssignedManagedIdentityName        types.String      `tfsdk:"user_assigned_managed_identity_name"`
+	UserAssignedManagedIdentityPrincipalID types.String      `tfsdk:"user_assigned_managed_identity_principal_id"`
 }
 
 func newAzureSubscriptionDataSource() datasource.DataSource {
@@ -233,56 +246,24 @@ func (d *azureSubscriptionDataSource) Read(ctx context.Context, req datasource.R
 		}
 	}
 
-	featureAttrTypes := map[string]attr.Type{
-		keyName:                            types.StringType,
-		keyPermissionGroups:                types.SetType{ElemType: types.StringType},
-		keyRegions:                         types.SetType{ElemType: types.StringType},
-		keyStatus:                          types.StringType,
-		keyResourceGroupName:               types.StringType,
-		keyResourceGroupRegion:             types.StringType,
-		keyResourceGroupTags:               types.MapType{ElemType: types.StringType},
-		keyUserAssignedManagedIdentityName: types.StringType,
-		keyUserAssignedManagedIdentityPrincipalID: types.StringType,
-	}
-	featureValues := make([]attr.Value, 0, len(subscription.Features))
+	features := make([]azureSubscriptionFeatureModel, 0, len(subscription.Features))
 	for _, feature := range subscription.Features {
-		groupValues := make([]attr.Value, 0, len(feature.PermissionGroups))
+		groups := make([]string, 0, len(feature.PermissionGroups))
 		for _, group := range feature.PermissionGroups {
-			groupValues = append(groupValues, types.StringValue(string(group)))
-		}
-		groups, diags := types.SetValue(types.StringType, groupValues)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-
-		regionValues := make([]attr.Value, 0, len(feature.Regions))
-		for _, region := range feature.Regions {
-			regionValues = append(regionValues, types.StringValue(region))
-		}
-		regions, diags := types.SetValue(types.StringType, regionValues)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
+			groups = append(groups, string(group))
 		}
 
 		// Only features supporting a resource group have one.
 		resourceGroupName := types.StringNull()
 		resourceGroupRegion := types.StringNull()
-		resourceGroupTags := types.MapNull(types.StringType)
+		var resourceGroupTags map[string]string
 		if feature.SupportResourceGroup() {
-			tagValues := make(map[string]attr.Value, len(feature.ResourceGroup.Tags))
-			for key, value := range feature.ResourceGroup.Tags {
-				tagValues[key] = types.StringValue(value)
-			}
-			tags, diags := types.MapValue(types.StringType, tagValues)
-			res.Diagnostics.Append(diags...)
-			if res.Diagnostics.HasError() {
-				return
-			}
 			resourceGroupName = types.StringValue(feature.ResourceGroup.Name)
 			resourceGroupRegion = types.StringValue(feature.ResourceGroup.Region)
-			resourceGroupTags = tags
+			resourceGroupTags = make(map[string]string, len(feature.ResourceGroup.Tags))
+			for key, value := range feature.ResourceGroup.Tags {
+				resourceGroupTags[key] = value
+			}
 		}
 
 		// The data source is read-only, so the managed identity is exposed
@@ -294,27 +275,17 @@ func (d *azureSubscriptionDataSource) Read(ctx context.Context, req datasource.R
 			identityPrincipalID = types.StringValue(identity.PrincipalID)
 		}
 
-		featureValue, diags := types.ObjectValue(featureAttrTypes, map[string]attr.Value{
-			keyName:                            types.StringValue(feature.Name),
-			keyPermissionGroups:                groups,
-			keyRegions:                         regions,
-			keyStatus:                          types.StringValue(string(feature.Status)),
-			keyResourceGroupName:               resourceGroupName,
-			keyResourceGroupRegion:             resourceGroupRegion,
-			keyResourceGroupTags:               resourceGroupTags,
-			keyUserAssignedManagedIdentityName: identityName,
-			keyUserAssignedManagedIdentityPrincipalID: identityPrincipalID,
+		features = append(features, azureSubscriptionFeatureModel{
+			Name:                                   types.StringValue(feature.Name),
+			PermissionGroups:                       groups,
+			Regions:                                append([]string{}, feature.Regions...),
+			Status:                                 types.StringValue(string(feature.Status)),
+			ResourceGroupName:                      resourceGroupName,
+			ResourceGroupRegion:                    resourceGroupRegion,
+			ResourceGroupTags:                      resourceGroupTags,
+			UserAssignedManagedIdentityName:        identityName,
+			UserAssignedManagedIdentityPrincipalID: identityPrincipalID,
 		})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		featureValues = append(featureValues, featureValue)
-	}
-	features, diags := types.SetValue(types.ObjectType{AttrTypes: featureAttrTypes}, featureValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
 	}
 
 	state := azureSubscriptionModel{
