@@ -27,7 +27,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -72,22 +71,22 @@ type azurePermissionsDataSource struct {
 
 type azurePermissionsModel struct {
 	ID                          types.String `tfsdk:"id"`
-	Actions                     types.List   `tfsdk:"actions"`
-	DataActions                 types.List   `tfsdk:"data_actions"`
+	Actions                     []string     `tfsdk:"actions"`
+	DataActions                 []string     `tfsdk:"data_actions"`
 	Feature                     types.String `tfsdk:"feature"`
-	Features                    types.Set    `tfsdk:"features"`
+	Features                    []string     `tfsdk:"features"`
 	Hash                        types.String `tfsdk:"hash"`
-	NotActions                  types.List   `tfsdk:"not_actions"`
-	NotDataActions              types.List   `tfsdk:"not_data_actions"`
-	PermissionGroups            types.Set    `tfsdk:"permission_groups"`
-	ResourceGroupActions        types.List   `tfsdk:"resource_group_actions"`
-	ResourceGroupDataActions    types.List   `tfsdk:"resource_group_data_actions"`
-	ResourceGroupNotActions     types.List   `tfsdk:"resource_group_not_actions"`
-	ResourceGroupNotDataActions types.List   `tfsdk:"resource_group_not_data_actions"`
-	SubscriptionActions         types.List   `tfsdk:"subscription_actions"`
-	SubscriptionDataActions     types.List   `tfsdk:"subscription_data_actions"`
-	SubscriptionNotActions      types.List   `tfsdk:"subscription_not_actions"`
-	SubscriptionNotDataActions  types.List   `tfsdk:"subscription_not_data_actions"`
+	NotActions                  []string     `tfsdk:"not_actions"`
+	NotDataActions              []string     `tfsdk:"not_data_actions"`
+	PermissionGroups            []string     `tfsdk:"permission_groups"`
+	ResourceGroupActions        []string     `tfsdk:"resource_group_actions"`
+	ResourceGroupDataActions    []string     `tfsdk:"resource_group_data_actions"`
+	ResourceGroupNotActions     []string     `tfsdk:"resource_group_not_actions"`
+	ResourceGroupNotDataActions []string     `tfsdk:"resource_group_not_data_actions"`
+	SubscriptionActions         []string     `tfsdk:"subscription_actions"`
+	SubscriptionDataActions     []string     `tfsdk:"subscription_data_actions"`
+	SubscriptionNotActions      []string     `tfsdk:"subscription_not_actions"`
+	SubscriptionNotDataActions  []string     `tfsdk:"subscription_not_data_actions"`
 }
 
 func newAzurePermissionsDataSource() datasource.DataSource {
@@ -256,29 +255,19 @@ func (d *azurePermissionsDataSource) Read(ctx context.Context, req datasource.Re
 	var perms []azure.Permissions
 	var groups []azure.PermissionGroupWithVersion
 	if !config.Feature.IsNull() {
-		var permGroupNames []string
-		res.Diagnostics.Append(config.PermissionGroups.ElementsAs(ctx, &permGroupNames, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		if err := checkFeaturePermissionGroups(core.AzureSubscriptionFeatures(), config.Feature.ValueString(), permGroupNames); err != nil {
+		if err := checkFeaturePermissionGroups(core.AzureSubscriptionFeatures(), config.Feature.ValueString(), config.PermissionGroups); err != nil {
 			res.Diagnostics.AddError("Invalid permission group", err.Error())
 			return
 		}
 		var permGroups []core.PermissionGroup
-		for _, permGroupName := range permGroupNames {
+		for _, permGroupName := range config.PermissionGroups {
 			permGroups = append(permGroups, core.PermissionGroup(permGroupName))
 		}
 		feature := core.Feature{Name: config.Feature.ValueString(), PermissionGroups: permGroups}
 		perms, groups, err = azure.Wrap(polarisClient).ScopedPermissions(ctx, feature)
 	} else {
-		var featureNames []string
-		res.Diagnostics.Append(config.Features.ElementsAs(ctx, &featureNames, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
 		var features []core.Feature
-		for _, featureName := range featureNames {
+		for _, featureName := range config.Features {
 			features = append(features, core.Feature{Name: featureName})
 		}
 		perms, err = azure.Wrap(polarisClient).ScopedPermissionsForFeatures(ctx, features)
@@ -293,130 +282,17 @@ func (d *azurePermissionsDataSource) Read(ctx context.Context, req datasource.Re
 	// Legacy scope. The legacy scope contains the union of the subscription
 	// and the resource group scopes, so we only need to update the hash value
 	// here, with the added benefit of keeping it backwards compatible.
-	actionValues := []attr.Value{}
 	for _, perm := range perms[azure.ScopeLegacy].Actions {
-		actionValues = append(actionValues, types.StringValue(perm))
 		hash.Write([]byte(perm))
 	}
-	actions, diags := types.ListValue(types.StringType, actionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	dataActionValues := []attr.Value{}
 	for _, perm := range perms[azure.ScopeLegacy].DataActions {
-		dataActionValues = append(dataActionValues, types.StringValue(perm))
 		hash.Write([]byte(perm))
 	}
-	dataActions, diags := types.ListValue(types.StringType, dataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	notActionValues := []attr.Value{}
 	for _, perm := range perms[azure.ScopeLegacy].NotActions {
-		notActionValues = append(notActionValues, types.StringValue(perm))
 		hash.Write([]byte(perm))
 	}
-	notActions, diags := types.ListValue(types.StringType, notActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	notDataActionValues := []attr.Value{}
 	for _, perm := range perms[azure.ScopeLegacy].NotDataActions {
-		notDataActionValues = append(notDataActionValues, types.StringValue(perm))
 		hash.Write([]byte(perm))
-	}
-	notDataActions, diags := types.ListValue(types.StringType, notDataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	// Subscription scope.
-	subActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeSubscription].Actions {
-		subActionValues = append(subActionValues, types.StringValue(perm))
-	}
-	subActions, diags := types.ListValue(types.StringType, subActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	subDataActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeSubscription].DataActions {
-		subDataActionValues = append(subDataActionValues, types.StringValue(perm))
-	}
-	subDataActions, diags := types.ListValue(types.StringType, subDataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	subNotActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeSubscription].NotActions {
-		subNotActionValues = append(subNotActionValues, types.StringValue(perm))
-	}
-	subNotActions, diags := types.ListValue(types.StringType, subNotActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	subNotDataActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeSubscription].NotDataActions {
-		subNotDataActionValues = append(subNotDataActionValues, types.StringValue(perm))
-	}
-	subNotDataActions, diags := types.ListValue(types.StringType, subNotDataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	// Resource group scope.
-	rgActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeResourceGroup].Actions {
-		rgActionValues = append(rgActionValues, types.StringValue(perm))
-	}
-	rgActions, diags := types.ListValue(types.StringType, rgActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	rgDataActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeResourceGroup].DataActions {
-		rgDataActionValues = append(rgDataActionValues, types.StringValue(perm))
-	}
-	rgDataActions, diags := types.ListValue(types.StringType, rgDataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	rgNotActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeResourceGroup].NotActions {
-		rgNotActionValues = append(rgNotActionValues, types.StringValue(perm))
-	}
-	rgNotActions, diags := types.ListValue(types.StringType, rgNotActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	rgNotDataActionValues := []attr.Value{}
-	for _, perm := range perms[azure.ScopeResourceGroup].NotDataActions {
-		rgNotDataActionValues = append(rgNotDataActionValues, types.StringValue(perm))
-	}
-	rgNotDataActions, diags := types.ListValue(types.StringType, rgNotDataActionValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
 	}
 
 	// Hash permission groups. This generates a diff for subscription onboarded
@@ -430,22 +306,22 @@ func (d *azurePermissionsDataSource) Read(ctx context.Context, req datasource.Re
 
 	state := azurePermissionsModel{
 		ID:                          types.StringValue(hashValue),
-		Actions:                     actions,
-		DataActions:                 dataActions,
+		Actions:                     append([]string{}, perms[azure.ScopeLegacy].Actions...),
+		DataActions:                 append([]string{}, perms[azure.ScopeLegacy].DataActions...),
 		Feature:                     config.Feature,
 		Features:                    config.Features,
 		Hash:                        types.StringValue(hashValue),
-		NotActions:                  notActions,
-		NotDataActions:              notDataActions,
+		NotActions:                  append([]string{}, perms[azure.ScopeLegacy].NotActions...),
+		NotDataActions:              append([]string{}, perms[azure.ScopeLegacy].NotDataActions...),
 		PermissionGroups:            config.PermissionGroups,
-		ResourceGroupActions:        rgActions,
-		ResourceGroupDataActions:    rgDataActions,
-		ResourceGroupNotActions:     rgNotActions,
-		ResourceGroupNotDataActions: rgNotDataActions,
-		SubscriptionActions:         subActions,
-		SubscriptionDataActions:     subDataActions,
-		SubscriptionNotActions:      subNotActions,
-		SubscriptionNotDataActions:  subNotDataActions,
+		ResourceGroupActions:        append([]string{}, perms[azure.ScopeResourceGroup].Actions...),
+		ResourceGroupDataActions:    append([]string{}, perms[azure.ScopeResourceGroup].DataActions...),
+		ResourceGroupNotActions:     append([]string{}, perms[azure.ScopeResourceGroup].NotActions...),
+		ResourceGroupNotDataActions: append([]string{}, perms[azure.ScopeResourceGroup].NotDataActions...),
+		SubscriptionActions:         append([]string{}, perms[azure.ScopeSubscription].Actions...),
+		SubscriptionDataActions:     append([]string{}, perms[azure.ScopeSubscription].DataActions...),
+		SubscriptionNotActions:      append([]string{}, perms[azure.ScopeSubscription].NotActions...),
+		SubscriptionNotDataActions:  append([]string{}, perms[azure.ScopeSubscription].NotDataActions...),
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
