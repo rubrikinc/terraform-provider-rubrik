@@ -64,6 +64,13 @@ implements resource identity and import, and gets a list resource when RSC has a
   failed read does not orphan the resource. A failed read-back is a warning, and unknown computed values are set to null
   before saving state. The exception is when the read-back returns the ID, as in `sso_group`
 - Use typed regions (`aws.Region`, `azure.Region`, `gcp.Region`) from the SDK, never `string`
+- Use Go slices (`[]string`, `[]fooModel`) instead of `types.Set` or `types.List` for collections in Framework models.
+  A null value decodes to a nil slice and a nil slice is written as null, so write an empty slice when state should
+  hold an empty collection, such as an unset block. An unknown value cannot be decoded into a slice, so keep
+  `types.Set` or `types.List` for `Optional` + `Computed` collections, which can be unknown in the plan. `ModifyPlan`
+  and `ValidateConfig`, where config values can be unknown, either read the attributes they need with `GetAttribute`,
+  or first check with `GetAttribute` that every collection decoded into a slice, nested ones included, is known and
+  return early otherwise, as `aws_account` does
 - Use `github.com/google/uuid` for UUIDs. No custom parsing or formatting
 - Mark credentials `Sensitive: true`. Use `WriteOnly: true` for values RSC needs on create or update but never returns
 - Read adjacent code before editing and follow its patterns
