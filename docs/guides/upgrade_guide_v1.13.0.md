@@ -37,8 +37,8 @@ Validate the configuration:
 ```shell
 % terraform plan
 ```
-If you get an error or an unwanted diff, please see the _Significant Changes_ section below for additional
-instructions. Otherwise, refresh the state to the v1.13.0 version:
+If you get an error or an unwanted diff, see the _New Features_ and _Significant Changes_ sections below.
+Otherwise, refresh the state to the v1.13.0 version:
 ```shell
 % terraform apply -refresh-only
 ```
@@ -142,13 +142,96 @@ Then validate the configuration:
 ```
 For Option 1, the plan should show no changes (apart from deprecation warnings for each `polaris` resource and data
 source). For Option 2, the plan should show the moved resources with no other changes. If you get an error or an
-unwanted diff, see the _Significant Changes_ section below for additional context. Otherwise, proceed by running:
+unwanted diff, see the _New Features_ and _Significant Changes_ sections below. Otherwise, proceed by running:
 ```shell
 % terraform apply
 ```
 This will record the renames (Option 2) in state and migrate the local Terraform state to the v1.13.0 version.
 
 ## New Features
+
+### AWS accounts using multiple roles
+
+RSC can onboard an AWS account using the IAM roles workflow with one IAM role per feature, instead of a single
+`CROSSACCOUNT` role carrying the permissions of every feature. Which role mode an account uses is decided by RSC, and
+fixed when the roles of the account are registered with the `rubrik_aws_cnp_account_attachments` resource. The
+`trust_policies` field of the `rubrik_aws_cnp_account` resource always holds the trust policies of the role mode of the
+account.
+
+The `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data sources accept the AWS account ID in the new
+`native_id` field. If omitted, RSC returns the legacy single-role artifacts and policies. If provided, RSC returns
+artifacts and policies matching the account's trust policies: one role per feature in multi-role mode or a single
+`CROSSACCOUNT` role in single-role mode. If the account has not been onboarded yet, RSC uses the role mode configured
+for new accounts.
+
+Pass the AWS account ID directly to both data sources as a value known at plan time, such as an input variable. This
+lets Terraform read the role keys during planning and onboard the account in a single `terraform apply`:
+```terraform
+variable "account_id" {
+  description = "AWS account ID."
+  type        = string
+}
+
+locals {
+  features = {
+    CLOUD_DISCOVERY         = ["BASIC"]
+    CLOUD_NATIVE_PROTECTION = ["BASIC"]
+  }
+}
+
+data "rubrik_aws_cnp_artifacts" "artifacts" {
+  native_id = var.account_id
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+
+data "rubrik_aws_cnp_permissions" "permissions" {
+  for_each  = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+  native_id = var.account_id
+  role_key  = each.key
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+
+resource "rubrik_aws_cnp_account" "account" {
+  name      = "My Account"
+  native_id = var.account_id
+  regions   = ["us-east-2"]
+
+  dynamic "feature" {
+    for_each = local.features
+    content {
+      name              = feature.key
+      permission_groups = feature.value
+    }
+  }
+}
+```
+Referencing `rubrik_aws_cnp_account.account.native_id` instead creates a dependency on the account resource. If that
+resource has pending changes, Terraform can defer the data reads until apply, leaving the role keys needed by
+`for_each` unknown at plan time.
+
+An account using multiple roles has a role for every feature, so role key names are longer than with a single role. A
+role name prefix built from the full role key, e.g. `"rubrik-${lower(each.key)}-"`, is longer than the 38 characters
+AWS allows for `CLOUD_NATIVE_DYNAMODB_PROTECTION` and `CLOUD_NATIVE_UEM_KEY_MANAGEMENT`. Shorten the prefix, e.g.
+`"${substr("rubrik-${lower(each.key)}", 0, 37)}-"`, which only truncates the role keys exceeding the limit. Role keys
+within the limit keep the same prefix, so existing roles are not replaced.
+
+Without `native_id`, the data sources behave as before. An account using multiple roles then gets trust policies for
+one role per feature, but roles and policies for a single `CROSSACCOUNT` role, so the roles built from them do not
+match.
 
 ### Importing cloud clusters
 

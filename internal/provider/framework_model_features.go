@@ -161,6 +161,14 @@ func toFeatures(ctx context.Context, featureSet types.Set) ([]core.Feature, diag
 	return features, diags
 }
 
+// featureWithPermissions is a feature together with its permissions signal.
+// When the signal changes, RSC is notified that the permissions of the feature
+// have been updated.
+type featureWithPermissions struct {
+	core.Feature
+	permissions string
+}
+
 // attachPermissions carries the permissions signal from featureWithPerms onto
 // features, matched by name, returning the result. Features read from RSC never
 // include the signal, so it is preserved from the prior state.
