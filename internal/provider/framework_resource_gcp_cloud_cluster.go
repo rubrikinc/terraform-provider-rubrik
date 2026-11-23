@@ -22,6 +22,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -48,6 +50,7 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudcluster"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cluster"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	gqlcloudcluster "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudcluster"
 	gqlcluster "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cluster"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -95,6 +98,8 @@ number of nodes, instance types, and network configuration.
 var (
 	_ resource.Resource                   = &gcpCloudClusterResource{}
 	_ resource.ResourceWithConfigure      = &gcpCloudClusterResource{}
+	_ resource.ResourceWithIdentity       = &gcpCloudClusterResource{}
+	_ resource.ResourceWithImportState    = &gcpCloudClusterResource{}
 	_ resource.ResourceWithMoveState      = &gcpCloudClusterResource{}
 	_ resource.ResourceWithValidateConfig = &gcpCloudClusterResource{}
 )
@@ -385,6 +390,12 @@ func (r *gcpCloudClusterResource) Schema(ctx context.Context, _ resource.SchemaR
 	}
 }
 
+func (r *gcpCloudClusterResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
+	tflog.Trace(ctx, "gcpCloudClusterResource.IdentitySchema")
+
+	res.IdentitySchema = cloudClusterIdentitySchema()
+}
+
 func (r *gcpCloudClusterResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, res *resource.ValidateConfigResponse) {
 	tflog.Trace(ctx, "gcpCloudClusterResource.ValidateConfig")
 
@@ -544,7 +555,13 @@ func (r *gcpCloudClusterResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	// Preserve the cluster ID even if reading the newly created cluster back fails.
 	plan.ID = types.StringValue(gcpCluster.ID.String())
+	res.Diagnostics.Append(res.State.SetAttribute(ctx, path.Root(keyID), plan.ID)...)
+	res.Diagnostics.Append(res.Identity.SetAttribute(ctx, path.Root(keyID), plan.ID)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
 	plan.VMConfig[0].CDMProduct = types.StringValue(gcpCluster.CdmProduct)
 	// zone is Computed and may have been derived from subnet_az_config, so record
 	// the resolved value in state.
@@ -645,6 +662,9 @@ func (r *gcpCloudClusterResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
+	if !res.Diagnostics.HasError() {
+		res.Diagnostics.Append(res.Identity.SetAttribute(ctx, path.Root(keyID), state.ID)...)
+	}
 }
 
 func (r *gcpCloudClusterResource) Update(ctx context.Context, req resource.UpdateRequest, res *resource.UpdateResponse) {
@@ -749,6 +769,9 @@ func (r *gcpCloudClusterResource) Update(ctx context.Context, req resource.Updat
 	plan.ClusterConfig[0].AdminPassword = types.StringNull()
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
+	if !res.Diagnostics.HasError() {
+		res.Diagnostics.Append(res.Identity.SetAttribute(ctx, path.Root(keyID), plan.ID)...)
+	}
 }
 
 func (r *gcpCloudClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, res *resource.DeleteResponse) {
@@ -781,6 +804,158 @@ func (r *gcpCloudClusterResource) Delete(ctx context.Context, req resource.Delet
 		res.Diagnostics.AddError("Failed to remove GCP cloud cluster", err.Error())
 		return
 	}
+}
+
+func (r *gcpCloudClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
+	tflog.Trace(ctx, "gcpCloudClusterResource.ImportState")
+
+	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
+	var id types.String
+	res.Diagnostics.Append(res.State.GetAttribute(ctx, path.Root(keyID), &id)...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	clusterID, err := uuid.Parse(id.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError("Invalid cloud cluster ID", err.Error())
+		return
+	}
+
+	polarisClient, err := r.client.polaris()
+	if err != nil {
+		res.Diagnostics.AddError("RSC client error", err.Error())
+		return
+	}
+
+	recorded, err := gqlcloudcluster.Wrap(polarisClient.GQL).ProvisionConfig(ctx, clusterID)
+	switch {
+	case errors.Is(err, graphql.ErrNotFound):
+		res.Diagnostics.AddError("Cloud cluster create configuration not found",
+			"RSC has no record of how the cluster was created. Import requires the original configuration to avoid replacing the cluster.")
+		return
+	case err != nil:
+		res.Diagnostics.AddError("Failed to read the cloud cluster create configuration", err.Error())
+		return
+	case recorded.GCP == nil:
+		res.Diagnostics.AddError("Cloud cluster is not a GCP cloud cluster",
+			fmt.Sprintf("Cloud cluster %q is a %s cloud cluster.", clusterID, recorded.Vendor))
+		return
+	}
+
+	state, diags := gcpCloudClusterFromProvisionConfig(ctx, id, *recorded.GCP)
+	res.Diagnostics.Append(diags...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
+	if !res.Diagnostics.HasError() && res.Identity != nil {
+		res.Diagnostics.Append(res.Identity.SetAttribute(ctx, path.Root(keyID), id)...)
+	}
+}
+
+// gcpCloudClusterFromProvisionConfig builds import state from the recorded
+// create settings. Read refreshes the mutable settings after import.
+func gcpCloudClusterFromProvisionConfig(ctx context.Context, id types.String, config gqlcloudcluster.GcpProvisionConfig) (gcpCloudClusterModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	if config.CDMVersion == "" || config.BucketName == "" || config.InstanceType == gqlcloudcluster.GcpInstanceTypeUnspecified ||
+		config.ClusterConfig.NumNodes < 1 || len(config.ServiceAccounts) == 0 || len(config.NetworkConfig) == 0 {
+		diags.AddError("Cannot import GCP cloud cluster",
+			"The recorded create configuration is missing the CDM version, bucket, instance type, node count, service accounts, or network.")
+		return gcpCloudClusterModel{}, diags
+	}
+
+	// Terraform configures one network and host project for all nodes, and
+	// one subnet for a single-AZ cluster. Reject layouts it cannot represent.
+	network := config.NetworkConfig[0]
+	for _, node := range config.NetworkConfig {
+		if node.Network != network.Network || node.HostProject != network.HostProject ||
+			(!config.IsAzResilient && node.Name != network.Name) {
+			diags.AddError("Cannot import GCP cloud cluster",
+				"The recorded per-node network configuration cannot be represented by one network and host project in Terraform.")
+			return gcpCloudClusterModel{}, diags
+		}
+	}
+	if network.Network == "" {
+		diags.AddError("Cannot import GCP cloud cluster", "RSC did not record the network name.")
+		return gcpCloudClusterModel{}, diags
+	}
+
+	subnet := types.StringNull()
+	zone := config.Zone
+	azs := make([]gcpSubnetAzConfigModel, 0, len(config.SubnetAzConfigs))
+	for _, az := range config.SubnetAzConfigs {
+		if az.Subnet == "" || az.AvailabilityZone == "" {
+			diags.AddError("Cannot import GCP cloud cluster", "RSC recorded an incomplete subnet and availability zone pair.")
+			return gcpCloudClusterModel{}, diags
+		}
+		azs = append(azs, gcpSubnetAzConfigModel{
+			AvailabilityZone: types.StringValue(az.AvailabilityZone),
+			Subnet:           types.StringValue(az.Subnet),
+		})
+	}
+	if config.IsAzResilient && len(azs) > 0 && zone == "" {
+		zone = azs[0].AvailabilityZone.ValueString()
+	}
+	if !config.IsAzResilient && network.Name != "" {
+		subnet = types.StringValue(network.Name)
+	}
+
+	azList, d := types.ListValueFrom(ctx, cloudClusterSubnetAzObjectType, azs)
+	diags.Append(d...)
+	accounts, d := types.SetValueFrom(ctx, types.StringType, config.ServiceAccounts)
+	diags.Append(d...)
+	if diags.HasError() {
+		return gcpCloudClusterModel{}, diags
+	}
+
+	hostProject := types.StringNull()
+	if network.HostProject != "" {
+		hostProject = types.StringValue(network.HostProject)
+	}
+	cdmProduct := types.StringNull()
+	if config.CDMProduct != "" {
+		cdmProduct = types.StringValue(config.CDMProduct)
+	}
+	zoneValue := types.StringNull()
+	if zone != "" {
+		zoneValue = types.StringValue(zone)
+	}
+
+	state := gcpCloudClusterModel{
+		ID:             id,
+		CloudAccountID: types.StringValue(config.CloudAccountID.String()),
+		Region:         types.StringValue(config.Region.Name()),
+		Zone:           zoneValue,
+		AZResilient:    types.BoolValue(config.IsAzResilient),
+		ClusterConfig: []gcpClusterConfigModel{{
+			ClusterName:                 types.StringValue(config.ClusterConfig.ClusterName),
+			NumNodes:                    types.Int64Value(int64(config.ClusterConfig.NumNodes)),
+			DNSNameServers:              types.SetNull(types.StringType),
+			DNSSearchDomains:            types.SetNull(types.StringType),
+			NTPServers:                  types.SetNull(types.StringType),
+			BucketName:                  types.StringValue(config.BucketName),
+			KeepClusterOnFailure:        types.BoolValue(config.KeepClusterOnFailure),
+			ForceClusterDeleteOnDestroy: types.BoolValue(false),
+		}},
+		VMConfig: []gcpVMConfigModel{{
+			CDMVersion:       types.StringValue(config.CDMVersion),
+			CDMProduct:       cdmProduct,
+			InstanceType:     types.StringValue(string(config.InstanceType)),
+			Network:          types.StringValue(network.Network),
+			Subnet:           subnet,
+			HostProject:      hostProject,
+			ServiceAccounts:  accounts,
+			SubnetAzConfig:   azList,
+			DeleteProtection: types.BoolValue(config.DeleteProtection),
+		}},
+		Timeouts: timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{"create": types.StringType})},
+	}
+	diags.Append(validateGcpCloudClusterConfig(state)...)
+	return state, diags
 }
 
 // updateClusterSettings applies the cluster name, timezone and location using

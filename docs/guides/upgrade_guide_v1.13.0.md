@@ -248,6 +248,10 @@ import {
 }
 ```
 
+The `rubrik_gcp_cloud_cluster` resource also supports import by ID or identity. It requires the original RSC create
+record and uses the recorded CDM version, not the currently installed version.
+See the [GCP resource documentation](../resources/gcp_cloud_cluster.md#import).
+
 ## Significant Changes
 
 ### Cloud cluster resources moved to the Plugin Framework

@@ -5,6 +5,8 @@ page_title: "Changelog"
 # Changelog
 
 ## v1.13.0
+* Add import by ID or resource identity for `rubrik_gcp_cloud_cluster`. Import reads the create-time inputs RSC recorded.
+  [[docs](../resources/gcp_cloud_cluster.md)]
 * Migrate the `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources to the Terraform Plugin Framework.
   The resources now support import by ID and by identity, and state can be moved from the `polaris_aws_cloud_cluster`
   and `polaris_azure_cloud_cluster` resources using a `moved` block. The `default` key of the `timeouts` block is
