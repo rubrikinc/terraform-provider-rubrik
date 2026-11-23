@@ -69,12 +69,7 @@ func (r *azureExocomputeResource) moveStateV0() resource.StateMover {
 				return
 			}
 
-			state, d := upgradeAzureExocomputeStateV0(ctx, prior)
-			res.Diagnostics.Append(d...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
+			state := upgradeAzureExocomputeStateV0(prior)
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
 		},
 	}
@@ -99,12 +94,7 @@ func (r *azureExocomputeResource) moveStateV1(ctx context.Context) resource.Stat
 				return
 			}
 
-			state, d := upgradeAzureExocomputeStateV1(ctx, prior)
-			res.Diagnostics.Append(d...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
+			state := upgradeAzureExocomputeStateV1(prior)
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &state)...)
 		},
 	}

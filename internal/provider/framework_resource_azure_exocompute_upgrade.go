@@ -25,7 +25,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -54,12 +53,7 @@ func (r *azureExocomputeResource) upgradeStateV0() resource.StateUpgrader {
 				return
 			}
 
-			state, d := upgradeAzureExocomputeStateV0(ctx, prior)
-			res.Diagnostics.Append(d...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
+			state := upgradeAzureExocomputeStateV0(prior)
 			res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 		},
 	}
@@ -78,12 +72,7 @@ func (r *azureExocomputeResource) upgradeStateV1(ctx context.Context) resource.S
 				return
 			}
 
-			state, d := upgradeAzureExocomputeStateV1(ctx, prior)
-			res.Diagnostics.Append(d...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
+			state := upgradeAzureExocomputeStateV1(prior)
 			res.Diagnostics.Append(res.State.Set(ctx, &state)...)
 		},
 	}
@@ -93,8 +82,8 @@ func (r *azureExocomputeResource) upgradeStateV1(ctx context.Context) resource.S
 // field is removed, since Exocompute on Azure only supports RSC managed
 // configurations. The fields added in v1 are left unset, the next read fills
 // in the values stored in RSC.
-func upgradeAzureExocomputeStateV0(ctx context.Context, prior azureExocomputeModelV0) (azureExocomputeModel, diag.Diagnostics) {
-	return upgradeAzureExocomputeStateV1(ctx, azureExocomputeModelV1{
+func upgradeAzureExocomputeStateV0(prior azureExocomputeModelV0) azureExocomputeModel {
+	return upgradeAzureExocomputeStateV1(azureExocomputeModelV1{
 		ID:                    prior.ID,
 		CloudAccountID:        types.StringNull(),
 		HostCloudAccountID:    types.StringNull(),
@@ -114,7 +103,7 @@ func upgradeAzureExocomputeStateV0(ctx context.Context, prior azureExocomputeMod
 // unset strings as empty strings. They are stored as null, matching a
 // configuration that leaves them out, so the first plan doesn't show them
 // changing.
-func upgradeAzureExocomputeStateV1(ctx context.Context, prior azureExocomputeModelV1) (azureExocomputeModel, diag.Diagnostics) {
+func upgradeAzureExocomputeStateV1(prior azureExocomputeModelV1) azureExocomputeModel {
 	nullEmpty := func(s types.String) types.String {
 		if s.ValueString() == "" {
 			return types.StringNull()
@@ -143,24 +132,19 @@ func upgradeAzureExocomputeStateV1(ctx context.Context, prior azureExocomputeMod
 			UserDefinedRouting:             block.UserDefinedRouting,
 		})
 	}
-	optionalConfigList, diags := types.ListValueFrom(ctx,
-		types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, optionalConfig)
-	if diags.HasError() {
-		return azureExocomputeModel{}, diags
-	}
 
 	return azureExocomputeModel{
 		ID:                    prior.ID,
 		CloudAccountID:        prior.CloudAccountID,
 		HostCloudAccountID:    prior.HostCloudAccountID,
-		OptionalConfig:        optionalConfigList,
+		OptionalConfig:        optionalConfig,
 		PodOverlayNetworkCIDR: nullEmpty(prior.PodOverlayNetworkCIDR),
 		Region:                prior.Region,
 		Subnet:                nullEmpty(prior.Subnet),
 		SubscriptionID:        prior.SubscriptionID,
 		TriggerHealthCheck:    prior.TriggerHealthCheck,
 		Timeouts:              prior.Timeouts,
-	}, diags
+	}
 }
 
 // azureExocomputeSchemaV0 is the schema of the resource in the v0 state.
@@ -243,7 +227,7 @@ type azureExocomputeModelV1 struct {
 // azureExocomputeOptionalConfigModelV1 is the model of nested optional_config
 // blocks in the v1 state.
 type azureExocomputeOptionalConfigModelV1 struct {
-	AllowlistAdditionalIPs         types.Set    `tfsdk:"allowlist_additional_ips"`
+	AllowlistAdditionalIPs         []string     `tfsdk:"allowlist_additional_ips"`
 	AllowlistRubrikIPs             types.Bool   `tfsdk:"allowlist_rubrik_ips"`
 	ClusterAccess                  types.String `tfsdk:"cluster_access"`
 	ClusterTier                    types.String `tfsdk:"cluster_tier"`

@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
@@ -131,22 +130,22 @@ type azureExocomputeResource struct {
 
 // azureExocomputeModel is the resource state. Field order follows the schema.
 type azureExocomputeModel struct {
-	ID                    types.String   `tfsdk:"id"`
-	CloudAccountID        types.String   `tfsdk:"cloud_account_id"`
-	HostCloudAccountID    types.String   `tfsdk:"host_cloud_account_id"`
-	OptionalConfig        types.List     `tfsdk:"optional_config"`
-	PodOverlayNetworkCIDR types.String   `tfsdk:"pod_overlay_network_cidr"`
-	Region                types.String   `tfsdk:"region"`
-	Subnet                types.String   `tfsdk:"subnet"`
-	SubscriptionID        types.String   `tfsdk:"subscription_id"`
-	TriggerHealthCheck    types.Bool     `tfsdk:"trigger_health_check"`
-	Timeouts              timeouts.Value `tfsdk:"timeouts"`
+	ID                    types.String                         `tfsdk:"id"`
+	CloudAccountID        types.String                         `tfsdk:"cloud_account_id"`
+	HostCloudAccountID    types.String                         `tfsdk:"host_cloud_account_id"`
+	OptionalConfig        []azureExocomputeOptionalConfigModel `tfsdk:"optional_config"`
+	PodOverlayNetworkCIDR types.String                         `tfsdk:"pod_overlay_network_cidr"`
+	Region                types.String                         `tfsdk:"region"`
+	Subnet                types.String                         `tfsdk:"subnet"`
+	SubscriptionID        types.String                         `tfsdk:"subscription_id"`
+	TriggerHealthCheck    types.Bool                           `tfsdk:"trigger_health_check"`
+	Timeouts              timeouts.Value                       `tfsdk:"timeouts"`
 }
 
 // azureExocomputeOptionalConfigModel is the element of the optional_config
 // block. Field order follows the schema.
 type azureExocomputeOptionalConfigModel struct {
-	AllowlistAdditionalIPs         types.Set    `tfsdk:"allowlist_additional_ips"`
+	AllowlistAdditionalIPs         []string     `tfsdk:"allowlist_additional_ips"`
 	AllowlistRubrikIPs             types.Bool   `tfsdk:"allowlist_rubrik_ips"`
 	ClusterAccess                  types.String `tfsdk:"cluster_access"`
 	ClusterTier                    types.String `tfsdk:"cluster_tier"`
@@ -161,26 +160,6 @@ type azureExocomputeOptionalConfigModel struct {
 	SnapshotPrivateAccessDNSZoneID types.String `tfsdk:"snapshot_private_access_dns_zone_id"`
 	SQLPrivateDNSZoneID            types.String `tfsdk:"sql_private_dns_zone_id"`
 	UserDefinedRouting             types.Bool   `tfsdk:"user_defined_routing"`
-}
-
-// azureExocomputeOptionalConfigAttrTypes holds the attribute types of the
-// optional_config block element.
-var azureExocomputeOptionalConfigAttrTypes = map[string]attr.Type{
-	keyAllowlistAdditionalIPs:         types.SetType{ElemType: types.StringType},
-	keyAllowlistRubrikIPs:             types.BoolType,
-	keyClusterAccess:                  types.StringType,
-	keyClusterTier:                    types.StringType,
-	keyDiskEncryptionAtHost:           types.BoolType,
-	keyDiskEncryptionSetID:            types.StringType,
-	keyHealthCheckVMNamePrefix:        types.StringType,
-	keyMaxNodeCount:                   types.StringType,
-	keyPostgresPrivateDNSZoneID:       types.StringType,
-	keyPostgresSubnetID:               types.StringType,
-	keyPrivateExocomputeDNSZoneID:     types.StringType,
-	keyResourceGroupPrefix:            types.StringType,
-	keySnapshotPrivateAccessDNSZoneID: types.StringType,
-	keySQLPrivateDNSZoneID:            types.StringType,
-	keyUserDefinedRouting:             types.BoolType,
 }
 
 type azureExocomputeIdentityModel struct {
@@ -601,24 +580,29 @@ func (r *azureExocomputeResource) ConfigValidators(ctx context.Context) []resour
 func (r *azureExocomputeResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, res *resource.ValidateConfigResponse) {
 	tflog.Trace(ctx, "azureExocomputeResource.ValidateConfig")
 
-	var config azureExocomputeModel
-	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	// The model can't be decoded, since the optional_config block or the
+	// allowlist_additional_ips set can be unknown in config.
+	var hostCloudAccountID, region, subnet types.String
+	var optionalConfig types.List
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyHostCloudAccountID), &hostCloudAccountID)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyRegion), &region)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keySubnet), &subnet)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyOptionalConfig), &optionalConfig)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
 	// An unset block is an empty list, not null, so the optional_config
 	// conflict can't use a path based validator.
-	if !config.HostCloudAccountID.IsNull() && !config.OptionalConfig.IsNull() &&
-		(config.OptionalConfig.IsUnknown() || len(config.OptionalConfig.Elements()) > 0) {
+	if !hostCloudAccountID.IsNull() && !optionalConfig.IsNull() &&
+		(optionalConfig.IsUnknown() || len(optionalConfig.Elements()) > 0) {
 		res.Diagnostics.AddAttributeError(path.Root(keyOptionalConfig), "Invalid Attribute Combination",
 			"The optional_config block can't be used together with host_cloud_account_id.")
 	}
 
 	// A configuration with a region but no subnet is a customer managed
 	// configuration, which RSC no longer supports.
-	if config.HostCloudAccountID.IsNull() && !config.Region.IsNull() && !config.Region.IsUnknown() &&
-		config.Subnet.IsNull() {
+	if hostCloudAccountID.IsNull() && !region.IsNull() && !region.IsUnknown() && subnet.IsNull() {
 		res.Diagnostics.AddAttributeWarning(path.Root(keyRegion), "Customer managed Exocompute is deprecated",
 			"Customer managed Exocompute is no longer supported by RSC. Set the subnet field to create an RSC "+
 				"managed Exocompute configuration.")
@@ -659,12 +643,6 @@ func (r *azureExocomputeResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	var optionalConfig []azureExocomputeOptionalConfigModel
-	res.Diagnostics.Append(plan.OptionalConfig.ElementsAs(ctx, &optionalConfig, false)...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
 	timeout, diags := plan.Timeouts.Create(ctx, defaultAzureExocomputeTimeout)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
@@ -693,17 +671,10 @@ func (r *azureExocomputeResource) Create(ctx context.Context, req resource.Creat
 		region := gqlazure.RegionFromName(plan.Region.ValueString())
 
 		var optional *gqlexocompute.AzureOptionalConfig
-		if len(optionalConfig) > 0 {
-			config := optionalConfig[0]
-
-			var additionalIPs []string
-			res.Diagnostics.Append(config.AllowlistAdditionalIPs.ElementsAs(ctx, &additionalIPs, false)...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
+		if len(plan.OptionalConfig) > 0 {
+			config := plan.OptionalConfig[0]
 			optional = &gqlexocompute.AzureOptionalConfig{
-				AdditionalWhitelistIPs:     additionalIPs,
+				AdditionalWhitelistIPs:     config.AllowlistAdditionalIPs,
 				ClusterAccess:              gqlexocompute.AzureClusterAccess(config.ClusterAccess.ValueString()),
 				ClusterTier:                gqlexocompute.AzureClusterTier(config.ClusterTier.ValueString()),
 				DiskEncryptionAtHost:       config.DiskEncryptionAtHost.ValueBool(),
@@ -761,30 +732,22 @@ func (r *azureExocomputeResource) Create(ctx context.Context, req resource.Creat
 	// this point doesn't orphan the configuration. The optional config fields
 	// RSC fills in are unknown in the plan and are set to null, the next read
 	// fills them in.
-	if len(optionalConfig) > 0 {
-		if optionalConfig[0].DiskEncryptionSetID.IsUnknown() {
-			optionalConfig[0].DiskEncryptionSetID = types.StringNull()
+	if len(plan.OptionalConfig) > 0 {
+		if plan.OptionalConfig[0].DiskEncryptionSetID.IsUnknown() {
+			plan.OptionalConfig[0].DiskEncryptionSetID = types.StringNull()
 		}
-		if optionalConfig[0].HealthCheckVMNamePrefix.IsUnknown() {
-			optionalConfig[0].HealthCheckVMNamePrefix = types.StringNull()
+		if plan.OptionalConfig[0].HealthCheckVMNamePrefix.IsUnknown() {
+			plan.OptionalConfig[0].HealthCheckVMNamePrefix = types.StringNull()
 		}
-		if optionalConfig[0].PostgresPrivateDNSZoneID.IsUnknown() {
-			optionalConfig[0].PostgresPrivateDNSZoneID = types.StringNull()
+		if plan.OptionalConfig[0].PostgresPrivateDNSZoneID.IsUnknown() {
+			plan.OptionalConfig[0].PostgresPrivateDNSZoneID = types.StringNull()
 		}
-		if optionalConfig[0].PostgresSubnetID.IsUnknown() {
-			optionalConfig[0].PostgresSubnetID = types.StringNull()
+		if plan.OptionalConfig[0].PostgresSubnetID.IsUnknown() {
+			plan.OptionalConfig[0].PostgresSubnetID = types.StringNull()
 		}
-		if optionalConfig[0].SQLPrivateDNSZoneID.IsUnknown() {
-			optionalConfig[0].SQLPrivateDNSZoneID = types.StringNull()
+		if plan.OptionalConfig[0].SQLPrivateDNSZoneID.IsUnknown() {
+			plan.OptionalConfig[0].SQLPrivateDNSZoneID = types.StringNull()
 		}
-
-		list, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, optionalConfig)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-
-		plan.OptionalConfig = list
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
@@ -876,10 +839,9 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 		}
 
 		// An unset block is an empty list, not null.
-		state.OptionalConfig = types.ListValueMust(types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes}, []attr.Value{})
+		state.OptionalConfig = []azureExocomputeOptionalConfigModel{}
 		if c := exoConfig.OptionalConfig; c != nil {
 			config := azureExocomputeOptionalConfigModel{
-				AllowlistAdditionalIPs:         types.SetNull(types.StringType),
 				AllowlistRubrikIPs:             types.BoolValue(c.WhitelistRubrikIPs),
 				ClusterAccess:                  types.StringValue(string(c.ClusterAccess)),
 				ClusterTier:                    types.StringValue(string(c.ClusterTier)),
@@ -896,12 +858,7 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 				UserDefinedRouting:             types.BoolValue(c.UserDefinedRouting),
 			}
 			if len(c.AdditionalWhitelistIPs) > 0 {
-				ips, diags := types.SetValueFrom(ctx, types.StringType, c.AdditionalWhitelistIPs)
-				res.Diagnostics.Append(diags...)
-				if res.Diagnostics.HasError() {
-					return
-				}
-				config.AllowlistAdditionalIPs = ips
+				config.AllowlistAdditionalIPs = c.AdditionalWhitelistIPs
 			}
 			if v := c.DiskEncryptionSetID; v != "" {
 				config.DiskEncryptionSetID = types.StringValue(v)
@@ -928,14 +885,7 @@ func (r *azureExocomputeResource) Read(ctx context.Context, req resource.ReadReq
 				config.SQLPrivateDNSZoneID = types.StringValue(v)
 			}
 
-			list, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: azureExocomputeOptionalConfigAttrTypes},
-				[]azureExocomputeOptionalConfigModel{config})
-			res.Diagnostics.Append(diags...)
-			if res.Diagnostics.HasError() {
-				return
-			}
-
-			state.OptionalConfig = list
+			state.OptionalConfig = []azureExocomputeOptionalConfigModel{config}
 		}
 	}
 
