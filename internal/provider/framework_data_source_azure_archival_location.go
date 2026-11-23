@@ -26,7 +26,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -52,21 +51,36 @@ type azureArchivalLocationDataSource struct {
 }
 
 type azureArchivalLocationModel struct {
-	ID                       types.String `tfsdk:"id"`
-	ArchivalLocationID       types.String `tfsdk:"archival_location_id"`
-	CloudAccountID           types.String `tfsdk:"cloud_account_id"`
-	ConnectionStatus         types.String `tfsdk:"connection_status"`
-	ContainerName            types.String `tfsdk:"container_name"`
-	CustomerManagedKey       types.Set    `tfsdk:"customer_managed_key"`
-	KeyVaultKey              types.List   `tfsdk:"key_vault_key"`
-	LocationTemplate         types.String `tfsdk:"location_template"`
-	Name                     types.String `tfsdk:"name"`
-	NetworkAccessType        types.String `tfsdk:"network_access_type"`
-	Redundancy               types.String `tfsdk:"redundancy"`
-	StorageAccountNamePrefix types.String `tfsdk:"storage_account_name_prefix"`
-	StorageAccountRegion     types.String `tfsdk:"storage_account_region"`
-	StorageAccountTags       types.Map    `tfsdk:"storage_account_tags"`
-	StorageTier              types.String `tfsdk:"storage_tier"`
+	ID                       types.String                            `tfsdk:"id"`
+	ArchivalLocationID       types.String                            `tfsdk:"archival_location_id"`
+	CloudAccountID           types.String                            `tfsdk:"cloud_account_id"`
+	ConnectionStatus         types.String                            `tfsdk:"connection_status"`
+	ContainerName            types.String                            `tfsdk:"container_name"`
+	CustomerManagedKey       []azureArchivalLocationCustomerKeyModel `tfsdk:"customer_managed_key"`
+	KeyVaultKey              []azureKeyVaultKeyModel                 `tfsdk:"key_vault_key"`
+	LocationTemplate         types.String                            `tfsdk:"location_template"`
+	Name                     types.String                            `tfsdk:"name"`
+	NetworkAccessType        types.String                            `tfsdk:"network_access_type"`
+	Redundancy               types.String                            `tfsdk:"redundancy"`
+	StorageAccountNamePrefix types.String                            `tfsdk:"storage_account_name_prefix"`
+	StorageAccountRegion     types.String                            `tfsdk:"storage_account_region"`
+	StorageAccountTags       map[string]string                       `tfsdk:"storage_account_tags"`
+	StorageTier              types.String                            `tfsdk:"storage_tier"`
+}
+
+// azureArchivalLocationCustomerKeyModel is an element of the
+// customer_managed_key set.
+type azureArchivalLocationCustomerKeyModel struct {
+	Name      types.String `tfsdk:"name"`
+	Region    types.String `tfsdk:"region"`
+	VaultName types.String `tfsdk:"vault_name"`
+}
+
+// azureKeyVaultKeyModel is an element of the key_vault_key list.
+type azureKeyVaultKeyModel struct {
+	KeyManagerID types.String `tfsdk:"key_manager_id"`
+	KeyName      types.String `tfsdk:"key_name"`
+	KeyVersion   types.String `tfsdk:"key_version"`
 }
 
 func newAzureArchivalLocationDataSource() datasource.DataSource {
@@ -267,38 +281,18 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 	targetTemplate := targetMapping.TargetTemplate
 	cloudNativeCompanion := targetTemplate.CloudNativeCompanion
 
-	tagValues := make(map[string]attr.Value, len(cloudNativeCompanion.StorageAccountTags))
+	storageAccountTags := make(map[string]string, len(cloudNativeCompanion.StorageAccountTags))
 	for _, tag := range cloudNativeCompanion.StorageAccountTags {
-		tagValues[tag.Key] = types.StringValue(tag.Value)
-	}
-	storageAccountTags, diags := types.MapValue(types.StringType, tagValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
+		storageAccountTags[tag.Key] = tag.Value
 	}
 
-	customerKeyAttrTypes := map[string]attr.Type{
-		keyName:      types.StringType,
-		keyRegion:    types.StringType,
-		keyVaultName: types.StringType,
-	}
-	customerKeyValues := make([]attr.Value, 0, len(cloudNativeCompanion.CMKInfo))
+	customerKeys := make([]azureArchivalLocationCustomerKeyModel, 0, len(cloudNativeCompanion.CMKInfo))
 	for _, key := range cloudNativeCompanion.CMKInfo {
-		customerKeyValue, diags := types.ObjectValue(customerKeyAttrTypes, map[string]attr.Value{
-			keyName:      types.StringValue(key.Name),
-			keyRegion:    types.StringValue(key.Region.Name()),
-			keyVaultName: types.StringValue(key.VaultName),
+		customerKeys = append(customerKeys, azureArchivalLocationCustomerKeyModel{
+			Name:      types.StringValue(key.Name),
+			Region:    types.StringValue(key.Region.Name()),
+			VaultName: types.StringValue(key.VaultName),
 		})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		customerKeyValues = append(customerKeyValues, customerKeyValue)
-	}
-	customerKeys, diags := types.SetValue(types.ObjectType{AttrTypes: customerKeyAttrTypes}, customerKeyValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
 	}
 
 	// RSC only lists the groups encrypted with a key from a key manager.
@@ -308,37 +302,18 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 		res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
 		return
 	}
-	keyVaultKeyAttrTypes := map[string]attr.Type{
-		keyKeyManagerID: types.StringType,
-		keyKeyName:      types.StringType,
-		keyKeyVersion:   types.StringType,
-	}
-	var keyVaultKeyValues []attr.Value
+	keyVaultKey := []azureKeyVaultKeyModel{}
 	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
-		keyVaultKeyValue, diags := types.ObjectValue(keyVaultKeyAttrTypes, map[string]attr.Value{
-			keyKeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-			keyKeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-			keyKeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
+		keyVaultKey = append(keyVaultKey, azureKeyVaultKeyModel{
+			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+			KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
+			KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
 		})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		keyVaultKeyValues = append(keyVaultKeyValues, keyVaultKeyValue)
 
 		// RSC keeps customer managed keys given together with a key vault key,
 		// even though they aren't used, so they aren't returned for a location
 		// with a key vault key.
-		customerKeys, diags = types.SetValue(types.ObjectType{AttrTypes: customerKeyAttrTypes}, []attr.Value{})
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-	}
-	keyVaultKey, diags := types.ListValue(types.ObjectType{AttrTypes: keyVaultKeyAttrTypes}, keyVaultKeyValues)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
+		customerKeys = []azureArchivalLocationCustomerKeyModel{}
 	}
 
 	state := azureArchivalLocationModel{
