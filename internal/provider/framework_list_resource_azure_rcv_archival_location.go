@@ -166,10 +166,8 @@ func (r *azureRCVArchivalLocationListResource) List(ctx context.Context, req lis
 						continue
 					}
 
-					keyList, keyDiags := fromAzureKeyVaultKey(ctx, details)
-					result.Diagnostics.Append(keyDiags...)
-					if len(keyList.Elements()) > 0 {
-						model.KeyVaultKey = keyList
+					if keyVaultKey := fromAzureKeyVaultKey(details); len(keyVaultKey) > 0 {
+						model.KeyVaultKey = keyVaultKey
 					}
 				}
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)

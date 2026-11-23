@@ -21,10 +21,7 @@
 package provider
 
 import (
-	"context"
-
 	"github.com/google/uuid"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -32,14 +29,8 @@ import (
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
 )
 
-// azureArchivalLocationCustomerKeyType is the element type of the
-// customer_managed_key block.
-var azureArchivalLocationCustomerKeyType = types.ObjectType{AttrTypes: map[string]attr.Type{
-	keyName:      types.StringType,
-	keyRegion:    types.StringType,
-	keyVaultName: types.StringType,
-}}
-
+// azureArchivalLocationCustomerKeyModel is an element of the
+// customer_managed_key set.
 type azureArchivalLocationCustomerKeyModel struct {
 	Name      types.String `tfsdk:"name"`
 	Region    types.String `tfsdk:"region"`
@@ -47,9 +38,9 @@ type azureArchivalLocationCustomerKeyModel struct {
 }
 
 // fromAzureCustomerKeys converts the SDK customer keys into the
-// customer_managed_key blocks. It returns an empty set when there are no
+// customer_managed_key blocks. It returns an empty slice when there are no
 // customer keys.
-func fromAzureCustomerKeys(ctx context.Context, keys []gqlarchival.AzureCustomerKey) (types.Set, diag.Diagnostics) {
+func fromAzureCustomerKeys(keys []gqlarchival.AzureCustomerKey) []azureArchivalLocationCustomerKeyModel {
 	customerKeys := make([]azureArchivalLocationCustomerKeyModel, 0, len(keys))
 	for _, key := range keys {
 		customerKeys = append(customerKeys, azureArchivalLocationCustomerKeyModel{
@@ -59,23 +50,12 @@ func fromAzureCustomerKeys(ctx context.Context, keys []gqlarchival.AzureCustomer
 		})
 	}
 
-	return types.SetValueFrom(ctx, azureArchivalLocationCustomerKeyType, customerKeys)
+	return customerKeys
 }
 
 // toAzureCustomerKeys converts the customer_managed_key blocks into the SDK
 // customer key parameter. It returns nil when no blocks are given.
-func toAzureCustomerKeys(ctx context.Context, set types.Set) ([]gqlarchival.AzureCustomerKey, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if set.IsNull() || set.IsUnknown() {
-		return nil, diags
-	}
-
-	var keys []azureArchivalLocationCustomerKeyModel
-	diags.Append(set.ElementsAs(ctx, &keys, false)...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
+func toAzureCustomerKeys(keys []azureArchivalLocationCustomerKeyModel) []gqlarchival.AzureCustomerKey {
 	var customerKeys []gqlarchival.AzureCustomerKey
 	for _, key := range keys {
 		customerKeys = append(customerKeys, gqlarchival.AzureCustomerKey{
@@ -85,16 +65,10 @@ func toAzureCustomerKeys(ctx context.Context, set types.Set) ([]gqlarchival.Azur
 		})
 	}
 
-	return customerKeys, diags
+	return customerKeys
 }
 
-// azureKeyVaultKeyType is the element type of the key_vault_key block.
-var azureKeyVaultKeyType = types.ObjectType{AttrTypes: map[string]attr.Type{
-	keyKeyManagerID: types.StringType,
-	keyKeyName:      types.StringType,
-	keyKeyVersion:   types.StringType,
-}}
-
+// azureKeyVaultKeyModel is an element of the key_vault_key list.
 type azureKeyVaultKeyModel struct {
 	KeyManagerID types.String `tfsdk:"key_manager_id"`
 	KeyName      types.String `tfsdk:"key_name"`
@@ -103,15 +77,9 @@ type azureKeyVaultKeyModel struct {
 
 // toAzureKeyVaultKey converts the key_vault_key block into the SDK Key Vault
 // key parameter. It returns nil when the block is left out.
-func toAzureKeyVaultKey(ctx context.Context, list types.List) (*gqlarchival.AzureKeyVaultKey, diag.Diagnostics) {
+func toAzureKeyVaultKey(keys []azureKeyVaultKeyModel) (*gqlarchival.AzureKeyVaultKey, diag.Diagnostics) {
 	var diags diag.Diagnostics
-	if list.IsNull() || list.IsUnknown() {
-		return nil, diags
-	}
-
-	var keys []azureKeyVaultKeyModel
-	diags.Append(list.ElementsAs(ctx, &keys, false)...)
-	if diags.HasError() || len(keys) == 0 {
+	if len(keys) == 0 {
 		return nil, diags
 	}
 
@@ -129,9 +97,9 @@ func toAzureKeyVaultKey(ctx context.Context, list types.List) (*gqlarchival.Azur
 }
 
 // fromAzureKeyVaultKey converts the Azure Key Vault key of the encryption
-// details into the key_vault_key block. It returns an empty list when the
+// details into the key_vault_key block. It returns an empty slice when the
 // archival group isn't encrypted with an Azure Key Vault key.
-func fromAzureKeyVaultKey(ctx context.Context, details gqlarchival.ArchivalGroupEncryptionDetails) (types.List, diag.Diagnostics) {
+func fromAzureKeyVaultKey(details gqlarchival.ArchivalGroupEncryptionDetails) []azureKeyVaultKeyModel {
 	keys := make([]azureKeyVaultKeyModel, 0, 1)
 	if details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
 		keys = append(keys, azureKeyVaultKeyModel{
@@ -141,5 +109,5 @@ func fromAzureKeyVaultKey(ctx context.Context, details gqlarchival.ArchivalGroup
 		})
 	}
 
-	return types.ListValueFrom(ctx, azureKeyVaultKeyType, keys)
+	return keys
 }

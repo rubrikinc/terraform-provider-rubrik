@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,7 +33,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
@@ -116,21 +116,21 @@ type azureArchivalLocationResource struct {
 }
 
 type azureArchivalLocationResourceModel struct {
-	ID                       types.String   `tfsdk:"id"`
-	CloudAccountID           types.String   `tfsdk:"cloud_account_id"`
-	ConnectionStatus         types.String   `tfsdk:"connection_status"`
-	ContainerName            types.String   `tfsdk:"container_name"`
-	CustomerManagedKey       types.Set      `tfsdk:"customer_managed_key"`
-	KeyVaultKey              types.List     `tfsdk:"key_vault_key"`
-	LocationTemplate         types.String   `tfsdk:"location_template"`
-	Name                     types.String   `tfsdk:"name"`
-	NetworkAccessType        types.String   `tfsdk:"network_access_type"`
-	Redundancy               types.String   `tfsdk:"redundancy"`
-	StorageAccountNamePrefix types.String   `tfsdk:"storage_account_name_prefix"`
-	StorageAccountRegion     types.String   `tfsdk:"storage_account_region"`
-	StorageAccountTags       types.Map      `tfsdk:"storage_account_tags"`
-	StorageTier              types.String   `tfsdk:"storage_tier"`
-	Timeouts                 timeouts.Value `tfsdk:"timeouts"`
+	ID                       types.String                            `tfsdk:"id"`
+	CloudAccountID           types.String                            `tfsdk:"cloud_account_id"`
+	ConnectionStatus         types.String                            `tfsdk:"connection_status"`
+	ContainerName            types.String                            `tfsdk:"container_name"`
+	CustomerManagedKey       []azureArchivalLocationCustomerKeyModel `tfsdk:"customer_managed_key"`
+	KeyVaultKey              []azureKeyVaultKeyModel                 `tfsdk:"key_vault_key"`
+	LocationTemplate         types.String                            `tfsdk:"location_template"`
+	Name                     types.String                            `tfsdk:"name"`
+	NetworkAccessType        types.String                            `tfsdk:"network_access_type"`
+	Redundancy               types.String                            `tfsdk:"redundancy"`
+	StorageAccountNamePrefix types.String                            `tfsdk:"storage_account_name_prefix"`
+	StorageAccountRegion     types.String                            `tfsdk:"storage_account_region"`
+	StorageAccountTags       map[string]string                       `tfsdk:"storage_account_tags"`
+	StorageTier              types.String                            `tfsdk:"storage_tier"`
+	Timeouts                 timeouts.Value                          `tfsdk:"timeouts"`
 }
 
 type azureArchivalLocationIdentityModel struct {
@@ -447,26 +447,15 @@ func (r *azureArchivalLocationResource) Create(ctx context.Context, req resource
 
 	// Tags are only sent when there are any.
 	var storageAccountTags *core.Tags
-	if len(plan.StorageAccountTags.Elements()) > 0 {
-		var tags map[string]string
-		res.Diagnostics.Append(plan.StorageAccountTags.ElementsAs(ctx, &tags, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		tagList := make([]core.Tag, 0, len(tags))
-		for key, value := range tags {
+	if len(plan.StorageAccountTags) > 0 {
+		tagList := make([]core.Tag, 0, len(plan.StorageAccountTags))
+		for key, value := range plan.StorageAccountTags {
 			tagList = append(tagList, core.Tag{Key: key, Value: value})
 		}
 		storageAccountTags = &core.Tags{TagList: tagList}
 	}
 
-	customerKeys, diags := toAzureCustomerKeys(ctx, plan.CustomerManagedKey)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-
-	keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
+	keyVaultKey, diags := toAzureKeyVaultKey(plan.KeyVaultKey)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -481,7 +470,7 @@ func (r *azureArchivalLocationResource) Create(ctx context.Context, req resource
 		StorageAccountName:   plan.StorageAccountNamePrefix.ValueString(),
 		StorageAccountRegion: azure.RegionFromName(plan.StorageAccountRegion.ValueString()).ToRegionEnum(),
 		StorageAccountTags:   storageAccountTags,
-		CMKInfo:              customerKeys,
+		CMKInfo:              toAzureCustomerKeys(plan.CustomerManagedKey),
 		KeyVaultKey:          keyVaultKey,
 	})
 	if err != nil {
@@ -555,18 +544,12 @@ func (r *azureArchivalLocationResource) Read(ctx context.Context, req resource.R
 	// Without tags in RSC, a state without tags is kept as it is, so that
 	// both a configuration without tags and an empty map plan cleanly.
 	if len(cloudNativeCompanion.StorageAccountTags) > 0 {
-		tagValues := make(map[string]attr.Value, len(cloudNativeCompanion.StorageAccountTags))
+		state.StorageAccountTags = make(map[string]string, len(cloudNativeCompanion.StorageAccountTags))
 		for _, tag := range cloudNativeCompanion.StorageAccountTags {
-			tagValues[tag.Key] = types.StringValue(tag.Value)
+			state.StorageAccountTags[tag.Key] = tag.Value
 		}
-		tags, diags := types.MapValue(types.StringType, tagValues)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		state.StorageAccountTags = tags
-	} else if len(state.StorageAccountTags.Elements()) > 0 {
-		state.StorageAccountTags = types.MapNull(types.StringType)
+	} else if len(state.StorageAccountTags) > 0 {
+		state.StorageAccountTags = nil
 	}
 
 	// RSC only lists the groups encrypted with a key from a key manager. A group
@@ -577,25 +560,15 @@ func (r *azureArchivalLocationResource) Read(ctx context.Context, req resource.R
 		res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
 		return
 	}
-	keyVaultKey, diags := fromAzureKeyVaultKey(ctx, details)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-	if len(keyVaultKey.Elements()) > 0 {
+	if keyVaultKey := fromAzureKeyVaultKey(details); len(keyVaultKey) > 0 {
 		state.KeyVaultKey = keyVaultKey
 	}
 
 	// RSC keeps customer managed keys given together with a key vault key, even
 	// though they aren't used, so they are only read for a location without a
 	// key vault key.
-	if len(state.KeyVaultKey.Elements()) == 0 {
-		customerManagedKey, diags := fromAzureCustomerKeys(ctx, cloudNativeCompanion.CMKInfo)
-		res.Diagnostics.Append(diags...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-		state.CustomerManagedKey = customerManagedKey
+	if len(state.KeyVaultKey) == 0 {
+		state.CustomerManagedKey = fromAzureCustomerKeys(cloudNativeCompanion.CMKInfo)
 	}
 
 	res.Diagnostics.Append(res.State.Set(ctx, &state)...)
@@ -647,8 +620,8 @@ func (r *azureArchivalLocationResource) Update(ctx context.Context, req resource
 	// The rekey runs before the update, a failed rekey then leaves the other
 	// arguments unchanged. Adding or removing the key replaces the archival
 	// location, so a difference here is always a change to the existing key.
-	if !plan.KeyVaultKey.Equal(state.KeyVaultKey) {
-		keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
+	if !slices.Equal(plan.KeyVaultKey, state.KeyVaultKey) {
+		keyVaultKey, diags := toAzureKeyVaultKey(plan.KeyVaultKey)
 		res.Diagnostics.Append(diags...)
 		if res.Diagnostics.HasError() {
 			return
@@ -665,22 +638,9 @@ func (r *azureArchivalLocationResource) Update(ctx context.Context, req resource
 	}
 
 	// Tags are always sent, an empty list removes them.
-	var tags map[string]string
-	if !plan.StorageAccountTags.IsNull() && !plan.StorageAccountTags.IsUnknown() {
-		res.Diagnostics.Append(plan.StorageAccountTags.ElementsAs(ctx, &tags, false)...)
-		if res.Diagnostics.HasError() {
-			return
-		}
-	}
-	tagList := make([]core.Tag, 0, len(tags))
-	for key, value := range tags {
+	tagList := make([]core.Tag, 0, len(plan.StorageAccountTags))
+	for key, value := range plan.StorageAccountTags {
 		tagList = append(tagList, core.Tag{Key: key, Value: value})
-	}
-
-	customerKeys, diags := toAzureCustomerKeys(ctx, plan.CustomerManagedKey)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
 	}
 
 	// Note, the API doesn't support updating all fields.
@@ -689,7 +649,7 @@ func (r *azureArchivalLocationResource) Update(ctx context.Context, req resource
 		NetworkAccessType:  plan.NetworkAccessType.ValueString(),
 		StorageTier:        plan.StorageTier.ValueString(),
 		StorageAccountTags: core.Tags{TagList: tagList},
-		CMKInfo:            customerKeys,
+		CMKInfo:            toAzureCustomerKeys(plan.CustomerManagedKey),
 	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to update Azure archival location", err.Error())

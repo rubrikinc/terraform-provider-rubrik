@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -97,20 +98,20 @@ type azureRCVArchivalLocationResource struct {
 }
 
 type azureRCVArchivalLocationModel struct {
-	ID                  types.String   `tfsdk:"id"`
-	Name                types.String   `tfsdk:"name"`
-	Region              types.String   `tfsdk:"region"`
-	Tier                types.String   `tfsdk:"tier"`
-	Redundancy          types.String   `tfsdk:"redundancy"`
-	SourceWorkloadCloud types.String   `tfsdk:"source_workload_cloud"`
-	UpdateChildVaults   types.Bool     `tfsdk:"update_child_vaults"`
-	RSAKey              types.List     `tfsdk:"rsa_key"`
-	LockDurationDays    types.Int64    `tfsdk:"lock_duration_days"`
-	ConnectionStatus    types.String   `tfsdk:"connection_status"`
-	LocationTemplate    types.String   `tfsdk:"location_template"`
-	EncryptionType      types.String   `tfsdk:"encryption_type"`
-	KeyVaultKey         types.List     `tfsdk:"key_vault_key"`
-	Timeouts            timeouts.Value `tfsdk:"timeouts"`
+	ID                  types.String            `tfsdk:"id"`
+	Name                types.String            `tfsdk:"name"`
+	Region              types.String            `tfsdk:"region"`
+	Tier                types.String            `tfsdk:"tier"`
+	Redundancy          types.String            `tfsdk:"redundancy"`
+	SourceWorkloadCloud types.String            `tfsdk:"source_workload_cloud"`
+	UpdateChildVaults   types.Bool              `tfsdk:"update_child_vaults"`
+	RSAKey              types.List              `tfsdk:"rsa_key"`
+	LockDurationDays    types.Int64             `tfsdk:"lock_duration_days"`
+	ConnectionStatus    types.String            `tfsdk:"connection_status"`
+	LocationTemplate    types.String            `tfsdk:"location_template"`
+	EncryptionType      types.String            `tfsdk:"encryption_type"`
+	KeyVaultKey         []azureKeyVaultKeyModel `tfsdk:"key_vault_key"`
+	Timeouts            timeouts.Value          `tfsdk:"timeouts"`
 }
 
 type azureRCVRSAKeyModel struct {
@@ -413,7 +414,7 @@ func (r *azureRCVArchivalLocationResource) Create(ctx context.Context, req resou
 	}
 	createParams.RSAKey = rsaKey
 
-	keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
+	keyVaultKey, diags := toAzureKeyVaultKey(plan.KeyVaultKey)
 	res.Diagnostics.Append(diags...)
 	if res.Diagnostics.HasError() {
 		return
@@ -493,12 +494,7 @@ func (r *azureRCVArchivalLocationResource) Read(ctx context.Context, req resourc
 		res.Diagnostics.AddError("Failed to read RCV Azure archival location encryption details", err.Error())
 		return
 	}
-	keyVaultKey, diags := fromAzureKeyVaultKey(ctx, details)
-	res.Diagnostics.Append(diags...)
-	if res.Diagnostics.HasError() {
-		return
-	}
-	if len(keyVaultKey.Elements()) > 0 {
+	if keyVaultKey := fromAzureKeyVaultKey(details); len(keyVaultKey) > 0 {
 		state.KeyVaultKey = keyVaultKey
 	}
 
@@ -542,8 +538,8 @@ func (r *azureRCVArchivalLocationResource) Update(ctx context.Context, req resou
 	// tier and the redundancy unchanged. Adding or removing the key replaces the
 	// archival location, so a difference here is always a change to the existing
 	// key.
-	if !plan.KeyVaultKey.Equal(state.KeyVaultKey) {
-		keyVaultKey, diags := toAzureKeyVaultKey(ctx, plan.KeyVaultKey)
+	if !slices.Equal(plan.KeyVaultKey, state.KeyVaultKey) {
+		keyVaultKey, diags := toAzureKeyVaultKey(plan.KeyVaultKey)
 		res.Diagnostics.Append(diags...)
 		if res.Diagnostics.HasError() {
 			return
@@ -662,7 +658,6 @@ func newAzureRCVArchivalLocationModel(targetMapping gqlarchival.RCVAzureTargetMa
 		ID:                types.StringValue(targetMapping.ID.String()),
 		UpdateChildVaults: types.BoolNull(),
 		RSAKey:            types.ListNull(azureRCVRSAKeyType),
-		KeyVaultKey:       types.ListNull(azureKeyVaultKeyType),
 		Timeouts:          nullTimeouts,
 	}
 	updateAzureRCVArchivalLocationModel(&m, &targetMapping)
