@@ -108,8 +108,8 @@ func (d *awsArtifactsDataSource) Schema(ctx context.Context, _ datasource.Schema
 				Optional: true,
 				Description: "AWS account ID. When specified, the artifacts are those required by the role mode of the " +
 					"account, e.g. one role per feature for an account using multiple roles. For an account not yet " +
-					"onboarded to RSC, the artifacts are those of a new account. When not specified, the artifacts " +
-					"are those of an account using a single role.",
+					"onboarded to RSC, the artifacts follow the role mode RSC uses for new accounts. " +
+					"When omitted, RSC returns the artifacts for the legacy single-role configuration.",
 				Validators: []validator.String{
 					isNotWhiteSpace(),
 				},

@@ -35,7 +35,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
@@ -52,12 +51,8 @@ func TestAccAwsCnpAccountResource(t *testing.T) {
 	// including CLOUDACCOUNTS which RSC adds on its own. CLOUD_COST_REPORT is
 	// also added when cost reporting is enabled for the RSC account, so it's
 	// not checked. The Exocompute EKS roles are the same in both role modes.
-	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
 	roleKeys := []string{"CROSSACCOUNT"}
-	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+	if featureFlagEnabled(t, FeatureFlagAWSManualOnboardingMultiRole) {
 		roleKeys = []string{"CLOUDACCOUNTS", "CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION", "EXOCOMPUTE"}
 	}
 	roleKeys = append(roleKeys, "EXOCOMPUTE_EKS_MASTERNODE", "EXOCOMPUTE_EKS_WORKERNODE", "EXOCOMPUTE_EKS_LAMBDA")
@@ -193,12 +188,8 @@ func TestAccAwsCnpAccountResource_ExternalID(t *testing.T) {
 
 	// See TestAccAwsCnpAccountResource for the trust policies of each role
 	// mode.
-	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
 	roleKeys := []string{"CROSSACCOUNT"}
-	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+	if featureFlagEnabled(t, FeatureFlagAWSManualOnboardingMultiRole) {
 		roleKeys = []string{"CLOUDACCOUNTS", "CLOUD_DISCOVERY", "CLOUD_NATIVE_PROTECTION"}
 	}
 	var trustPolicyChecks []knownvalue.Check

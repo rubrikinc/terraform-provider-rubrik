@@ -156,17 +156,14 @@ fixed when the roles of the account are registered with the `rubrik_aws_cnp_acco
 `trust_policies` field of the `rubrik_aws_cnp_account` resource always holds the trust policies of the role mode of the
 account.
 
-The `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data sources return the roles and policies of an account
-using a single role, unless they are given the AWS account ID of the account with the new `native_id` field. With
-`native_id`, the data sources return the roles and policies of the role mode of the account, matching its trust
-policies. For an account using multiple roles, that is one role per feature, with the policies of each feature on the
-role of that feature. For an account onboarded with a single role, it is the `CROSSACCOUNT` role, as before. The
-`native_id` field can be given before the account has been onboarded, in which case the data sources return the roles
-and policies RSC uses for a new account.
+The `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions` data sources accept the AWS account ID in the new
+`native_id` field. If omitted, RSC returns the legacy single-role artifacts and policies. If provided, RSC returns
+artifacts and policies matching the account's trust policies: one role per feature in multi-role mode or a single
+`CROSSACCOUNT` role in single-role mode. If the account has not been onboarded yet, RSC uses the role mode configured
+for new accounts.
 
-Pass the AWS account ID to the data sources as a value known when planning, e.g. a variable, and not as a reference to
-the `rubrik_aws_cnp_account` resource. The role keys of the artifacts data source are then known when planning, so a new
-account is onboarded with a single `terraform apply`:
+Pass the AWS account ID directly to both data sources as a value known at plan time, such as an input variable. This
+lets Terraform read the role keys during planning and onboard the account in a single `terraform apply`:
 ```terraform
 variable "account_id" {
   description = "AWS account ID."
@@ -220,8 +217,9 @@ resource "rubrik_aws_cnp_account" "account" {
   }
 }
 ```
-Referencing `rubrik_aws_cnp_account.account.native_id` from the data sources instead makes their role keys unknown until
-the account exists, and Terraform then cannot plan the roles of a new account.
+Referencing `rubrik_aws_cnp_account.account.native_id` instead creates a dependency on the account resource. If that
+resource has pending changes, Terraform can defer the data reads until apply, leaving the role keys needed by
+`for_each` unknown at plan time.
 
 An account using multiple roles has a role for every feature, so role key names are longer than with a single role. A
 role name prefix built from the full role key, e.g. `"rubrik-${lower(each.key)}-"`, is longer than the 38 characters

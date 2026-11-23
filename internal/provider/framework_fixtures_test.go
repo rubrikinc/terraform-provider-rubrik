@@ -747,15 +747,8 @@ func skipUnlessGCPKMSDefined(t *testing.T) {
 // enabled.
 func skipUnlessFeatureEnabled(t *testing.T, featureFlag core.FeatureFlagName) {
 	t.Helper()
-	skipUnlessAcceptanceTest(t)
 
-	ctx := context.Background()
-	c, err := newClient(ctx, testCredentials(t), polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	if !c.flag(ctx, featureFlag) {
+	if !featureFlagEnabled(t, featureFlag) {
 		t.Skipf("Feature flag %q not enabled", featureFlag)
 	}
 }

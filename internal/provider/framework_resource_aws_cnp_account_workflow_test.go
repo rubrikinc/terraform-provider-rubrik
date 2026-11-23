@@ -21,21 +21,14 @@
 package provider
 
 import (
-	"fmt"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
-	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
-	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
@@ -43,14 +36,10 @@ import (
 // workflow end-to-end for an account using a single CROSSACCOUNT role. When
 // RSC onboards new accounts with one role per feature, the account gets a
 // trust policy per feature while the data sources, without native_id, return
-// the CROSSACCOUNT role, so the test is skipped. That role mode is covered by
-// TestAccAwsCnpAccountWorkflow_NativeID.
+// the CROSSACCOUNT role, so the test is skipped. The native ID workflow
+// covers both role modes.
 func TestAccAwsCnpAccountWorkflow(t *testing.T) {
-	c, err := newClient(t.Context(), testCredentials(t), polaris.CacheParams{})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-	if c.flag(t.Context(), FeatureFlagAWSManualOnboardingMultiRole) {
+	if featureFlagEnabled(t, FeatureFlagAWSManualOnboardingMultiRole) {
 		t.Skipf("Feature flag %q enabled, the account uses one role per feature", FeatureFlagAWSManualOnboardingMultiRole)
 	}
 
@@ -328,18 +317,28 @@ func TestAccAwsCnpAccountWorkflow_RoleChaining(t *testing.T) {
 }
 
 // TestAccAwsCnpAccountWorkflow_NativeID exercises the AWS IAM-roles onboarding
-// workflow with the native_id field of the rubrik_aws_cnp_artifacts and
-// rubrik_aws_cnp_permissions data sources. With native_id, the data sources
-// return the roles and policies of the role mode of the account, e.g. one role
-// per feature for an account using multiple roles, matching the trust
-// policies of the rubrik_aws_cnp_account resource.
+// workflow in one apply, using a plan-time native_id in the data sources so
+// the returned roles and policies match the trust policies of a new account.
 func TestAccAwsCnpAccountWorkflow_NativeID(t *testing.T) {
+	accountID := testAWSAccountID(t)
 	vars := config.Variables{
 		"account_name":   config.StringVariable(testAWSAccountName(t)),
-		"aws_account_id": config.StringVariable(testAWSAccountID(t)),
+		"aws_account_id": config.StringVariable(accountID),
 	}
 
-	accountConfig := `
+	var roleKeyCheck knownvalue.Check = knownvalue.SetExact([]knownvalue.Check{knownvalue.StringExact("CROSSACCOUNT")})
+	if featureFlagEnabled(t, FeatureFlagAWSManualOnboardingMultiRole) {
+		// RSC may add other features, such as CLOUD_COST_REPORT.
+		roleKeyCheck = knownvalue.SetPartial([]knownvalue.Check{
+			knownvalue.StringExact("CLOUDACCOUNTS"),
+			knownvalue.StringExact("CLOUD_DISCOVERY"),
+			knownvalue.StringExact("CLOUD_NATIVE_PROTECTION"),
+		})
+	}
+
+	// The Terraform Plugin Testing package supports count but not for_each
+	// for data sources and resources.
+	conf := `
 		variable "account_name" {
 			type = string
 		}
@@ -367,15 +366,9 @@ func TestAccAwsCnpAccountWorkflow_NativeID(t *testing.T) {
 				}
 			}
 		}
-	`
 
-	// native_id requires the account to be onboarded, so the data sources and
-	// the roles are added in a second step. Note, the Terraform Plugin Testing
-	// package does not support for_each on data source or resources, only
-	// count.
-	rolesConfig := accountConfig + `
 		data "rubrik_aws_cnp_artifacts" "artifacts" {
-			native_id = rubrik_aws_cnp_account.account.native_id
+			native_id = var.aws_account_id
 
 			dynamic "feature" {
 				for_each = local.features
@@ -407,7 +400,7 @@ func TestAccAwsCnpAccountWorkflow_NativeID(t *testing.T) {
 
 		data "rubrik_aws_cnp_permissions" "permissions" {
 			count     = length(local.role_keys)
-			native_id = rubrik_aws_cnp_account.account.native_id
+			native_id = var.aws_account_id
 			role_key  = local.role_keys[count.index]
 
 			dynamic "feature" {
@@ -424,9 +417,8 @@ func TestAccAwsCnpAccountWorkflow_NativeID(t *testing.T) {
 			name_prefix        = "tfacc-nid-"
 			assume_role_policy = local.trust_policies[local.role_keys[count.index]]
 
-			# RSC marks features CONNECTED once the roles can be assumed, even
-			# when a role carries no policies, so a role without policies is
-			# caught here instead.
+			# Role registration alone doesn't prove that the data source
+			# returned policies for every role.
 			lifecycle {
 				precondition {
 					condition     = length(data.rubrik_aws_cnp_permissions.permissions[count.index].customer_managed_policies) > 0
@@ -485,68 +477,17 @@ func TestAccAwsCnpAccountWorkflow_NativeID(t *testing.T) {
 			awsCnpAccountAttachmentsCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
-			// Onboard the account.
-			Config:          accountConfig,
+			// Plan the roles and policies before the account exists, then
+			// create the account and register its roles in the same apply.
+			Config:          conf,
 			ConfigVariables: vars,
-		}, {
-			// Look up the roles and policies of the account, create a role per
-			// role key carrying the policies of the role, and register the
-			// roles. The role keys must match the trust policies, and every
-			// feature RSC has on the account must reach CONNECTED.
-			Config:          rolesConfig,
-			ConfigVariables: vars,
-			Check:           awsCnpAccountFeaturesConnected(t, "rubrik_aws_cnp_account.account"),
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownOutputValue("role_keys_match", knownvalue.Bool(true)),
 				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
-					tfjsonpath.New(keyNativeID), knownvalue.StringExact(testAWSAccountID(t))),
+					tfjsonpath.New(keyRoleKeys), roleKeyCheck),
+				statecheck.ExpectKnownValue("data.rubrik_aws_cnp_artifacts.artifacts",
+					tfjsonpath.New(keyNativeID), knownvalue.StringExact(accountID)),
 			},
 		}},
 	})
-}
-
-// awsCnpAccountFeaturesConnected returns a check which waits for every feature
-// RSC has on the AWS account managed by the resource to reach CONNECTED, and
-// fails with the status of each feature if they do not.
-func awsCnpAccountFeaturesConnected(t *testing.T, resourceName string) resource.TestCheckFunc {
-	t.Helper()
-	polarisClient := testClient(t)
-
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[resourceName]
-		if !ok {
-			return fmt.Errorf("resource %s not found in state", resourceName)
-		}
-		id, err := uuid.Parse(rs.Primary.ID)
-		if err != nil {
-			return err
-		}
-
-		var statuses []string
-		for deadline := time.Now().Add(10 * time.Minute); ; {
-			account, err := aws.Wrap(polarisClient).AccountByID(t.Context(), id)
-			if err != nil {
-				return err
-			}
-
-			statuses = statuses[:0]
-			connected := true
-			for _, feature := range account.Features {
-				statuses = append(statuses, fmt.Sprintf("%s=%s", feature.Name, feature.Status))
-				if feature.Status != core.StatusConnected {
-					connected = false
-				}
-			}
-			if connected {
-				t.Logf("AWS account features: %s", strings.Join(statuses, ", "))
-				return nil
-			}
-			if time.Now().After(deadline) {
-				break
-			}
-			time.Sleep(15 * time.Second)
-		}
-
-		return fmt.Errorf("AWS account features not connected: %s", strings.Join(statuses, ", "))
-	}
 }
