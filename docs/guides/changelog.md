@@ -48,6 +48,9 @@ page_title: "Changelog"
   apply fail, trying to set the service account with an empty key.
 * Fix a bug in the `rubrik_gcp_archival_location` resource where the `storage_class` field was described as the AWS
   bucket storage class.
+* Fix a bug in the `rubrik_aws_cloud_cluster` resource where setting the `cloud_account_id` field in the state failed
+  after the cloud cluster was created. The planned value was kept and the error was only logged, except when the
+  provider was run by an acceptance test, where the error crashed the provider.
 * Fix the documentation of the `rubrik_gcp_service_account` resource, which said that the `name` field sets the name of
   the service account in RSC. Since v1.10.0, RSC always uses the client email of the service account key as the name,
   and the `name` field is not sent to RSC. [[docs](../resources/gcp_service_account.md)]
