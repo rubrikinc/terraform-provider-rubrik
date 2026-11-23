@@ -27,6 +27,11 @@ const (
 	// FeatureFlagAWSAppResilience gates AWS application resilience.
 	FeatureFlagAWSAppResilience core.FeatureFlagName = "LIC_ENABLE_AWS_APP_RESILIENCE"
 
+	// FeatureFlagAWSManualOnboardingMultiRole gates onboarding AWS accounts
+	// with the IAM roles workflow using one IAM role per feature instead of a
+	// single CROSSACCOUNT role.
+	FeatureFlagAWSManualOnboardingMultiRole core.FeatureFlagName = "REL_ENABLE_AWS_MANUAL_ONBOARDING_MULTI_ROLE"
+
 	// FeatureFlagAzureDevOpsProtection gates Azure DevOps protection.
 	FeatureFlagAzureDevOpsProtection core.FeatureFlagName = "AZURE_DEVOPS_PROTECTION_ENABLED"
 

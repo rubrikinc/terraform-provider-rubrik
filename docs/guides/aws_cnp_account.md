@@ -19,6 +19,8 @@ Start by discovering the IAM artifacts RSC needs for the chosen feature set usin
 source:
 ```terraform
 data "rubrik_aws_cnp_artifacts" "artifacts" {
+  native_id = "123456789123"
+
   feature {
     name = "CLOUD_NATIVE_PROTECTION"
 
@@ -31,13 +33,19 @@ data "rubrik_aws_cnp_artifacts" "artifacts" {
 One or more `feature` blocks lists the RSC features to enable for the AWS account. Use the `rubrik_account` data
 source to obtain a list of RSC features available for the RSC account. The `rubrik_aws_cnp_artifacts` data source
 returns the instance profile keys and role keys, referred to as _artifacts_ by RSC, required by the IAM roles workflow.
+`native_id` is the AWS account ID. RSC onboards an account with either a single `CROSSACCOUNT` role or one role per
+feature, and with `native_id` the data source returns the roles matching the account. Pass the account ID directly
+to the data sources as a literal or an input variable known at plan time. Referencing the `rubrik_aws_cnp_account`
+resource can defer the data reads until apply, leaving the role keys unknown during planning and preventing onboarding
+with a single `terraform apply`.
 
 Next, use the `rubrik_aws_cnp_permissions` data source to obtain the IAM policies, both AWS managed and customer
 managed, that must be attached to each role:
 ```terraform
 data "rubrik_aws_cnp_permissions" "permissions" {
-  for_each = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
-  role_key = each.key
+  for_each  = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
+  native_id = "123456789123"
+  role_key  = each.key
 
   dynamic "feature" {
     for_each = data.rubrik_aws_cnp_artifacts.artifacts.feature
@@ -104,7 +112,10 @@ locals {
 resource "aws_iam_role" "role" {
   for_each           = data.rubrik_aws_cnp_artifacts.artifacts.role_keys
   assume_role_policy = local.trust_policies[each.key]
-  name_prefix        = "rubrik-${lower(each.key)}-"
+
+  # AWS limits name_prefix to 38 characters, which some role keys of an account
+  # using one role per feature exceed.
+  name_prefix = "${substr("rubrik-${lower(each.key)}", 0, 37)}-"
 }
 
 resource "aws_iam_policy" "customer_managed" {
@@ -130,7 +141,7 @@ resource "aws_iam_role_policy_attachments_exclusive" "policies" {
 
 resource "aws_iam_instance_profile" "profile" {
   for_each    = data.rubrik_aws_cnp_artifacts.artifacts.instance_profile_keys
-  name_prefix = "rubrik-${lower(each.key)}-"
+  name_prefix = "${substr("rubrik-${lower(each.key)}", 0, 37)}-"
   role        = aws_iam_role.role[each.value].name
 }
 ```

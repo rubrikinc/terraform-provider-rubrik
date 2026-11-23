@@ -66,6 +66,7 @@ type awsPermissionsModel struct {
 	Cloud                   types.String `tfsdk:"cloud"`
 	EC2RecoveryRolePath     types.String `tfsdk:"ec2_recovery_role_path"`
 	Feature                 types.Set    `tfsdk:"feature"`
+	NativeID                types.String `tfsdk:"native_id"`
 	RoleKey                 types.String `tfsdk:"role_key"`
 	CustomerManagedPolicies types.List   `tfsdk:"customer_managed_policies"`
 	ManagedPolicies         types.List   `tfsdk:"managed_policies"`
@@ -131,6 +132,17 @@ func (d *awsPermissionsDataSource) Schema(ctx context.Context, _ datasource.Sche
 				ElementType: types.StringType,
 				Computed:    true,
 				Description: "Managed policies.",
+			},
+			keyNativeID: schema.StringAttribute{
+				Optional: true,
+				Description: "AWS account ID. When specified, the policies are those required by the role mode of the " +
+					"account, e.g. the policies of each feature are returned for the role of that feature for an " +
+					"account using multiple roles. For an account not yet onboarded to RSC, the policies follow the " +
+					"role mode RSC uses for new accounts. When omitted, RSC returns the policies for the legacy " +
+					"single-role configuration.",
+				Validators: []validator.String{
+					isNotWhiteSpace(),
+				},
 			},
 			keyRoleKey: schema.StringAttribute{
 				Required:    true,
@@ -224,7 +236,12 @@ func (d *awsPermissionsDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	customerPolicies, managedPolicies, err := aws.Wrap(polarisClient).Permissions(ctx, cloud, features, ec2RecoveryRolePath)
+	customerPolicies, managedPolicies, err := aws.Wrap(polarisClient).PermissionsWithParams(ctx, aws.PermissionsParams{
+		Cloud:               cloud,
+		Features:            features,
+		EC2RecoveryRolePath: ec2RecoveryRolePath,
+		NativeID:            config.NativeID.ValueString(),
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read AWS permissions", err.Error())
 		return
@@ -298,6 +315,7 @@ func (d *awsPermissionsDataSource) Read(ctx context.Context, req datasource.Read
 		Cloud:                   config.Cloud,
 		EC2RecoveryRolePath:     config.EC2RecoveryRolePath,
 		Feature:                 config.Feature,
+		NativeID:                config.NativeID,
 		RoleKey:                 config.RoleKey,
 		CustomerManagedPolicies: customerPolicyList,
 		ManagedPolicies:         managedPolicyList,

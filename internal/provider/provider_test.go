@@ -29,6 +29,7 @@ import (
 	"text/template"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
 )
 
 var sdkProvider *schema.Provider = Provider()
@@ -37,6 +38,19 @@ var providerFactories = map[string]func() (*schema.Provider, error){
 	"polaris": func() (*schema.Provider, error) {
 		return sdkProvider, nil
 	},
+}
+
+// featureFlagEnabled reports whether an RSC feature flag is enabled for an
+// acceptance test.
+func featureFlagEnabled(t *testing.T, featureFlag core.FeatureFlagName) bool {
+	t.Helper()
+
+	c := testClient(t)
+	flag, err := core.Wrap(c.GQL).FeatureFlag(t.Context(), featureFlag)
+	if err != nil {
+		t.Fatalf("failed to read feature flag %q: %v", featureFlag, err)
+	}
+	return flag.Enabled
 }
 
 // loadTestCredentials returns the content of the file pointed to by the
