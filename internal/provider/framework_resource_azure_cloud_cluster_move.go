@@ -24,6 +24,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -127,38 +128,35 @@ func (r *azureCloudClusterResource) moveStateV0() resource.StateMover {
 				VMConfig:       source.VMConfig,
 				Timeouts:       cloudClusterMoveTimeouts(source.Timeouts),
 			}
-			azureCloudClusterNormalizeMovedState(&target)
+
+			// Map SDKv2 unset values to Framework values and drop any admin
+			// credentials persisted before those fields became write-only.
+			for i := range target.ClusterConfig {
+				cc := &target.ClusterConfig[i]
+				cc.AdminEmail = types.StringNull()
+				cc.AdminPassword = types.StringNull()
+				if cc.ForceClusterDeleteOnDestroy.IsNull() {
+					cc.ForceClusterDeleteOnDestroy = types.BoolValue(false)
+				}
+			}
+
+			for i := range target.VMConfig {
+				vm := &target.VMConfig[i]
+				if vm.Subnet.ValueString() == "" {
+					vm.Subnet = types.StringNull()
+				}
+				if vm.AvailabilityZone.ValueString() == "" {
+					vm.AvailabilityZone = types.StringNull()
+				}
+				if vm.VMType.ValueString() == "" {
+					vm.VMType = types.StringValue(string(gqlcloudcluster.CCVmConfigDense))
+				}
+			}
 
 			res.Diagnostics.Append(res.TargetState.Set(ctx, &target)...)
+			if !res.Diagnostics.HasError() && res.TargetIdentity != nil {
+				res.Diagnostics.Append(res.TargetIdentity.SetAttribute(ctx, path.Root(keyID), target.ID)...)
+			}
 		},
-	}
-}
-
-// azureCloudClusterNormalizeMovedState converts the SDKv2 representation of
-// unset values to the Framework representation: empty strings become null,
-// unset booleans become false, an unset vm_type becomes the default, and the
-// admin credentials, which old releases stored before they became write-only,
-// are dropped.
-func azureCloudClusterNormalizeMovedState(state *azureCloudClusterModel) {
-	for i := range state.ClusterConfig {
-		cc := &state.ClusterConfig[i]
-		cc.AdminEmail = types.StringNull()
-		cc.AdminPassword = types.StringNull()
-		if cc.ForceClusterDeleteOnDestroy.IsNull() {
-			cc.ForceClusterDeleteOnDestroy = types.BoolValue(false)
-		}
-	}
-
-	for i := range state.VMConfig {
-		vm := &state.VMConfig[i]
-		if !vm.Subnet.IsNull() && vm.Subnet.ValueString() == "" {
-			vm.Subnet = types.StringNull()
-		}
-		if !vm.AvailabilityZone.IsNull() && vm.AvailabilityZone.ValueString() == "" {
-			vm.AvailabilityZone = types.StringNull()
-		}
-		if vm.VMType.IsNull() || vm.VMType.ValueString() == "" {
-			vm.VMType = types.StringValue(string(gqlcloudcluster.CCVmConfigDense))
-		}
 	}
 }

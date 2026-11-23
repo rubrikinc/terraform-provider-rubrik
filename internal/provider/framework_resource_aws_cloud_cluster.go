@@ -398,16 +398,16 @@ func (r *awsCloudClusterResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// admin_email and admin_password are write-only, so they are null in the
-	// plan; read them from the config instead.
-	var config awsCloudClusterModel
-	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	res.Diagnostics.Append(cloudClusterCheckBlocks(len(plan.ClusterConfig), len(plan.VMConfig))...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	res.Diagnostics.Append(cloudClusterCheckBlocks(len(plan.ClusterConfig), len(plan.VMConfig))...)
-	res.Diagnostics.Append(cloudClusterCheckBlocks(len(config.ClusterConfig), len(config.VMConfig))...)
+	// Write-only admin credentials are available only in the configuration.
+	var adminEmail, adminPassword types.String
+	clusterConfig := path.Root(keyClusterConfig).AtListIndex(0)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, clusterConfig.AtName(keyAdminEmail), &adminEmail)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, clusterConfig.AtName(keyAdminPassword), &adminPassword)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -426,10 +426,69 @@ func (r *awsCloudClusterResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	input, diags := r.buildCreateInput(ctx, plan, config)
-	res.Diagnostics.Append(diags...)
+	cloudAccountID, err := uuid.Parse(plan.CloudAccountID.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError("Invalid cloud account ID", err.Error())
+		return
+	}
+
+	cc := plan.ClusterConfig[0]
+	vm := &plan.VMConfig[0]
+
+	var subnetAzModels []cloudClusterSubnetAzConfigModel
+	if !vm.SubnetAzConfig.IsNull() && !vm.SubnetAzConfig.IsUnknown() {
+		res.Diagnostics.Append(vm.SubnetAzConfig.ElementsAs(ctx, &subnetAzModels, false)...)
+	}
+	var subnetAzConfigs []gqlcloudcluster.SubnetAzConfig
+	for _, az := range subnetAzModels {
+		subnetAzConfigs = append(subnetAzConfigs, gqlcloudcluster.SubnetAzConfig{
+			AvailabilityZone: az.AvailabilityZone.ValueString(),
+			Subnet:           az.Subnet.ValueString(),
+		})
+	}
+
+	securityGroups := decodeCloudClusterStringSet(ctx, vm.SecurityGroupIDs, &res.Diagnostics)
+	dnsNameServers := decodeCloudClusterStringSet(ctx, cc.DNSNameServers, &res.Diagnostics)
+	dnsSearchDomains := decodeCloudClusterStringSet(ctx, cc.DNSSearchDomains, &res.Diagnostics)
+	ntpServers := decodeCloudClusterStringSet(ctx, cc.NTPServers, &res.Diagnostics)
 	if res.Diagnostics.HasError() {
 		return
+	}
+
+	input := gqlcloudcluster.CreateAwsClusterInput{
+		CloudAccountID: cloudAccountID,
+		ClusterConfig: gqlcloudcluster.AwsClusterConfig{
+			ClusterName:      cc.ClusterName.ValueString(),
+			UserEmail:        adminEmail.ValueString(),
+			AdminPassword:    secret.String(adminPassword.ValueString()),
+			DNSNameServers:   dnsNameServers,
+			DNSSearchDomains: dnsSearchDomains,
+			NTPServers:       ntpServers,
+			NumNodes:         int(cc.NumNodes.ValueInt64()),
+			AwsEsConfig: gqlcloudcluster.AwsEsConfigInput{
+				BucketName:         cc.BucketName.ValueString(),
+				ShouldCreateBucket: false,
+				EnableImmutability: cc.EnableImmutability.ValueBool(),
+				EnableObjectLock:   cc.EnableImmutability.ValueBool(),
+			},
+			DynamicScalingEnabled: cc.DynamicScalingEnabled.ValueBool(),
+		},
+		IsAzResilient:        plan.AZResilient.ValueBool(),
+		IsEsType:             true,
+		KeepClusterOnFailure: cc.KeepClusterOnFailure.ValueBool(),
+		Region:               plan.Region.ValueString(),
+		UsePlacementGroups:   plan.UsePlacementGroups.ValueBool(),
+		Validations:          []gqlcloudcluster.ClusterCreateValidations{gqlcloudcluster.AllChecks},
+		VMConfig: gqlcloudcluster.AwsVmConfig{
+			CDMVersion:          vm.CDMVersion.ValueString(),
+			InstanceProfileName: vm.InstanceProfileName.ValueString(),
+			InstanceType:        gqlcloudcluster.AwsCCInstanceType(vm.InstanceType.ValueString()),
+			SecurityGroups:      securityGroups,
+			Subnet:              vm.SubnetID.ValueString(),
+			SubnetAzConfigs:     subnetAzConfigs,
+			VMType:              gqlcloudcluster.VmConfigType(vm.VMType.ValueString()),
+			VPC:                 vm.VPCID.ValueString(),
+		},
 	}
 
 	// useLatestCdmVersion is false so the configured cdm_version is honoured
@@ -506,7 +565,7 @@ func (r *awsCloudClusterResource) Read(ctx context.Context, req resource.ReadReq
 			},
 			BucketName:            types.StringNull(),
 			EnableImmutability:    types.BoolNull(),
-			DynamicScalingEnabled: types.BoolValue(false),
+			DynamicScalingEnabled: types.BoolNull(),
 		}}
 		state.VMConfig = []awsVMConfigModel{{
 			CDMVersion:          types.StringNull(),
@@ -519,9 +578,6 @@ func (r *awsCloudClusterResource) Read(ctx context.Context, req resource.ReadReq
 			VMType:              types.StringNull(),
 			SubnetAzConfig:      types.ListNull(cloudClusterSubnetAzObjectType),
 		}}
-		if state.UsePlacementGroups.IsNull() {
-			state.UsePlacementGroups = types.BoolValue(false)
-		}
 	}
 
 	timeout, diags := state.Timeouts.Read(ctx, defaultCloudClusterReadTimeout)
@@ -630,27 +686,13 @@ func (r *awsCloudClusterResource) Update(ctx context.Context, req resource.Updat
 	// place. The other attributes only change in place when they are adopted
 	// from the configuration after an import, which needs no API call.
 	planCC := &plan.ClusterConfig[0].cloudClusterCommonConfigModel
-	_, diags := cloudClusterUpdateNetwork(ctx, gqlClusterAPI, id, planCC, &state.ClusterConfig[0].cloudClusterCommonConfigModel)
-	res.Diagnostics.Append(diags...)
+	res.Diagnostics.Append(cloudClusterUpdateNetwork(ctx, gqlClusterAPI, id, planCC,
+		&state.ClusterConfig[0].cloudClusterCommonConfigModel)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	// Refresh the computed values. The values just applied are kept, RSC can
-	// normalize them, e.g. the location, which would fail the apply with an
-	// inconsistent result error. Drift is picked up by Read.
-	planned := *planCC
-	res.Diagnostics.Append(cloudClusterDowngrade(ctx, cloudClusterReadNetwork(ctx, gqlClusterAPI, id, planCC))...)
-	cloudClusterKeepPlanned(planned, planCC)
-	if planCC.Timezone.IsUnknown() {
-		planCC.Timezone = types.StringNull()
-	}
-	if planCC.Location.IsUnknown() {
-		planCC.Location = types.StringNull()
-	}
-	if planCC.DNSSearchDomains.IsUnknown() {
-		planCC.DNSSearchDomains = types.SetNull(types.StringType)
-	}
+	res.Diagnostics.Append(cloudClusterReadComputedNetwork(ctx, gqlClusterAPI, id, planCC)...)
 	if plan.VMConfig[0].CDMProduct.IsUnknown() {
 		plan.VMConfig[0].CDMProduct = types.StringNull()
 	}
@@ -706,94 +748,6 @@ func (r *awsCloudClusterResource) ImportState(ctx context.Context, req resource.
 	tflog.Trace(ctx, "awsCloudClusterResource.ImportState")
 
 	cloudClusterImportState(ctx, req, res)
-}
-
-// buildCreateInput assembles the SDK CreateAwsClusterInput from the plan (for
-// non-write-only fields) and the config (for the write-only admin fields).
-func (r *awsCloudClusterResource) buildCreateInput(ctx context.Context, plan, config awsCloudClusterModel) (gqlcloudcluster.CreateAwsClusterInput, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	cloudAccountID, err := uuid.Parse(plan.CloudAccountID.ValueString())
-	if err != nil {
-		diags.AddError("Invalid cloud account ID", err.Error())
-		return gqlcloudcluster.CreateAwsClusterInput{}, diags
-	}
-
-	cc := plan.ClusterConfig[0]
-	vm := plan.VMConfig[0]
-
-	var subnetAzModels []cloudClusterSubnetAzConfigModel
-	if !vm.SubnetAzConfig.IsNull() && !vm.SubnetAzConfig.IsUnknown() {
-		diags.Append(vm.SubnetAzConfig.ElementsAs(ctx, &subnetAzModels, false)...)
-	}
-	var subnetAzConfigs []gqlcloudcluster.SubnetAzConfig
-	for _, az := range subnetAzModels {
-		subnetAzConfigs = append(subnetAzConfigs, gqlcloudcluster.SubnetAzConfig{
-			AvailabilityZone: az.AvailabilityZone.ValueString(),
-			Subnet:           az.Subnet.ValueString(),
-		})
-	}
-
-	securityGroups := decodeStringSetOrNil(ctx, vm.SecurityGroupIDs, &diags)
-	dnsNameServers := decodeStringSetOrNil(ctx, cc.DNSNameServers, &diags)
-	dnsSearchDomains := decodeStringSetOrNil(ctx, cc.DNSSearchDomains, &diags)
-	ntpServers := decodeStringSetOrNil(ctx, cc.NTPServers, &diags)
-	if diags.HasError() {
-		return gqlcloudcluster.CreateAwsClusterInput{}, diags
-	}
-	if securityGroups == nil {
-		securityGroups = []string{}
-	}
-	if dnsNameServers == nil {
-		dnsNameServers = []string{}
-	}
-	if dnsSearchDomains == nil {
-		dnsSearchDomains = []string{}
-	}
-	if ntpServers == nil {
-		ntpServers = []string{}
-	}
-
-	// admin_email and admin_password are write-only, so read them from the config.
-	configCC := config.ClusterConfig[0]
-
-	input := gqlcloudcluster.CreateAwsClusterInput{
-		CloudAccountID: cloudAccountID,
-		ClusterConfig: gqlcloudcluster.AwsClusterConfig{
-			ClusterName:      cc.ClusterName.ValueString(),
-			UserEmail:        configCC.AdminEmail.ValueString(),
-			AdminPassword:    secret.String(configCC.AdminPassword.ValueString()),
-			DNSNameServers:   dnsNameServers,
-			DNSSearchDomains: dnsSearchDomains,
-			NTPServers:       ntpServers,
-			NumNodes:         int(cc.NumNodes.ValueInt64()),
-			AwsEsConfig: gqlcloudcluster.AwsEsConfigInput{
-				BucketName:         cc.BucketName.ValueString(),
-				ShouldCreateBucket: false,
-				EnableImmutability: cc.EnableImmutability.ValueBool(),
-				EnableObjectLock:   cc.EnableImmutability.ValueBool(),
-			},
-			DynamicScalingEnabled: cc.DynamicScalingEnabled.ValueBool(),
-		},
-		IsAzResilient:        plan.AZResilient.ValueBool(),
-		IsEsType:             true,
-		KeepClusterOnFailure: cc.KeepClusterOnFailure.ValueBool(),
-		Region:               plan.Region.ValueString(),
-		UsePlacementGroups:   plan.UsePlacementGroups.ValueBool(),
-		Validations:          []gqlcloudcluster.ClusterCreateValidations{gqlcloudcluster.AllChecks},
-		VMConfig: gqlcloudcluster.AwsVmConfig{
-			CDMVersion:          vm.CDMVersion.ValueString(),
-			InstanceProfileName: vm.InstanceProfileName.ValueString(),
-			InstanceType:        gqlcloudcluster.AwsCCInstanceType(vm.InstanceType.ValueString()),
-			SecurityGroups:      securityGroups,
-			Subnet:              vm.SubnetID.ValueString(),
-			SubnetAzConfigs:     subnetAzConfigs,
-			VMType:              gqlcloudcluster.VmConfigType(vm.VMType.ValueString()),
-			VPC:                 vm.VPCID.ValueString(),
-		},
-	}
-
-	return input, diags
 }
 
 // awsCloudClusterFromProvisionConfig sets the create-time inputs of an imported

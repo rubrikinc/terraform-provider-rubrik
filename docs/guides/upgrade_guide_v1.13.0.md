@@ -173,6 +173,10 @@ The `rubrik_aws_cloud_cluster` and `rubrik_azure_cloud_cluster` resources, and t
 now implemented using the Terraform Plugin Framework. Existing state is read as is, and a plan for an unchanged
 configuration shows no changes and no replacement of the cluster.
 
+If you manage an AWS cluster with `rubrikinc/polaris`, upgrade the source provider to v1.12.2 before switching
+providers. That release fixes how `polaris_aws_cloud_cluster` writes `cloud_account_id` to state. Check that the
+migration plan shows no cluster changes before applying. Leave refresh enabled for that plan.
+
 The following behavior changes apply:
 * `vm_config.cdm_version` is a create-time input and is no longer overwritten with the installed CDM version when the
   resource is refreshed. A cluster upgraded outside of Terraform no longer plans a replacement.

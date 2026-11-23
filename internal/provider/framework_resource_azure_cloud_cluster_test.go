@@ -28,10 +28,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -151,6 +153,8 @@ func TestAzureCloudClusterMoveState(t *testing.T) {
 
 	var schemaRes fwresource.SchemaResponse
 	r.Schema(ctx, fwresource.SchemaRequest{}, &schemaRes)
+	var identityRes fwresource.IdentitySchemaResponse
+	r.IdentitySchema(ctx, fwresource.IdentitySchemaRequest{}, &identityRes)
 	if schemaRes.Diagnostics.HasError() {
 		t.Fatalf("failed to build schema: %v", schemaRes.Diagnostics)
 	}
@@ -309,6 +313,10 @@ func TestAzureCloudClusterMoveState(t *testing.T) {
 					Schema: schemaRes.Schema,
 					Raw:    tftypes.NewValue(schemaRes.Schema.Type().TerraformType(ctx), nil),
 				},
+				TargetIdentity: &tfsdk.ResourceIdentity{
+					Schema: identityRes.IdentitySchema,
+					Raw:    tftypes.NewValue(identityRes.IdentitySchema.Type().TerraformType(ctx), nil),
+				},
 			}
 			mover.StateMover(ctx, req, &res)
 			if res.Diagnostics.HasError() {
@@ -321,6 +329,13 @@ func TestAzureCloudClusterMoveState(t *testing.T) {
 			}
 			if got.ID != tt.source.ID {
 				t.Errorf("id = %v, want %v", got.ID, tt.source.ID)
+			}
+			var identityID types.String
+			if diags := res.TargetIdentity.GetAttribute(ctx, path.Root(keyID), &identityID); diags.HasError() {
+				t.Fatalf("failed to decode the target identity: %v", diags)
+			}
+			if identityID != tt.source.ID {
+				t.Errorf("identity id = %v, want %v", identityID, tt.source.ID)
 			}
 			tt.check(t, got)
 		})
@@ -684,23 +699,25 @@ func TestAccAzureCloudClusterResource_FrameworkMigration(t *testing.T) {
 func TestAccAzureCloudClusterResource_MoveState(t *testing.T) {
 	fixture := testAzureCloudClusterConfig(t)
 	vars := azureCloudClusterTestVariables(t, fixture)
+	clusterID := statecheck.CompareValue(compare.ValuesSame())
 
 	resource.Test(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			tfversion.SkipBelow(tfversion.Version1_11_0),
+			tfversion.SkipBelow(tfversion.Version1_12_0), // Resource identity assertions need Terraform 1.12.
 		},
 		CheckDestroy: azureCloudClusterCheckDestroy(t),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"polaris": {
 					Source:            "rubrikinc/polaris",
-					VersionConstraint: "1.12.0",
+					VersionConstraint: "1.12.2",
 				},
 			},
 			Config:          azureCloudClusterTestConfig("polaris", ""),
 			ConfigVariables: vars,
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("polaris_azure_cloud_cluster.cluster", tfjsonpath.New(keyID), NonNullUUID()),
+				clusterID.AddStateValue("polaris_azure_cloud_cluster.cluster", tfjsonpath.New(keyID)),
 			},
 		}, {
 			ProtoV6ProviderFactories: protoV6ProviderFactories,
@@ -711,7 +728,11 @@ func TestAccAzureCloudClusterResource_MoveState(t *testing.T) {
 				}
 			` + azureCloudClusterTestConfig("rubrik", ""),
 			ConfigVariables: vars,
-			// Verify the plan is empty and the move succeeded without drift.
+			ConfigStateChecks: []statecheck.StateCheck{
+				clusterID.AddStateValue("rubrik_azure_cloud_cluster.cluster", tfjsonpath.New(keyID)),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_cloud_cluster.cluster", tfjsonpath.New(keyID)),
+			},
+			// The move must not create, update, or destroy the cluster.
 			ConfigPlanChecks: resource.ConfigPlanChecks{
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),

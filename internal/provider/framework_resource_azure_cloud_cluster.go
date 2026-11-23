@@ -378,16 +378,16 @@ func (r *azureCloudClusterResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	// admin_email and admin_password are write-only, so they are null in the
-	// plan; read them from the config instead.
-	var config azureCloudClusterModel
-	res.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	res.Diagnostics.Append(cloudClusterCheckBlocks(len(plan.ClusterConfig), len(plan.VMConfig))...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	res.Diagnostics.Append(cloudClusterCheckBlocks(len(plan.ClusterConfig), len(plan.VMConfig))...)
-	res.Diagnostics.Append(cloudClusterCheckBlocks(len(config.ClusterConfig), len(config.VMConfig))...)
+	// Write-only admin credentials are available only in the configuration.
+	var adminEmail, adminPassword types.String
+	clusterConfig := path.Root(keyClusterConfig).AtListIndex(0)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, clusterConfig.AtName(keyAdminEmail), &adminEmail)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, clusterConfig.AtName(keyAdminPassword), &adminPassword)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
@@ -406,10 +406,80 @@ func (r *azureCloudClusterResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	input, diags := r.buildCreateInput(ctx, plan, config)
-	res.Diagnostics.Append(diags...)
+	cloudAccountID, err := uuid.Parse(plan.CloudAccountID.ValueString())
+	if err != nil {
+		res.Diagnostics.AddError("Invalid cloud account ID", err.Error())
+		return
+	}
+
+	cc := plan.ClusterConfig[0]
+	vm := &plan.VMConfig[0]
+
+	region := azureRegion.RegionFromName(vm.Region.ValueString())
+	if region == azureRegion.RegionUnknown {
+		res.Diagnostics.AddAttributeError(path.Root(keyVMConfig), "Invalid region", fmt.Sprintf("Unknown Azure region %q.", vm.Region.ValueString()))
+		return
+	}
+
+	var subnetAzModels []cloudClusterSubnetAzConfigModel
+	if !vm.SubnetAzConfig.IsNull() && !vm.SubnetAzConfig.IsUnknown() {
+		res.Diagnostics.Append(vm.SubnetAzConfig.ElementsAs(ctx, &subnetAzModels, false)...)
+	}
+	var subnetAzConfigs []gqlcloudcluster.SubnetAzConfig
+	for _, az := range subnetAzModels {
+		subnetAzConfigs = append(subnetAzConfigs, gqlcloudcluster.SubnetAzConfig{
+			AvailabilityZone: az.AvailabilityZone.ValueString(),
+			Subnet:           az.Subnet.ValueString(),
+		})
+	}
+
+	dnsNameServers := decodeCloudClusterStringSet(ctx, cc.DNSNameServers, &res.Diagnostics)
+	dnsSearchDomains := decodeCloudClusterStringSet(ctx, cc.DNSSearchDomains, &res.Diagnostics)
+	ntpServers := decodeCloudClusterStringSet(ctx, cc.NTPServers, &res.Diagnostics)
 	if res.Diagnostics.HasError() {
 		return
+	}
+
+	input := gqlcloudcluster.CreateAzureClusterInput{
+		CloudAccountID: cloudAccountID,
+		ClusterConfig: gqlcloudcluster.AzureClusterConfig{
+			ClusterName:      cc.ClusterName.ValueString(),
+			UserEmail:        adminEmail.ValueString(),
+			AdminPassword:    secret.String(adminPassword.ValueString()),
+			DNSNameServers:   dnsNameServers,
+			DNSSearchDomains: dnsSearchDomains,
+			NTPServers:       ntpServers,
+			NumNodes:         int(cc.NumNodes.ValueInt64()),
+			AzureESConfig: gqlcloudcluster.AzureEsConfigInput{
+				ResourceGroup:         vm.ResourceGroupName.ValueString(),
+				StorageAccount:        vm.StorageAccountName.ValueString(),
+				ContainerName:         vm.ContainerName.ValueString(),
+				ShouldCreateContainer: false,
+				EnableImmutability:    vm.EnableImmutability.ValueBool(),
+				ManagedIdentity: gqlcloudcluster.AzureManagedIdentityName{
+					Name: vm.UserAssignedManagedIdentity.ValueString(),
+				},
+			},
+		},
+		IsAzResilient:        plan.AZResilient.ValueBool(),
+		IsESType:             true,
+		KeepClusterOnFailure: cc.KeepClusterOnFailure.ValueBool(),
+		Validations:          []gqlcloudcluster.ClusterCreateValidations{gqlcloudcluster.AllChecks},
+		VMConfig: gqlcloudcluster.AzureVMConfig{
+			CDMVersion:                   vm.CDMVersion.ValueString(),
+			InstanceType:                 gqlcloudcluster.AzureCCESSupportedInstanceType(vm.InstanceType.ValueString()),
+			Location:                     region,
+			ResourceGroup:                vm.ResourceGroupName.ValueString(),
+			NetworkResourceGroup:         vm.NetworkResourceGroup.ValueString(),
+			VnetResourceGroup:            vm.VnetResourceGroup.ValueString(),
+			Subnet:                       vm.Subnet.ValueString(),
+			SubnetAzConfigs:              subnetAzConfigs,
+			Vnet:                         vm.Vnet.ValueString(),
+			NetworkSecurityGroup:         vm.NetworkSecurityGroup.ValueString(),
+			NetworkSecurityResourceGroup: vm.NetworkSecurityResourceGroup.ValueString(),
+			VMType:                       gqlcloudcluster.VmConfigType(vm.VMType.ValueString()),
+			AvailabilityZone:             vm.AvailabilityZone.ValueString(),
+		},
 	}
 
 	azureCluster, err := cloudcluster.Wrap(polarisClient).CreateAzureCloudCluster(ctx, input)
@@ -435,7 +505,6 @@ func (r *azureCloudClusterResource) Create(ctx context.Context, req resource.Cre
 	// would need the subscription and marketplace calls on every refresh. The
 	// value is the product version of the configured CDM version, which is what
 	// the state of existing clusters holds.
-	vm := &plan.VMConfig[0]
 	vm.CDMProduct = types.StringNull()
 	cdmVersions, err := gqlcloudcluster.Wrap(polarisClient.GQL).AllAzureCdmVersions(ctx, input.CloudAccountID, input.VMConfig.Location)
 	if err != nil {
@@ -636,27 +705,13 @@ func (r *azureCloudClusterResource) Update(ctx context.Context, req resource.Upd
 	// place. The other attributes only change in place when they are adopted
 	// from the configuration after an import, which needs no API call.
 	planCC := &plan.ClusterConfig[0].cloudClusterCommonConfigModel
-	_, diags := cloudClusterUpdateNetwork(ctx, gqlClusterAPI, id, planCC, &state.ClusterConfig[0].cloudClusterCommonConfigModel)
-	res.Diagnostics.Append(diags...)
+	res.Diagnostics.Append(cloudClusterUpdateNetwork(ctx, gqlClusterAPI, id, planCC,
+		&state.ClusterConfig[0].cloudClusterCommonConfigModel)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 
-	// Refresh the computed values. The values just applied are kept, RSC can
-	// normalize them, e.g. the location, which would fail the apply with an
-	// inconsistent result error. Drift is picked up by Read.
-	planned := *planCC
-	res.Diagnostics.Append(cloudClusterDowngrade(ctx, cloudClusterReadNetwork(ctx, gqlClusterAPI, id, planCC))...)
-	cloudClusterKeepPlanned(planned, planCC)
-	if planCC.Timezone.IsUnknown() {
-		planCC.Timezone = types.StringNull()
-	}
-	if planCC.Location.IsUnknown() {
-		planCC.Location = types.StringNull()
-	}
-	if planCC.DNSSearchDomains.IsUnknown() {
-		planCC.DNSSearchDomains = types.SetNull(types.StringType)
-	}
+	res.Diagnostics.Append(cloudClusterReadComputedNetwork(ctx, gqlClusterAPI, id, planCC)...)
 	if plan.VMConfig[0].CDMProduct.IsUnknown() {
 		plan.VMConfig[0].CDMProduct = types.StringNull()
 	}
@@ -712,102 +767,6 @@ func (r *azureCloudClusterResource) ImportState(ctx context.Context, req resourc
 	tflog.Trace(ctx, "azureCloudClusterResource.ImportState")
 
 	cloudClusterImportState(ctx, req, res)
-}
-
-// buildCreateInput assembles the SDK CreateAzureClusterInput from the plan (for
-// non-write-only fields) and the config (for the write-only admin fields).
-func (r *azureCloudClusterResource) buildCreateInput(ctx context.Context, plan, config azureCloudClusterModel) (gqlcloudcluster.CreateAzureClusterInput, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	cloudAccountID, err := uuid.Parse(plan.CloudAccountID.ValueString())
-	if err != nil {
-		diags.AddError("Invalid cloud account ID", err.Error())
-		return gqlcloudcluster.CreateAzureClusterInput{}, diags
-	}
-
-	cc := plan.ClusterConfig[0]
-	vm := plan.VMConfig[0]
-
-	region := azureRegion.RegionFromName(vm.Region.ValueString())
-	if region == azureRegion.RegionUnknown {
-		diags.AddAttributeError(path.Root(keyVMConfig), "Invalid region", fmt.Sprintf("Unknown Azure region %q.", vm.Region.ValueString()))
-		return gqlcloudcluster.CreateAzureClusterInput{}, diags
-	}
-
-	var subnetAzModels []cloudClusterSubnetAzConfigModel
-	if !vm.SubnetAzConfig.IsNull() && !vm.SubnetAzConfig.IsUnknown() {
-		diags.Append(vm.SubnetAzConfig.ElementsAs(ctx, &subnetAzModels, false)...)
-	}
-	var subnetAzConfigs []gqlcloudcluster.SubnetAzConfig
-	for _, az := range subnetAzModels {
-		subnetAzConfigs = append(subnetAzConfigs, gqlcloudcluster.SubnetAzConfig{
-			AvailabilityZone: az.AvailabilityZone.ValueString(),
-			Subnet:           az.Subnet.ValueString(),
-		})
-	}
-
-	dnsNameServers := decodeStringSetOrNil(ctx, cc.DNSNameServers, &diags)
-	dnsSearchDomains := decodeStringSetOrNil(ctx, cc.DNSSearchDomains, &diags)
-	ntpServers := decodeStringSetOrNil(ctx, cc.NTPServers, &diags)
-	if diags.HasError() {
-		return gqlcloudcluster.CreateAzureClusterInput{}, diags
-	}
-	if dnsNameServers == nil {
-		dnsNameServers = []string{}
-	}
-	if dnsSearchDomains == nil {
-		dnsSearchDomains = []string{}
-	}
-	if ntpServers == nil {
-		ntpServers = []string{}
-	}
-
-	// admin_email and admin_password are write-only, so read them from the config.
-	configCC := config.ClusterConfig[0]
-
-	input := gqlcloudcluster.CreateAzureClusterInput{
-		CloudAccountID: cloudAccountID,
-		ClusterConfig: gqlcloudcluster.AzureClusterConfig{
-			ClusterName:      cc.ClusterName.ValueString(),
-			UserEmail:        configCC.AdminEmail.ValueString(),
-			AdminPassword:    secret.String(configCC.AdminPassword.ValueString()),
-			DNSNameServers:   dnsNameServers,
-			DNSSearchDomains: dnsSearchDomains,
-			NTPServers:       ntpServers,
-			NumNodes:         int(cc.NumNodes.ValueInt64()),
-			AzureESConfig: gqlcloudcluster.AzureEsConfigInput{
-				ResourceGroup:         vm.ResourceGroupName.ValueString(),
-				StorageAccount:        vm.StorageAccountName.ValueString(),
-				ContainerName:         vm.ContainerName.ValueString(),
-				ShouldCreateContainer: false,
-				EnableImmutability:    vm.EnableImmutability.ValueBool(),
-				ManagedIdentity: gqlcloudcluster.AzureManagedIdentityName{
-					Name: vm.UserAssignedManagedIdentity.ValueString(),
-				},
-			},
-		},
-		IsAzResilient:        plan.AZResilient.ValueBool(),
-		IsESType:             true,
-		KeepClusterOnFailure: cc.KeepClusterOnFailure.ValueBool(),
-		Validations:          []gqlcloudcluster.ClusterCreateValidations{gqlcloudcluster.AllChecks},
-		VMConfig: gqlcloudcluster.AzureVMConfig{
-			CDMVersion:                   vm.CDMVersion.ValueString(),
-			InstanceType:                 gqlcloudcluster.AzureCCESSupportedInstanceType(vm.InstanceType.ValueString()),
-			Location:                     region,
-			ResourceGroup:                vm.ResourceGroupName.ValueString(),
-			NetworkResourceGroup:         vm.NetworkResourceGroup.ValueString(),
-			VnetResourceGroup:            vm.VnetResourceGroup.ValueString(),
-			Subnet:                       vm.Subnet.ValueString(),
-			SubnetAzConfigs:              subnetAzConfigs,
-			Vnet:                         vm.Vnet.ValueString(),
-			NetworkSecurityGroup:         vm.NetworkSecurityGroup.ValueString(),
-			NetworkSecurityResourceGroup: vm.NetworkSecurityResourceGroup.ValueString(),
-			VMType:                       gqlcloudcluster.VmConfigType(vm.VMType.ValueString()),
-			AvailabilityZone:             vm.AvailabilityZone.ValueString(),
-		},
-	}
-
-	return input, diags
 }
 
 // azureCloudClusterFromProvisionConfig sets the create-time inputs of an

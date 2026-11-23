@@ -225,11 +225,9 @@ func cloudClusterIdentitySchema() identityschema.Schema {
 }
 
 // cloudClusterImportState imports a cloud cluster by its ID, given either as
-// the import string or as the identity. RSC can't return the create-time inputs
-// of a cluster, so the resource is marked as imported in the private state. The
-// requires-replace plan modifiers then adopt the configured values for the
-// attributes missing from the state, instead of replacing the cluster. The
-// provider trusts the configuration to match the cluster.
+// the import string or as the identity. Marking the resource as imported lets
+// the plan modifiers adopt only create-time inputs missing from RSC, instead
+// of replacing the cluster when those inputs are first configured.
 func cloudClusterImportState(ctx context.Context, req resource.ImportStateRequest, res *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughWithIdentity(ctx, path.Root(keyID), path.Root(keyID), req, res)
 	if res.Diagnostics.HasError() {
@@ -290,21 +288,18 @@ func cloudClusterIsZero(value attr.Value) bool {
 // cloudClusterRequiresReplace decides if a changed create-time attribute
 // requires the cluster to be replaced. It's only called when the planned value
 // differs from the state value. The cluster is not replaced when:
-//   - the resource is imported and the state value is null or zero. RSC can't
-//     return the value, so the configured value is adopted.
+//   - the resource is imported and the state value is null. RSC didn't return
+//     the value, so the configured value is adopted.
 //   - both the state value and the planned value are null or zero. The SDKv2
 //     resources stored "", false and empty sets where the Framework plans null.
 //
 // In all other cases, including an unknown planned value, the cluster is
 // replaced.
 func cloudClusterRequiresReplace(imported bool, stateValue, planValue attr.Value) bool {
-	if imported && cloudClusterIsZero(stateValue) {
+	if imported && stateValue.IsNull() {
 		return false
 	}
-	if cloudClusterIsZero(stateValue) && cloudClusterIsZero(planValue) {
-		return false
-	}
-	return true
+	return !cloudClusterIsZero(stateValue) || !cloudClusterIsZero(planValue)
 }
 
 const cloudClusterRequiresReplaceDescription = "Requires replacement when changed, unless the value is adopted from the " +
@@ -405,10 +400,9 @@ func cloudClusterReadNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API, 
 // cloudClusterUpdateNetwork applies the changes between the state and the plan
 // to the cluster: the DNS servers and search domains (together), the NTP
 // servers, and the cluster name, timezone and location (together). The updates
-// are applied in that order, and the first error stops the update. The returned
-// boolean is true when the cluster settings were updated. Computed values which
-// are unknown in the plan are not changes.
-func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API, id uuid.UUID, plan, state *cloudClusterCommonConfigModel) (bool, diag.Diagnostics) {
+// are applied in that order, and the first error stops the update. Unknown
+// computed values are not changes.
+func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API, id uuid.UUID, plan, state *cloudClusterCommonConfigModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// An unknown plan value is a computed value which is not configured, the
@@ -421,16 +415,10 @@ func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API
 		!(cloudClusterIsZero(searchDomains) && cloudClusterIsZero(state.DNSSearchDomains))
 
 	if !plan.DNSNameServers.Equal(state.DNSNameServers) || searchDomainsChanged {
-		servers := decodeStringSetOrNil(ctx, plan.DNSNameServers, &diags)
-		domains := decodeStringSetOrNil(ctx, searchDomains, &diags)
+		servers := decodeCloudClusterStringSet(ctx, plan.DNSNameServers, &diags)
+		domains := decodeCloudClusterStringSet(ctx, searchDomains, &diags)
 		if diags.HasError() {
-			return false, diags
-		}
-		if servers == nil {
-			servers = []string{}
-		}
-		if domains == nil {
-			domains = []string{}
+			return diags
 		}
 		if err := gqlClusterAPI.UpdateDNSServersAndSearchDomains(ctx, gqlcluster.UpdateDNSServersAndSearchDomainsInput{
 			ClusterID:     id,
@@ -438,14 +426,14 @@ func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API
 			SearchDomains: domains,
 		}); err != nil {
 			diags.AddError("Failed to update DNS servers and search domains", err.Error())
-			return false, diags
+			return diags
 		}
 	}
 
 	if !plan.NTPServers.Equal(state.NTPServers) {
-		servers := decodeStringSetOrNil(ctx, plan.NTPServers, &diags)
+		servers := decodeCloudClusterStringSet(ctx, plan.NTPServers, &diags)
 		if diags.HasError() {
-			return false, diags
+			return diags
 		}
 		input := gqlcluster.UpdateClusterNTPServersInput{ClusterID: id}
 		for _, server := range servers {
@@ -456,7 +444,7 @@ func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API
 		}
 		if err := gqlClusterAPI.UpdateNTPServers(ctx, input); err != nil {
 			diags.AddError("Failed to update NTP servers", err.Error())
-			return false, diags
+			return diags
 		}
 	}
 
@@ -470,82 +458,63 @@ func cloudClusterUpdateNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API
 		location = state.Location
 	}
 	if plan.ClusterName.Equal(state.ClusterName) && timezone.Equal(state.Timezone) && location.Equal(state.Location) {
-		return false, diags
+		return diags
 	}
 	diags.Append(updateClusterSettings(ctx, gqlClusterAPI, id, plan.ClusterName.ValueString(),
 		timezone.ValueString(), location.ValueString())...)
-	if diags.HasError() {
-		return false, diags
-	}
-
-	return true, diags
+	return diags
 }
 
-// cloudClusterKeepPlanned sets the values in cc to the planned values, for the
-// attributes which are known in the plan. Terraform requires the state saved
-// by an apply to match the known planned values, but RSC can normalize what it
-// returns, e.g. the location. The values read back are only used for the
-// computed attributes which are unknown in the plan. Drift is picked up by the
-// next Read.
-func cloudClusterKeepPlanned(planned cloudClusterCommonConfigModel, cc *cloudClusterCommonConfigModel) {
-	if !planned.ClusterName.IsUnknown() {
-		cc.ClusterName = planned.ClusterName
+// decodeCloudClusterStringSet sends an empty JSON array rather than null when
+// a list-valued create or update input has no entries.
+func decodeCloudClusterStringSet(ctx context.Context, set types.Set, diags *diag.Diagnostics) []string {
+	values := decodeStringSetOrNil(ctx, set, diags)
+	if values == nil {
+		return []string{}
 	}
-	if !planned.DNSNameServers.IsUnknown() {
-		cc.DNSNameServers = planned.DNSNameServers
-	}
-	if !planned.DNSSearchDomains.IsUnknown() {
-		cc.DNSSearchDomains = planned.DNSSearchDomains
-	}
-	if !planned.NTPServers.IsUnknown() {
-		cc.NTPServers = planned.NTPServers
-	}
-	if !planned.Timezone.IsUnknown() {
-		cc.Timezone = planned.Timezone
-	}
-	if !planned.Location.IsUnknown() {
-		cc.Location = planned.Location
-	}
+	return values
 }
 
-// cloudClusterFinishCreate completes the creation of a cluster. It reads the
-// cluster back and applies the configured timezone and location, since the
-// create API can't set them. The cc model must hold the planned values. A
-// failure is returned as a warning, since the cluster exists and the state
-// must be saved. The next Read shows the drift, and the next apply corrects it.
-// Any computed value still unknown, e.g. due to a failed read-back, is set to
-// null.
+// cloudClusterReadComputedNetwork fills unknown computed values after an
+// apply. Keep known plan values: RSC may normalize them, and returning a
+// different value would fail the apply. Read will detect any drift next time.
+func cloudClusterReadComputedNetwork(ctx context.Context, gqlClusterAPI gqlcluster.API, id uuid.UUID, planned *cloudClusterCommonConfigModel) diag.Diagnostics {
+	actual := cloudClusterCommonConfigModel{
+		DNSSearchDomains: types.SetNull(types.StringType),
+	}
+	diags := cloudClusterDowngrade(ctx, cloudClusterReadNetwork(ctx, gqlClusterAPI, id, &actual))
+
+	if planned.Timezone.IsUnknown() {
+		planned.Timezone = actual.Timezone
+	}
+	if planned.Location.IsUnknown() {
+		planned.Location = actual.Location
+	}
+	if planned.DNSSearchDomains.IsUnknown() {
+		planned.DNSSearchDomains = actual.DNSSearchDomains
+	}
+	return diags
+}
+
+// cloudClusterFinishCreate reads back computed values and applies the
+// configured timezone and location, which the create API cannot set. Errors
+// become warnings because the cluster already exists.
 func cloudClusterFinishCreate(ctx context.Context, gqlClusterAPI gqlcluster.API, id uuid.UUID, cc *cloudClusterCommonConfigModel) diag.Diagnostics {
-	var diags diag.Diagnostics
+	setTimezone := !cc.Timezone.IsUnknown()
+	setLocation := !cc.Location.IsUnknown()
+	diags := cloudClusterReadComputedNetwork(ctx, gqlClusterAPI, id, cc)
 
-	planned := *cc
-	diags.Append(cloudClusterDowngrade(ctx, cloudClusterReadNetwork(ctx, gqlClusterAPI, id, cc))...)
-	cloudClusterKeepPlanned(planned, cc)
-
-	// The settings API writes the name, the timezone and the location together,
-	// so a value which is not configured is passed back unchanged from the
-	// read-back. If the read-back failed there is no value to pass back.
-	if !planned.Timezone.IsUnknown() || !planned.Location.IsUnknown() {
-		timezone, location := cc.Timezone, cc.Location
-		if timezone.IsUnknown() || location.IsUnknown() {
+	if setTimezone || setLocation {
+		// The settings API writes the fields together, so preserve the remote
+		// value for a field not configured by the user.
+		if (!setTimezone && cc.Timezone.IsNull()) || (!setLocation && cc.Location.IsNull()) {
 			diags.AddWarning("Failed to apply timezone and location",
 				"The cluster settings could not be read back, so the timezone and location were not applied.")
 		} else {
 			diags.Append(cloudClusterDowngrade(ctx, updateClusterSettings(ctx, gqlClusterAPI, id,
-				cc.ClusterName.ValueString(), timezone.ValueString(), location.ValueString()))...)
+				cc.ClusterName.ValueString(), cc.Timezone.ValueString(), cc.Location.ValueString()))...)
 		}
 	}
-
-	if cc.Timezone.IsUnknown() {
-		cc.Timezone = types.StringNull()
-	}
-	if cc.Location.IsUnknown() {
-		cc.Location = types.StringNull()
-	}
-	if cc.DNSSearchDomains.IsUnknown() {
-		cc.DNSSearchDomains = types.SetNull(types.StringType)
-	}
-
 	return diags
 }
 
