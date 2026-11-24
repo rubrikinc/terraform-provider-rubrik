@@ -831,7 +831,7 @@ func (r *gcpCloudClusterResource) ImportState(ctx context.Context, req resource.
 		return
 	}
 
-	recorded, err := gqlcloudcluster.Wrap(polarisClient.GQL).ProvisionConfig(ctx, clusterID)
+	recorded, err := cloudcluster.Wrap(polarisClient).ProvisionConfig(ctx, clusterID)
 	switch {
 	case errors.Is(err, graphql.ErrNotFound):
 		res.Diagnostics.AddError("Cloud cluster create configuration not found",
@@ -859,7 +859,7 @@ func (r *gcpCloudClusterResource) ImportState(ctx context.Context, req resource.
 
 // gcpCloudClusterFromProvisionConfig builds import state from the recorded
 // create settings. Read refreshes the mutable settings after import.
-func gcpCloudClusterFromProvisionConfig(ctx context.Context, id types.String, config gqlcloudcluster.GcpProvisionConfig) (gcpCloudClusterModel, diag.Diagnostics) {
+func gcpCloudClusterFromProvisionConfig(ctx context.Context, id types.String, config cloudcluster.GcpProvisionConfig) (gcpCloudClusterModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	if config.CDMVersion == "" || config.BucketName == "" || config.InstanceType == gqlcloudcluster.GcpInstanceTypeUnspecified ||
 		config.ClusterConfig.NumNodes < 1 || len(config.ServiceAccounts) == 0 || len(config.NetworkConfig) == 0 {

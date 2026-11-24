@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/cloudcluster"
 	gqlcloudcluster "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/cloudcluster"
 	gqlaws "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/aws"
 	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
@@ -47,9 +48,9 @@ func TestAzureCloudClusterFromProvisionConfig(t *testing.T) {
 			}},
 		}
 	}
-	base := gqlcloudcluster.AzureProvisionConfig{
+	base := cloudcluster.AzureProvisionConfig{
 		CloudAccountID: uuid.MustParse("0a9b8c7d-6e5f-4a3b-8c2d-1e0f9a8b7c6d"),
-		ClusterConfig:  gqlcloudcluster.ProvisionClusterConfig{NumNodes: 3},
+		ClusterConfig:  cloudcluster.ProvisionClusterConfig{NumNodes: 3},
 		ImageVersion:   "3.7.31669",
 		Region:         gqlazure.RegionCentralUS,
 		InstanceType:   gqlcloudcluster.AzureInstanceTypeStandardD8SV5,
@@ -128,10 +129,10 @@ func TestAwsCloudClusterFromProvisionConfig(t *testing.T) {
 			}},
 		}
 	}
-	config := gqlcloudcluster.AwsProvisionConfig{
+	config := cloudcluster.AwsProvisionConfig{
 		CloudAccountID: uuid.MustParse("0a9b8c7d-6e5f-4a3b-8c2d-1e0f9a8b7c6d"),
 		Region:         gqlaws.RegionUsEast2,
-		ClusterConfig:  gqlcloudcluster.ProvisionClusterConfig{NumNodes: 1, DynamicScalingEnabled: true},
+		ClusterConfig:  cloudcluster.ProvisionClusterConfig{NumNodes: 1, DynamicScalingEnabled: true},
 		BucketName:     "my-bucket",
 		CDMVersion:     "9.4.0-p2-30507",
 		CDMProduct:     "rubrik-cdm-product-code",

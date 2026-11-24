@@ -598,7 +598,7 @@ func (r *awsCloudClusterResource) Read(ctx context.Context, req resource.ReadReq
 	// RSC recorded when the cluster was created. Values which aren't recorded
 	// are left null and adopted from the configuration by the plan modifiers.
 	if imported && state.CloudAccountID.IsNull() {
-		provisionConfig, err := gqlcloudcluster.Wrap(polarisClient.GQL).ProvisionConfig(ctx, id)
+		provisionConfig, err := cloudcluster.Wrap(polarisClient).ProvisionConfig(ctx, id)
 		switch {
 		case errors.Is(err, graphql.ErrNotFound):
 			res.Diagnostics.AddWarning("Cloud cluster create configuration not found",
@@ -758,7 +758,7 @@ func (r *awsCloudClusterResource) ImportState(ctx context.Context, req resource.
 // recorded it, STANDARD is the zero value and can't be told apart from a
 // missing value. The CDM version is not set, the cluster may have been
 // upgraded since it was created.
-func awsCloudClusterFromProvisionConfig(config gqlcloudcluster.AwsProvisionConfig, state *awsCloudClusterModel) {
+func awsCloudClusterFromProvisionConfig(config cloudcluster.AwsProvisionConfig, state *awsCloudClusterModel) {
 	optional := func(value string) types.String {
 		if value == "" {
 			return types.StringNull()
