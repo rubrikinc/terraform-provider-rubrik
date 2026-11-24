@@ -31,7 +31,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	gqlazure "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/azure"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -72,14 +71,6 @@ func (r *azureManagementGroupResource) ModifyPlan(ctx context.Context, req resou
 	}
 	if !state.Feature.Equal(plan.Feature) || !state.SubscriptionIDs.Equal(plan.SubscriptionIDs) {
 		res.Diagnostics.AddAttributeError(path.Root(keyRegions), "Apply region additions separately", "Do not change subscriptions or features in the same apply as a region addition.")
-		return
-	}
-	var features []azureManagementGroupFeatureModel
-	res.Diagnostics.Append(plan.Feature.ElementsAs(ctx, &features, false)...)
-	if !res.Diagnostics.HasError() && !slices.ContainsFunc(features, func(f azureManagementGroupFeatureModel) bool {
-		return f.Name.Equal(types.StringValue(core.CloudDiscovery))
-	}) {
-		res.Diagnostics.AddAttributeError(path.Root(keyRegions), "Cloud Discovery is required for region additions", "Enable and connect CLOUD_DISCOVERY on the managed subscriptions before adding regions.")
 	}
 }
 

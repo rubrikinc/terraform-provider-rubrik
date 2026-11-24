@@ -63,12 +63,10 @@ resource "rubrik_azure_management_group" "prod" {
   ]
 
   feature = [
-    # Optional: uncomment to match the Discovery + Protection wizard bundle
-    # when Cloud Discovery onboarding is available in RSC.
-    # {
-    #   name              = "CLOUD_DISCOVERY"
-    #   permission_groups = ["BASIC"]
-    # },
+    {
+      name              = "CLOUD_DISCOVERY"
+      permission_groups = ["BASIC"]
+    },
     {
       name                  = "CLOUD_NATIVE_PROTECTION"
       permission_groups     = ["BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY"]

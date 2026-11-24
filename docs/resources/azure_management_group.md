@@ -16,9 +16,9 @@ description: |-
   Once a subscription has been onboarded through a management group, it can no longer be updated through
   rubrik_azure_subscription.
   Cloud Discovery and Cost Reporting
-  The resource requests only the features specified in feature. To match the RSC wizard's Discovery + Protection
-  selection, add a CLOUD_DISCOVERY feature entry with the BASIC permission group when Cloud Discovery onboarding is
-  available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+  Include a CLOUD_DISCOVERY feature entry with the BASIC permission group. The resource onboards Cloud Discovery on
+  every managed subscription alongside any other configured features. You cannot remove Cloud Discovery while keeping
+  a subscription in this resource.
   RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting CLOUD_COST_REPORT
   row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
   remove the Cost Reporting row.
@@ -65,9 +65,9 @@ Once a subscription has been onboarded through a management group, it can no lon
 `rubrik_azure_subscription`.
 
 ## Cloud Discovery and Cost Reporting
-The resource requests only the features specified in `feature`. To match the RSC wizard's Discovery + Protection
-selection, add a `CLOUD_DISCOVERY` feature entry with the `BASIC` permission group when Cloud Discovery onboarding is
-available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+Include a `CLOUD_DISCOVERY` feature entry with the `BASIC` permission group. The resource onboards Cloud Discovery on
+every managed subscription alongside any other configured features. You cannot remove Cloud Discovery while keeping
+a subscription in this resource.
 
 RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting `CLOUD_COST_REPORT`
 row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
@@ -172,12 +172,10 @@ resource "rubrik_azure_management_group" "prod" {
   ]
 
   feature = [
-    # Optional: uncomment to match the Discovery + Protection wizard bundle
-    # when Cloud Discovery onboarding is available in RSC.
-    # {
-    #   name              = "CLOUD_DISCOVERY"
-    #   permission_groups = ["BASIC"]
-    # },
+    {
+      name              = "CLOUD_DISCOVERY"
+      permission_groups = ["BASIC"]
+    },
     {
       name                  = "CLOUD_NATIVE_PROTECTION"
       permission_groups     = ["BASIC", "EXPORT_AND_RESTORE", "FILE_LEVEL_RECOVERY"]
@@ -200,7 +198,7 @@ resource "rubrik_azure_management_group" "prod" {
 ### Required
 
 - `app_id` (String) Azure app registration application ID (UUID) of the customer app, as set with the `rubrik_azure_service_principal` resource. The secret stored in RSC for the app is used. Changing this forces a new resource to be created.
-- `feature` (Attributes Set) RSC features to enable on all the subscriptions. At least one is required. (see [below for nested schema](#nestedatt--feature))
+- `feature` (Attributes Set) RSC features to enable on all the subscriptions. Include `CLOUD_DISCOVERY` with the `BASIC` permission group. (see [below for nested schema](#nestedatt--feature))
 - `management_group_id` (String) Azure management group ID. Changing this forces a new resource to be created.
 - `regions` (Set of String) Azure regions to enable the features in. Should be specified in the standard Azure style, e.g. `eastus`. Regions can be added to an existing resource with connected Cloud Discovery, but cannot be removed.
 - `subscription_ids` (Set of String) Azure subscription IDs (UUIDs) to onboard. The subscriptions must be in the management group and eligible for the features. Subscriptions removed from the set have their features disabled in RSC.

@@ -70,9 +70,9 @@ Once a subscription has been onboarded through a management group, it can no lon
 ´rubrik_azure_subscription´.
 
 ## Cloud Discovery and Cost Reporting
-The resource requests only the features specified in ´feature´. To match the RSC wizard's Discovery + Protection
-selection, add a ´CLOUD_DISCOVERY´ feature entry with the ´BASIC´ permission group when Cloud Discovery onboarding is
-available in RSC. Without it, the RSC UI may show a Cloud Discovery permission prompt even if protection is connected.
+Include a ´CLOUD_DISCOVERY´ feature entry with the ´BASIC´ permission group. The resource onboards Cloud Discovery on
+every managed subscription alongside any other configured features. You cannot remove Cloud Discovery while keeping
+a subscription in this resource.
 
 RSC may also add a Cloud Cost Reporting permission prompt after protection connects. The resulting ´CLOUD_COST_REPORT´
 row is not managed by this Azure resource. It does not change Terraform state, and destroying this resource does not
@@ -277,9 +277,9 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 			},
 			keyFeature: schema.SetNestedAttribute{
 				Required:    true,
-				Description: "RSC features to enable on all the subscriptions. At least one is required.",
+				Description: "RSC features to enable on all the subscriptions. Include `CLOUD_DISCOVERY` with the `BASIC` permission group.",
 				Validators: []validator.Set{
-					setvalidator.SizeAtLeast(1),
+					azureManagementGroupDiscoveryValidator{},
 				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -336,6 +336,36 @@ func (r *azureManagementGroupResource) Schema(ctx context.Context, _ resource.Sc
 	if r.prefix == keyPolaris {
 		res.Schema.DeprecationMessage = "use the `rubrik_azure_management_group` resource instead."
 	}
+}
+
+type azureManagementGroupDiscoveryValidator struct{}
+
+func (azureManagementGroupDiscoveryValidator) Description(_ context.Context) string {
+	return "Include CLOUD_DISCOVERY with the BASIC permission group."
+}
+
+func (v azureManagementGroupDiscoveryValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v azureManagementGroupDiscoveryValidator) ValidateSet(ctx context.Context, req validator.SetRequest, res *validator.SetResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	for _, value := range req.ConfigValue.Elements() {
+		feature, ok := value.(types.Object)
+		if !ok || feature.IsNull() {
+			continue
+		}
+		if feature.IsUnknown() {
+			return
+		}
+		name, ok := feature.Attributes()[keyName].(types.String)
+		if ok && (name.IsUnknown() || name.ValueString() == core.CloudDiscovery) {
+			return
+		}
+	}
+	res.Diagnostics.AddAttributeError(req.Path, "Cloud Discovery is required", v.Description(ctx))
 }
 
 func (r *azureManagementGroupResource) IdentitySchema(ctx context.Context, _ resource.IdentitySchemaRequest, res *resource.IdentitySchemaResponse) {
@@ -864,6 +894,12 @@ func (model *azureManagementGroupModel) setManagedFeatures(ctx context.Context, 
 // azureManagementGroupReconcile only acts on exact owned or explicitly desired pairs.
 // It does not claim an existing feature merely because it shares the same group.
 func azureManagementGroupReconcile(accounts []azure.CloudAccount, owned map[string][]string, desired azureManagementGroupInput) ([]azure.ManagementGroupSubscription, map[string][]uuid.UUID, error) {
+	// The configured feature name may not have been known during validation.
+	if len(desired.subscriptions) != 0 && !slices.ContainsFunc(desired.features, func(feature azureManagementGroupFeature) bool {
+		return feature.name == core.CloudDiscovery && slices.Equal(feature.permissionGroups, []string{string(core.PermissionGroupBasic)})
+	}) {
+		return nil, nil, errors.New("include CLOUD_DISCOVERY with the BASIC permission group")
+	}
 	byID := make(map[uuid.UUID]azure.CloudAccount, len(accounts))
 	for _, account := range accounts {
 		byID[account.NativeID] = account

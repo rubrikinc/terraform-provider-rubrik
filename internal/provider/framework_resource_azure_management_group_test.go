@@ -29,6 +29,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -41,19 +43,49 @@ import (
 	regions "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/regions/azure"
 )
 
+func TestAzureManagementGroupRequiresCloudDiscovery(t *testing.T) {
+	featureTypes := map[string]attr.Type{keyName: types.StringType}
+	for _, tc := range []struct {
+		name    string
+		feature types.String
+		wantErr bool
+	}{
+		{name: "Missing", feature: types.StringValue(core.CloudNativeProtection), wantErr: true},
+		{name: "Configured", feature: types.StringValue(core.CloudDiscovery)},
+		{name: "Unknown", feature: types.StringUnknown()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			feature := types.ObjectValueMust(featureTypes, map[string]attr.Value{keyName: tc.feature})
+			var res validator.SetResponse
+			azureManagementGroupDiscoveryValidator{}.ValidateSet(t.Context(), validator.SetRequest{
+				Path:        path.Root(keyFeature),
+				ConfigValue: types.SetValueMust(types.ObjectType{AttrTypes: featureTypes}, []attr.Value{feature}),
+			}, &res)
+			if res.Diagnostics.HasError() != tc.wantErr {
+				t.Fatalf("unexpected diagnostics: %v", res.Diagnostics)
+			}
+		})
+	}
+}
+
 func TestAzureManagementGroupReconcile(t *testing.T) {
 	first, second, external := uuid.New(), uuid.New(), uuid.New()
 	a, b, c := uuid.New(), uuid.New(), uuid.New()
+	discovery := core.FeatureCloudDiscovery.WithPermissionGroups(core.PermissionGroupBasic)
+	discoveryInput := azureManagementGroupFeature{name: discovery.Name, permissionGroups: []string{string(core.PermissionGroupBasic)}}
 	protection := core.FeatureCloudNativeProtection
 	archival := core.FeatureCloudNativeArchival
 	costReport := azure.Feature{Feature: core.FeatureCloudCostReport, Status: core.StatusMissingPermissions}
 	connected := func(f core.Feature) azure.Feature { return azure.Feature{Feature: f, Status: core.StatusConnected} }
 	accounts := []azure.CloudAccount{
-		{ID: a, NativeID: first, Features: []azure.Feature{connected(protection), connected(archival), costReport}},
-		{ID: b, NativeID: second, Features: []azure.Feature{connected(protection)}},
-		{ID: c, NativeID: external, Features: []azure.Feature{connected(protection), connected(archival)}},
+		{ID: a, NativeID: first, Features: []azure.Feature{connected(discovery), connected(protection), connected(core.FeatureCloudNativeBlobProtection), costReport}},
+		{ID: b, NativeID: second, Features: []azure.Feature{connected(discovery), connected(protection)}},
+		{ID: c, NativeID: external, Features: []azure.Feature{connected(discovery), connected(protection), connected(archival)}},
 	}
-	owned := map[string][]string{first.String(): {protection.Name}, second.String(): {protection.Name, archival.Name}}
+	owned := map[string][]string{
+		first.String():  {discovery.Name, protection.Name},
+		second.String(): {discovery.Name, protection.Name, archival.Name},
+	}
 	present := azureManagementGroupPresentSubscriptions(accounts, owned, []attr.Value{types.StringValue(strings.ToUpper(first.String()))})
 	if !slices.Equal(present, []string{strings.ToUpper(first.String())}) {
 		t.Fatalf("refresh returned %v; unmanaged features must not cause drift, and partially onboarded subscriptions must not mask it", present)
@@ -63,15 +95,40 @@ func TestAzureManagementGroupReconcile(t *testing.T) {
 	// feature set and does not require an update or deletion.
 	adds, removes, err := azureManagementGroupReconcile(accounts[:1], owned, azureManagementGroupInput{
 		subscriptions: []uuid.UUID{first},
-		features:      []azureManagementGroupFeature{{name: protection.Name}},
+		features:      []azureManagementGroupFeature{discoveryInput, {name: protection.Name}},
 	})
 	if err != nil || len(adds) != 0 || len(removes) != 0 {
 		t.Fatalf("unmanaged features caused an update: adds=%v removes=%v err=%v", adds, removes, err)
 	}
 
+	added := uuid.New()
+	adds, removes, err = azureManagementGroupReconcile(accounts[:1], owned, azureManagementGroupInput{
+		subscriptions: []uuid.UUID{first, added},
+		features:      []azureManagementGroupFeature{discoveryInput, {name: protection.Name}},
+	})
+	if err != nil || len(removes) != 0 || len(adds) != 1 || adds[0].NativeID != added || len(adds[0].Features) != 2 ||
+		!slices.ContainsFunc(adds[0].Features, func(f azure.ManagementGroupFeature) bool { return f.Feature.DeepEqual(discovery) }) {
+		t.Fatalf("new subscription must onboard Cloud Discovery with BASIC: adds=%v removes=%v err=%v", adds, removes, err)
+	}
+	_, _, err = azureManagementGroupReconcile(accounts[:1], owned, azureManagementGroupInput{
+		subscriptions: []uuid.UUID{first},
+		features:      []azureManagementGroupFeature{{name: protection.Name}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "include CLOUD_DISCOVERY") {
+		t.Fatalf("expected apply to reject missing Cloud Discovery, got %v", err)
+	}
+
+	// Discovery cannot be removed from the first subscription while its
+	// unmanaged Blob protection remains there.
+	_, _, err = azureManagementGroupReconcile(accounts[:1], owned, azureManagementGroupInput{})
+	if err == nil || !strings.Contains(err.Error(), "cannot remove Cloud Discovery") {
+		t.Fatalf("expected Cloud Discovery removal to be blocked, got %v", err)
+	}
+
+	accounts[0].Features = []azure.Feature{connected(discovery), connected(protection), costReport}
 	adds, removes, err = azureManagementGroupReconcile(accounts, owned, azureManagementGroupInput{
 		subscriptions: []uuid.UUID{second},
-		features:      []azureManagementGroupFeature{{name: protection.Name}, {name: archival.Name}},
+		features:      []azureManagementGroupFeature{discoveryInput, {name: protection.Name}, {name: archival.Name}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -79,15 +136,16 @@ func TestAzureManagementGroupReconcile(t *testing.T) {
 	if len(adds) != 1 || adds[0].NativeID != second || len(adds[0].Features) != 1 || !adds[0].Features[0].Feature.Equal(archival) {
 		t.Errorf("expected retry of only the missing pair, got %+v", adds)
 	}
-	if len(removes) != 1 || !slices.Equal(removes[protection.Name], []uuid.UUID{a}) {
+	if len(removes) != 2 || !slices.Equal(removes[discovery.Name], []uuid.UUID{a}) || !slices.Equal(removes[protection.Name], []uuid.UUID{a}) {
 		t.Errorf("update would affect unowned features: %v", removes)
 	}
 	_, removes, err = azureManagementGroupReconcile(accounts, owned, azureManagementGroupInput{})
-	if err != nil || len(removes) != 1 || !slices.Equal(removes[protection.Name], []uuid.UUID{a, b}) {
+	if err != nil || len(removes) != 2 || !slices.Equal(removes[discovery.Name], []uuid.UUID{a, b}) ||
+		!slices.Equal(removes[protection.Name], []uuid.UUID{a, b}) {
 		t.Errorf("destroy would affect unowned features: %v, %v", removes, err)
 	}
 	_, _, err = azureManagementGroupReconcile(accounts, owned, azureManagementGroupInput{
-		subscriptions: []uuid.UUID{external}, features: []azureManagementGroupFeature{{name: protection.Name}},
+		subscriptions: []uuid.UUID{external}, features: []azureManagementGroupFeature{discoveryInput, {name: protection.Name}},
 	})
 	if err == nil || !strings.Contains(err.Error(), "not managed") {
 		t.Fatalf("expected explicitly requested unowned existing pair to be rejected, got %v", err)
@@ -107,7 +165,10 @@ func TestAzureManagementGroupReconcileProtectsArchivalEncryption(t *testing.T) {
 	}{
 		{name: "unmanaged encryption", owned: []string{core.CloudNativeArchival}},
 		{name: "retained encryption", owned: []string{core.CloudNativeArchival, core.CloudNativeArchivalEncryption}, desired: azureManagementGroupInput{
-			subscriptions: []uuid.UUID{id}, features: []azureManagementGroupFeature{{name: core.CloudNativeArchivalEncryption}},
+			subscriptions: []uuid.UUID{id}, features: []azureManagementGroupFeature{
+				{name: core.CloudDiscovery, permissionGroups: []string{string(core.PermissionGroupBasic)}},
+				{name: core.CloudNativeArchivalEncryption},
+			},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -219,12 +280,18 @@ func TestAccAzureManagementGroupResource(t *testing.T) {
 				regions             = ["eastus2"]
 				subscription_ids    = [%s]
 
-				feature = [{
-					name                  = "CLOUD_NATIVE_PROTECTION"
-					permission_groups     = ["BASIC"]
-					resource_group_name   = "terraform-mg-acceptance-test"
-					resource_group_region = "eastus2"
-				}]
+					feature = [
+					{
+						name              = "CLOUD_DISCOVERY"
+						permission_groups = ["BASIC"]
+					},
+					{
+						name                  = "CLOUD_NATIVE_PROTECTION"
+						permission_groups     = ["BASIC"]
+						resource_group_name   = "terraform-mg-acceptance-test"
+						resource_group_region = "eastus2"
+					},
+				]
 			}
 		`, credentials, tenantDomain, appID, managementGroupID, strings.Join(quoted, ", "))
 	}
@@ -242,6 +309,12 @@ func TestAccAzureManagementGroupResource(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_management_group.test", tfjsonpath.New(keyCustomerManagementGroupID), NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_azure_management_group.test", tfjsonpath.New(keySubscriptionIDs),
 					knownvalue.SetSizeExact(1)),
+				statecheck.ExpectKnownValue("rubrik_azure_management_group.test", tfjsonpath.New(keyManagedSubscriptionFeatures),
+					knownvalue.MapExact(map[string]knownvalue.Check{
+						strings.ToLower(subscriptionIDs[0]): knownvalue.SetExact([]knownvalue.Check{
+							knownvalue.StringExact(core.CloudDiscovery), knownvalue.StringExact(core.CloudNativeProtection),
+						}),
+					})),
 				statecheck.ExpectIdentity("rubrik_azure_management_group.test", map[string]knownvalue.Check{
 					keyID: knownvalue.StringExact(tenantDomain + "/" + managementGroupID),
 				}),
