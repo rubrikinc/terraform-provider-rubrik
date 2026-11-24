@@ -219,7 +219,7 @@ func (d *azureArchivalLocationDataSource) Schema(ctx context.Context, _ datasour
 			},
 			keyStorageTier: schema.StringAttribute{
 				Computed:    true,
-				Description: "Azure storage tier. Possible values are `COOL` and `HOT`. Default value is `COOL`.",
+				Description: "Azure storage tier. Possible values are `ARCHIVE`, `COLD`, `COOL` and `HOT`.",
 			},
 		},
 	}
