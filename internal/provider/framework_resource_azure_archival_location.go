@@ -265,9 +265,9 @@ func (r *azureArchivalLocationResource) Schema(ctx context.Context, _ resource.S
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("COOL"),
-				Description: "Azure storage tier. Possible values are `COOL` and `HOT`. Default value is `COOL`.",
+				Description: "Azure storage tier. Possible values are `ARCHIVE`, `COLD`, `COOL` and `HOT`. Default value is `COOL`.",
 				Validators: []validator.String{
-					stringvalidator.OneOf("COOL", "HOT"),
+					stringvalidator.OneOf("ARCHIVE", "COLD", "COOL", "HOT"),
 				},
 			},
 		},

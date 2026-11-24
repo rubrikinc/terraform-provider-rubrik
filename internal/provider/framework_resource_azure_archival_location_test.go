@@ -166,6 +166,34 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 					tfjsonpath.New(keyID)),
 			},
 		}, {
+			// Verify that the storage tier is updated in place to COLD.
+			Config:          conf,
+			ConfigVariables: testVariables(t, vars, config.Variables{"storage_tier": config.StringVariable("COLD")}),
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyStorageTier), knownvalue.StringExact("COLD")),
+			},
+		}, {
+			// Verify that the storage tier is updated in place to ARCHIVE.
+			Config:          conf,
+			ConfigVariables: testVariables(t, vars, config.Variables{"storage_tier": config.StringVariable("ARCHIVE")}),
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_azure_archival_location.location",
+						plancheck.ResourceActionUpdate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location",
+					tfjsonpath.New(keyStorageTier), knownvalue.StringExact("ARCHIVE")),
+			},
+		}, {
 			// Verify that the name, the storage tier and the storage account
 			// tags are updated in place.
 			Config: conf,
