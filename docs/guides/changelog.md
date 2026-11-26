@@ -69,6 +69,8 @@ page_title: "Changelog"
   accepted.
 * Improve the `rubrik_azure_archival_location` resource so that reading an archival location which isn't encrypted
   with a key from a key manager no longer requires the `VIEW_KMS_KEY_VAULT` permission.
+* Migrate the `rubrik_azure_service_principal` resource to the Terraform Plugin Framework. State can be moved from
+  `polaris_azure_service_principal` with a moved block. [[docs](../resources/azure_service_principal.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources

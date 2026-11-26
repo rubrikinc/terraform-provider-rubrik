@@ -1,11 +1,8 @@
 package provider
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"net/mail"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -41,27 +38,6 @@ func validateEmailAddress(i any, k string) ([]string, []error) {
 	}
 	if _, err := mail.ParseAddress(v); err != nil {
 		return nil, []error{fmt.Errorf("%q is not a valid email address", v)}
-	}
-
-	return nil, nil
-}
-
-// validateFileExist assumes m is a file path and returns nil if the file exist,
-// otherwise a diagnostic message is returned.
-func validateFileExist(i any, k string) ([]string, []error) {
-	v, ok := i.(string)
-	if !ok {
-		return nil, []error{fmt.Errorf("expected type of %q to be string", k)}
-	}
-
-	if _, err := os.Stat(v); err != nil {
-		details := "unknown error"
-		var pathErr *fs.PathError
-		if errors.As(err, &pathErr) {
-			details = pathErr.Err.Error()
-		}
-
-		return nil, []error{fmt.Errorf("failed to access file: %s", details)}
 	}
 
 	return nil, nil
