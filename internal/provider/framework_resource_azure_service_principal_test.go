@@ -127,8 +127,12 @@ func TestAccAzureServicePrincipalResource(t *testing.T) {
 					tfjsonpath.New(keyAppID), knownvalue.StringExact(testAzurePrincipalID(t))),
 				statecheck.ExpectKnownValue("rubrik_azure_service_principal.service_principal",
 					tfjsonpath.New(keyAppName), knownvalue.StringExact(testAzurePrincipalName(t))),
+				// The secret's value isn't checked, since a failed check would
+				// print the secret.
 				statecheck.ExpectKnownValue("rubrik_azure_service_principal.service_principal",
-					tfjsonpath.New(keyAppSecret), knownvalue.StringExact(testAzurePrincipalSecret(t))),
+					tfjsonpath.New(keyAppSecret), knownvalue.NotNull()),
+				statecheck.ExpectSensitiveValue("rubrik_azure_service_principal.service_principal",
+					tfjsonpath.New(keyAppSecret)),
 				statecheck.ExpectKnownValue("rubrik_azure_service_principal.service_principal",
 					tfjsonpath.New(keyTenantDomain), knownvalue.StringExact(testAzureTenantDomain(t))),
 				statecheck.ExpectKnownValue("rubrik_azure_service_principal.service_principal",
