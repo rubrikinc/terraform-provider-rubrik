@@ -67,6 +67,8 @@ page_title: "Changelog"
 * Improve the validation of the `storage_account_region` field and the `region` field of the `customer_managed_key`
   block in the `rubrik_azure_archival_location` resource, only regions supported by RSC for archival locations are
   accepted.
+* Improve the `rubrik_azure_archival_location` resource so that reading an archival location which isn't encrypted
+  with a key from a key manager no longer requires the `VIEW_KMS_KEY_VAULT` permission.
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
