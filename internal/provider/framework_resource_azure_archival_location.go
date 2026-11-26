@@ -492,9 +492,10 @@ func (r *azureArchivalLocationResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	// The tags, the customer managed keys and the key vault key are kept as
-	// planned. RSC doesn't store tags given on create, the next refresh shows
-	// them as a difference which the following apply corrects.
+	// Only the unknown computed values are set from the read-back, the planned
+	// values are kept as they are. RSC doesn't store tags given on create, the
+	// next refresh shows them as a difference which the following apply
+	// corrects.
 	targetMapping, err := archival.Wrap(polarisClient).AzureTargetMappingByID(ctx, id)
 	if err != nil {
 		res.Diagnostics.AddWarning("Failed to read Azure archival location after create",
@@ -502,7 +503,12 @@ func (r *azureArchivalLocationResource) Create(ctx context.Context, req resource
 				"populated: %s", err.Error()))
 		updateAzureArchivalLocationModel(&plan, nil)
 	} else {
-		updateAzureArchivalLocationModel(&plan, &targetMapping)
+		plan.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
+		plan.ContainerName = types.StringValue(targetMapping.TargetTemplate.ContainerNamePrefix)
+		plan.LocationTemplate = types.StringValue(targetMapping.TargetTemplate.CloudNativeCompanion.LocTemplate)
+		if plan.NetworkAccessType.IsUnknown() {
+			plan.NetworkAccessType = types.StringValue(targetMapping.TargetTemplate.CloudNativeCompanion.NetworkAccessType)
+		}
 	}
 	res.Diagnostics.Append(res.State.Set(ctx, &plan)...)
 }
@@ -732,7 +738,11 @@ func updateAzureArchivalLocationModel(m *azureArchivalLocationResourceModel, tar
 
 	targetTemplate := targetMapping.TargetTemplate
 	cloudNativeCompanion := targetTemplate.CloudNativeCompanion
-	m.CloudAccountID = types.StringValue(targetTemplate.CloudAccount.ID.String())
+	// RSC returns the cloud account ID in lower case, an ID which only differs
+	// in case is kept.
+	if id, err := uuid.Parse(m.CloudAccountID.ValueString()); err != nil || id != targetTemplate.CloudAccount.ID {
+		m.CloudAccountID = types.StringValue(targetTemplate.CloudAccount.ID.String())
+	}
 	m.ConnectionStatus = types.StringValue(targetMapping.ConnectionStatus.Status)
 	m.ContainerName = types.StringValue(targetTemplate.ContainerNamePrefix)
 	m.LocationTemplate = types.StringValue(cloudNativeCompanion.LocTemplate)

@@ -21,6 +21,7 @@
 package provider
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -133,6 +134,30 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 			azureSubscriptionCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
+			// Verify that customer_managed_key and key_vault_key can't be
+			// specified together. The validation fails before RSC is called.
+			Config: `
+				resource "rubrik_azure_archival_location" "location" {
+					cloud_account_id            = "e9895414-64b4-4e25-a10d-c7a76983953b"
+					name                        = "conflict"
+					storage_account_name_prefix = "conflict"
+
+					customer_managed_key {
+						name       = "key"
+						region     = "eastus2"
+						vault_name = "vault"
+					}
+
+					key_vault_key {
+						key_manager_id = "e9895414-64b4-4e25-a10d-c7a76983953b"
+						key_name       = "key"
+						key_version    = "1"
+					}
+				}
+			`,
+			PlanOnly:    true,
+			ExpectError: regexp.MustCompile("(?s)cannot be configured together"),
+		}, {
 			// Verify that the subscription can be onboarded with the Cloud
 			// Native Archival feature and that an archival location can be
 			// created. The storage account tags are set by the update, since
@@ -273,6 +298,105 @@ func TestAccAzureArchivalLocationResource(t *testing.T) {
 				PreApply: []plancheck.PlanCheck{
 					plancheck.ExpectEmptyPlan(),
 				},
+			},
+		}},
+	})
+}
+
+// TestAccAzureArchivalLocationResource_UpperCaseCloudAccountID verifies that an
+// archival location can be created with an upper case cloud account ID. RSC
+// returns the ID in lower case, the configured ID must still be kept, both on
+// create and on the following refresh.
+func TestAccAzureArchivalLocationResource_UpperCaseCloudAccountID(t *testing.T) {
+	skipUnlessAzureArchivalDefined(t)
+
+	const conf = `
+		variable "credentials" {
+			type      = string
+			sensitive = true
+		}
+		variable "tenant_domain" {
+			type = string
+		}
+		variable "subscription_id" {
+			type = string
+		}
+		variable "subscription_name" {
+			type = string
+		}
+		variable "region" {
+			type = string
+		}
+		variable "resource_group_name" {
+			type = string
+		}
+		variable "resource_group_region" {
+			type = string
+		}
+		variable "name" {
+			type = string
+		}
+		variable "storage_account_name_prefix" {
+			type = string
+		}
+
+		resource "rubrik_azure_service_principal" "service_principal" {
+			credentials   = var.credentials
+			tenant_domain = var.tenant_domain
+		}
+
+		resource "rubrik_azure_subscription" "subscription" {
+			subscription_id   = var.subscription_id
+			subscription_name = var.subscription_name
+			tenant_domain     = var.tenant_domain
+
+			cloud_native_archival {
+				permission_groups     = ["BASIC"]
+				regions               = [var.region]
+				resource_group_name   = var.resource_group_name
+				resource_group_region = var.resource_group_region
+			}
+
+			depends_on = [rubrik_azure_service_principal.service_principal]
+		}
+
+		resource "rubrik_azure_archival_location" "location" {
+			cloud_account_id            = upper(rubrik_azure_subscription.subscription.id)
+			name                        = var.name
+			storage_account_name_prefix = var.storage_account_name_prefix
+			storage_account_region      = var.region
+		}
+	`
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			azureArchivalLocationCheckDestroy(t),
+			azureSubscriptionCheckDestroy(t),
+		),
+		Steps: []resource.TestStep{{
+			// Verify that the upper case cloud account ID is kept on create and
+			// that the following refresh doesn't plan a replace.
+			Config: conf,
+			ConfigVariables: config.Variables{
+				"credentials":                 config.StringVariable(testAzureCredentials(t)),
+				"tenant_domain":               config.StringVariable(testAzureTenantDomain(t)),
+				"subscription_id":             config.StringVariable(testAzureSubscriptionID(t)),
+				"subscription_name":           config.StringVariable(testAzureSubscriptionName(t)),
+				"region":                      config.StringVariable(testAzureArchivalRegion(t)),
+				"resource_group_name":         config.StringVariable(testAzureArchivalResourceGroupName(t)),
+				"resource_group_region":       config.StringVariable(testAzureArchivalResourceGroupRegion(t)),
+				"name":                        config.StringVariable(testUniqueName(t)),
+				"storage_account_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
+			},
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PostApplyPostRefresh: []plancheck.PlanCheck{
+					plancheck.ExpectEmptyPlan(),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyCloudAccountID),
+					knownvalue.StringRegexp(regexp.MustCompile("^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$"))),
 			},
 		}},
 	})
@@ -534,11 +658,14 @@ func TestAccAzureArchivalLocationKMSKeyResource(t *testing.T) {
 
 // TestAccAzureArchivalLocationResource_FrameworkMigration verifies that
 // existing state created by the SDKv2 provider can be read by the Framework
-// provider without drift. Step 1 creates a specific region and a source region
-// archival location using the published SDKv2 provider, step 2 plans using the
-// local Framework provider and asserts that the plan is empty.
+// provider without drift. Step 1 creates a specific region archival location,
+// a source region archival location and a client-side encrypted archival
+// location with an update timeout using the published SDKv2 provider, step 2
+// plans using the local Framework provider and asserts that the plan is empty.
 func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 	skipUnlessAzureArchivalDefined(t)
+	skipUnlessAzureKMSDefined(t)
+	skipUnlessFeatureEnabled(t, FeatureFlagUnifiedEncryptionManagement)
 
 	const conf = `
 		variable "credentials" {
@@ -575,6 +702,24 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 		variable "source_region_name_prefix" {
 			type = string
 		}
+		variable "key_vault_key_name" {
+			type = string
+		}
+		variable "key_vault_key_name_prefix" {
+			type = string
+		}
+		variable "kms_region" {
+			type = string
+		}
+		variable "vault_name" {
+			type = string
+		}
+		variable "key_name" {
+			type = string
+		}
+		variable "key_version" {
+			type = string
+		}
 
 		resource "rubrik_azure_service_principal" "service_principal" {
 			credentials   = var.credentials
@@ -593,7 +738,18 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 				resource_group_region = var.resource_group_region
 			}
 
+			cloud_native_uem_key_management {
+				permission_groups = ["BASIC"]
+			}
+
 			depends_on = [rubrik_azure_service_principal.service_principal]
+		}
+
+		resource "rubrik_azure_key_manager" "key_manager" {
+			name             = var.key_vault_key_name
+			cloud_account_id = rubrik_azure_subscription.subscription.id
+			region           = var.kms_region
+			vault_name       = var.vault_name
 		}
 
 		resource "rubrik_azure_archival_location" "location" {
@@ -607,6 +763,23 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 			cloud_account_id            = rubrik_azure_subscription.subscription.id
 			name                        = var.source_region_name
 			storage_account_name_prefix = var.source_region_name_prefix
+		}
+
+		resource "rubrik_azure_archival_location" "key_vault_key" {
+			cloud_account_id            = rubrik_azure_subscription.subscription.id
+			name                        = var.key_vault_key_name
+			storage_account_name_prefix = var.key_vault_key_name_prefix
+			storage_account_region      = var.region
+
+			key_vault_key {
+				key_manager_id = rubrik_azure_key_manager.key_manager.id
+				key_name       = var.key_name
+				key_version    = var.key_version
+			}
+
+			timeouts {
+				update = "30m"
+			}
 		}
 	`
 
@@ -622,18 +795,25 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 		"name_prefix":               config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
 		"source_region_name":        config.StringVariable(testUniqueName(t)),
 		"source_region_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
+		"key_vault_key_name":        config.StringVariable(testUniqueName(t)),
+		"key_vault_key_name_prefix": config.StringVariable(testUniqueStorageAccountNamePrefix(t)),
+		"kms_region":                config.StringVariable(testAzureKMSRegion(t)),
+		"vault_name":                config.StringVariable(testAzureKMSVaultName(t)),
+		"key_name":                  config.StringVariable(testAzureKMSKeys(t)[0].Name),
+		"key_version":               config.StringVariable(testAzureKMSKeys(t)[0].Version),
 	}
 
 	resource.Test(t, resource.TestCase{
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azureArchivalLocationCheckDestroy(t),
+			azureKeyManagerCheckDestroy(t),
 			azureSubscriptionCheckDestroy(t),
 		),
 		Steps: []resource.TestStep{{
 			ExternalProviders: map[string]resource.ExternalProvider{
 				"rubrik": {
 					Source:            "rubrikinc/rubrik",
-					VersionConstraint: "1.11.2",
+					VersionConstraint: "1.12.0",
 				},
 			},
 			Config:          conf,
@@ -642,6 +822,8 @@ func TestAccAzureArchivalLocationResource_FrameworkMigration(t *testing.T) {
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.location", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.source_region", tfjsonpath.New(keyID),
+					NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_archival_location.key_vault_key", tfjsonpath.New(keyID),
 					NonNullUUID()),
 				statecheck.ExpectKnownValue("rubrik_azure_archival_location.source_region",
 					tfjsonpath.New(keyStorageAccountRegion), knownvalue.StringExact("")),

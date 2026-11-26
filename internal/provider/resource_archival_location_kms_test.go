@@ -34,8 +34,8 @@ import (
 const testKeyManagerID = "e9895414-64b4-4e25-a10d-c7a76983953b"
 
 // TestArchivalLocationKMSKeyConflicts checks that the client-side encryption
-// key blocks of the AWS and Azure cloud native archival locations conflict with the
-// server-side encryption keys.
+// key block of the AWS cloud native archival location conflicts with the
+// server-side encryption key.
 func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 	awsKMSKey := []any{map[string]any{keyKeyManagerID: testKeyManagerID, keyKeyID: "key-id"}}
 
@@ -58,7 +58,6 @@ func TestArchivalLocationKMSKeyConflicts(t *testing.T) {
 		base:     awsBase,
 		config:   map[string]any{keyKMSKey: awsKMSKey, keyKMSMasterKey: "aws/s3"},
 		conflict: true,
-	}, {
 	}}
 
 	for _, testCase := range testCases {
