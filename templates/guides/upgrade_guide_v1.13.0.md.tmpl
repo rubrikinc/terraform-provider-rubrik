@@ -230,3 +230,15 @@ within the limit keep the same prefix, so existing roles are not replaced.
 Without `native_id`, the data sources behave as before. An account using multiple roles then gets trust policies for
 one role per feature, but roles and policies for a single `CROSSACCOUNT` role, so the roles built from them do not
 match.
+
+## Significant Changes
+
+### The `rubrik_azure_archival_location` data source can require the `VIEW_KMS_KEY_VAULT` permission
+
+The `rubrik_azure_archival_location` data source now reads the key vault key used to encrypt the archival location,
+returned in the new `key_vault_key` field. RSC only returns the key to a user with the `VIEW_KMS_KEY_VAULT` permission,
+so reading an archival location encrypted with a key from a key manager now requires `VIEW_KMS_KEY_VAULT` in addition
+to `VIEW_STORAGE_SETTINGS`. Reading any other archival location only requires `VIEW_STORAGE_SETTINGS`, as before.
+
+If reading the data source fails after upgrading, add the `VIEW_KMS_KEY_VAULT` permission to the RSC role of the
+service account used by the provider.

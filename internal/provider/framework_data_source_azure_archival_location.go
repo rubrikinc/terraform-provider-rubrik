@@ -295,25 +295,29 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 		})
 	}
 
-	// RSC only lists the groups encrypted with a key from a key manager.
-	// A group which isn't listed has no such key.
-	details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, targetMapping.ID)
-	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
-		res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
-		return
-	}
+	// The encryption details require the VIEW_KMS_KEY_VAULT permission, so
+	// they're only read when the archival location may be encrypted with a key
+	// from a key manager.
 	keyVaultKey := []azureKeyVaultKeyModel{}
-	if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
-		keyVaultKey = append(keyVaultKey, azureKeyVaultKeyModel{
-			KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-			KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-			KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
-		})
+	if targetTemplate.EncryptionType.MayUseKeyManagerKey() {
+		details, err := archival.Wrap(polarisClient).ArchivalGroupEncryptionDetailsByID(ctx, targetMapping.ID)
+		// RSC only lists the groups encrypted with a key from a key manager.
+		if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+			res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
+			return
+		}
+		if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
+			keyVaultKey = append(keyVaultKey, azureKeyVaultKeyModel{
+				KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
+				KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
+				KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
+			})
 
-		// RSC keeps customer managed keys given together with a key vault key,
-		// even though they aren't used, so they aren't returned for a location
-		// with a key vault key.
-		customerKeys = []azureArchivalLocationCustomerKeyModel{}
+			// RSC keeps customer managed keys given together with a key vault
+			// key, even though they aren't used, so they aren't returned for a
+			// location with a key vault key.
+			customerKeys = []azureArchivalLocationCustomerKeyModel{}
+		}
 	}
 
 	state := azureArchivalLocationModel{

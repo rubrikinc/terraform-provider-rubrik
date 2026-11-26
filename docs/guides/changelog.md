@@ -56,8 +56,9 @@ page_title: "Changelog"
   and the `name` field is not sent to RSC. [[docs](../resources/gcp_service_account.md)]
 * Migrate the `rubrik_azure_archival_location` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/azure_archival_location.md)]
-* Add support for the `key_vault_key` field in the `rubrik_azure_archival_location` data source.
-  [[docs](../data-sources/azure_archival_location.md)]
+* Add support for the `key_vault_key` field in the `rubrik_azure_archival_location` data source. Reading an archival
+  location encrypted with a key from a key manager requires the `VIEW_KMS_KEY_VAULT` permission. See the
+  [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md). [[docs](../data-sources/azure_archival_location.md)]
 * Fix a bug in the `rubrik_azure_archival_location` data source where `customer_managed_key` returned unused customer
   managed keys for an archival location encrypted with a key vault key.
 

@@ -431,7 +431,7 @@ func TestAccAzureArchivalLocationDataSource_FrameworkMigration(t *testing.T) {
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"rubrik-sdkv2": {
 				Source:            "rubrikinc/rubrik",
-				VersionConstraint: "1.11.2",
+				VersionConstraint: "1.12.0",
 			},
 		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
