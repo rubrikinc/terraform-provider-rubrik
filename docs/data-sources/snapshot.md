@@ -37,8 +37,8 @@ Only clean snapshots are returned by default. Set `exclude_quarantined` or
 
 - `after_time` (String) Return the earliest snapshot with date >= this RFC 3339 timestamp (e.g. 2025-01-01T00:00:00Z). Mutually exclusive with ´before_time´.
 - `before_time` (String) Return the latest snapshot with date <= this RFC 3339 timestamp (e.g. 2025-01-01T00:00:00Z). Mutually exclusive with ´after_time´.
-- `exclude_anomalous` (Boolean) Exclude anomalous snapshots.
-- `exclude_quarantined` (Boolean) Exclude quarantined snapshots.
+- `exclude_anomalous` (Boolean) Exclude anomalous snapshots. Defaults to `true`.
+- `exclude_quarantined` (Boolean) Exclude quarantined snapshots. Defaults to `true`.
 
 ### Read-Only
 
