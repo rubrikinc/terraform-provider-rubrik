@@ -196,6 +196,8 @@ func (p *FrameworkProvider) DataSources(ctx context.Context) []func() datasource
 		newPolarisAwsPermissionGroupsDataSource,
 		newAwsPermissionsDataSource,
 		newPolarisAwsPermissionsDataSource,
+		newAzureArchivalLocationDataSource,
+		newPolarisAzureArchivalLocationDataSource,
 		newAzureDevOpsOrganizationDataSource,
 		newPolarisAzureDevOpsOrganizationDataSource,
 		newAzureDevOpsProjectDataSource,
