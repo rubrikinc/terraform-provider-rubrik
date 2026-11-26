@@ -162,19 +162,13 @@ func (r *azureRCVArchivalLocationListResource) List(ctx context.Context, req lis
 			if req.IncludeResource {
 				model := newAzureRCVArchivalLocationModel(targetMapping, nullTimeouts)
 				for _, details := range encryptionDetails {
-					if details.ID != targetMapping.ID || details.KMSKey == nil || details.KMSKey.Key == nil ||
-						details.KMSKey.Key.AzureKey == nil {
+					if details.ID != targetMapping.ID {
 						continue
 					}
 
-					key := []azureRCVKeyVaultKeyModel{{
-						KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-						KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-						KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
-					}}
-					keyList, keyDiags := types.ListValueFrom(ctx, azureRCVKeyVaultKeyType, key)
-					result.Diagnostics.Append(keyDiags...)
-					model.KeyVaultKey = keyList
+					if keyVaultKey := fromAzureKeyVaultKey(details); len(keyVaultKey) > 0 {
+						model.KeyVaultKey = keyVaultKey
+					}
 				}
 				result.Diagnostics.Append(result.Resource.Set(ctx, model)...)
 				if result.Diagnostics.HasError() {

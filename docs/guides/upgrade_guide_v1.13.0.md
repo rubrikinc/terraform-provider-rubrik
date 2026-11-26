@@ -242,3 +242,16 @@ to `VIEW_STORAGE_SETTINGS`. Reading any other archival location only requires `V
 
 If reading the data source fails after upgrading, add the `VIEW_KMS_KEY_VAULT` permission to the RSC role of the
 service account used by the provider.
+
+### The `rubrik_azure_archival_location` resource stores an unset `storage_account_region` as null
+
+The `rubrik_azure_archival_location` resource stored an unset `storage_account_region`, used by a source region
+archival location, as an empty string. It's now stored as null, and existing state is upgraded by the first plan or
+apply after upgrading. An expression comparing the field to an empty string, e.g. `storage_account_region == ""`, is no longer true
+for a source region archival location. Compare the field to `null` instead.
+
+### The `rubrik_azure_archival_location` resource only accepts regions supported for archival locations
+
+The `storage_account_region` field and the `region` field of the `customer_managed_key` block of the
+`rubrik_azure_archival_location` resource only accept the Azure regions RSC supports for archival locations. A
+configuration using any other Azure region fails validation after upgrading.

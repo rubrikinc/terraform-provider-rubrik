@@ -68,21 +68,6 @@ type azureArchivalLocationModel struct {
 	StorageTier              types.String                            `tfsdk:"storage_tier"`
 }
 
-// azureArchivalLocationCustomerKeyModel is an element of the
-// customer_managed_key set.
-type azureArchivalLocationCustomerKeyModel struct {
-	Name      types.String `tfsdk:"name"`
-	Region    types.String `tfsdk:"region"`
-	VaultName types.String `tfsdk:"vault_name"`
-}
-
-// azureKeyVaultKeyModel is an element of the key_vault_key list.
-type azureKeyVaultKeyModel struct {
-	KeyManagerID types.String `tfsdk:"key_manager_id"`
-	KeyName      types.String `tfsdk:"key_name"`
-	KeyVersion   types.String `tfsdk:"key_version"`
-}
-
 func newAzureArchivalLocationDataSource() datasource.DataSource {
 	return &azureArchivalLocationDataSource{prefix: keyRubrik}
 }
@@ -286,14 +271,7 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 		storageAccountTags[tag.Key] = tag.Value
 	}
 
-	customerKeys := make([]azureArchivalLocationCustomerKeyModel, 0, len(cloudNativeCompanion.CMKInfo))
-	for _, key := range cloudNativeCompanion.CMKInfo {
-		customerKeys = append(customerKeys, azureArchivalLocationCustomerKeyModel{
-			Name:      types.StringValue(key.Name),
-			Region:    types.StringValue(key.Region.Name()),
-			VaultName: types.StringValue(key.VaultName),
-		})
-	}
+	customerKeys := fromAzureCustomerKeys(cloudNativeCompanion.CMKInfo)
 
 	// The encryption details require the VIEW_KMS_KEY_VAULT permission, so
 	// they're only read when the archival location may be encrypted with a key
@@ -306,18 +284,14 @@ func (d *azureArchivalLocationDataSource) Read(ctx context.Context, req datasour
 			res.Diagnostics.AddError("Failed to read Azure archival location encryption details", err.Error())
 			return
 		}
-		if err == nil && details.KMSKey != nil && details.KMSKey.Key != nil && details.KMSKey.Key.AzureKey != nil {
-			keyVaultKey = append(keyVaultKey, azureKeyVaultKeyModel{
-				KeyManagerID: types.StringValue(details.KMSKey.KeyManagerID),
-				KeyName:      types.StringValue(details.KMSKey.Key.AzureKey.KeyName),
-				KeyVersion:   types.StringValue(details.KMSKey.Key.AzureKey.KeyVersion),
-			})
+		keyVaultKey = fromAzureKeyVaultKey(details)
+	}
 
-			// RSC keeps customer managed keys given together with a key vault
-			// key, even though they aren't used, so they aren't returned for a
-			// location with a key vault key.
-			customerKeys = []azureArchivalLocationCustomerKeyModel{}
-		}
+	// RSC keeps customer managed keys given together with a key vault key,
+	// even though they aren't used, so they aren't returned for a location
+	// with a key vault key.
+	if len(keyVaultKey) > 0 {
+		customerKeys = []azureArchivalLocationCustomerKeyModel{}
 	}
 
 	state := azureArchivalLocationModel{
