@@ -235,6 +235,22 @@ const testAWSCloudApplicationAccountsConfig = `
 		}
 	}
 
+	locals {
+		# Count the policy definitions without waiting for the new ARNs.
+		policy_count = (
+			length(data.rubrik_aws_cnp_permissions.crossaccount.managed_policies) +
+			length(data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies)
+		)
+		source_policy_arns = concat(
+			data.rubrik_aws_cnp_permissions.crossaccount.managed_policies,
+			aws_iam_policy.source[*].arn,
+		)
+		target_policy_arns = concat(
+			data.rubrik_aws_cnp_permissions.crossaccount.managed_policies,
+			aws_iam_policy.target[*].arn,
+		)
+	}
+
 	# Source account.
 	resource "rubrik_aws_cnp_account" "source" {
 		name      = var.source_account_name
@@ -261,9 +277,10 @@ const testAWSCloudApplicationAccountsConfig = `
 		policy      = data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].policy
 	}
 
-	resource "aws_iam_role_policy_attachments_exclusive" "source" {
-		role_name   = aws_iam_role.source.name
-		policy_arns = concat(data.rubrik_aws_cnp_permissions.crossaccount.managed_policies, aws_iam_policy.source[*].arn)
+	resource "aws_iam_role_policy_attachment" "source" {
+		count      = local.policy_count
+		role       = aws_iam_role.source.name
+		policy_arn = local.source_policy_arns[count.index]
 	}
 
 	resource "rubrik_aws_cnp_account_attachments" "source" {
@@ -275,7 +292,7 @@ const testAWSCloudApplicationAccountsConfig = `
 			permissions = data.rubrik_aws_cnp_permissions.crossaccount.id
 		}
 
-		depends_on = [aws_iam_role_policy_attachments_exclusive.source]
+		depends_on = [aws_iam_role_policy_attachment.source]
 	}
 
 	# Target account.
@@ -306,10 +323,11 @@ const testAWSCloudApplicationAccountsConfig = `
 		policy      = data.rubrik_aws_cnp_permissions.crossaccount.customer_managed_policies[count.index].policy
 	}
 
-	resource "aws_iam_role_policy_attachments_exclusive" "target" {
-		provider    = aws.target
-		role_name   = aws_iam_role.target.name
-		policy_arns = concat(data.rubrik_aws_cnp_permissions.crossaccount.managed_policies, aws_iam_policy.target[*].arn)
+	resource "aws_iam_role_policy_attachment" "target" {
+		provider   = aws.target
+		count      = local.policy_count
+		role       = aws_iam_role.target.name
+		policy_arn = local.target_policy_arns[count.index]
 	}
 
 	resource "rubrik_aws_cnp_account_attachments" "target" {
@@ -321,7 +339,7 @@ const testAWSCloudApplicationAccountsConfig = `
 			permissions = data.rubrik_aws_cnp_permissions.crossaccount.id
 		}
 
-		depends_on = [aws_iam_role_policy_attachments_exclusive.target]
+		depends_on = [aws_iam_role_policy_attachment.target]
 	}
 `
 
