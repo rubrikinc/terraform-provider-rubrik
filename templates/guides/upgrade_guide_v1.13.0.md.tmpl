@@ -269,3 +269,15 @@ or apply after upgrading. An expression comparing one of these fields to an empt
 The `manifest` field of the `rubrik_azure_exocompute_cluster_attachment` resource holds the token RSC uses to connect
 the cluster, and is now marked as sensitive. Terraform no longer shows it in plans, and an output exposing it must be
 marked `sensitive = true`, or Terraform reports an error.
+
+### The `rubrik_data_center_azure_subscription` resource stores an unset `description` as null
+
+The `rubrik_data_center_azure_subscription` resource stored an unset `description` as an empty string. It's now stored
+as null, and existing state is upgraded by the first plan or apply after upgrading. An expression using the field as a
+string, e.g. `length(rubrik_data_center_azure_subscription.subscription.description)`, fails when the field is unset.
+Compare the field to `null` first, e.g. `description != null ? description : ""`.
+
+### The `rubrik_data_center_azure_subscription` resource only accepts a UUID as `subscription_id`
+
+The `subscription_id` field of the `rubrik_data_center_azure_subscription` resource must be a UUID. A configuration
+using any other value fails validation after upgrading.
