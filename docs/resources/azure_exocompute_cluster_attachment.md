@@ -49,4 +49,4 @@ resource "rubrik_azure_exocompute_cluster_attachment" "cluster" {
 ### Read-Only
 
 - `id` (String) RSC cluster ID (UUID).
-- `manifest` (String) Kubernetes manifest which can be passed to `kubectl apply` to create a connection between the cluster and RSC.
+- `manifest` (String, Sensitive) Kubernetes manifest which can be passed to `kubectl apply` to create a connection between the cluster and RSC.

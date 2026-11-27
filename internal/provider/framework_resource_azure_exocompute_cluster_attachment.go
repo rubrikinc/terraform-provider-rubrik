@@ -119,7 +119,8 @@ func (r *azureExocomputeClusterAttachmentResource) Schema(ctx context.Context, _
 				},
 			},
 			keyManifest: schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 				Description: "Kubernetes manifest which can be passed to `kubectl apply` to create a connection " +
 					"between the cluster and RSC.",
 			},
@@ -204,13 +205,22 @@ func (r *azureExocomputeClusterAttachmentResource) Read(ctx context.Context, req
 		return
 	}
 
+	// State written by the SDKv2 resource, or moved from the polaris_
+	// resource, has no identity. The identity is set before the lookup, so it
+	// is also set when the lookup fails.
+	res.Diagnostics.Append(res.Identity.Set(ctx, azureExocomputeClusterAttachmentIdentityModel{ID: state.ID})...)
+	if res.Diagnostics.HasError() {
+		return
+	}
+
 	configID, err := uuid.Parse(state.ExocomputeID.ValueString())
 	if err != nil {
 		res.Diagnostics.AddError("Invalid Exocompute ID", err.Error())
 		return
 	}
 
-	// A failed read keeps the state as is, same as the SDKv2 resource.
+	// A failed read keeps the state as is, same as the SDKv2 resource. The
+	// lookup fails until the manifest has been applied to the cluster.
 	info, err := exocompute.Wrap(polarisClient).AzureClusterConnection(ctx, state.ClusterName.ValueString(), configID)
 	if err != nil {
 		tflog.Warn(ctx, "failed to read cluster attachment", map[string]any{"err": err.Error()})
@@ -219,7 +229,6 @@ func (r *azureExocomputeClusterAttachmentResource) Read(ctx context.Context, req
 
 	state.Manifest = types.StringValue(info.Manifest)
 	res.Diagnostics.Append(res.State.Set(ctx, state)...)
-	res.Diagnostics.Append(res.Identity.Set(ctx, azureExocomputeClusterAttachmentIdentityModel{ID: state.ID})...)
 }
 
 // Update connects the cluster again, which refreshes the authentication token
