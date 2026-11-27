@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris"
+	rscaws "github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/aws"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/exocompute"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql"
 	"github.com/rubrikinc/rubrik-polaris-sdk-for-go/pkg/polaris/graphql/core"
@@ -114,11 +116,25 @@ func resourceAwsExocompute() *schema.Resource {
 					"default to disabled. When omitted, the existing setting is kept. Changing this forces a new " +
 					"resource to be created.",
 			},
+			keyAssumeRole: {
+				Type:             schema.TypeString,
+				Optional:         true,
+				RequiredWith:     []string{keyHostAccountID},
+				Description:      "AWS IAM role ARN to assume when applying KMS sharing updates to the application account's existing CloudFormation stack.",
+				ValidateDiagFunc: validateRoleARN,
+			},
+			keyProfile: {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{keyHostAccountID},
+				Description:  "Named AWS profile for applying KMS sharing updates to the application account's existing CloudFormation stack.",
+				ValidateFunc: validation.StringIsNotWhiteSpace,
+			},
 			keyCloudFormationURL: {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Sensitive:   true,
-				Description: "CloudFormation launch URL returned by RSC when enabling KMS key sharing requires a stack update.",
+				Description: "CloudFormation launch URL for manually applying an RSC-generated KMS sharing stack update. Cleared after a successful automatic update.",
 			},
 			keyKMSProvisioningStatus: {
 				Type:        schema.TypeString,
@@ -251,6 +267,7 @@ func resourceAwsExocompute() *schema.Resource {
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(60 * time.Minute),
 			Update: schema.DefaultTimeout(60 * time.Minute),
+			Delete: schema.DefaultTimeout(60 * time.Minute),
 		},
 	}
 }
@@ -258,7 +275,8 @@ func resourceAwsExocompute() *schema.Resource {
 func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	tflog.Trace(ctx, "awsCreateExocompute")
 
-	client, err := m.(*client).polaris()
+	providerClient := m.(*client)
+	client, err := providerClient.polaris()
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -278,6 +296,24 @@ func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 			if accountID == hostID {
 				return diag.Errorf("automated_key_sharing requires distinct application and host cloud accounts")
 			}
+			var stack awsExocomputeStack
+			var stackARN string
+			profile, role := d.Get(keyProfile).(string), d.Get(keyAssumeRole).(string)
+			if profile != "" || role != "" {
+				status, err := api.AWSKMSMappingStatus(ctx, accountID)
+				if err != nil {
+					return diag.FromErr(err)
+				}
+				if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusDisabling {
+					return diag.Errorf("the previous CloudFormation KMS revoke is still pending; complete it before enabling KMS sharing")
+				}
+				stackARN = status.StackARN
+				stack, err = providerClient.awsExocomputeStack(ctx, stackARN, profile, role)
+				if err != nil {
+					return diag.FromErr(err)
+				}
+			}
+
 			action, err := api.MapAWSCloudAccountWithKMSSharing(ctx, accountID, hostID)
 			if err != nil {
 				return diag.FromErr(err)
@@ -290,6 +326,20 @@ func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 			if err := d.Set(keyCloudFormationURL, action.CloudFormationURL); err != nil {
 				return diag.FromErr(err)
 			}
+			if stack != nil {
+				if err := awsApplyExocomputeStackUpdate(ctx, stack, stackARN, action); err != nil {
+					return diag.FromErr(err)
+				}
+				if err := awsWaitForExocomputeKMSStatus(ctx, api, accountID, gqlexocompute.KMSMappingProvisioningStatusConnected,
+					gqlexocompute.KMSSharingModeSharingOnly); err != nil {
+					return diag.FromErr(err)
+				}
+				if err := d.Set(keyCloudFormationURL, nil); err != nil {
+					return diag.FromErr(err)
+				}
+				return diag.FromErr(d.Set(keyKMSProvisioningStatus, string(gqlexocompute.KMSMappingProvisioningStatusConnected)))
+			}
+
 			status, err := api.AWSKMSMappingStatus(ctx, accountID)
 			if err != nil {
 				return diag.Diagnostics{{
@@ -372,6 +422,27 @@ func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 
 func awsUpdateExocompute(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	tflog.Trace(ctx, "awsUpdateExocompute")
+
+	profile, role := d.Get(keyProfile).(string), d.Get(keyAssumeRole).(string)
+	if d.Get(keyAutomatedKeySharing).(bool) && (profile != "" || role != "") &&
+		(d.HasChange(keyProfile) || d.HasChange(keyAssumeRole)) {
+		providerClient := m.(*client)
+		client, err := providerClient.polaris()
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		appID, err := uuid.Parse(strings.TrimPrefix(d.Id(), appCloudAccountPrefix))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		status, err := exocompute.Wrap(client).AWSKMSMappingStatus(ctx, appID)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if _, err := providerClient.awsExocomputeStack(ctx, status.StackARN, profile, role); err != nil {
+			return diag.FromErr(err)
+		}
+	}
 
 	var diags diag.Diagnostics
 	if d.HasChange(keyTriggerHealthCheck) && d.Get(keyTriggerHealthCheck).(bool) {
@@ -545,7 +616,8 @@ func awsReadExocompute(ctx context.Context, d *schema.ResourceData, m interface{
 func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	tflog.Trace(ctx, "awsDeleteExocompute")
 
-	client, err := m.(*client).polaris()
+	providerClient := m.(*client)
+	client, err := providerClient.polaris()
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -561,6 +633,61 @@ func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 			return diag.FromErr(api.UnmapAWSCloudAccount(ctx, appID))
 		}
 
+		status, err := api.AWSKMSMappingStatus(ctx, appID)
+		if errors.Is(err, graphql.ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusUnspecified &&
+			status.SharingMode == gqlexocompute.KMSSharingModeUnspecified {
+			return nil
+		}
+
+		var stack awsExocomputeStack
+		stackARN := status.StackARN
+		if stackARN != "" {
+			profile, role := d.Get(keyProfile).(string), d.Get(keyAssumeRole).(string)
+			if profile == "" && role == "" {
+				return diag.Diagnostics{{
+					Severity: diag.Error,
+					Summary:  "Exocompute KMS revoke requires CloudFormation approval",
+					Detail: "To finish a single-account CloudFormation revoke through Terraform, configure profile or assume_role " +
+						"and apply that configuration before destroying the resource. Otherwise, initiate and approve the revoke in " +
+						"RSC before retrying Terraform. No unmap was started by this attempt.",
+				}}
+			}
+			stack, err = providerClient.awsExocomputeStack(ctx, stackARN, profile, role)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+
+			// Opening the stack waits for any previous AWS update. Recheck RSC
+			// before issuing another unmap, since the update may have completed
+			// an earlier revoke while we were waiting.
+			status, err = api.AWSKMSMappingStatus(ctx, appID)
+			if errors.Is(err, graphql.ErrNotFound) {
+				return nil
+			}
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusUnspecified &&
+				status.SharingMode == gqlexocompute.KMSSharingModeUnspecified {
+				return nil
+			}
+			if status.StackARN != stackARN {
+				return diag.Errorf("the application account's CloudFormation stack changed before the KMS revoke")
+			}
+			if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusConnecting {
+				// RSC cancels a CONNECTING row without issuing a revoke
+				// template. Don't cancel if a stack update may already have
+				// created the IAM grants but RSC hasn't seen its event yet.
+				return diag.Errorf("the CloudFormation KMS mapping is still CONNECTING; finish the pending add or cancel it in RSC only if its stack update was not applied, then retry Terraform")
+			}
+		}
+
 		action, err := api.UnmapAWSCloudAccountWithKMSSharing(ctx, appID)
 		if errors.Is(err, graphql.ErrNotFound) {
 			return nil
@@ -572,6 +699,13 @@ func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 			return nil
 		}
 		if action.CloudFormationURL != "" || action.TemplateURL != "" {
+			if stack != nil {
+				if err := awsApplyExocomputeStackUpdate(ctx, stack, stackARN, action); err != nil {
+					return diag.FromErr(err)
+				}
+				return diag.FromErr(awsWaitForExocomputeKMSStatus(ctx, api, appID, gqlexocompute.KMSMappingProvisioningStatusUnspecified,
+					gqlexocompute.KMSSharingModeUnspecified))
+			}
 			return diag.Diagnostics{{
 				Severity: diag.Error,
 				Summary:  "Exocompute KMS revoke requires CloudFormation approval",
@@ -596,6 +730,58 @@ func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 	}
 
 	return nil
+}
+
+type awsExocomputeStack interface {
+	Update(ctx context.Context, templateURL string) error
+}
+
+func (c *client) awsExocomputeStack(ctx context.Context, stackARN, profile, role string) (awsExocomputeStack, error) {
+	if stackARN == "" {
+		return nil, errors.New("profile and assume_role for KMS sharing require a single-account CloudFormation application account")
+	}
+	if c.openAWSExocomputeStack != nil {
+		return c.openAWSExocomputeStack(ctx, stackARN, profile, role)
+	}
+	return rscaws.OpenCloudFormationStack(ctx, stackARN, profile, role)
+}
+
+// Validate the stack in the RSC action against the stack verified before the
+// mutation. Use the raw template URL rather than launching the AWS console.
+func awsApplyExocomputeStackUpdate(ctx context.Context, stack awsExocomputeStack, stackARN string, action gqlexocompute.AWSKMSMappingAction) error {
+	launch, err := url.Parse(action.CloudFormationURL)
+	if err != nil || launch.Scheme != "https" || launch.Hostname() == "" || action.TemplateURL == "" || action.ManualRolePolicy != "" {
+		return errors.New("RSC did not return a single-account CloudFormation stack update")
+	}
+	update, err := url.Parse(launch.Fragment)
+	if err != nil || update.Path != "/stack/update" || update.Query().Get("stackId") != stackARN {
+		return errors.New("RSC CloudFormation update does not target the application's verified onboarding stack")
+	}
+	return stack.Update(ctx, action.TemplateURL)
+}
+
+func awsWaitForExocomputeKMSStatus(ctx context.Context, api exocompute.API, appID uuid.UUID, want gqlexocompute.KMSMappingProvisioningStatus, mode gqlexocompute.KMSSharingMode) error {
+	for {
+		status, err := api.AWSKMSMappingStatus(ctx, appID)
+		if errors.Is(err, graphql.ErrNotFound) && want == gqlexocompute.KMSMappingProvisioningStatusUnspecified {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if status.ProvisioningStatus == want && status.SharingMode == mode {
+			return nil
+		}
+		if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusFailed {
+			return fmt.Errorf("RSC reported a failed KMS mapping for application account %s", appID)
+		}
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for application account %s to reach KMS status %s (last status %s, mode %s): %w",
+				appID, want, status.ProvisioningStatus, status.SharingMode, ctx.Err())
+		}
+	}
 }
 
 // exocomputeRunHealthCheck triggers a health check of the AWS or Azure

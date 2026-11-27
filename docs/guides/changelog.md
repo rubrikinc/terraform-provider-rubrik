@@ -8,8 +8,8 @@ page_title: "Changelog"
 * New resource added for `rubrik_aws_exocompute_kms_confirmation` which confirms an AWS application account's
   automated KMS key sharing mapping after its IAM policy is attached.
   [[docs](../resources/aws_exocompute_kms_confirmation.md)]
-* Add support for automated KMS key sharing in application mappings in `rubrik_aws_exocompute`.
-  See the [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md).
+* Add support for automated KMS key sharing in application mappings in `rubrik_aws_exocompute`, with opt-in
+  AWS stack updates for single-account CloudFormation onboarding. See the [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md).
   [[docs](../resources/aws_exocompute.md)]
 * Add support for AWS accounts using multiple roles in the `rubrik_aws_cnp_artifacts` and `rubrik_aws_cnp_permissions`
   data sources, using the new `native_id` field. Given the AWS account ID, the data sources return the roles and

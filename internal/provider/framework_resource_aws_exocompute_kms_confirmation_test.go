@@ -56,7 +56,9 @@ const (
 	testKMSApplicationID = "d55592db-956a-45b6-b8b6-e1ce9495746b"
 	testKMSHostID        = "18f586ae-968b-42c4-a60a-93d59a80dace"
 	testKMSRolePolicy    = `{"Version":"2012-10-17","Statement":[]}`
-	testKMSFormationURL  = "https://example.com/exocompute-kms-stack-update"
+	testKMSStackARN      = "arn:aws:cloudformation:us-east-2:123456789012:stack/example/example"
+	testKMSTemplateURL   = "https://bucket.s3.us-east-2.amazonaws.com/kms-sharing"
+	testKMSFormationURL  = "https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stack/update?stackId=" + testKMSStackARN + "&templateURL=" + testKMSTemplateURL
 )
 
 type awsExocomputeKMSTestProvider struct {
@@ -111,6 +113,7 @@ func (f *fakeExocomputeKMS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if f.cft {
 			action.ManualRolePolicy = ""
 			action.CloudFormationURL = testKMSFormationURL
+			action.TemplateURL = testKMSTemplateURL
 			action.PendingApproval = true
 		}
 		result = map[string]any{"isSuccess": true, "results": []gqlexocompute.AWSKMSMappingAction{action}}
@@ -134,7 +137,7 @@ func (f *fakeExocomputeKMS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status.ProvisioningStatus = gqlexocompute.KMSMappingProvisioningStatusUnspecified
 		}
 		if f.cft {
-			status.StackARN = "arn:aws:cloudformation:us-east-2:123456789012:stack/example/example"
+			status.StackARN = testKMSStackARN
 		}
 		result = map[string]any{"results": []gqlexocompute.AWSKMSMappingStatus{status}}
 	case strings.Contains(request.Query, "result: unmapCloudAccountExocomputeAccount"):
@@ -146,6 +149,7 @@ func (f *fakeExocomputeKMS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			action.PendingApproval = true
 			if f.cft {
 				action.CloudFormationURL = testKMSFormationURL
+				action.TemplateURL = testKMSTemplateURL
 			}
 		default:
 			f.sharingMode, f.status = "", ""
@@ -183,6 +187,9 @@ func TestAWSExocomputeKMSMappingConfig(t *testing.T) {
 		{"HostWithExplicitFalse", map[string]any{keyRegion: "us-east-2", keyAutomatedKeySharing: false}, true},
 		{"ApplicationWithoutKMS", map[string]any{keyHostAccountID: testKMSHostID}, false},
 		{"ApplicationWithKMS", map[string]any{keyHostAccountID: testKMSHostID, keyAutomatedKeySharing: true}, false},
+		{"HostWithProfile", map[string]any{keyRegion: "us-east-2", keyProfile: "example"}, true},
+		{"ApplicationWithProfile", map[string]any{keyHostAccountID: testKMSHostID, keyProfile: "example"}, false},
+		{"ApplicationWithAssumeRole", map[string]any{keyHostAccountID: testKMSHostID, keyAssumeRole: "arn:aws:iam::123456789012:role/example"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.config[keyAccountID] = testKMSApplicationID
@@ -194,7 +201,7 @@ func TestAWSExocomputeKMSMappingConfig(t *testing.T) {
 	}
 }
 
-func TestAWSExocomputeKMSCloudFormationRevoke(t *testing.T) {
+func TestAWSExocomputeKMSCloudFormationManualRevoke(t *testing.T) {
 	ctx := t.Context()
 	fake := &fakeExocomputeKMS{cft: true}
 	srv := httptest.NewTLSServer(fake)
@@ -219,8 +226,8 @@ func TestAWSExocomputeKMSCloudFormationRevoke(t *testing.T) {
 		t.Fatal(diags)
 	}
 	if d.Id() != appCloudAccountPrefix+testKMSApplicationID ||
-		d.Get(keyKMSProvisioningStatus) != string(gqlexocompute.KMSMappingProvisioningStatusDisabling) {
-		t.Fatalf("refresh lost the pending revoke: id=%q status=%v", d.Id(), d.Get(keyKMSProvisioningStatus))
+		d.Get(keyKMSProvisioningStatus) != string(gqlexocompute.KMSMappingProvisioningStatusConnected) {
+		t.Fatalf("delete started a revoke without AWS credentials: id=%q status=%v", d.Id(), d.Get(keyKMSProvisioningStatus))
 	}
 	fake.mu.Lock()
 	fake.status, fake.sharingMode = "", ""

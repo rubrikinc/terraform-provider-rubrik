@@ -154,9 +154,10 @@ Opt in with `automated_key_sharing = true` on a [rubrik_aws_exocompute applicati
 Leave the setting out to keep the existing mapping's sharing mode. Explicitly changing the setting replaces the mapping.
 
 For a manually onboarded application account, attach the policy returned by the mapping before using
-[rubrik_aws_exocompute_kms_confirmation](../resources/aws_exocompute_kms_confirmation.md). For a CloudFormation
-or StackSet account, complete the AWS stack update instead. Import reads the current mode and status but cannot
-recreate the policy or URL that RSC returned when the mapping was created.
+[rubrik_aws_exocompute_kms_confirmation](../resources/aws_exocompute_kms_confirmation.md). For an application
+account onboarded with a single-account CloudFormation stack, specify `profile` or `assume_role` to apply the
+setup and revoke updates automatically, or complete the stack steps yourself. Import reads the current mode and
+status but cannot recover the create-only IAM policy or launch URL.
 
 ### AWS accounts using multiple roles
 
