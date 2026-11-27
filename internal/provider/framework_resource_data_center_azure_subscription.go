@@ -335,7 +335,7 @@ func (r *dataCenterAzureSubscriptionResource) Delete(ctx context.Context, req re
 	}
 
 	err = archival.Wrap(polarisClient).DeleteAzureCloudAccount(ctx, id)
-	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+	if err != nil {
 		res.Diagnostics.AddError("Failed to delete data center Azure subscription", err.Error())
 		return
 	}
