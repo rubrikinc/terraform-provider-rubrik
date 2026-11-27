@@ -235,7 +235,7 @@ func TestAccPolarisAzureSubscription_postgresFlexibleServer(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: subscriptionPostgres,
 			Check:  resource.ComposeTestCheckFunc(checks...),
@@ -272,7 +272,7 @@ func TestAccPolarisAzureSubscription_entraGroupID(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: entraID1Config,
 			Check: resource.ComposeTestCheckFunc(
@@ -304,7 +304,7 @@ func TestAccPolarisAzureSubscription_basic(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: providerFactories,
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{{
 			Config: subscriptionOneRegion,
 			Check: resource.ComposeTestCheckFunc(
