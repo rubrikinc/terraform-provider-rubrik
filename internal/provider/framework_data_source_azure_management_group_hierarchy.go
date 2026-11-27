@@ -139,7 +139,8 @@ func (d *azureManagementGroupHierarchyDataSource) Schema(ctx context.Context, _ 
 			keyFeatures: schema.SetAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				Description: "RSC features to check the eligibility of the subscriptions for.",
+				Description: "RSC features to check subscription eligibility for. Defaults to `CLOUD_DISCOVERY` for this " +
+					"read-only check; it does not onboard any features.",
 				Validators: []validator.Set{
 					setvalidator.ValueStringsAre(stringvalidator.OneOf(core.AzureSubscriptionFeatureNames()...)),
 				},
@@ -232,19 +233,21 @@ func (d *azureManagementGroupHierarchyDataSource) Read(ctx context.Context, req 
 		return
 	}
 
-	opts := azure.ManagementGroupHierarchyOptions{NoRecurse: !config.Recurse.IsNull() && !config.Recurse.ValueBool()}
-	res.Diagnostics.Append(config.ScopedManagementGroupIDs.ElementsAs(ctx, &opts.ScopedManagementGroupIDs, false)...)
+	params := azure.ManagementGroupHierarchyParams{
+		TenantDomain: config.TenantDomain.ValueString(), AppID: appID, ManagementGroupID: config.ManagementGroupID.ValueString(),
+		NoRecurse: !config.Recurse.IsNull() && !config.Recurse.ValueBool(),
+	}
+	res.Diagnostics.Append(config.ScopedManagementGroupIDs.ElementsAs(ctx, &params.ScopedManagementGroupIDs, false)...)
 	var featureNames []string
 	res.Diagnostics.Append(config.Features.ElementsAs(ctx, &featureNames, false)...)
 	if res.Diagnostics.HasError() {
 		return
 	}
 	for _, name := range featureNames {
-		opts.Features = append(opts.Features, core.Feature{Name: name})
+		params.Features = append(params.Features, core.Feature{Name: name})
 	}
 
-	hierarchy, err := azure.Wrap(polarisClient).ManagementGroupHierarchy(ctx, config.TenantDomain.ValueString(), appID,
-		config.ManagementGroupID.ValueString(), opts)
+	hierarchy, err := azure.Wrap(polarisClient).ManagementGroupHierarchy(ctx, params)
 	if err != nil {
 		res.Diagnostics.AddError("Failed to read management group hierarchy", err.Error())
 		return

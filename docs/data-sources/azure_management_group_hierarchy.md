@@ -62,7 +62,7 @@ data "rubrik_azure_management_group_hierarchy" "children" {
 
 ### Optional
 
-- `features` (Set of String) RSC features to check the eligibility of the subscriptions for.
+- `features` (Set of String) RSC features to check subscription eligibility for. Defaults to `CLOUD_DISCOVERY` for this read-only check; it does not onboard any features.
 - `recurse` (Boolean) Include the child management groups recursively. When `false`, only the immediate children are included. Default value is `true`.
 - `scoped_management_group_ids` (Set of String) Child management group IDs to limit the hierarchy to. They must be descendants of `management_group_id`.
 

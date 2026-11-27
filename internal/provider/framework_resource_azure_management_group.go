@@ -429,7 +429,10 @@ func (r *azureManagementGroupResource) Create(ctx context.Context, req resource.
 		res.Diagnostics.AddError("Cannot onboard subscriptions", err.Error())
 		return
 	}
-	taskID, err := api.StartManagementGroupOnboarding(ctx, tenantDomain, input.appID, managementGroupID, input.regions, wanted)
+	taskID, err := api.StartManagementGroupOnboarding(ctx, azure.StartManagementGroupOnboardingParams{
+		TenantDomain: tenantDomain, AppID: input.appID, ManagementGroupID: managementGroupID,
+		Regions: input.regions, Subscriptions: wanted,
+	})
 	if err != nil {
 		res.Diagnostics.AddError("Failed to submit management group onboarding", err.Error())
 		return
@@ -446,7 +449,9 @@ func (r *azureManagementGroupResource) Create(ctx context.Context, req resource.
 	if res.Diagnostics.HasError() {
 		return
 	}
-	if err := api.WaitForManagementGroupOnboarding(ctx, taskID, tenantDomain, managementGroupID, wanted); err != nil {
+	if err := api.WaitForManagementGroupOnboarding(ctx, azure.WaitForManagementGroupOnboardingParams{
+		TaskChainID: taskID, TenantDomain: tenantDomain, ManagementGroupID: managementGroupID, Subscriptions: wanted,
+	}); err != nil {
 		res.Diagnostics.AddError("Failed to complete management group onboarding", err.Error())
 		return
 	}
@@ -609,7 +614,10 @@ func (r *azureManagementGroupResource) Update(ctx context.Context, req resource.
 		return
 	}
 	if len(adds) != 0 {
-		taskID, err := api.StartManagementGroupOnboarding(ctx, tenantDomain, newInput.appID, managementGroupID, newInput.regions, adds)
+		taskID, err := api.StartManagementGroupOnboarding(ctx, azure.StartManagementGroupOnboardingParams{
+			TenantDomain: tenantDomain, AppID: newInput.appID, ManagementGroupID: managementGroupID,
+			Regions: newInput.regions, Subscriptions: adds,
+		})
 		if err != nil {
 			res.Diagnostics.AddError("Failed to submit management group onboarding", err.Error())
 			return
@@ -630,7 +638,9 @@ func (r *azureManagementGroupResource) Update(ctx context.Context, req resource.
 		if res.Diagnostics.HasError() {
 			return
 		}
-		if err := api.WaitForManagementGroupOnboarding(ctx, taskID, tenantDomain, managementGroupID, adds); err != nil {
+		if err := api.WaitForManagementGroupOnboarding(ctx, azure.WaitForManagementGroupOnboardingParams{
+			TaskChainID: taskID, TenantDomain: tenantDomain, ManagementGroupID: managementGroupID, Subscriptions: adds,
+		}); err != nil {
 			res.Diagnostics.AddError("Failed to complete management group onboarding", err.Error())
 			return
 		}
@@ -964,8 +974,10 @@ func removeAzureManagementGroupFeatures(ctx context.Context, api azure.API, tena
 		names = append(slices.Delete(names, idx, idx+1), core.FeatureCloudDiscovery.Name)
 	}
 	for _, name := range names {
-		if err := api.RemoveManagementGroupSubscriptionFeature(ctx, tenantDomain, appID, removes[name], core.Feature{Name: name},
-			deleteSnapshots && name == core.FeatureCloudNativeProtection.Name); err != nil {
+		if err := api.RemoveManagementGroupSubscriptionFeature(ctx, azure.RemoveManagementGroupSubscriptionFeatureParams{
+			TenantDomain: tenantDomain, AppID: appID, CloudAccountIDs: removes[name], Feature: core.Feature{Name: name},
+			DeleteSnapshots: deleteSnapshots && name == core.FeatureCloudNativeProtection.Name,
+		}); err != nil {
 			return err
 		}
 	}
