@@ -62,8 +62,9 @@ definitions at the management group scope and the role assignments for each subs
 must therefore have the ´Contributor´ and ´User Access Administrator´ roles at the management group scope. RSC can
 only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
 
-~> **Note:** Both ´AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED´ and ´CNP_AZURE_DISABLE_DELETE_COMBINED´ must be enabled
-for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
+~> **Note:** The RSC account must have ´AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED´ enabled.
+´CNP_AZURE_DISABLE_DELETE_COMBINED´ is not required. If it is off, the provider deletes the feature and its Azure role
+assignments in a separate step after any required disable job completes.
 
 ~> **Note:** A subscription must not be managed by both this resource and the ´rubrik_azure_subscription´ resource.
 Once a subscription has been onboarded through a management group, it can no longer be updated through
@@ -415,10 +416,6 @@ func (r *azureManagementGroupResource) Create(ctx context.Context, req resource.
 	tenantDomain, managementGroupID := plan.TenantDomain.ValueString(), plan.ManagementGroupID.ValueString()
 	ctx, cancel := context.WithTimeout(ctx, azureManagementGroupOperationTimeout)
 	defer cancel()
-	if !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
-		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before onboarding.")
-		return
-	}
 	data, err := readAzureManagementGroup(ctx, api, tenantDomain, managementGroupID)
 	if err != nil && !errors.Is(err, graphql.ErrNotFound) {
 		res.Diagnostics.AddError("Failed to check existing subscriptions", err.Error())
@@ -609,10 +606,6 @@ func (r *azureManagementGroupResource) Update(ctx context.Context, req resource.
 			return
 		}
 	}
-	if (len(adds) != 0 || len(removes) != 0) && !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
-		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before updating.")
-		return
-	}
 	if len(adds) != 0 {
 		taskID, err := api.StartManagementGroupOnboarding(ctx, azure.StartManagementGroupOnboardingParams{
 			TenantDomain: tenantDomain, AppID: newInput.appID, ManagementGroupID: managementGroupID,
@@ -710,10 +703,6 @@ func (r *azureManagementGroupResource) Delete(ctx context.Context, req resource.
 	_, removes, err := azureManagementGroupReconcile(data.accounts, input.managed, azureManagementGroupInput{})
 	if err != nil {
 		res.Diagnostics.AddError("Cannot determine managed subscription features", err.Error())
-		return
-	}
-	if len(removes) != 0 && !r.client.flag(ctx, core.FeatureFlagAzureDisableDeleteCombined) {
-		res.Diagnostics.AddError("Azure management group cleanup is not enabled", "Enable CNP_AZURE_DISABLE_DELETE_COMBINED in RSC before destroying.")
 		return
 	}
 	err = removeAzureManagementGroupFeatures(ctx, api, state.TenantDomain.ValueString(), input.appID, removes,

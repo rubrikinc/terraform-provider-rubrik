@@ -10,8 +10,9 @@ description: |-
   definitions at the management group scope and the role assignments for each subscription. The app's service principal
   must therefore have the Contributor and User Access Administrator roles at the management group scope. RSC can
   only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
-  ~> Note: Both AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED and CNP_AZURE_DISABLE_DELETE_COMBINED must be enabled
-  for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
+  ~> Note: The RSC account must have AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED enabled.
+  CNP_AZURE_DISABLE_DELETE_COMBINED is not required. If it is off, the provider deletes the feature and its Azure role
+  assignments in a separate step after any required disable job completes.
   ~> Note: A subscription must not be managed by both this resource and the rubrik_azure_subscription resource.
   Once a subscription has been onboarded through a management group, it can no longer be updated through
   rubrik_azure_subscription.
@@ -57,8 +58,9 @@ definitions at the management group scope and the role assignments for each subs
 must therefore have the `Contributor` and `User Access Administrator` roles at the management group scope. RSC can
 only remove its role assignments when these roles are in place, so keep them until the resource is destroyed.
 
-~> **Note:** Both `AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED` and `CNP_AZURE_DISABLE_DELETE_COMBINED` must be enabled
-for the RSC account. The latter ensures that removal deletes the feature and its Azure role assignments, not just disables it.
+~> **Note:** The RSC account must have `AZURE_CLOUDACCOUNTS_MANAGEMENT_GROUP_ENABLED` enabled.
+`CNP_AZURE_DISABLE_DELETE_COMBINED` is not required. If it is off, the provider deletes the feature and its Azure role
+assignments in a separate step after any required disable job completes.
 
 ~> **Note:** A subscription must not be managed by both this resource and the `rubrik_azure_subscription` resource.
 Once a subscription has been onboarded through a management group, it can no longer be updated through

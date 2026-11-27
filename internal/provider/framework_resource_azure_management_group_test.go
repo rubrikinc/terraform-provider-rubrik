@@ -246,7 +246,6 @@ func TestAzureManagementGroupImportRejectsDifferentSettings(t *testing.T) {
 
 func TestAccAzureManagementGroupResource(t *testing.T) {
 	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureCloudAccountsManagementGroup)
-	skipUnlessFeatureEnabled(t, core.FeatureFlagAzureDisableDeleteCombined)
 
 	// The management group must contain at least two subscriptions that are
 	// eligible for CLOUD_NATIVE_PROTECTION, and the service principal of the
