@@ -263,3 +263,9 @@ The `rubrik_azure_exocompute` resource stored the unset `subnet` and `pod_overla
 `optional_config` block, as empty strings. They're now stored as null, and existing state is upgraded by the first plan
 or apply after upgrading. An expression comparing one of these fields to an empty string, e.g.
 `pod_overlay_network_cidr == ""`, is no longer true when the field is unset. Compare the field to `null` instead.
+
+### The `manifest` field of the `rubrik_azure_exocompute_cluster_attachment` resource is sensitive
+
+The `manifest` field of the `rubrik_azure_exocompute_cluster_attachment` resource holds the token RSC uses to connect
+the cluster, and is now marked as sensitive. Terraform no longer shows it in plans, and an output exposing it must be
+marked `sensitive = true`, or Terraform reports an error.

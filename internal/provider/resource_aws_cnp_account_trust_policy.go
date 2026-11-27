@@ -65,8 +65,10 @@ var trustPolicyRoleKeys = []string{
 	"EXOCOMPUTE_EKS_LAMBDA",
 }
 
-// This resource uses a template for its documentation, remember to update the
-// template if the documentation for any field changes.
+// This resource uses a template for its documentation, if the import
+// functionality is updated check if the template needs to be updated too.
+// The resource is deprecated, and the documentation generator skips deprecated
+// resources without a template, so the template must not be removed.
 func resourceAwsCnpAccountTrustPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: awsCreateCnpAccountTrustPolicy,
