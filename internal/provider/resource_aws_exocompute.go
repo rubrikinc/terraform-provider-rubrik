@@ -71,8 +71,9 @@ a ´rubrik_aws_exocompute´ resource:
     configuration. Note, the ´rubrik_aws_exocompute_cluster_attachment´
     resource must be used to attach an AWS EKS cluster to the Exocompute
     configuration.
- 3. Using the ´account_id´ and ´host_cloud_account_id´ fields creates an
-    application configuration.
+ 3. Using the ´account_id´ and ´host_account_id´ fields creates an
+    application configuration. Set ´automated_key_sharing´ to ´true´ to
+    request automated KMS key sharing for the application account.
 
 -> **Note:** Customer managed Exocompute is sometimes referred to as Bring Your
    Own Kubernetes (BYOK). Using both host and application Exocompute
@@ -101,6 +102,33 @@ func resourceAwsExocompute() *schema.Resource {
 				ForceNew:     true,
 				Description:  "RSC cloud account ID (UUID). Changing this forces a new resource to be created.",
 				ValidateFunc: validation.IsUUID,
+			},
+			keyAutomatedKeySharing: {
+				Type:          schema.TypeBool,
+				Optional:      true,
+				Computed:      true,
+				ForceNew:      true,
+				RequiredWith:  []string{keyHostAccountID},
+				ConflictsWith: []string{keyRegion},
+				Description: "Request automated KMS key sharing for an application configuration. New mappings " +
+					"default to disabled. When omitted, the existing setting is kept. Changing this forces a new " +
+					"resource to be created.",
+			},
+			keyCloudFormationURL: {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Sensitive:   true,
+				Description: "CloudFormation launch URL returned by RSC when enabling KMS key sharing requires a stack update.",
+			},
+			keyKMSProvisioningStatus: {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Current RSC provisioning status of the application account's KMS mapping.",
+			},
+			keyKMSRolePolicy: {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "IAM policy JSON returned by RSC for a manually onboarded application account.",
 			},
 			keyClusterSecurityGroupID: {
 				Type:          schema.TypeString,
@@ -245,11 +273,38 @@ func awsCreateExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		err = exocompute.Wrap(client).MapAWSCloudAccount(ctx, accountID, hostID)
-		if err != nil {
+		api := exocompute.Wrap(client)
+		if d.Get(keyAutomatedKeySharing).(bool) {
+			if accountID == hostID {
+				return diag.Errorf("automated_key_sharing requires distinct application and host cloud accounts")
+			}
+			action, err := api.MapAWSCloudAccountWithKMSSharing(ctx, accountID, hostID)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			d.SetId(appCloudAccountPrefix + accountID.String())
+
+			if err := d.Set(keyKMSRolePolicy, action.ManualRolePolicy); err != nil {
+				return diag.FromErr(err)
+			}
+			if err := d.Set(keyCloudFormationURL, action.CloudFormationURL); err != nil {
+				return diag.FromErr(err)
+			}
+			status, err := api.AWSKMSMappingStatus(ctx, accountID)
+			if err != nil {
+				return diag.Diagnostics{{
+					Severity: diag.Warning,
+					Summary:  "Could not read Exocompute KMS mapping status",
+					Detail:   "The mapping was created. The provider will read its status on the next refresh: " + err.Error(),
+				}}
+			}
+			return diag.FromErr(d.Set(keyKMSProvisioningStatus, string(status.ProvisioningStatus)))
+		}
+
+		if err := api.MapAWSCloudAccount(ctx, accountID, hostID); err != nil {
 			return diag.FromErr(err)
 		}
-		d.SetId("app-" + accountID.String())
+		d.SetId(appCloudAccountPrefix + accountID.String())
 	} else {
 		clusterSecurityGroupID := d.Get(keyClusterSecurityGroupID).(string)
 		nodeSecurityGroupID := d.Get(keyNodeSecurityGroupID).(string)
@@ -352,8 +407,19 @@ func awsReadExocompute(ctx context.Context, d *schema.ResourceData, m interface{
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		hostID, err := exocompute.Wrap(client).AWSHostCloudAccount(ctx, appID)
-		if errors.Is(err, graphql.ErrNotFound) {
+		api := exocompute.Wrap(client)
+		hostID, err := api.AWSHostCloudAccount(ctx, appID)
+		if err != nil && !errors.Is(err, graphql.ErrNotFound) {
+			return diag.FromErr(err)
+		}
+		notFound := errors.Is(err, graphql.ErrNotFound)
+		if notFound && !d.Get(keyAutomatedKeySharing).(bool) {
+			d.SetId("")
+			return nil
+		}
+
+		status, err := api.AWSKMSMappingStatus(ctx, appID)
+		if errors.Is(err, graphql.ErrNotFound) && notFound {
 			d.SetId("")
 			return nil
 		}
@@ -361,11 +427,53 @@ func awsReadExocompute(ctx context.Context, d *schema.ResourceData, m interface{
 			return diag.FromErr(err)
 		}
 
+		if notFound {
+			// RSC hides mappings undergoing revoke from the ordinary mapping
+			// list. Keep the identity so a failed or interrupted delete can be
+			// retried after the required AWS change has been applied.
+			switch status.ProvisioningStatus {
+			case gqlexocompute.KMSMappingProvisioningStatusConnecting, gqlexocompute.KMSMappingProvisioningStatusDisabling:
+				if err := d.Set(keyKMSProvisioningStatus, string(status.ProvisioningStatus)); err != nil {
+					return diag.FromErr(err)
+				}
+			default:
+				d.SetId("")
+			}
+			return nil
+		}
+
 		if err := d.Set(keyAccountID, appID.String()); err != nil {
 			return diag.FromErr(err)
 		}
 		if err := d.Set(keyHostAccountID, hostID.String()); err != nil {
 			return diag.FromErr(err)
+		}
+		if err := d.Set(keyKMSProvisioningStatus, string(status.ProvisioningStatus)); err != nil {
+			return diag.FromErr(err)
+		}
+		if status.ProvisioningStatus == gqlexocompute.KMSMappingProvisioningStatusDisabling {
+			// A revoke may have started between the two reads. It reports
+			// mode NONE but still needs KMS-aware cleanup.
+			return diag.FromErr(d.Set(keyAutomatedKeySharing, true))
+		}
+
+		switch status.SharingMode {
+		case gqlexocompute.KMSSharingModeNone, gqlexocompute.KMSSharingModeUnspecified:
+			if err := d.Set(keyAutomatedKeySharing, false); err != nil {
+				return diag.FromErr(err)
+			}
+			if err := d.Set(keyKMSRolePolicy, nil); err != nil {
+				return diag.FromErr(err)
+			}
+			if err := d.Set(keyCloudFormationURL, nil); err != nil {
+				return diag.FromErr(err)
+			}
+		case gqlexocompute.KMSSharingModeSharingOnly, gqlexocompute.KMSSharingModeSharingAndGateway:
+			if err := d.Set(keyAutomatedKeySharing, true); err != nil {
+				return diag.FromErr(err)
+			}
+		default:
+			return diag.Errorf("unrecognized Exocompute KMS sharing mode %q for application cloud account %s", status.SharingMode, appID)
 		}
 	} else {
 		configID, err := uuid.Parse(id)
@@ -448,9 +556,35 @@ func awsDeleteExocompute(ctx context.Context, d *schema.ResourceData, m interfac
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		if err = exocompute.Wrap(client).UnmapAWSCloudAccount(ctx, appID); err != nil {
+		api := exocompute.Wrap(client)
+		if !d.Get(keyAutomatedKeySharing).(bool) {
+			return diag.FromErr(api.UnmapAWSCloudAccount(ctx, appID))
+		}
+
+		action, err := api.UnmapAWSCloudAccountWithKMSSharing(ctx, appID)
+		if errors.Is(err, graphql.ErrNotFound) {
+			return nil
+		}
+		if err != nil {
 			return diag.FromErr(err)
 		}
+		if !action.PendingApproval {
+			return nil
+		}
+		if action.CloudFormationURL != "" || action.TemplateURL != "" {
+			return diag.Diagnostics{{
+				Severity: diag.Error,
+				Summary:  "Exocompute KMS revoke requires CloudFormation approval",
+				Detail: fmt.Sprintf("Complete the pending KMS key sharing revoke for application account %s in RSC by "+
+					"applying the AWS CloudFormation stack update, then rerun Terraform.", appID),
+			}}
+		}
+		if action.ManualRolePolicy != "" {
+			return diag.Errorf("apply the pending IAM policy change for application account %s in RSC, confirm the revoke, and rerun Terraform", appID)
+		}
+		// The policy attachment must depend on the mapping, so Terraform
+		// removes it before reaching this Delete. RSC does not verify removal.
+		return diag.FromErr(api.ConfirmAWSManualKMSMapping(ctx, appID))
 	} else {
 		configID, err := uuid.Parse(id)
 		if err != nil {

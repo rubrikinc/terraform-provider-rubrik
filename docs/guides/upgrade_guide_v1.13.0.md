@@ -148,6 +148,16 @@ This will record the renames (Option 2) in state and migrate the local Terraform
 
 ## New Features
 
+### Automated KMS key sharing for AWS Exocompute
+
+Opt in with `automated_key_sharing = true` on a [rubrik_aws_exocompute application mapping](../resources/aws_exocompute.md#automated-kms-key-sharing).
+Leave the setting out to keep the existing mapping's sharing mode. Explicitly changing the setting replaces the mapping.
+
+For a manually onboarded application account, attach the policy returned by the mapping before using
+[rubrik_aws_exocompute_kms_confirmation](../resources/aws_exocompute_kms_confirmation.md). For a CloudFormation
+or StackSet account, complete the AWS stack update instead. Import reads the current mode and status but cannot
+recreate the policy or URL that RSC returned when the mapping was created.
+
 ### AWS accounts using multiple roles
 
 RSC can onboard an AWS account using the IAM roles workflow with one IAM role per feature, instead of a single

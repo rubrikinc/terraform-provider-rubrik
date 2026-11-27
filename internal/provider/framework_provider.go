@@ -139,6 +139,7 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisAwsCnpAccountAttachmentsResource,
 		newAwsCustomTagsResource,
 		newPolarisAwsCustomTagsResource,
+		newAWSExocomputeKMSConfirmationResource,
 		newAWSKeyManagerResource,
 		newPolarisAWSKeyManagerResource,
 		newAWSRCVArchivalLocationResource,
