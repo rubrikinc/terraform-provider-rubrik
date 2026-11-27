@@ -123,6 +123,9 @@ func TestAccAzurePrivateContainerRegistryResource(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_12_0),
+		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azurePrivateContainerRegistryCheckDestroy(t),
