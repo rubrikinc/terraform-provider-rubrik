@@ -255,3 +255,11 @@ for a source region archival location. Compare the field to `null` instead.
 The `storage_account_region` field and the `region` field of the `customer_managed_key` block of the
 `rubrik_azure_archival_location` resource only accept the Azure regions RSC supports for archival locations. A
 configuration using any other Azure region fails validation after upgrading.
+
+### The `rubrik_azure_exocompute` resource stores unset strings as null
+
+The `rubrik_azure_exocompute` resource stored the unset `subnet` and `pod_overlay_network_cidr` fields, and the unset
+`private_exocompute_dns_zone_id`, `resource_group_prefix` and `snapshot_private_access_dns_zone_id` fields of the
+`optional_config` block, as empty strings. They're now stored as null, and existing state is upgraded by the first plan
+or apply after upgrading. An expression comparing one of these fields to an empty string, e.g.
+`pod_overlay_network_cidr == ""`, is no longer true when the field is unset. Compare the field to `null` instead.
