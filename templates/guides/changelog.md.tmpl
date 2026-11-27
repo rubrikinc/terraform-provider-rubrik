@@ -76,6 +76,8 @@ page_title: "Changelog"
 * Add support for reading the enabled features in the `rubrik_azure_subscription` data source. The new `feature`
   attribute exposes each feature's permission groups, regions, status, resource group and user-assigned managed
   identity. [[docs](../data-sources/azure_subscription.md)]
+* Migrate the `rubrik_azure_permissions` data source to the Terraform Plugin Framework.
+  [[docs](../data-sources/azure_permissions.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources
