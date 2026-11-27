@@ -78,6 +78,12 @@ page_title: "Changelog"
   identity. [[docs](../data-sources/azure_subscription.md)]
 * Migrate the `rubrik_azure_permissions` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/azure_permissions.md)]
+* **Deprecated:** Customer managed Exocompute in the `rubrik_azure_exocompute` resource, which is a configuration with
+  `region` but neither `subnet` nor `pod_overlay_network_cidr`. RSC no longer supports it, and the provider warns when
+  such a configuration is planned. [[docs](../resources/azure_exocompute.md)]
+* Migrate the `rubrik_azure_exocompute` resource to the Terraform Plugin Framework. The resource now supports import by
+  identity, and state can be moved from `polaris_azure_exocompute` with a moved block.
+  [[docs](../resources/azure_exocompute.md)]
 
 ## v1.12.0
 * New resource added for `rubrik_aws_cloud_application` which manages an AWS Cloud Application, grouping the resources

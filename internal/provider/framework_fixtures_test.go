@@ -168,6 +168,55 @@ func testAzureResourceGroupRegion(t *testing.T) string {
 	return conf.CloudNativeProtection.ResourceGroupRegion
 }
 
+// testAzureExocomputeRegion returns the first Exocompute region from the Azure
+// test configuration. The test is skipped if no region is set.
+func testAzureExocomputeRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if len(conf.Exocompute.Regions) == 0 {
+		t.Skip("Azure Exocompute fixture not available: exocompute.regions not set")
+	}
+
+	return conf.Exocompute.Regions[0]
+}
+
+// testAzureExocomputeResourceGroupName returns the Exocompute resource group
+// name from the Azure test configuration.
+func testAzureExocomputeResourceGroupName(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.Exocompute.ResourceGroupName
+}
+
+// testAzureExocomputeResourceGroupRegion returns the Exocompute resource group
+// region from the Azure test configuration.
+func testAzureExocomputeResourceGroupRegion(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	return conf.Exocompute.ResourceGroupRegion
+}
+
+// testAzureExocomputeSubnetID returns the Exocompute subnet ID from the Azure
+// test configuration. The subnet must be in the first Exocompute region. The
+// test is skipped if no subnet is set.
+func testAzureExocomputeSubnetID(t *testing.T) string {
+	t.Helper()
+	skipUnlessAcceptanceTest(t)
+
+	_, conf := loadAzureTestConfig(t)
+	if conf.Exocompute.SubnetID == "" {
+		t.Skip("Azure Exocompute fixture not available: exocompute.subnetId not set")
+	}
+
+	return conf.Exocompute.SubnetID
+}
+
 // testGCPCredentials returns the GCP service account credentials from the GCP
 // test configuration.
 func testGCPCredentials(t *testing.T) string {

@@ -503,6 +503,53 @@ func gcpPrivateContainerRegistryCheckDestroy(t *testing.T) func(*terraform.State
 	}
 }
 
+// azureExocomputeCheckDestroy verifies that all azure_exocompute resources have
+// been deleted. An application configuration is checked through its cloud
+// account mapping.
+func azureExocomputeCheckDestroy(t *testing.T) func(*terraform.State) error {
+	t.Helper()
+	polarisClient := testClient(t)
+
+	return func(s *terraform.State) error {
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "polaris_azure_exocompute" && rs.Type != "rubrik_azure_exocompute" {
+				continue
+			}
+
+			if appID, ok := strings.CutPrefix(rs.Primary.ID, "app-"); ok {
+				id, err := uuid.Parse(appID)
+				if err != nil {
+					return err
+				}
+
+				_, err = exocompute.Wrap(polarisClient).AzureHostCloudAccount(t.Context(), id)
+				if err == nil {
+					return fmt.Errorf("azure_exocompute application configuration %s still exists", id)
+				}
+				if !errors.Is(err, graphql.ErrNotFound) {
+					return err
+				}
+				continue
+			}
+
+			id, err := uuid.Parse(rs.Primary.ID)
+			if err != nil {
+				return err
+			}
+
+			_, err = exocompute.Wrap(polarisClient).AzureConfigurationByID(t.Context(), id)
+			if err == nil {
+				return fmt.Errorf("azure_exocompute %s still exists", id)
+			}
+			if !errors.Is(err, graphql.ErrNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // azureSubscriptionCheckDestroy verifies that all azure_subscription resources
 // have been deleted.
 func azureSubscriptionCheckDestroy(t *testing.T) func(*terraform.State) error {

@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"slices"
 	"strconv"
@@ -168,6 +169,33 @@ func (v isInt64Validator) ValidateString(_ context.Context, req validator.String
 	if _, err := strconv.ParseInt(req.ConfigValue.ValueString(), 10, 64); err != nil {
 		res.Diagnostics.AddAttributeError(req.Path, "Invalid Integer",
 			fmt.Sprintf("%q is not an integer which fits in 64 bits: %s", req.ConfigValue.ValueString(), err))
+	}
+}
+
+// isIPAddress returns a validator that checks if a string value is a valid IPv4
+// or IPv6 address.
+func isIPAddress() validator.String {
+	return isIPAddressValidator{}
+}
+
+type isIPAddressValidator struct{}
+
+func (v isIPAddressValidator) Description(_ context.Context) string {
+	return "value must be a valid IP address"
+}
+
+func (v isIPAddressValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v isIPAddressValidator) ValidateString(_ context.Context, req validator.StringRequest, res *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	if net.ParseIP(req.ConfigValue.ValueString()) == nil {
+		res.Diagnostics.AddAttributeError(req.Path, "Invalid IP address",
+			fmt.Sprintf("%q is not a valid IP address", req.ConfigValue.ValueString()))
 	}
 }
 
