@@ -1,0 +1,6 @@
+import {
+  to = rubrik_tag_rule.rule
+  identity = {
+    id = "d46deac3-cc74-4460-9fe6-7c00551a4aa2"
+  }
+}
