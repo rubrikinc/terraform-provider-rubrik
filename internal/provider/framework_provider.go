@@ -155,6 +155,8 @@ func (p *FrameworkProvider) Resources(ctx context.Context) []func() resource.Res
 		newPolarisAzureExocomputeClusterAttachmentResource,
 		newAzureKeyManagerResource,
 		newPolarisAzureKeyManagerResource,
+		newAzurePrivateContainerRegistryResource,
+		newPolarisAzurePrivateContainerRegistryResource,
 		newAzureRCVArchivalLocationResource,
 		newPolarisAzureRCVArchivalLocationResource,
 		newAzureServicePrincipalResource,
