@@ -23,7 +23,10 @@ package provider
 import (
 	"testing"
 
+	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/config"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -37,7 +40,9 @@ import (
 // TestAccAzureExocomputeResource onboards the Azure subscription with the
 // Exocompute feature, creates an RSC managed host configuration for it, sets
 // trigger_health_check to false in place, adds the optional_config block, which
-// replaces the configuration, and imports it.
+// replaces the configuration, sets health_check_vm_name_prefix, which replaces
+// it again, removes the prefix from the configuration, which keeps the value in
+// RSC, and imports it.
 func TestAccAzureExocomputeResource(t *testing.T) {
 	const conf = `
 		variable "credentials" {
@@ -78,6 +83,10 @@ func TestAccAzureExocomputeResource(t *testing.T) {
 			type    = string
 			default = null
 		}
+		variable "health_check_vm_name_prefix" {
+			type    = string
+			default = null
+		}
 
 		resource "rubrik_azure_service_principal" "service_principal" {
 			credentials   = var.credentials
@@ -115,7 +124,8 @@ func TestAccAzureExocomputeResource(t *testing.T) {
 			dynamic "optional_config" {
 				for_each = var.cluster_access == null ? [] : [var.cluster_access]
 				content {
-					cluster_access = optional_config.value
+					cluster_access              = optional_config.value
+					health_check_vm_name_prefix = var.health_check_vm_name_prefix
 				}
 			}
 		}
@@ -136,8 +146,14 @@ func TestAccAzureExocomputeResource(t *testing.T) {
 	withOptionalConfig := testVariables(t, vars, config.Variables{
 		"cluster_access": config.StringVariable("AKS_CLUSTER_ACCESS_TYPE_PRIVATE"),
 	})
+	withPrefix := testVariables(t, withOptionalConfig, config.Variables{
+		"health_check_vm_name_prefix": config.StringVariable("tf-acc-health-check"),
+	})
 
 	resource.Test(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_12_0),
+		},
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
 			azureExocomputeCheckDestroy(t),
@@ -204,6 +220,41 @@ func TestAccAzureExocomputeResource(t *testing.T) {
 					tfjsonpath.New(keyID)),
 			},
 		}, {
+			// Verify that setting health_check_vm_name_prefix to a value other
+			// than the one in RSC replaces the configuration.
+			Config:          conf,
+			ConfigVariables: withPrefix,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_azure_exocompute.exocompute",
+						plancheck.ResourceActionDestroyBeforeCreate),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_exocompute.exocompute",
+					tfjsonpath.New(keyOptionalConfig).AtSliceIndex(0).AtMapKey(keyHealthCheckVMNamePrefix),
+					knownvalue.StringExact("tf-acc-health-check")),
+				statecheck.ExpectIdentityValueMatchesState("rubrik_azure_exocompute.exocompute",
+					tfjsonpath.New(keyID)),
+			},
+		}, {
+			// Verify that removing health_check_vm_name_prefix from the
+			// configuration keeps the value in RSC, without replacing the
+			// configuration.
+			Config:          conf,
+			ConfigVariables: withOptionalConfig,
+			ConfigPlanChecks: resource.ConfigPlanChecks{
+				PreApply: []plancheck.PlanCheck{
+					plancheck.ExpectResourceAction("rubrik_azure_exocompute.exocompute",
+						plancheck.ResourceActionNoop),
+				},
+			},
+			ConfigStateChecks: []statecheck.StateCheck{
+				statecheck.ExpectKnownValue("rubrik_azure_exocompute.exocompute",
+					tfjsonpath.New(keyOptionalConfig).AtSliceIndex(0).AtMapKey(keyHealthCheckVMNamePrefix),
+					knownvalue.StringExact("tf-acc-health-check")),
+			},
+		}, {
 			// Terraform import.
 			Config:            conf,
 			ConfigVariables:   withOptionalConfig,
@@ -241,7 +292,9 @@ func TestAccAzureExocomputeResource(t *testing.T) {
 
 // TestAccAzureExocomputeResource_FrameworkMigration verifies that existing
 // state created by the SDKv2 provider can be read by the Framework provider
-// without drift.
+// without drift. The SDKv2 provider stores the unset strings of the
+// optional_config block as empty strings, which the state upgrade turns into
+// null.
 func TestAccAzureExocomputeResource_FrameworkMigration(t *testing.T) {
 	const conf = `
 		variable "credentials" {
@@ -306,6 +359,10 @@ func TestAccAzureExocomputeResource_FrameworkMigration(t *testing.T) {
 			cloud_account_id = rubrik_azure_subscription.subscription.id
 			region           = var.exocompute_region
 			subnet           = var.subnet_id
+
+			optional_config {
+				cluster_access = "AKS_CLUSTER_ACCESS_TYPE_PRIVATE"
+			}
 		}
 	`
 
@@ -340,6 +397,9 @@ func TestAccAzureExocomputeResource_FrameworkMigration(t *testing.T) {
 			ConfigStateChecks: []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("rubrik_azure_exocompute.exocompute",
 					tfjsonpath.New(keyID), NonNullUUID()),
+				statecheck.ExpectKnownValue("rubrik_azure_exocompute.exocompute",
+					tfjsonpath.New(keyOptionalConfig).AtSliceIndex(0).AtMapKey(keyClusterAccess),
+					knownvalue.StringExact("AKS_CLUSTER_ACCESS_TYPE_PRIVATE")),
 			},
 		}, {
 			// Verify that the plan is empty when the provider is upgraded to the
@@ -566,4 +626,65 @@ func TestAccAzureExocomputeResource_MoveState(t *testing.T) {
 			},
 		}},
 	})
+}
+
+// TestAzureExocomputeValidateConfig checks that only a configuration with a
+// region but neither a subnet nor a pod overlay network CIDR, which Create
+// turns into a customer managed configuration, is warned about.
+func TestAzureExocomputeValidateConfig(t *testing.T) {
+	r := &azureExocomputeResource{prefix: keyRubrik}
+
+	var schemaRes fwresource.SchemaResponse
+	r.Schema(t.Context(), fwresource.SchemaRequest{}, &schemaRes)
+	if schemaRes.Diagnostics.HasError() {
+		t.Fatal(schemaRes.Diagnostics)
+	}
+	configType := schemaRes.Schema.Type().TerraformType(t.Context()).(tftypes.Object)
+
+	tests := []struct {
+		name   string
+		config map[string]string
+		warns  bool
+	}{{
+		name:   "CustomerManaged",
+		config: map[string]string{keyRegion: "eastus2"},
+		warns:  true,
+	}, {
+		name:   "Subnet",
+		config: map[string]string{keyRegion: "eastus2", keySubnet: "subnet"},
+	}, {
+		// Create sends an RSC managed configuration when the pod overlay
+		// network CIDR is set, with or without a subnet.
+		name:   "PodOverlayNetworkCIDR",
+		config: map[string]string{keyRegion: "eastus2", keyPodOverlayNetworkCIDR: "10.244.0.0/16"},
+	}, {
+		name: "Application",
+		config: map[string]string{
+			keyCloudAccountID:     "8d8f7d2a-0f6e-4b0c-8e2f-9b9e4c6f1a2b",
+			keyHostCloudAccountID: "3e1b5c9a-7d2f-4a6e-9c8b-1f0e2d3c4b5a",
+		},
+	}}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			values := make(map[string]tftypes.Value, len(configType.AttributeTypes))
+			for k, typ := range configType.AttributeTypes {
+				values[k] = tftypes.NewValue(typ, nil)
+			}
+			for k, v := range tc.config {
+				values[k] = tftypes.NewValue(tftypes.String, v)
+			}
+			req := fwresource.ValidateConfigRequest{
+				Config: tfsdk.Config{Schema: schemaRes.Schema, Raw: tftypes.NewValue(configType, values)},
+			}
+			var res fwresource.ValidateConfigResponse
+			r.ValidateConfig(t.Context(), req, &res)
+			if res.Diagnostics.HasError() {
+				t.Fatal(res.Diagnostics)
+			}
+			if warns := res.Diagnostics.WarningsCount() > 0; warns != tc.warns {
+				t.Errorf("expected warning %t, got diagnostics %v", tc.warns, res.Diagnostics)
+			}
+		})
+	}
 }

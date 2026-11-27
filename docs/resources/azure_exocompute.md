@@ -6,7 +6,6 @@ description: |-
   The rubrik_azure_exocompute resource creates an RSC Exocompute configuration
   for Azure workloads.
   There are 2 types of Exocompute configurations:
-  d
   RSC Managed Host - When a host configuration is created, RSC will
   automatically deploy the necessary resources in the specified Azure region
   to run the Exocompute service. A host configuration can be used by both the
@@ -52,7 +51,6 @@ The `rubrik_azure_exocompute` resource creates an RSC Exocompute configuration
 for Azure workloads.
 
 There are 2 types of Exocompute configurations:
-d
  1. *RSC Managed Host* - When a host configuration is created, RSC will
     automatically deploy the necessary resources in the specified Azure region
     to run the Exocompute service. A host configuration can be used by both the

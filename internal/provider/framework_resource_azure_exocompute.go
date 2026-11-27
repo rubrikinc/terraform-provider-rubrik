@@ -582,9 +582,10 @@ func (r *azureExocomputeResource) ValidateConfig(ctx context.Context, req resour
 
 	// The model can't be decoded, since the optional_config block or the
 	// allowlist_additional_ips set can be unknown in config.
-	var hostCloudAccountID, region, subnet types.String
+	var hostCloudAccountID, podOverlayNetworkCIDR, region, subnet types.String
 	var optionalConfig types.List
 	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyHostCloudAccountID), &hostCloudAccountID)...)
+	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyPodOverlayNetworkCIDR), &podOverlayNetworkCIDR)...)
 	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyRegion), &region)...)
 	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keySubnet), &subnet)...)
 	res.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root(keyOptionalConfig), &optionalConfig)...)
@@ -600,9 +601,11 @@ func (r *azureExocomputeResource) ValidateConfig(ctx context.Context, req resour
 			"The optional_config block can't be used together with host_cloud_account_id.")
 	}
 
-	// A configuration with a region but no subnet is a customer managed
-	// configuration, which RSC no longer supports.
-	if hostCloudAccountID.IsNull() && !region.IsNull() && !region.IsUnknown() && subnet.IsNull() {
+	// A configuration with a region but neither a subnet nor a pod overlay
+	// network CIDR is a customer managed configuration, which RSC no longer
+	// supports.
+	if hostCloudAccountID.IsNull() && !region.IsNull() && !region.IsUnknown() && subnet.IsNull() &&
+		podOverlayNetworkCIDR.IsNull() {
 		res.Diagnostics.AddAttributeWarning(path.Root(keyRegion), "Customer managed Exocompute is deprecated",
 			"Customer managed Exocompute is no longer supported by RSC. Set the subnet field to create an RSC "+
 				"managed Exocompute configuration.")
