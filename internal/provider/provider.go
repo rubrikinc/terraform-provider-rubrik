@@ -90,7 +90,6 @@ func Provider() *schema.Provider {
 			keyPolarisDataCenterAzureSubscription:        resourceDataCenterAzureSubscription(),
 			keyPolarisDataCenterArchivalLocationAmazonS3: resourceDataCenterArchivalLocationAmazonS3(),
 			keyPolarisRefresh:                            resourceRefresh(),
-			keyPolarisSLADomain:                          resourceSLADomain(),
 			keyPolarisSLADomainAssignment:                resourceSLADomainAssignment(),
 			keyPolarisTagRule:                            resourceTagRule(),
 		}),
