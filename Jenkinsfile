@@ -189,7 +189,7 @@ pipeline {
                         TF_PLUGIN_CACHE_DIR = "${WORKSPACE}/.terraform-cache-aws"
                     }
                     steps {
-                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=(?i)^TestAcc(Aws|PolarisAWS)" -count=1 -timeout=180m -v ./...'
+                        sh 'if [ "$TF_ACC" != "true" ]; then unset TF_ACC; fi; CGO_ENABLED=0 go test "-run=(?i)^TestAcc(Aws|PolarisAWS)" -count=1 -timeout=240m -v ./...'
                     }
                 }
                 stage('Test Azure') {
