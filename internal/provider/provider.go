@@ -148,9 +148,10 @@ func withDeprecatedPolarisAlias(m map[string]*schema.Resource) map[string]*schem
 }
 
 type client struct {
-	logger        log.Logger
-	polarisClient *polaris.Client
-	polarisErr    error
+	logger                 log.Logger
+	polarisClient          *polaris.Client
+	polarisErr             error
+	openAWSExocomputeStack func(context.Context, string, string, string) (awsExocomputeStack, error)
 }
 
 func newClient(ctx context.Context, credentials string, cacheParams polaris.CacheParams) (*client, error) {

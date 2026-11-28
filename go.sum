@@ -252,8 +252,8 @@ github.com/posener/complete v1.2.3 h1:NP0eAhjcjImqslEwo/1hq7gpajME0fTLTezBKDqfXq
 github.com/posener/complete v1.2.3/go.mod h1:WZIdtGGp+qx0sLrYKtIRAruyNpv6hFCicSgv7Sy7s/s=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.12.2-0.20261126100147-74aad5d758e3 h1:/fgNp13dt2yNyrIADCg5EbODd7LBb3N1bwAh+UaIgO8=
-github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.12.2-0.20261126100147-74aad5d758e3/go.mod h1:nl+gw9ezQY9PH1K0ysYQpl7KTYngHL7KKuORKR8mAHo=
+github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.12.2-0.20261127165614-50b6b71b8233 h1:StUFtweYvU02/OZkqTJs229AGbCHeVGmufFZSSZ+PMI=
+github.com/rubrikinc/rubrik-polaris-sdk-for-go v1.12.2-0.20261127165614-50b6b71b8233/go.mod h1:4rKA+goCoSpB7/3FCoufK+oAqXigwAByad4gX9It5Ks=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 h1:n661drycOFuPLCN3Uc8sB6B/s6Z4t2xvBgU1htSHuq8=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/shopspring/decimal v1.2.0/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
