@@ -92,6 +92,9 @@ page_title: "Changelog"
 * **Breaking Change:** The `manifest` field of the `rubrik_azure_exocompute_cluster_attachment` resource is now
   sensitive. An output exposing it must be marked `sensitive = true`. See the
   [v1.13.0 upgrade guide](upgrade_guide_v1.13.0.md).
+* Migrate the `rubrik_data_center_azure_subscription` resource to the Terraform Plugin Framework. The resource now
+  supports import by identity, and state can be moved from `polaris_data_center_azure_subscription` with a moved block.
+  [[docs](../resources/data_center_azure_subscription.md)]
 * Migrate the `rubrik_data_center_azure_subscription` data source to the Terraform Plugin Framework.
   [[docs](../data-sources/data_center_azure_subscription.md)]
 * Migrate the `rubrik_azure_private_container_registry` resource to the Terraform Plugin Framework. The resource now

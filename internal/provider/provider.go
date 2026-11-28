@@ -87,7 +87,6 @@ func Provider() *schema.Provider {
 			keyPolarisCDMBootstrapCCESAzure:              resourceCDMBootstrapCCESAzure(),
 			keyPolarisCDMRegistration:                    resourceCDMRegistration(),
 			keyPolarisDataCenterAWSAccount:               resourceDataCenterAWSAccount(),
-			keyPolarisDataCenterAzureSubscription:        resourceDataCenterAzureSubscription(),
 			keyPolarisDataCenterArchivalLocationAmazonS3: resourceDataCenterArchivalLocationAmazonS3(),
 			keyPolarisRefresh:                            resourceRefresh(),
 			keyPolarisSLADomain:                          resourceSLADomain(),
